@@ -57,6 +57,7 @@ def display_sidebar() -> str:
             placeholder="Hier Namen eingeben",
             key="wl_add_input",
         )
+        st.markdown('<div class="btn-add-container">', unsafe_allow_html=True)
         if st.button("➕ Hinzufügen", use_container_width=True, key="wl_add_btn"):
             if add_query.strip():
                 with st.spinner("Suche …"):
@@ -69,6 +70,7 @@ def display_sidebar() -> str:
                     st.rerun()
                 else:
                     st.error(f"❌ '{add_query}' nicht gefunden.")
+        st.markdown('</div>', unsafe_allow_html=True)
 
         wl_items = load_watchlist()
         if wl_items:
@@ -82,10 +84,12 @@ def display_sidebar() -> str:
                                 f"{item['name']}</span>",
                                 unsafe_allow_html=True)
                 with col_del:
+                    st.markdown('<div class="btn-wl-delete-container">', unsafe_allow_html=True)
                     if st.button("✕", key=f"del_{item['ticker']}",
                                  help=f"{display_name} entfernen"):
                         remove_from_watchlist(item["ticker"])
                         st.rerun()
+                    st.markdown('</div>', unsafe_allow_html=True)
         else:
             st.caption("Noch keine Ticker gespeichert.")
 
@@ -100,7 +104,9 @@ def display_sidebar() -> str:
         st.markdown('</div>', unsafe_allow_html=True)
 
         st.markdown("<br>", unsafe_allow_html=True)
+        st.markdown('<div class="btn-quit-container">', unsafe_allow_html=True)
         if st.button("🔴 System Beenden", key="sidebar_quit", type="primary", use_container_width=True):
             os._exit(0)
+        st.markdown('</div>', unsafe_allow_html=True)
 
     return page
