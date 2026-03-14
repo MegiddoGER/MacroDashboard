@@ -41,14 +41,14 @@ div.stButton button:has(div:contains("➕ Hinzufügen")):hover {{
 }}
 
 /* ── Button: Alle Daten Aktualisieren (Lila) ── */
-div[data-testid="stSidebar"] .stButton:nth-last-child(2) button {{
+section[data-testid="stSidebar"] [data-testid="stBaseButton-secondary"]:last-of-type {{
     background-color: {COLORS["purple"]} !important;
     color: #ffffff !important;
     border: 1px solid rgba(168, 85, 247, 0.8) !important;
     font-weight: 600 !important;
     transition: {TRANSITION["fast"]};
 }}
-div[data-testid="stSidebar"] .stButton:nth-last-child(2) button:hover {{
+section[data-testid="stSidebar"] [data-testid="stBaseButton-secondary"]:last-of-type:hover {{
     background-color: #9333ea !important;
     color: #ffffff !important;
     box-shadow: 0 0 10px rgba(147, 51, 234, 0.5) !important;
