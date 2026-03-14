@@ -92,9 +92,12 @@ def display_sidebar() -> str:
         st.markdown("---")
         st.caption("Daten via Yahoo Finance · Cache 5 Min")
 
+        # ── Refresh Button mit isolierter CSS-Klasse ──
+        st.markdown('<div class="btn-refresh-container">', unsafe_allow_html=True)
         if st.button("Alle Daten Aktualisieren", key="sidebar_refresh", use_container_width=True):
             st.cache_data.clear()
             st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
 
         st.markdown("<br>", unsafe_allow_html=True)
         if st.button("🔴 System Beenden", key="sidebar_quit", type="primary", use_container_width=True):
