@@ -1,0 +1,6 @@
+streamlit>=1.30.0
+yfinance>=0.2.30
+plotly>=5.18.0
+pandas>=2.0.0
+pandas_datareader>=0.10.0
+feedparser>=6.0.0

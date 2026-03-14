@@ -1,0 +1,177 @@
+Kürzel,Name,Index
+ADS.DE,adidas AG,DAX
+AIR.DE,Airbus SE,DAX
+ALV.DE,Allianz SE,DAX
+BAS.DE,BASF SE,DAX
+BAYN.DE,Bayer AG,DAX
+BEI.DE,Beiersdorf AG,DAX
+BMW.DE,Bayerische Motoren Werke AG,DAX
+BNR.DE,Brenntag SE,DAX
+CBK.DE,Commerzbank AG,DAX
+CON.DE,Continental AG,DAX
+DB1.DE,Deutsche Börse AG,DAX
+DBK.DE,Deutsche Bank AG,DAX
+DHL.DE,DHL Group,DAX
+DTE.DE,Deutsche Telekom AG,DAX
+DTG.DE,Daimler Truck Holding AG,DAX
+ENR.DE,Siemens Energy AG,DAX
+EOAN.DE,E.ON SE,DAX
+FRE.DE,Fresenius SE & Co. KGaA,DAX
+HEI.DE,Heidelberg Materials AG,DAX
+HEN3.DE,Henkel AG & Co. KGaA Vz.,DAX
+HNR1.DE,Hannover Rück SE,DAX
+IFX.DE,Infineon Technologies AG,DAX
+MBG.DE,Mercedes-Benz Group AG,DAX
+MRK.DE,Merck KGaA,DAX
+MTX.DE,MTU Aero Engines AG,DAX
+MUV2.DE,Münchener Rückversicherungs-Gesellschaft AG,DAX
+P911.DE,Porsche AG Vz.,DAX
+PAH3.DE,Porsche Automobil Holding SE Vz.,DAX
+QIA.DE,QIAGEN N.V.,DAX
+RHM.DE,Rheinmetall AG,DAX
+RWE.DE,RWE AG,DAX
+SAP.DE,SAP SE,DAX
+SHL.DE,Siemens Healthineers AG,DAX
+SIE.DE,Siemens AG,DAX
+SRT3.DE,Sartorius AG Vz.,DAX
+SY1.DE,Symrise AG,DAX
+VNA.DE,Vonovia SE,DAX
+VOW3.DE,Volkswagen AG Vz.,DAX
+ZAL.DE,Zalando SE,DAX
+1U1.DE,1&1 AG,MDAX
+AAD.DE,Amadeus FiRe AG,MDAX
+ACX.DE,Carl Zeiss Meditec AG,MDAX
+AFX.DE,Carl Zeiss Meditec AG,MDAX
+BYW6.DE,BayWa AG,MDAX
+CEC.DE,CeWe Stiftung & Co. KGaA,MDAX
+DEQ.DE,Deutsche EuroShop AG,MDAX
+DRW8.DE,Drägerwerk AG & Co. KGaA Vz.,MDAX
+DUE.DE,Dürr AG,MDAX
+DWNI.DE,Deutsche Wohnen SE,MDAX
+EVD.DE,CTS Eventim AG & Co. KGaA,MDAX
+EVK.DE,Evonik Industries AG,MDAX
+EVT.DE,Evotec SE,MDAX
+FME.DE,Fresenius Medical Care AG,MDAX
+G1A.DE,GEA Group AG,MDAX
+GBF.DE,Bilfinger SE,MDAX
+GXI.DE,Gerresheimer AG,MDAX
+HAG.DE,HENSOLDT AG,MDAX
+HBH.DE,Hornbach Holding AG & Co. KGaA,MDAX
+HFG.DE,HelloFresh SE,MDAX
+HOT.DE,HOCHTIEF AG,MDAX
+JUN3.DE,Jungheinrich AG Vz.,MDAX
+KCO.DE,Klöckner & Co SE,MDAX
+KGX.DE,KION Group AG,MDAX
+KBX.DE,Knorr-Bremse AG,MDAX
+KRN.DE,KRONES AG,MDAX
+KWS.DE,KWS SAAT SE & Co. KGaA,MDAX
+LEG.DE,LEG Immobilien SE,MDAX
+LXS.DE,LANXESS AG,MDAX
+NDA.DE,Aurubis AG,MDAX
+NDX1.DE,Nordex SE,MDAX
+NEM.DE,Nemetschek SE,MDAX
+NOEJ.DE,Norma Group SE,MDAX
+PBB.DE,Deutsche Pfandbriefbank AG,MDAX
+PSM.DE,ProSiebenSat.1 Media SE,MDAX
+PUM.DE,PUMA SE,MDAX
+RAA.DE,Rational AG,MDAX
+RHK.DE,RHÖN-KLINIKUM AG,MDAX
+RRTL.DE,RTL Group S.A.,MDAX
+S92.DE,SMA Solar Technology AG,MDAX
+SAX.DE,Ströer SE & Co. KGaA,MDAX
+SDF.DE,K+S AG,MDAX
+TEG.DE,TAG Immobilien AG,MDAX
+TKA.DE,thyssenkrupp AG,MDAX
+TLX.DE,Talanx AG,MDAX
+TPE.DE,PVA TePla AG,MDAX
+UTDI.DE,United Internet AG,MDAX
+VBK.DE,VERBIO Vereinigte BioEnergie AG,MDAX
+WAF.DE,Siltronic AG,MDAX
+WCH.DE,Wacker Chemie AG,MDAX
+ZIL2.DE,ELMOS Semiconductor SE,MDAX
+ADJ.DE,adesso SE,SDAX
+ADV.DE,ATOSS Software AG,SDAX
+AG1.DE,AUTO1 Group SE,SDAX
+AIXA.DE,AIXTRON SE,SDAX
+AOF.DE,ATOSS Software SE,SDAX
+BC8.DE,Bechtle AG,SDAX
+BDT.DE,Bertrandt AG,SDAX
+BOSS.DE,Hugo Boss AG,SDAX
+BVB.DE,Borussia Dortmund GmbH & Co. KGaA,SDAX
+BYW.DE,BayWa AG,SDAX
+CWC.DE,CeWe Stiftung & Co. KGaA,SDAX
+DBAN.DE,Deutsche Beteiligungs AG,SDAX
+DEZ.DE,DEUTZ AG,SDAX
+DIC.DE,DIC Asset AG,SDAX
+DMRE.DE,Dermapharm Holding SE,SDAX
+FNTN.DE,Freenet AG,SDAX
+GFT.DE,GFT Technologies SE,SDAX
+GLJ.DE,Grenke AG,SDAX
+GMM.DE,Grammer AG,SDAX
+GTY.DE,Gateway Real Estate AG,SDAX
+HDD.DE,Heidelberger Druckmaschinen AG,SDAX
+HHFA.DE,Hamburger Hafen und Logistik AG,SDAX
+HLE.DE,Hella GmbH & Co. KGaA,SDAX
+INH.DE,Indus Holding AG,SDAX
+IOS.DE,Ionos SE,SDAX
+JDC.DE,JDC Group AG,SDAX
+LHA.DE,Deutsche Lufthansa AG,SDAX
+NB2.DE,Northern Data AG,SDAX
+PFV.DE,Pfeiffer Vacuum Technology AG,SDAX
+R3NK.DE,RENK Group AG,SDAX
+YSN.DE,secunet Security Networks AG,SDAX
+SKB.DE,KOENIG & BAUER AG,SDAX
+SNG.DE,Singulus Technologies AG,SDAX
+STM.DE,Stabilus SE,SDAX
+SZU.DE,Südzucker AG,SDAX
+NCH2.DE,thyssenkrupp nucera AG & Co. KGaA,SDAX
+TUI1.DE,TUI AG,SDAX
+VOS.DE,VOSSLOH AG,SDAX
+WUW.DE,Wüstenrot & Württembergische AG,SDAX
+AIXA.DE,AIXTRON SE,TecDAX
+BC8.DE,Bechtle AG,TecDAX
+DHER.DE,Delivery Hero SE,TecDAX
+DWNI.DE,Deutsche Wohnen SE,TecDAX
+EVT.DE,Evotec SE,TecDAX
+FNTN.DE,Freenet AG,TecDAX
+IFX.DE,Infineon Technologies AG,TecDAX
+JEN.DE,JENOPTIK AG,TecDAX
+NDX1.DE,Nordex SE,TecDAX
+NEM.DE,Nemetschek SE,TecDAX
+QIA.DE,QIAGEN N.V.,TecDAX
+S92.DE,SMA Solar Technology AG,TecDAX
+SAP.DE,SAP SE,TecDAX
+SRT3.DE,Sartorius AG Vz.,TecDAX
+UTDI.DE,United Internet AG,TecDAX
+WAF.DE,Siltronic AG,TecDAX
+APC.DE,Apple Inc.,XETRA International
+AHLA.DE,Alibaba Group Holding Ltd.,XETRA International
+CCC3.DE,Coca-Cola Co.,XETRA International
+FB2A.DE,Meta Platforms Inc.,XETRA International
+CMC.DE,JPMorgan Chase & Co.,XETRA International
+HDI.DE,Home Depot Inc.,XETRA International
+JNJ.DE,Johnson & Johnson,XETRA International
+MDO.DE,McDonald's Corp.,XETRA International
+MSF.DE,Microsoft Corp.,XETRA International
+NFC.DE,Netflix Inc.,XETRA International
+NVD.DE,NVIDIA Corp.,XETRA International
+PRG.DE,Procter & Gamble Co.,XETRA International
+PEP.DE,PepsiCo Inc.,XETRA International
+PFE.DE,Pfizer Inc.,XETRA International
+TL0.DE,Tesla Inc.,XETRA International
+UNH.DE,UnitedHealth Group Inc.,XETRA International
+UNP.DE,Union Pacific Corp.,XETRA International
+3V64.DE,Visa Inc.,XETRA International
+WDP.DE,Walt Disney Co.,XETRA International
+ABJ.DE,ABB Ltd.,XETRA International
+APC.DE,Apple Inc.,XETRA International
+ASME.DE,ASML Holding N.V.,XETRA International
+XONA.DE,Exxon Mobil Corp.,XETRA International
+LOR.DE,L'Oréal S.A.,XETRA International
+NESR.DE,Nestlé S.A.,XETRA International
+NOV.DE,Novo Nordisk A/S,XETRA International
+R6C0.DE,Shell plc,XETRA International
+SND.DE,Schneider Electric SE,XETRA International
+TOTB.DE,TotalEnergies SE,XETRA International
+TOM.DE,Toyota Motor Corp.,XETRA International
+0UB.DE,UBS Group AG,XETRA International
