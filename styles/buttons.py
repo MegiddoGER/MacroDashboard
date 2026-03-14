@@ -12,7 +12,7 @@ def css_buttons() -> str:
    ═════════════════════════════════════════ */
 
 /* ── Button: System Beenden (Rot) ── */
-div.btn-quit-container .stButton button {{
+div[data-testid="stElementContainer"]:has(.marker-btn-quit) + div[data-testid="stElementContainer"] button {{
     background-color: {COLORS["danger"]} !important;
     color: #ffffff !important;
     border: 1px solid rgba(255, 255, 255, 0.4) !important;
@@ -21,7 +21,7 @@ div.btn-quit-container .stButton button {{
     font-weight: 600 !important;
     letter-spacing: 0.5px;
 }}
-div.btn-quit-container .stButton button:hover {{
+div[data-testid="stElementContainer"]:has(.marker-btn-quit) + div[data-testid="stElementContainer"] button:hover {{
     background-color: {COLORS["danger_hover"]} !important;
     border: 1px solid rgba(255, 255, 255, 0.8) !important;
     box-shadow: 0 0 14px rgba(255, 255, 255, 0.8) !important;
@@ -29,26 +29,26 @@ div.btn-quit-container .stButton button:hover {{
 }}
 
 /* ── Button: Hinzufügen (Grün) ── */
-div.btn-add-container .stButton button {{
+div[data-testid="stElementContainer"]:has(.marker-btn-add) + div[data-testid="stElementContainer"] button {{
     background-color: rgba(34, 197, 94, 0.15) !important;
     border: 1px solid rgba(34, 197, 94, 0.4) !important;
     color: {COLORS["success"]} !important;
     transition: {TRANSITION["fast"]};
 }}
-div.btn-add-container .stButton button:hover {{
+div[data-testid="stElementContainer"]:has(.marker-btn-add) + div[data-testid="stElementContainer"] button:hover {{
     background-color: rgba(34, 197, 94, 0.25) !important;
     border-color: {COLORS["success"]} !important;
 }}
 
 /* ── Button: Alle Daten Aktualisieren (Lila) ── */
-div.btn-refresh-container .stButton button {{
+div[data-testid="stElementContainer"]:has(.marker-btn-refresh) + div[data-testid="stElementContainer"] button {{
     background-color: {COLORS["purple"]} !important;
     color: #ffffff !important;
     border: 1px solid rgba(168, 85, 247, 0.8) !important;
     font-weight: 600 !important;
     transition: {TRANSITION["fast"]};
 }}
-div.btn-refresh-container .stButton button:hover {{
+div[data-testid="stElementContainer"]:has(.marker-btn-refresh) + div[data-testid="stElementContainer"] button:hover {{
     background-color: #9333ea !important;
     color: #ffffff !important;
     box-shadow: 0 0 10px rgba(147, 51, 234, 0.5) !important;
@@ -70,7 +70,7 @@ div.stButton button:has(div:contains("❌")):hover {{
 }}
 
 /* ── Button: Watchlist Entfernen ✕ ── */
-div.btn-wl-delete-container .stButton button {{
+div[data-testid="stElementContainer"]:has(.marker-btn-delete) + div[data-testid="stElementContainer"] button {{
     background: transparent !important;
     border: none !important;
     color: {COLORS["text_muted"]} !important;
@@ -78,7 +78,7 @@ div.btn-wl-delete-container .stButton button {{
     padding: 0 !important;
     min-height: auto !important;
 }}
-div.btn-wl-delete-container .stButton button:hover {{
+div[data-testid="stElementContainer"]:has(.marker-btn-delete) + div[data-testid="stElementContainer"] button:hover {{
     color: {COLORS["red"]} !important;
     transform: scale(1.1);
 }}
