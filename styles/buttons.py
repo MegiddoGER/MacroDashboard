@@ -40,18 +40,18 @@ div.stButton button:has(div:contains("➕ Hinzufügen")):hover {{
     border-color: {COLORS["success"]} !important;
 }}
 
-/* ── Button: Alle Daten Aktualisieren (Sky Blue) ── */
+/* ── Button: Alle Daten Aktualisieren (Lila) ── */
 div.stButton button:has(div:contains("Alle Daten Aktualisieren")) {{
-    background-color: {COLORS["sky"]} !important;
-    color: {COLORS["bg_app_mid"]} !important;
-    border: 1px solid rgba(135, 206, 235, 0.8) !important;
+    background-color: {COLORS["purple"]} !important;
+    color: #ffffff !important;
+    border: 1px solid rgba(168, 85, 247, 0.8) !important;
     font-weight: 600 !important;
     transition: {TRANSITION["fast"]};
 }}
 div.stButton button:has(div:contains("Alle Daten Aktualisieren")):hover {{
-    background-color: #0ea5e9 !important;
+    background-color: #9333ea !important;
     color: #ffffff !important;
-    box-shadow: 0 0 10px rgba(14, 165, 233, 0.5) !important;
+    box-shadow: 0 0 10px rgba(147, 51, 234, 0.5) !important;
 }}
 
 /* ── Button: Reset ❌ (Analyse) ── */
