@@ -1,0 +1,113 @@
+# ==============================
+# Python bytecode
+# ==============================
+__pycache__/
+*.py[cod]
+*$py.class
+
+# ==============================
+# Virtual environments
+# ==============================
+venv/
+env/
+ENV/
+.venv/
+.python-version
+
+# ==============================
+# Distribution / packaging
+# ==============================
+build/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+*.egg
+pip-wheel-metadata/
+
+# ==============================
+# Installer logs
+# ==============================
+pip-log.txt
+pip-delete-this-directory.txt
+
+# ==============================
+# Unit test / coverage
+# ==============================
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+pytest_cache/
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+
+# ==============================
+# Type checkers
+# ==============================
+.mypy_cache/
+.pyre/
+.pytype/
+
+# ==============================
+# Jupyter Notebook
+# ==============================
+.ipynb_checkpoints
+
+# ==============================
+# Environment variables
+# ==============================
+.env
+.env.*
+*.env
+
+# ==============================
+# Logs
+# ==============================
+*.log
+
+# ==============================
+# Database files
+# ==============================
+*.sqlite3
+*.db
+
+# ==============================
+# IDEs / Editors
+# ==============================
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# ==============================
+# OS files
+# ==============================
+.DS_Store
+Thumbs.db
+
+# ==============================
+# PyInstaller
+# ==============================
+*.manifest
+*.spec
+
+# ==============================
+# C extensions
+# ==============================
+*.so
+
+# ==============================
+# Build systems
+# ==============================
+__pypackages__/
