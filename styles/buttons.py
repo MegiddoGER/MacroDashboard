@@ -77,9 +77,12 @@ div[data-testid="stElementContainer"]:has(.marker-btn-delete) + div[data-testid=
     font-weight: bold;
     padding: 0 !important;
     min-height: auto !important;
+    transition: {TRANSITION["fast"]};
 }}
 div[data-testid="stElementContainer"]:has(.marker-btn-delete) + div[data-testid="stElementContainer"] button:hover {{
-    color: {COLORS["red"]} !important;
+    color: {COLORS["danger"]} !important;
+    background-color: rgba(225, 29, 72, 0.15) !important;
+    border-radius: 4px !important;
     transform: scale(1.1);
 }}
 """
