@@ -92,7 +92,7 @@ def display_sidebar() -> str:
         st.markdown("---")
         st.caption("Daten via Yahoo Finance · Cache 5 Min")
 
-        if st.button("🔄 Alle Daten Aktualisieren", key="sidebar_refresh", use_container_width=True):
+        if st.button("Alle Daten Aktualisieren", key="sidebar_refresh", use_container_width=True):
             st.cache_data.clear()
             st.rerun()
 
