@@ -236,7 +236,9 @@ def page_analysis():
             st.info("Für diese Aktie sind momentan keine detaillierten Finanzdaten verfügbar.")
         else:
             st.markdown("#### Gemeldete Finanzzahlen")
-            st.caption("Quelle: Yahoo Finance (offizielle Unternehmensmeldungen)")
+            is_sec = any(str(item.get("year", "")).startswith("CY") for item in fin_data)
+            source_text = "SEC EDGAR (Quarterly Company Facts)" if is_sec else "Yahoo Finance (offizielle Unternehmensmeldungen)"
+            st.caption(f"Quelle: {source_text}")
             st.plotly_chart(
                 plot_financials_chart(fin_data),
                 use_container_width=True,

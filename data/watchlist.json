@@ -46,5 +46,17 @@
     "name": "Amazon.com, Inc.",
     "display": "AMZN",
     "status": "Investiert"
+  },
+  {
+    "ticker": "EOAN.DE",
+    "name": "E.ON SE",
+    "display": "E.ON",
+    "status": "Beobachtet"
+  },
+  {
+    "ticker": "RWE.DE",
+    "name": "RWE AG",
+    "display": "RWE",
+    "status": "Beobachtet"
   }
 ]
