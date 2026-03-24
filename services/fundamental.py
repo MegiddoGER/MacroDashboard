@@ -5,6 +5,35 @@ import warnings
 import pandas as pd
 import numpy as np
 import yfinance as yf
+
+# ---------------------------------------------------------------------------
+# Dynamische Risk-Free Rate (Live Treasury Yield)
+# ---------------------------------------------------------------------------
+
+_cached_risk_free = {"value": None, "timestamp": 0}
+
+def _get_live_risk_free_rate(fallback: float = 0.03) -> float:
+    """Zieht den aktuellen 10Y US-Treasury Yield als Risk-Free Rate.
+    
+    Cached den Wert für 1 Stunde, um API-Calls zu minimieren.
+    Fallback: 3 % bei Fehler oder fehlenden Daten.
+    """
+    import time
+    now = time.time()
+    if _cached_risk_free["value"] is not None and (now - _cached_risk_free["timestamp"]) < 3600:
+        return _cached_risk_free["value"]
+    try:
+        tnx = yf.Ticker("^TNX").history(period="5d")
+        if tnx is not None and not tnx.empty:
+            rate = float(tnx["Close"].iloc[-1]) / 100  # z.B. 4.5 → 0.045
+            rate = max(0.005, min(rate, 0.12))  # Clamp: 0.5% – 12%
+            _cached_risk_free["value"] = rate
+            _cached_risk_free["timestamp"] = now
+            return rate
+    except Exception as exc:
+        warnings.warn(f"_get_live_risk_free_rate: {exc}")
+    return fallback
+
 # ---------------------------------------------------------------------------
 # DCF Fair Value Berechnung
 # ---------------------------------------------------------------------------
@@ -22,7 +51,7 @@ def calc_dcf_valuation(info: dict) -> dict | None:
         if not fcf or not shares or fcf <= 0 or shares <= 0:
             return None
 
-        risk_free = 0.03
+        risk_free = _get_live_risk_free_rate()
         erp = 0.055
         cost_of_equity = risk_free + beta * erp
         wacc = 0.7 * cost_of_equity + 0.3 * 0.04 * 0.75

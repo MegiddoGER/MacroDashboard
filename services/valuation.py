@@ -14,8 +14,9 @@ def calc_excess_returns(info: dict) -> dict:
     beta = _safe_float(info.get("beta"), 1.0)
     book_value = _safe_float(info.get("bookValue"), 0.0)
     
-    # Assume Risk-Free Rate of 3% and Equity Risk Premium of 5.5%
-    risk_free_rate = 0.03
+    # Dynamische Risk-Free Rate (Live 10Y Treasury Yield)
+    from services.fundamental import _get_live_risk_free_rate
+    risk_free_rate = _get_live_risk_free_rate()
     erp = 0.055
     cost_of_equity = risk_free_rate + (beta * erp)
     

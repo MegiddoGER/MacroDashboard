@@ -202,8 +202,13 @@ def detect_eqh_eql(df: pd.DataFrame, lookback: int = 10, tolerance_pct: float = 
         "eql": filter_redundant(eql_list)
     }
 
-def analyze_smc(df: pd.DataFrame) -> dict:
-    """Führt die komplette SMC-Analyse auf einem DataFrame durch."""
+def analyze_smc(df: pd.DataFrame, htf_df: pd.DataFrame = None) -> dict:
+    """Führt die komplette SMC-Analyse auf einem DataFrame durch.
+    
+    Args:
+        df: Primary DataFrame (z.B. Daily-Kerzen)
+        htf_df: Optional Higher-Timeframe DataFrame (z.B. Weekly) für MTF-Confluence
+    """
     fvgs = detect_fvg(df, min_gap_pct=0.5)
     eq_levels = detect_eqh_eql(df, lookback=10, tolerance_pct=0.8) # etwas größere Toleranz für Makro
     
@@ -214,10 +219,51 @@ def analyze_smc(df: pd.DataFrame) -> dict:
 
     current_price = df["Close"].iloc[-1]
 
+    # ── Multi-Timeframe Confluence ──────────────────────────────────
+    confluence_score = 0  # 0 = keine Bestätigung, 3 = volle MTF-Confluence
+    htf_trend = "neutral"
+    htf_fvg_bias = "neutral"
+    
+    if htf_df is not None and len(htf_df) >= 20:
+        # 1. HTF-FVGs berechnen
+        htf_fvgs = detect_fvg(htf_df, min_gap_pct=0.3)  # Geringere Schwelle für Weekly
+        htf_unmitigated = [f for f in htf_fvgs if not f["mitigated"]]
+        htf_bull = len([f for f in htf_unmitigated if f["type"] == "bullish"])
+        htf_bear = len([f for f in htf_unmitigated if f["type"] == "bearish"])
+        
+        if htf_bull > htf_bear:
+            htf_fvg_bias = "bullish"
+        elif htf_bear > htf_bull:
+            htf_fvg_bias = "bearish"
+        
+        # 2. HTF-Trend (VWAP Slope der letzten 10 Wochen)
+        htf_close = htf_df["Close"]
+        if len(htf_close) >= 10:
+            htf_recent = htf_close.iloc[-10:]
+            htf_slope = float(htf_recent.iloc[-1]) - float(htf_recent.iloc[0])
+            if htf_slope > 0:
+                htf_trend = "bullish"
+            elif htf_slope < 0:
+                htf_trend = "bearish"
+        
+        # 3. Confluence berechnen
+        # Daily FVG-Bias stimmt mit HTF überein?
+        daily_bias = "bullish" if len(bullish_fvgs) > len(bearish_fvgs) else ("bearish" if len(bearish_fvgs) > len(bullish_fvgs) else "neutral")
+        
+        if daily_bias != "neutral" and daily_bias == htf_fvg_bias:
+            confluence_score += 1  # FVG-Alignment
+        if daily_bias != "neutral" and daily_bias == htf_trend:
+            confluence_score += 1  # Trend-Alignment
+        if htf_fvg_bias == htf_trend and htf_trend != "neutral":
+            confluence_score += 1  # HTF intern konsistent
+
     return {
         "fvgs": fvgs,
         "eqh": eq_levels["eqh"],
         "eql": eq_levels["eql"],
+        "confluence_score": confluence_score,
+        "htf_trend": htf_trend,
+        "htf_fvg_bias": htf_fvg_bias,
         "stats": {
             "unmitigated_bullish": len(bullish_fvgs),
             "unmitigated_bearish": len(bearish_fvgs),

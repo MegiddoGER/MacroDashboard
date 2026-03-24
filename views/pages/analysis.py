@@ -16,7 +16,7 @@ from charts import (
 )
 from indicators import (
     calc_macd, calc_bollinger, calc_stochastic, calc_atr, detect_liquidity_sweeps,
-    calc_swing_signals, calc_order_flow, calc_technical_summary
+    calc_swing_signals, calc_order_flow, calc_technical_summary, calc_position_sizing
 )
 
 def page_analysis():
@@ -494,7 +494,9 @@ def page_analysis():
         from smc.indicators import analyze_smc
         from smc.charts import plot_smc
         
-        smc_data = analyze_smc(hist)
+        # Weekly-Daten (hist_max) als Higher-Timeframe für MTF-Confluence übergeben
+        htf_weekly = details.get("hist_max")
+        smc_data = analyze_smc(hist, htf_df=htf_weekly)
         if smc_data and "fvgs" in smc_data:
             st.plotly_chart(plot_smc(hist, smc_data, f"SMC & Liquiditätszonen — {display_ticker}"), use_container_width=True)
             c1, c2, c3, c4 = st.columns(4)
@@ -506,6 +508,26 @@ def page_analysis():
             val_eql = smc_data["stats"].get("nearest_eql")
             if val_eql: c4.metric("Nächstes EQL (Magnet ⬇️)", f"{val_eql:,.2f}")
             else: c4.metric("Nächstes EQL (Magnet ⬇️)", "—")
+
+            # MTF-Confluence Anzeige
+            confluence = smc_data.get("confluence_score", 0)
+            htf_trend = smc_data.get("htf_trend", "neutral")
+            htf_bias = smc_data.get("htf_fvg_bias", "neutral")
+            trend_icons = {"bullish": "🟢 Aufwärts", "bearish": "🔴 Abwärts", "neutral": "➖ Neutral"}
+            
+            st.markdown("---")
+            st.markdown("##### 🔗 Multi-Timeframe Confluence")
+            mc1, mc2, mc3 = st.columns(3)
+            mc1.metric("Confluence-Score", f"{confluence}/3", help="0 = keine Bestätigung, 3 = volle MTF-Confluence zwischen Daily und Weekly.")
+            mc2.metric("Wochentrend (HTF)", trend_icons.get(htf_trend, "—"))
+            mc3.metric("HTF FVG-Bias", trend_icons.get(htf_bias, "—"))
+
+            if confluence >= 2:
+                st.success("✅ Starke Multi-Timeframe Confluence: Tages- und Wochensignale bestätigen sich gegenseitig.")
+            elif confluence == 1:
+                st.warning("⚠️ Teilweise Confluence: Nur partielles Alignment zwischen Tages- und Wochenstruktur.")
+            else:
+                st.info("ℹ️ Keine Confluence: Tages- und Wochensignale sind nicht aufeinander abgestimmt — erhöhte Vorsicht.")
         else:
             st.info("Nicht genügend Daten für SMC Analyse (mind. 20 Kerzen benötigt).")
 
@@ -920,21 +942,53 @@ def page_analysis():
     # ── Zusammenfassung (Gesamtbewertung) ─────────────────────────────
     st.markdown("---")
     st.markdown("### 📝 Zusammenfassung")
-    st.caption("Mathematische Momentaufnahme — aggregiert Trend, Momentum, Oszillatoren, Volumen, SMC-Strukturen und fundamentale Kennzahlen.")
+    st.caption("Gewichtete Momentaufnahme — Trend (30%), Volumen (25%), Fundamentaldaten (30%), Oszillatoren (15%).")
 
     with st.spinner("Erstelle Zusammenfassung …"):
         sum_data = calc_technical_summary(stats, hist, info=details.get("info", {}), ticker=ticker)
 
-    score_val = sum_data['score']
+    confidence = sum_data.get('confidence', 50)
     score_label = sum_data['score_label']
+    confidence_label = sum_data.get('confidence_label', '')
 
-    col_score, col_text = st.columns([1, 3])
-    with col_score:
-        st.metric("Gesamt-Score", f"{score_val:+}", delta=f"{score_label}", delta_color="off")
+    col_conf, col_text = st.columns([1, 3])
+    with col_conf:
+        # Farbe basierend auf Confidence
+        if confidence >= 60:
+            conf_color = "#22c55e"
+        elif confidence >= 45:
+            conf_color = "#eab308"
+        else:
+            conf_color = "#ef4444"
+        st.markdown(f"<div style='text-align:center;'><span style='font-size:3rem;font-weight:bold;color:{conf_color};'>{confidence:.0f}</span><br><span style='color:#aaa;font-size:0.85rem;'>/ 100 Confidence</span></div>", unsafe_allow_html=True)
 
     with col_text:
         st.markdown(f"#### Momentaufnahme: **{score_label}**")
-        st.caption("Aggregierte Auswertung aus Trend, Momentum, Oszillatoren und Volumen.")
+        st.caption(f"{confidence_label} — Gewichtete Auswertung aus Trend, Volumen, Fundamentaldaten und Oszillatoren.")
+
+    # ── Explizite Kaufempfehlung ──────────────────────────────────────
+    if confidence >= 70:
+        st.success(f"🟢 **Kaufempfehlung — KAUFEN** | Confidence {confidence:.0f}/100: Technisch und fundamental überzeugendes Setup. Risk/Reward spricht für einen Einstieg.")
+    elif confidence >= 55:
+        st.warning(f"🟡 **Kaufempfehlung — HALTEN / BEOBACHTEN** | Confidence {confidence:.0f}/100: Gemischte Signale. Auf Bestätigung (z.B. Pullback an Support) warten.")
+    elif confidence >= 40:
+        st.info(f"➖ **Kaufempfehlung — NEUTRAL** | Confidence {confidence:.0f}/100: Kein klares Setup. Abseits bleiben oder nur mit kleiner Position.")
+    else:
+        st.error(f"🔴 **Kaufempfehlung — NICHT KAUFEN / VERKAUFEN** | Confidence {confidence:.0f}/100: Technisch und/oder fundamental kritisches Bild. Bestehende Positionen absichern.")
+
+    # Kategorie-Breakdown
+    cat_scores = sum_data.get('cat_scores', {})
+    cat_max = sum_data.get('cat_max', {})
+    weights = sum_data.get('weights', {})
+    cat_labels = {"trend": "📊 Trend (30%)", "volume": "📈 Volumen (25%)", "fundamental": "🏦 Fundamental (30%)", "oscillator": "⚡ Oszillatoren (15%)"}
+    
+    bc1, bc2, bc3, bc4 = st.columns(4)
+    for col_ui, (cat, label) in zip([bc1, bc2, bc3, bc4], cat_labels.items()):
+        mx = cat_max.get(cat, 1) or 1
+        val = cat_scores.get(cat, 0)
+        pct = round((val / mx + 1) / 2 * 100)
+        pct = max(0, min(100, pct))
+        col_ui.metric(label, f"{pct}%", delta=f"{val:+}/{mx}", delta_color="off")
 
     st.markdown("##### 📌 Synthese & Interpretation")
     st.info(f"**Makro-Bild (Trend):** {sum_data['macro']}")
@@ -945,6 +999,61 @@ def page_analysis():
     if sum_data["checklist"]:
         df_check = pd.DataFrame(sum_data["checklist"])
         st.dataframe(df_check, use_container_width=True, hide_index=True)
+
+    # ── Position Sizing (Kelly + ATR) ─────────────────────────────────
+    st.markdown("---")
+    st.markdown("### 📐 Position Sizing (Kelly + ATR)")
+    st.caption("Bestimmt, wie viele Aktien du kaufen solltest — basierend auf deinem Gesamtkapital, dem aktuellen Kurs (= Entry) und der Volatilität (ATR).")
+
+    atr_series = calc_atr(hist["High"], hist["Low"], hist["Close"], 14)
+    atr_current = float(atr_series.dropna().iloc[-1]) if not atr_series.dropna().empty else None
+
+    if atr_current:
+        ps_col1, ps_col2 = st.columns([1, 1])
+        with ps_col1:
+            portfolio_val = st.number_input(
+                "💰 Portfoliowert (€)", min_value=100, max_value=100_000_000,
+                value=10000, step=1000, key="portfolio_value_input"
+            )
+        with ps_col2:
+            max_risk = st.slider(
+                "⚠️ Max. Verlust pro Trade (% vom Portfolio)",
+                min_value=0.5, max_value=5.0,
+                value=2.0, step=0.5, key="max_risk_slider",
+                help="Wie viel % deines Gesamtportfolios du maximal bei EINEM Trade verlieren willst, wenn der Stop-Loss greift. Beispiel: 2% von 10.000€ = max. 200€ Verlust."
+            )
+
+        ps = calc_position_sizing(
+            current_price=stats['current_price'],
+            atr_val=atr_current,
+            portfolio_value=portfolio_val,
+            max_risk_pct=max_risk / 100
+        )
+        if ps:
+            # Zeile 1: Entry + Stückzahl + Positionswert + Risiko
+            ps0, ps1, ps2, ps3 = st.columns(4)
+            ps0.metric("Entry (Aktueller Kurs)", f"{stats['current_price']:,.2f} €")
+            ps1.metric("Empfohlene Stückzahl", f"{ps['shares']} Stück")
+            ps2.metric("Positionswert", f"{ps['position_value']:,.2f} €", delta=f"{ps['position_pct']:.1f}% des Portfolios", delta_color="off")
+            ps3.metric("Max. Verlust bei Stop", f"{ps['risk_eur']:,.2f} €", delta=f"{max_risk:.1f}% vom Portfolio", delta_color="off")
+
+            # Zeile 2: Stop + TP + Kelly
+            ps5, ps6, ps7, ps8 = st.columns(4)
+            ps5.metric("Stop-Loss", f"{ps['stop_loss']:,.2f} €", delta=f"-{ps['stop_distance']:,.2f} (1.5× ATR)", delta_color="off")
+            ps6.metric("Take-Profit", f"{ps['take_profit']:,.2f} €", delta=f"+{2.5 * atr_current:,.2f} (2.5× ATR)", delta_color="off")
+            ps7.metric("Kelly-Anteil", f"{ps['kelly_fraction_pct']:.1f}%", help="Kelly Criterion: Mathematisch optimaler Portfolioanteil für maximales Compounding.")
+            ps8.metric("Kelly-Stückzahl", f"{ps['kelly_shares']} Stück", help="Optimale Stückzahl nach Kelly-Formel (gekappt bei 25% des Portfolios).")
+
+            st.markdown("""<div style='background:rgba(59,130,246,0.08);border-left:3px solid #3b82f6;padding:10px 14px;border-radius:6px;margin-top:8px;font-size:0.88rem;'>
+<b>So liest du das:</b><br>
+• <b>Entry</b> = Aktueller Kurs der Aktie (dein Einstiegspunkt)<br>
+• <b>Stop-Loss</b> = 1,5× ATR unter dem Entry — wird der Kurs bis hierhin fallen, verkaufst du automatisch, um deinen Verlust zu begrenzen<br>
+• <b>Take-Profit</b> = 2,5× ATR über dem Entry — hier nimmst du Gewinn mit (R:R ≈ 1:1,67)<br>
+• <b>Max. Verlust bei Stop</b> = Der Euro-Betrag, den du bei <i>diesem</i> Trade maximal verlierst (gesteuert durch den Slider)<br>
+• <b>Kelly-Anteil</b> = Die mathematisch optimale Positionsgröße für maximalen Vermögenszuwachs (Compounding). Wird bei 25% gekappt, um Überexposition zu vermeiden.
+</div>""", unsafe_allow_html=True)
+    else:
+        st.info("Nicht genügend Daten für die Position-Sizing-Berechnung (ATR nicht verfügbar).")
 
     st.caption("⚠️ **Hinweis:** Dies ist eine algorithmische Momentaufnahme basierend auf technischen Indikatoren und fundamentalen Kennzahlen. Sie dient als Entscheidungshilfe, nicht als Anlageberatung.")
 
