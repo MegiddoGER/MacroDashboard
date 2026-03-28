@@ -939,6 +939,218 @@ def page_analysis():
     else:
         st.info("ℹ️ Keine Analysten-Daten verfügbar.")
 
+    # ── Block 11: Earnings Surprise History ──────────────────────────────
+    st.markdown("---")
+    st.markdown("### 📊 Earnings Surprise History")
+    st.caption("Historische EPS-Überraschungen und Post-Earnings-Drift — zeigt, wie der Markt auf Quartalsergebnisse reagiert hat.")
+
+    with st.spinner("Lade Earnings-Daten …"):
+        from services.earnings import get_earnings_history
+        earnings_profile = get_earnings_history(ticker)
+
+    if earnings_profile and earnings_profile.events:
+        ep = earnings_profile
+
+        # Nächstes Earnings-Datum
+        if ep.next_earnings_date:
+            try:
+                next_ed = ep.next_earnings_date
+                if hasattr(next_ed, 'tzinfo') and next_ed.tzinfo:
+                    from datetime import timezone
+                    next_ed = next_ed.replace(tzinfo=None)
+                days_until = (next_ed - datetime.now()).days
+                if days_until >= 0:
+                    st.info(f"📅 **Nächste Quartalszahlen:** {next_ed.strftime('%d.%m.%Y')} (in {days_until} Tagen)")
+                else:
+                    st.caption(f"📅 Letzte gemeldete Earnings: {next_ed.strftime('%d.%m.%Y')}")
+            except Exception:
+                pass
+
+        # Statistik-Header
+        ec1, ec2, ec3, ec4, ec5 = st.columns(5)
+        ec1.metric("Quarters", f"{ep.total_quarters}")
+        ec2.metric("Beats 🟢", f"{ep.beats}", delta=f"{ep.beat_rate:.0f}%", delta_color="off")
+        ec3.metric("Misses 🔴", f"{ep.misses}")
+        ec4.metric("Ø Surprise", f"{ep.avg_surprise_pct:+.1f}%")
+        ec5.metric("Ø Drift (1T)", f"{ep.avg_drift_1d:+.2f}%" if ep.avg_drift_1d is not None else "—")
+
+        # Tabs: Chart + Drift + Tabelle
+        tab_eps_chart, tab_drift, tab_history = st.tabs([
+            "📊 EPS Chart", "📈 Post-Earnings Drift", "📋 Historie"
+        ])
+
+        with tab_eps_chart:
+            # EPS Actual vs. Estimate Bar-Chart
+            import plotly.graph_objects as go
+
+            # Chronologisch sortieren (älteste zuerst für Chart)
+            chart_events = sorted(ep.events, key=lambda e: e.date)
+            # Max 12 Quarters für Lesbarkeit
+            chart_events = chart_events[-12:]
+
+            quarters = [e.quarter for e in chart_events]
+            actuals = [e.eps_actual for e in chart_events]
+            estimates = [e.eps_estimate for e in chart_events]
+
+            fig_eps = go.Figure()
+
+            # Estimate Bars (hinterlegt)
+            fig_eps.add_trace(go.Bar(
+                x=quarters, y=estimates,
+                name="EPS Estimate",
+                marker_color="rgba(100, 200, 255, 0.4)",
+                marker_line_color="#64C8FF",
+                marker_line_width=1,
+            ))
+
+            # Actual Bars (vorne) mit Farbcodierung
+            bar_colors = []
+            for e in chart_events:
+                if e.result == "Beat":
+                    bar_colors.append("#22c55e")
+                elif e.result == "Miss":
+                    bar_colors.append("#ef4444")
+                else:
+                    bar_colors.append("#eab308")
+
+            fig_eps.add_trace(go.Bar(
+                x=quarters, y=actuals,
+                name="EPS Actual",
+                marker_color=bar_colors,
+                marker_line_width=0,
+            ))
+
+            fig_eps.update_layout(
+                template="plotly_dark",
+                height=380,
+                barmode="group",
+                yaxis_title="EPS ($)",
+                xaxis_title="Quartal",
+                legend=dict(orientation="h", yanchor="bottom", y=1.02),
+                margin=dict(l=50, r=20, t=30, b=50),
+                xaxis_tickangle=-45,
+            )
+            st.plotly_chart(fig_eps, use_container_width=True, config={"displayModeBar": False})
+
+            # Surprise-Summary
+            if ep.beat_rate >= 75:
+                st.success(f"✅ **Starker Earnings-Track-Record:** {ep.beat_rate:.0f}% der Quartale geschlagen (Beat-Rate).")
+            elif ep.beat_rate >= 50:
+                st.info(f"ℹ️ **Solider Track-Record:** {ep.beat_rate:.0f}% Beat-Rate über {ep.total_quarters} Quartale.")
+            else:
+                st.warning(f"⚠️ **Schwacher Track-Record:** Nur {ep.beat_rate:.0f}% Beat-Rate — häufig unter den Erwartungen.")
+
+        with tab_drift:
+            st.markdown("##### Kursreaktion nach Earnings-Veröffentlichung")
+            st.caption("Zeigt, wie sich der Kurs 1, 5 und 20 Handelstage nach der Earnings-Veröffentlichung entwickelt hat.")
+
+            # Drift-Durchschnitt nach Ergebnis
+            drift_col1, drift_col2, drift_col3 = st.columns(3)
+
+            with drift_col1:
+                st.markdown("**Ø Drift nach Beat**")
+                if ep.avg_beat_drift_1d is not None:
+                    color = "#22c55e" if ep.avg_beat_drift_1d >= 0 else "#ef4444"
+                    st.markdown(f"<span style='font-size:1.5rem;color:{color};font-weight:bold'>{ep.avg_beat_drift_1d:+.2f}%</span> (1 Tag)", unsafe_allow_html=True)
+                else:
+                    st.write("—")
+
+            with drift_col2:
+                st.markdown("**Ø Drift nach Miss**")
+                if ep.avg_miss_drift_1d is not None:
+                    color = "#22c55e" if ep.avg_miss_drift_1d >= 0 else "#ef4444"
+                    st.markdown(f"<span style='font-size:1.5rem;color:{color};font-weight:bold'>{ep.avg_miss_drift_1d:+.2f}%</span> (1 Tag)", unsafe_allow_html=True)
+                else:
+                    st.write("—")
+
+            with drift_col3:
+                st.markdown("**Ø Drift (gesamt)**")
+                vals = []
+                for label, val in [("1T", ep.avg_drift_1d), ("5T", ep.avg_drift_5d), ("20T", ep.avg_drift_20d)]:
+                    if val is not None:
+                        color = "#22c55e" if val >= 0 else "#ef4444"
+                        vals.append(f"{label}: <span style='color:{color};font-weight:bold'>{val:+.2f}%</span>")
+                if vals:
+                    st.markdown("<br>".join(vals), unsafe_allow_html=True)
+                else:
+                    st.write("—")
+
+            # Drift-Chart: Scatter mit 1d/5d/20d
+            drift_events = sorted(
+                [e for e in ep.events if e.drift_1d is not None],
+                key=lambda e: e.date
+            )[-12:]
+
+            if drift_events:
+                fig_drift = go.Figure()
+
+                d_quarters = [e.quarter for e in drift_events]
+                d_colors = ["#22c55e" if e.result == "Beat" else "#ef4444" if e.result == "Miss" else "#eab308" for e in drift_events]
+
+                for days_label, get_val, color in [
+                    ("1 Tag", lambda e: e.drift_1d, "#64C8FF"),
+                    ("5 Tage", lambda e: e.drift_5d, "#a855f7"),
+                    ("20 Tage", lambda e: e.drift_20d, "#f97316"),
+                ]:
+                    vals = [get_val(e) for e in drift_events]
+                    fig_drift.add_trace(go.Scatter(
+                        x=d_quarters, y=vals,
+                        name=days_label,
+                        mode="lines+markers",
+                        line=dict(color=color, width=2),
+                        marker=dict(size=8),
+                    ))
+
+                # Nulllinie
+                fig_drift.add_hline(y=0, line_dash="dash", line_color="rgba(255,255,255,0.3)")
+
+                fig_drift.update_layout(
+                    template="plotly_dark",
+                    height=350,
+                    yaxis_title="Kursänderung (%)",
+                    xaxis_title="Quartal",
+                    legend=dict(orientation="h", yanchor="bottom", y=1.02),
+                    margin=dict(l=50, r=20, t=30, b=50),
+                    xaxis_tickangle=-45,
+                )
+                st.plotly_chart(fig_drift, use_container_width=True, config={"displayModeBar": False})
+            else:
+                st.info("Nicht genügend Drift-Daten verfügbar.")
+
+        with tab_history:
+            st.markdown("##### Vollständige Earnings-Historie")
+
+            history_rows = []
+            for e in ep.events:
+                surprise_str = f"{e.surprise_pct:+.1f}%" if e.surprise_pct is not None else "—"
+                result_icon = "🟢" if e.result == "Beat" else "🔴" if e.result == "Miss" else "🟡"
+
+                history_rows.append({
+                    "": result_icon,
+                    "Quartal": e.quarter,
+                    "Datum": e.date.strftime("%d.%m.%Y") if hasattr(e.date, 'strftime') else str(e.date)[:10],
+                    "EPS Actual": f"${e.eps_actual:.2f}" if e.eps_actual is not None else "—",
+                    "EPS Estimate": f"${e.eps_estimate:.2f}" if e.eps_estimate is not None else "—",
+                    "Surprise": surprise_str,
+                    "Ergebnis": e.result,
+                    "Drift 1T": f"{e.drift_1d:+.2f}%" if e.drift_1d is not None else "—",
+                    "Drift 5T": f"{e.drift_5d:+.2f}%" if e.drift_5d is not None else "—",
+                    "Drift 20T": f"{e.drift_20d:+.2f}%" if e.drift_20d is not None else "—",
+                    "Kurs": f"${e.price_at_earnings:,.2f}" if e.price_at_earnings else "—",
+                })
+
+            df_earnings = pd.DataFrame(history_rows)
+            st.dataframe(
+                df_earnings,
+                use_container_width=True,
+                hide_index=True,
+                height=min(400, 35 * len(history_rows) + 38),
+            )
+
+        st.caption("⚠️ Post-Earnings Drift basiert auf historischen Schlusskursen. Die tatsächliche Kursreaktion am Earnings-Tag kann durch After-Hours-Handel abweichen.")
+    else:
+        st.info("ℹ️ Keine Earnings-Daten für dieses Unternehmen verfügbar (nur bei US-Aktien mit ausreichender Historie).")
+
     # ── Zusammenfassung (Gesamtbewertung) ─────────────────────────────
     st.markdown("---")
     st.markdown("### 📝 Zusammenfassung")
