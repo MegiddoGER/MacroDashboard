@@ -579,190 +579,36 @@ def calc_position_sizing(current_price: float, atr_val: float,
 
 def calc_technical_summary(stats: dict, hist: pd.DataFrame, info: dict = None, ticker: str = None) -> dict:
     """Wertet Trend, Oszillatoren, Volumen und Fundamentaldaten aus und generiert ein Gesamt-Fazit.
-    
+
+    Nutzt die Scoring Engine (services/scoring.py) für die Bewertung und
+    generiert daraus Prosa-Texte (Macro, Micro, Actionable).
+
     Rückgabe: dict mit 'score', 'score_label', 'checklist', 'macro', 'micro', 'actionable'
     """
+    from services.scoring import calc_full_score
+
     if hist is None or hist.empty or len(hist) < 200:
         return {
             "score": 0, "score_label": "Nicht berechenbar (zu wenig Daten)",
             "checklist": [], "macro": "—", "micro": "—", "actionable": "—"
         }
 
-    close = hist["Close"]
-    high = hist["High"]
-    low = hist["Low"]
-    volume = hist["Volume"]
-    current_price = float(close.iloc[-1])
+    result = calc_full_score(hist, info, ticker)
+    if result is None:
+        return {
+            "score": 0, "score_label": "Nicht berechenbar (zu wenig Daten)",
+            "checklist": [], "macro": "—", "micro": "—", "actionable": "—"
+        }
 
-    # ── Gewichtetes Scoring-System (Feature Importance) ──────────────
-    # Kategorien mit unterschiedlicher Gewichtung für präzisere Signale
-    WEIGHTS = {
-        "trend": 0.30,        # SMA 200, SMA-Cross, MACD (langfristig)
-        "volume": 0.25,       # OBV, VWAP, POC (Kapitalfluss)
-        "fundamental": 0.30,  # DCF, Bilanz, Insider, Analysten
-        "oscillator": 0.15,   # RSI, Stochastic, Bollinger (kurzfristig)
-    }
-    cat_scores = {"trend": 0, "volume": 0, "fundamental": 0, "oscillator": 0}
-    cat_max = {"trend": 0, "volume": 0, "fundamental": 0, "oscillator": 0}
+    signals = result.signals
 
-    score = 0  # Legacy-Kompatibilität (wird am Ende neu berechnet)
-    checklist = []
-    
-    # --- 1. TREND & STRUKTUR ---
-    sma20 = stats.get("sma_20")
-    sma50 = stats.get("sma_50")
-    sma200 = stats.get("sma_200")
-    
-    trend_macro_bullish = False
-    trend_macro_bearish = False
-    
-    if sma200:
-        cat_max["trend"] += 1
-        if current_price > sma200:
-            cat_scores["trend"] += 1
-            trend_macro_bullish = True
-        else:
-            cat_scores["trend"] -= 1
-            trend_macro_bearish = True
+    # ── Macro-Text (Übergeordnetes Trendverhalten) ────────────────────
+    trend_macro_bullish = signals.get("trend_macro_bullish", False)
+    trend_macro_bearish = signals.get("trend_macro_bearish", False)
+    cross_bullish = signals.get("cross_bullish", False)
+    cross_bearish = signals.get("cross_bearish", False)
+    adx_strong = signals.get("adx_strong", False)
 
-    cross_bullish = False
-    cross_bearish = False
-    if sma20 and sma50:
-        cat_max["trend"] += 1
-        if sma20 > sma50:
-            cat_scores["trend"] += 1
-            cross_bullish = True
-        else:
-            cat_scores["trend"] -= 1
-            cross_bearish = True
-
-    macd_bullish = False
-    macd_bearish = False
-    macd_line, signal_line, _ = calc_macd(close)
-    if not macd_line.dropna().empty and not signal_line.dropna().empty:
-        last_macd = float(macd_line.dropna().iloc[-1])
-        last_signal = float(signal_line.dropna().iloc[-1])
-        cat_max["trend"] += 1
-        if last_macd > last_signal:
-            cat_scores["trend"] += 1
-            macd_bullish = True
-        else:
-            cat_scores["trend"] -= 1
-            macd_bearish = True
-
-    swing = calc_swing_signals(high, low, close, volume)
-    adx_val = swing.get("adx") if swing else None
-    adx_strong = False
-    if adx_val and adx_val > 25:
-        adx_strong = True
-        cat_max["trend"] += 1
-        # Verstärker für die aktuelle Richtung
-        if cross_bullish: cat_scores["trend"] += 1
-        elif cross_bearish: cat_scores["trend"] -= 1
-
-    # Checklist Eintrag Trend
-    if trend_macro_bullish and cross_bullish:
-        checklist.append({"Indikator": "Trend (SMAs)", "Wert": "Stark Aufwärts", "Signal": "🟢 Intakter Aufwärtstrend (Kurs > SMA 200, Golden Cross)"})
-    elif trend_macro_bearish and cross_bullish:
-        checklist.append({"Indikator": "Trend (SMAs)", "Wert": "Erholung", "Signal": "↗️ Kurzfristiges Aufwärtsmomentum im übergeordneten Abwärtstrend"})
-    elif trend_macro_bullish and cross_bearish:
-        checklist.append({"Indikator": "Trend (SMAs)", "Wert": "Korrektur", "Signal": "↘️ Kurzfristige Schwäche im übergeordneten Aufwärtstrend"})
-    else:
-        checklist.append({"Indikator": "Trend (SMAs)", "Wert": "Abwärts", "Signal": "🔴 Intakter Abwärtstrend (Kurs < SMA 200, Death Cross)"})
-        
-    if macd_bullish:
-        checklist.append({"Indikator": "MACD", "Wert": "MACD > Signal", "Signal": "🟢 Bullishes kurzfristiges Momentum"})
-    else:
-        checklist.append({"Indikator": "MACD", "Wert": "MACD < Signal", "Signal": "🔴 Bearishes kurzfristiges Momentum"})
-
-
-    # --- 2. OSZILLATOREN & VOLATILITÄT ---
-    rsi = stats.get("rsi")
-    rsi_overbought = False
-    rsi_oversold = False
-    if rsi:
-        cat_max["oscillator"] += 1
-        if rsi > 70:
-            cat_scores["oscillator"] -= 1
-            rsi_overbought = True
-            checklist.append({"Indikator": "RSI (14)", "Wert": f"{rsi:.1f}", "Signal": "🔴 Überkauft (Erhöhtes Rückschlagrisiko)"})
-        elif rsi < 30:
-            cat_scores["oscillator"] += 1
-            rsi_oversold = True
-            checklist.append({"Indikator": "RSI (14)", "Wert": f"{rsi:.1f}", "Signal": "🟢 Überverkauft (Chance auf Rebound)"})
-        else:
-            checklist.append({"Indikator": "RSI (14)", "Wert": f"{rsi:.1f}", "Signal": "➖ Neutraler Bereich"})
-
-    k_line, _ = calc_stochastic(high, low, close)
-    if not k_line.dropna().empty:
-        last_k = float(k_line.dropna().iloc[-1])
-        cat_max["oscillator"] += 1
-        if last_k > 80:
-            cat_scores["oscillator"] -= 1
-        elif last_k < 20:
-            cat_scores["oscillator"] += 1
-
-    upper, middle, lower = calc_bollinger(close)
-    bollinger_state = "Neutral"
-    if not upper.dropna().empty and not lower.dropna().empty:
-        last_u = float(upper.dropna().iloc[-1])
-        last_l = float(lower.dropna().iloc[-1])
-        cat_max["oscillator"] += 1
-        if current_price >= last_u:
-            bollinger_state = "Am oberen Band"
-            cat_scores["oscillator"] -= 1
-            checklist.append({"Indikator": "Bollinger Bänder", "Wert": "Am oberen Rand", "Signal": "🔴 Kurs technisch überdehnt"})
-        elif current_price <= last_l:
-            bollinger_state = "Am unteren Band"
-            cat_scores["oscillator"] += 1
-            checklist.append({"Indikator": "Bollinger Bänder", "Wert": "Am unteren Rand", "Signal": "🟢 Kurs stark abgestraft"})
-        else:
-            checklist.append({"Indikator": "Bollinger Bänder", "Wert": "Im Kanal", "Signal": "➖ Normale Volatilität"})
-
-
-    # --- 3. VOLUMEN & ORDER FLOW ---
-    flow = calc_order_flow(high, low, close, volume)
-    obv_bullish = False
-    poc_bullish = False
-    vwap_bullish = False
-    
-    if flow:
-        cat_max["volume"] += 1
-        if flow.get("obv_signal") == "bullish":
-            cat_scores["volume"] += 1
-            obv_bullish = True
-            checklist.append({"Indikator": "OBV Trend", "Wert": "Steigend", "Signal": "🟢 Akkumulation (Kaufdruck vorhanden)"})
-        elif flow.get("obv_signal") == "bearish":
-            cat_scores["volume"] -= 1
-            checklist.append({"Indikator": "OBV Trend", "Wert": "Fallend", "Signal": "🔴 Distribution (Verkaufsdruck vorhanden)"})
-        else:
-            checklist.append({"Indikator": "OBV Trend", "Wert": "Neutral", "Signal": "➖ Kein klarer Volumentrend"})
-
-        cat_max["volume"] += 1
-        if flow.get("vwap_signal") == "bullish":
-            cat_scores["volume"] += 1
-            vwap_bullish = True
-            checklist.append({"Indikator": "VWAP (Wochen/Monats)", "Wert": "Kurs > VWAP", "Signal": "🟢 Käufer dominieren den Durchschnitt"})
-        else:
-            cat_scores["volume"] -= 1
-            checklist.append({"Indikator": "VWAP (Wochen/Monats)", "Wert": "Kurs < VWAP", "Signal": "🔴 Verkäufer dominieren den Durchschnitt"})
-            
-        poc = flow.get("poc_price")
-        if poc:
-            cat_max["volume"] += 1
-            if current_price > poc:
-                cat_scores["volume"] += 1
-                poc_bullish = True
-                checklist.append({"Indikator": "Volumen-Cluster (POC)", "Wert": f"{poc:,.2f}", "Signal": "🟢 Kurs oberhalb des stärksten Volumens"})
-            else:
-                cat_scores["volume"] -= 1
-                checklist.append({"Indikator": "Volumen-Cluster (POC)", "Wert": f"{poc:,.2f}", "Signal": "🔴 Kurs unterhalb des stärksten Volumens"})
-
-
-    # --- 4. FAZIT GENERIERUNG (Zwischenschritt, wird unten finalisiert) ---
-    # (Label-Berechnung verschoben ans Ende nach Gewichtung)
-
-    # Macro-Text
     if trend_macro_bullish and cross_bullish:
         macro = "Die Aktie befindet sich in einem voll intakten, bestätigten Aufwärtstrend auf allen relevanten Zeitebenen."
     elif trend_macro_bullish and cross_bearish:
@@ -773,11 +619,16 @@ def calc_technical_summary(stats: dict, hist: pd.DataFrame, info: dict = None, t
         macro = "Die Aktie steckt langfristig in einem Abwärtstrend, baut aber aktuell ein kurzfristiges Erholungsmomentum auf (mögliche Bodenbildung)."
     else:
         macro = "Das Trendverhalten ist aktuell gemischt und deutet auf eine richtungslose Phase hin."
-        
+
     if adx_strong:
         macro += " Der aktuelle Trend wird durch hohes Momentum (ADX > 25) gestützt."
 
-    # Micro-Text
+    # ── Micro-Text (Kurzfristiges Momentum) ───────────────────────────
+    rsi_overbought = signals.get("rsi_overbought", False)
+    rsi_oversold = signals.get("rsi_oversold", False)
+    bollinger_state = signals.get("bollinger_state", "Neutral")
+    obv_bullish = signals.get("obv_bullish", False)
+
     micro_parts = []
     if rsi_overbought and bollinger_state == "Am oberen Band":
         micro_parts.append("Kurzfristig ist die Aktie jedoch stark überdehnt (RSI > 70 und am oberen Bollinger Band). Ein Rücksetzer zum Abbau der Heißläufersituation ist wahrscheinlich.")
@@ -787,177 +638,42 @@ def calc_technical_summary(stats: dict, hist: pd.DataFrame, info: dict = None, t
         micro_parts.append("Das kurzfristige Momentum kühlt potenziell bald ab, da der Oszillator überkaufte Niveaus anzeigt.")
     elif rsi_oversold:
         micro_parts.append("Kurzfristig zeigt sich die Aktie bereits stark abverkauft, was Verkäufern weniger Spielraum lässt.")
-    
+
     if obv_bullish and not trend_macro_bullish:
         micro_parts.append("Trotz des schwachen Gesamtbildes zeigt das On-Balance-Volume klare Akkumulation – Großkapital scheint sich bereits verdeckt einzukaufen.")
     elif not obv_bullish and trend_macro_bullish:
         micro_parts.append("Ein Warnsignal liefert allerdings das sinkende Orderbuch-Volumen (Distribution) in steigende Kurse hinein.")
-    
+
     if not micro_parts:
         micro = "Momentum und Volatilität bewegen sich in normalen Bahnen ohne extreme Ausschläge."
     else:
         micro = " ".join(micro_parts)
 
-    # ── SMC-Signale (FVG / EQH / EQL) ────────────────────────────────
-    try:
-        from smc.indicators import analyze_smc
-        smc = analyze_smc(hist)
-        if smc and "fvgs" in smc:
-            unmitigated_bull = smc["stats"].get("unmitigated_bullish", 0)
-            unmitigated_bear = smc["stats"].get("unmitigated_bearish", 0)
-            nearest_eqh = smc["stats"].get("nearest_eqh")
-            nearest_eql = smc["stats"].get("nearest_eql")
-            current = float(close.iloc[-1])
+    # SMC-Ergänzungen zum Micro-Text
+    unmitigated_bull = signals.get("unmitigated_bull", 0)
+    unmitigated_bear = signals.get("unmitigated_bear", 0)
+    nearest_eqh = signals.get("nearest_eqh")
+    nearest_eql = signals.get("nearest_eql")
+    current = signals.get("current_price", 0)
 
-            # FVG Score (Volume-Kategorie, da strukturelle Liquidität)
-            cat_max["volume"] += 1
-            if unmitigated_bull > unmitigated_bear:
-                cat_scores["volume"] += 1
-                checklist.append({"Indikator": "FVG (Fair Value Gap)", "Wert": f"{unmitigated_bull} bullish / {unmitigated_bear} bearish", "Signal": "Bullisch ↑", "Beitrag": "+1"})
-                micro += f" Es gibt {unmitigated_bull} offene bullische Fair Value Gaps als potenzielle Support-Zonen."
-            elif unmitigated_bear > unmitigated_bull:
-                cat_scores["volume"] -= 1
-                checklist.append({"Indikator": "FVG (Fair Value Gap)", "Wert": f"{unmitigated_bull} bullish / {unmitigated_bear} bearish", "Signal": "Bearisch ↓", "Beitrag": "-1"})
-                micro += f" {unmitigated_bear} offene bearische Fair Value Gaps bilden Widerstandszonen über dem aktuellen Kurs."
-            else:
-                checklist.append({"Indikator": "FVG (Fair Value Gap)", "Wert": f"{unmitigated_bull} bullish / {unmitigated_bear} bearish", "Signal": "Neutral ≈", "Beitrag": "0"})
+    if unmitigated_bull > unmitigated_bear:
+        micro += f" Es gibt {unmitigated_bull} offene bullische Fair Value Gaps als potenzielle Support-Zonen."
+    elif unmitigated_bear > unmitigated_bull:
+        micro += f" {unmitigated_bear} offene bearische Fair Value Gaps bilden Widerstandszonen über dem aktuellen Kurs."
 
-            # EQH / EQL Info
-            if nearest_eqh:
-                dist_eqh = ((nearest_eqh - current) / current) * 100
-                checklist.append({"Indikator": "Equal Highs (EQH)", "Wert": f"{nearest_eqh:,.2f} ({dist_eqh:+.1f}%)", "Signal": "Liquiditätsmagnet ⬆️", "Beitrag": "Info"})
-                if dist_eqh < 3:
-                    micro += f" Ein Equal-High-Cluster bei {nearest_eqh:,.2f} ({dist_eqh:+.1f}%) wirkt als kurzfristiger Magnet nach oben."
-            if nearest_eql:
-                dist_eql = ((nearest_eql - current) / current) * 100
-                checklist.append({"Indikator": "Equal Lows (EQL)", "Wert": f"{nearest_eql:,.2f} ({dist_eql:+.1f}%)", "Signal": "Liquiditätsmagnet ⬇️", "Beitrag": "Info"})
-                if abs(dist_eql) < 3:
-                    micro += f" Ein Equal-Low-Cluster bei {nearest_eql:,.2f} ({dist_eql:+.1f}%) signalisiert Risiko eines Liquidity Sweeps nach unten."
-    except Exception:
-        pass  # SMC-Daten optional — kein Abbruch
+    if nearest_eqh and current:
+        dist_eqh = ((nearest_eqh - current) / current) * 100
+        if dist_eqh < 3:
+            micro += f" Ein Equal-High-Cluster bei {nearest_eqh:,.2f} ({dist_eqh:+.1f}%) wirkt als kurzfristiger Magnet nach oben."
+    if nearest_eql and current:
+        dist_eql = ((nearest_eql - current) / current) * 100
+        if abs(dist_eql) < 3:
+            micro += f" Ein Equal-Low-Cluster bei {nearest_eql:,.2f} ({dist_eql:+.1f}%) signalisiert Risiko eines Liquidity Sweeps nach unten."
 
-    # ── Fundamentale Signale ──────────────────────────────────────────
-    fundamental_text_parts = []
-    try:
-        if info and ticker:
-            from services.fundamental import (
-                calc_dcf_valuation, calc_balance_sheet_quality,
-                get_insider_institutional, get_analyst_consensus,
-                calc_dividend_analysis
-            )
-
-            # DCF
-            dcf = calc_dcf_valuation(info)
-            if dcf:
-                cat_max["fundamental"] += 1
-                if dcf['upside_pct'] > 20:
-                    cat_scores["fundamental"] += 1
-                    checklist.append({"Indikator": "DCF Fair Value", "Wert": f"{dcf['fair_value']:,.2f} (Upside {dcf['upside_pct']:+.1f}%)", "Signal": "Unterbewertet ↑", "Beitrag": "+1"})
-                    fundamental_text_parts.append(f"Das DCF-Modell sieht die Aktie {dcf['upside_pct']:.0f}% unter ihrem inneren Wert — eine klare fundamentale Unterbewertung.")
-                elif dcf['upside_pct'] < -15:
-                    cat_scores["fundamental"] -= 1
-                    checklist.append({"Indikator": "DCF Fair Value", "Wert": f"{dcf['fair_value']:,.2f} (Downside {dcf['upside_pct']:+.1f}%)", "Signal": "Überbewertet ↓", "Beitrag": "-1"})
-                    fundamental_text_parts.append(f"Der DCF-basierte Fair Value liegt {abs(dcf['upside_pct']):.0f}% unter dem aktuellen Kurs — fundamental scheint die Aktie überbewertet.")
-                else:
-                    checklist.append({"Indikator": "DCF Fair Value", "Wert": f"{dcf['fair_value']:,.2f} ({dcf['upside_pct']:+.1f}%)", "Signal": "Fair bewertet ≈", "Beitrag": "0"})
-
-            # Bilanzqualität
-            balance = calc_balance_sheet_quality(info)
-            if balance:
-                cat_max["fundamental"] += 1
-                if balance['score'] >= 2:
-                    cat_scores["fundamental"] += 1
-                    checklist.append({"Indikator": "Bilanzqualität", "Wert": balance['label'], "Signal": "Solide ↑", "Beitrag": "+1"})
-                    fundamental_text_parts.append("Die Bilanz ist solide — niedrige Verschuldung und gesunde Liquidität geben Sicherheit.")
-                elif balance['score'] < 0:
-                    cat_scores["fundamental"] -= 1
-                    checklist.append({"Indikator": "Bilanzqualität", "Wert": balance['label'], "Signal": "Kritisch ↓", "Beitrag": "-1"})
-                    fundamental_text_parts.append("Die Bilanz ist angespannt — hohe Verschuldung erhöht das Risiko bei Zinserhöhungen oder Umsatzrückgängen.")
-                else:
-                    checklist.append({"Indikator": "Bilanzqualität", "Wert": balance['label'], "Signal": "Akzeptabel ≈", "Beitrag": "0"})
-
-            # Insider-Sentiment
-            insider = get_insider_institutional(ticker)
-            if insider and insider.get('has_insider_data'):
-                cat_max["fundamental"] += 1
-                if insider['net_buys'] > insider['net_sells'] and insider['net_buys'] >= 2:
-                    cat_scores["fundamental"] += 1
-                    checklist.append({"Indikator": "Insider-Sentiment", "Wert": f"{insider['net_buys']} Käufe / {insider['net_sells']} Verkäufe", "Signal": "Netto-Käufe ↑", "Beitrag": "+1"})
-                    fundamental_text_parts.append("Insider kaufen aktiv eigene Aktien — ein starkes Vertrauenssignal des Managements.")
-                elif insider['net_sells'] > insider['net_buys'] + 2:
-                    cat_scores["fundamental"] -= 1
-                    checklist.append({"Indikator": "Insider-Sentiment", "Wert": f"{insider['net_buys']} Käufe / {insider['net_sells']} Verkäufe", "Signal": "Netto-Verkäufe ↓", "Beitrag": "-1"})
-                    fundamental_text_parts.append("Auffällig viele Insider-Verkäufe — das Management scheint Gewinne zu sichern.")
-                else:
-                    checklist.append({"Indikator": "Insider-Sentiment", "Wert": f"{insider['net_buys']} K / {insider['net_sells']} V", "Signal": "Neutral ≈", "Beitrag": "0"})
-
-            # Analysten-Konsens
-            analyst = get_analyst_consensus(ticker)
-            if analyst and analyst.get('recommendation_mean'):
-                rec_mean = analyst['recommendation_mean']
-                rec_label = analyst.get('recommendation', '—')
-                cat_max["fundamental"] += 1
-                if rec_mean <= 2.0:
-                    cat_scores["fundamental"] += 1
-                    checklist.append({"Indikator": "Analysten-Konsens", "Wert": f"{rec_label} ({rec_mean}/5)", "Signal": "Strong Buy ↑", "Beitrag": "+1"})
-                    fundamental_text_parts.append(f"Die Wall Street ist klar bullisch (Konsens: {rec_label}, {analyst.get('num_analysts', '?')} Analysten).")
-                elif rec_mean >= 3.5:
-                    cat_scores["fundamental"] -= 1
-                    checklist.append({"Indikator": "Analysten-Konsens", "Wert": f"{rec_label} ({rec_mean}/5)", "Signal": "Hold/Sell ↓", "Beitrag": "-1"})
-                    fundamental_text_parts.append(f"Analysten sind zurückhaltend bis negativ (Konsens: {rec_label}).")
-                else:
-                    checklist.append({"Indikator": "Analysten-Konsens", "Wert": f"{rec_label} ({rec_mean}/5)", "Signal": "Neutral ≈", "Beitrag": "0"})
-
-            # Dividenden-Nachhaltigkeit
-            div_data = calc_dividend_analysis(ticker)
-            if div_data and div_data.get('has_dividends'):
-                cat_max["fundamental"] += 1
-                if div_data['payout_ratio'] > 0 and div_data['payout_ratio'] < 60 and div_data['streak'] >= 5:
-                    cat_scores["fundamental"] += 1
-                    checklist.append({"Indikator": "Dividende", "Wert": f"Rendite {div_data['current_yield']:.1f}%, Payout {div_data['payout_ratio']:.0f}%, Streak {div_data['streak']}J", "Signal": "Nachhaltig ↑", "Beitrag": "+1"})
-                    fundamental_text_parts.append(f"Die Dividende ist nachhaltig (Payout {div_data['payout_ratio']:.0f}%) und wächst seit {div_data['streak']} Jahren.")
-                elif div_data['payout_ratio'] > 85:
-                    checklist.append({"Indikator": "Dividende", "Wert": f"Payout {div_data['payout_ratio']:.0f}% (hoch!)", "Signal": "Risiko ⚠️", "Beitrag": "0"})
-                    fundamental_text_parts.append(f"Achtung: Die Ausschüttungsquote ({div_data['payout_ratio']:.0f}%) ist sehr hoch — die Dividende könnte unter Druck geraten.")
-    except Exception:
-        pass  # Fundamentaldaten sind optional — kein Abbruch
-
-    # ── Gewichtete Score-Berechnung & Confidence ──────────────────────
-    # Jede Kategorie wird auf [-1, +1] normalisiert, dann gewichtet summiert
-    weighted_score = 0.0
-    for cat, weight in WEIGHTS.items():
-        mx = cat_max[cat]
-        if mx > 0:
-            normalized = cat_scores[cat] / mx  # Wert zwischen -1 und +1
-        else:
-            normalized = 0.0
-        weighted_score += normalized * weight
-
-    # Confidence: Normalisierung von [-1, +1] auf [0, 100]
-    confidence = round((weighted_score + 1) / 2 * 100, 1)
-    confidence = max(0.0, min(100.0, confidence))
-
-    # Legacy Score für Abwärtskompatibilität (gerundeter Integer)
-    score = round(weighted_score * 10)
-
-    if confidence >= 75:
-        score_label = "Starkes Kaufsignal 🟢"
-        confidence_label = "Hohe Confidence"
-    elif confidence >= 60:
-        score_label = "Kauftendenz ↗️"
-        confidence_label = "Gute Confidence"
-    elif confidence >= 45:
-        score_label = "Neutral ➖"
-        confidence_label = "Gemischte Signale"
-    elif confidence >= 30:
-        score_label = "Verkaufstendenz ↘️"
-        confidence_label = "Schwache Confidence"
-    else:
-        score_label = "Starkes Verkaufssignal 🔴"
-        confidence_label = "Sehr Schwache Confidence"
-
-    # Actionable-Text (erweitert um Fundamentaldaten)
-    fundamental_context = " ".join(fundamental_text_parts) if fundamental_text_parts else ""
+    # ── Actionable-Text (Handlungsempfehlung) ─────────────────────────
+    confidence = result.confidence
+    poc_bullish = signals.get("poc_bullish", False)
+    fundamental_context = " ".join(result.fundamental_text_parts) if result.fundamental_text_parts else ""
 
     if confidence >= 75 and not rsi_overbought:
         action = "Technisch und fundamental ein starkes Gesamtbild. Das Momentum und die Bewertung sprechen für sich — Neueinstiege bei kleinen Rücksetzern an den SMA 20 oder VWAP bieten ein gutes Chance-Risiko-Verhältnis."
@@ -980,14 +696,14 @@ def calc_technical_summary(stats: dict, hist: pd.DataFrame, info: dict = None, t
         action += " — Fundamental: " + fundamental_context
 
     return {
-        "score": score,
-        "score_label": score_label,
-        "confidence": confidence,
-        "confidence_label": confidence_label,
-        "cat_scores": dict(cat_scores),
-        "cat_max": dict(cat_max),
-        "weights": dict(WEIGHTS),
-        "checklist": checklist,
+        "score": result.score,
+        "score_label": result.score_label,
+        "confidence": result.confidence,
+        "confidence_label": result.confidence_label,
+        "cat_scores": dict(result.cat_scores),
+        "cat_max": dict(result.cat_max),
+        "weights": dict(result.weights),
+        "checklist": result.checklist,
         "macro": macro,
         "micro": micro,
         "actionable": action
