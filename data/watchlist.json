@@ -3,60 +3,70 @@
     "ticker": "PLTR",
     "name": "Palantir Technologies Inc.",
     "display": "PLTR",
-    "status": "Beobachtet"
+    "status": "Beobachtet",
+    "positions": []
   },
   {
     "ticker": "ABEA.DE",
     "name": "Alphabet Inc.",
     "display": "GOOG",
-    "status": "Beobachtet"
+    "status": "Beobachtet",
+    "positions": []
   },
   {
     "ticker": "ALV.DE",
     "name": "Allianz SE",
     "display": "ALLIANZ",
-    "status": "Beobachtet"
+    "status": "Beobachtet",
+    "positions": []
   },
   {
     "ticker": "XONA.DE",
     "name": "Exxon Mobil Corp.",
     "display": "EXXON",
-    "status": "Beobachtet"
+    "status": "Beobachtet",
+    "positions": []
   },
   {
     "ticker": "DTE.DE",
     "name": "Deutsche Telekom AG",
     "display": "TELEKOM",
-    "status": "Beobachtet"
+    "status": "Beobachtet",
+    "positions": []
   },
   {
     "ticker": "CAT",
     "name": "Caterpillar, Inc.",
     "display": "CAT",
-    "status": "Beobachtet"
+    "status": "Beobachtet",
+    "positions": []
   },
   {
     "ticker": "BTC-USD",
     "name": "Bitcoin USD",
     "display": "BTC-USD",
-    "status": "Beobachtet"
+    "status": "Beobachtet",
+    "positions": []
   },
   {
     "ticker": "AMZN",
     "name": "Amazon.com, Inc.",
     "display": "AMZN",
-    "status": "Investiert"
+    "status": "Beobachtet",
+    "positions": []
   },
   {
     "ticker": "EOAN.DE",
     "name": "E.ON SE",
     "display": "E.ON",
-    "status": "Beobachtet"
+    "status": "Beobachtet",
+    "positions": []
   },
   {
     "ticker": "RWE.DE",
     "name": "RWE AG",
     "display": "RWE",
-    "status": "Beobachtet"
+    "status": "Beobachtet",
+    "positions": []
   }
 ]

@@ -1,15 +1,20 @@
 """
-watchlist.py — Persistente Watchlist mit Xetra-Priorisierung.
+watchlist.py — Persistente Watchlist mit Xetra-Priorisierung & Positions-Tracking.
 
 Speichert die Watchlist als JSON-Datei im Projektverzeichnis.
 Sucht Aktien per US-Ticker oder Firmenname und löst automatisch
 zum Xetra-Ticker (.DE) auf, damit die Kurse in EUR angezeigt werden.
+
+Positions-Tracking: Speichert Kauf-/Verkaufsdaten, Stückzahl, Stop-Loss,
+Take-Profit und berechnet realisierte/unrealisierte P&L.
 """
 
 import csv
 import json
 import os
+import uuid
 import warnings
+from datetime import datetime
 import yfinance as yf
 
 # Pfad zur Watchlist-Datei (im data/ Verzeichnis des Projekts)
@@ -109,7 +114,8 @@ def _search_xetra_csv(query: str) -> list[dict]:
 def load_watchlist() -> list[dict]:
     """Liest die Watchlist aus der JSON-Datei.
 
-    Rückgabe: Liste von {"ticker": str, "name": str, "display": str, "status": str}
+    Rückgabe: Liste von {"ticker": str, "name": str, "display": str, "status": str, "positions": list}
+    Migriert automatisch alte Einträge ohne positions-Feld.
     """
     if not os.path.exists(_WATCHLIST_FILE):
         return []
@@ -117,14 +123,24 @@ def load_watchlist() -> list[dict]:
         with open(_WATCHLIST_FILE, "r", encoding="utf-8") as f:
             data = json.load(f)
         if isinstance(data, list):
+            migrated = False
             for item in data:
                 if "display" not in item:
                     t = item.get("ticker", "")
                     item["display"] = t.replace(".DE", "") if t.endswith(".DE") else t
+                    migrated = True
                 if "status" not in item:
                     item["status"] = "Beobachtet"
+                    migrated = True
                 elif item["status"] == "Watchlist":
                     item["status"] = "Beobachtet"
+                    migrated = True
+                # Migration: positions-Feld hinzufügen falls nicht vorhanden
+                if "positions" not in item:
+                    item["positions"] = []
+                    migrated = True
+            if migrated:
+                save_watchlist(data)
             return data
         return []
     except (json.JSONDecodeError, Exception):
@@ -181,6 +197,268 @@ def get_display_map() -> dict[str, str]:
     """Gibt ein Mapping von Ticker → Display-Name zurück."""
     return {item["ticker"]: item.get("display", item["ticker"])
             for item in load_watchlist()}
+
+
+# ---------------------------------------------------------------------------
+# Positions-Management (Kauf/Verkauf Tracking)
+# ---------------------------------------------------------------------------
+
+def _new_position_id() -> str:
+    """Generiert eine eindeutige Position-ID."""
+    return uuid.uuid4().hex[:8]
+
+
+def add_position(ticker: str, buy_price: float, quantity: float,
+                 buy_date: str = None, stop_loss: float = None,
+                 take_profit: float = None, fees: float = 0.0,
+                 notes: str = "") -> dict | None:
+    """Fügt eine neue Position zu einem Watchlist-Eintrag hinzu.
+
+    Args:
+        ticker: Watchlist-Ticker
+        buy_price: Einkaufspreis pro Aktie
+        quantity: Anzahl Aktien
+        buy_date: Kaufdatum (ISO-Format, z.B. '2024-01-15'). Default: heute.
+        stop_loss: Stop-Loss Kurs (optional)
+        take_profit: Take-Profit Kurs (optional)
+        fees: Gebühren in EUR (optional)
+        notes: Notizen zum Trade (optional)
+
+    Rückgabe: Die erstellte Position als dict, oder None bei Fehler.
+    """
+    wl = load_watchlist()
+    for item in wl:
+        if item["ticker"].upper() == ticker.upper():
+            if "positions" not in item:
+                item["positions"] = []
+
+            position = {
+                "id": _new_position_id(),
+                "buy_date": buy_date or datetime.now().strftime("%Y-%m-%d"),
+                "buy_price": round(buy_price, 2),
+                "quantity": round(quantity, 4),
+                "stop_loss": round(stop_loss, 2) if stop_loss else None,
+                "take_profit": round(take_profit, 2) if take_profit else None,
+                "fees": round(fees, 2),
+                "notes": notes,
+                "sell_date": None,
+                "sell_price": None,
+                "sell_fees": 0.0,
+            }
+            item["positions"].append(position)
+
+            # Status automatisch auf "Investiert" setzen
+            item["status"] = "Investiert"
+            save_watchlist(wl)
+            return position
+    return None
+
+
+def close_position(ticker: str, position_id: str, sell_price: float,
+                   sell_date: str = None, sell_fees: float = 0.0) -> dict | None:
+    """Schließt eine offene Position (Verkauf).
+
+    Rückgabe: Die geschlossene Position als dict, oder None bei Fehler.
+    """
+    wl = load_watchlist()
+    for item in wl:
+        if item["ticker"].upper() == ticker.upper():
+            for pos in item.get("positions", []):
+                if pos.get("id") == position_id and pos.get("sell_date") is None:
+                    pos["sell_date"] = sell_date or datetime.now().strftime("%Y-%m-%d")
+                    pos["sell_price"] = round(sell_price, 2)
+                    pos["sell_fees"] = round(sell_fees, 2)
+                    # Prüfe ob noch offene Positionen existieren
+                    open_positions = [p for p in item["positions"] if p.get("sell_date") is None]
+                    if not open_positions:
+                        item["status"] = "Beobachtet"
+                    save_watchlist(wl)
+                    return pos
+    return None
+
+
+def update_position(ticker: str, position_id: str, **kwargs) -> dict | None:
+    """Aktualisiert Felder einer offenen Position (z.B. Stop-Loss, Take-Profit).
+
+    Erlaubte kwargs: stop_loss, take_profit, notes, quantity
+    Rückgabe: Die aktualisierte Position, oder None bei Fehler.
+    """
+    allowed_fields = {"stop_loss", "take_profit", "notes", "quantity"}
+    wl = load_watchlist()
+    for item in wl:
+        if item["ticker"].upper() == ticker.upper():
+            for pos in item.get("positions", []):
+                if pos.get("id") == position_id:
+                    for key, value in kwargs.items():
+                        if key in allowed_fields:
+                            if key in ("stop_loss", "take_profit") and value is not None:
+                                value = round(value, 2)
+                            elif key == "quantity" and value is not None:
+                                value = round(value, 4)
+                            pos[key] = value
+                    save_watchlist(wl)
+                    return pos
+    return None
+
+
+def delete_position(ticker: str, position_id: str) -> bool:
+    """Löscht eine Position komplett (z.B. fehlerhafte Eingabe).
+
+    Rückgabe: True wenn gelöscht, False wenn nicht gefunden.
+    """
+    wl = load_watchlist()
+    for item in wl:
+        if item["ticker"].upper() == ticker.upper():
+            before = len(item.get("positions", []))
+            item["positions"] = [p for p in item.get("positions", [])
+                                 if p.get("id") != position_id]
+            if len(item["positions"]) < before:
+                # Status aktualisieren
+                open_positions = [p for p in item["positions"] if p.get("sell_date") is None]
+                if not open_positions:
+                    item["status"] = "Beobachtet"
+                save_watchlist(wl)
+                return True
+    return False
+
+
+def get_open_positions(ticker: str = None) -> list[dict]:
+    """Gibt alle offenen (nicht verkauften) Positionen zurück.
+
+    Args:
+        ticker: Optional. Nur Positionen für diesen Ticker.
+                Wenn None, werden ALLE offenen Positionen zurückgegeben.
+
+    Rückgabe: Liste von dicts mit {ticker, name, display, position}.
+    """
+    wl = load_watchlist()
+    results = []
+    for item in wl:
+        if ticker and item["ticker"].upper() != ticker.upper():
+            continue
+        for pos in item.get("positions", []):
+            if pos.get("sell_date") is None:
+                results.append({
+                    "ticker": item["ticker"],
+                    "name": item["name"],
+                    "display": item.get("display", item["ticker"]),
+                    "position": pos,
+                })
+    return results
+
+
+def get_closed_positions(ticker: str = None) -> list[dict]:
+    """Gibt alle geschlossenen (verkauften) Positionen zurück."""
+    wl = load_watchlist()
+    results = []
+    for item in wl:
+        if ticker and item["ticker"].upper() != ticker.upper():
+            continue
+        for pos in item.get("positions", []):
+            if pos.get("sell_date") is not None:
+                results.append({
+                    "ticker": item["ticker"],
+                    "name": item["name"],
+                    "display": item.get("display", item["ticker"]),
+                    "position": pos,
+                })
+    return results
+
+
+def calc_position_pnl(position: dict, current_price: float = None) -> dict:
+    """Berechnet P&L für eine einzelne Position.
+
+    Für offene Positionen: Unrealisierter P&L basierend auf current_price.
+    Für geschlossene Positionen: Realisierter P&L basierend auf sell_price.
+
+    Rückgabe: dict mit pnl_eur, pnl_pct, invested, current_value, is_closed.
+    """
+    buy_price = position.get("buy_price", 0)
+    quantity = position.get("quantity", 0)
+    fees = position.get("fees", 0)
+    sell_fees = position.get("sell_fees", 0)
+    invested = buy_price * quantity + fees
+
+    if position.get("sell_date") is not None:
+        # Geschlossene Position: realisierter P&L
+        sell_price = position.get("sell_price", 0)
+        current_value = sell_price * quantity - sell_fees
+        pnl_eur = current_value - invested
+        pnl_pct = (pnl_eur / invested * 100) if invested > 0 else 0.0
+        return {
+            "pnl_eur": round(pnl_eur, 2),
+            "pnl_pct": round(pnl_pct, 2),
+            "invested": round(invested, 2),
+            "current_value": round(current_value, 2),
+            "is_closed": True,
+        }
+    elif current_price is not None:
+        # Offene Position: unrealisierter P&L
+        current_value = current_price * quantity
+        pnl_eur = current_value - invested
+        pnl_pct = (pnl_eur / invested * 100) if invested > 0 else 0.0
+        return {
+            "pnl_eur": round(pnl_eur, 2),
+            "pnl_pct": round(pnl_pct, 2),
+            "invested": round(invested, 2),
+            "current_value": round(current_value, 2),
+            "is_closed": False,
+        }
+    else:
+        return {
+            "pnl_eur": 0.0,
+            "pnl_pct": 0.0,
+            "invested": round(invested, 2),
+            "current_value": 0.0,
+            "is_closed": False,
+        }
+
+
+def calc_portfolio_summary(current_prices: dict[str, float] = None) -> dict:
+    """Berechnet eine Gesamt-Portfolio-Übersicht.
+
+    Args:
+        current_prices: Dict {ticker: aktueller_kurs}. Wenn None, wird nur Invest berechnet.
+
+    Rückgabe: dict mit total_invested, total_value, total_pnl_eur, total_pnl_pct,
+              open_positions_count, closed_positions_count.
+    """
+    if current_prices is None:
+        current_prices = {}
+
+    open_positions = get_open_positions()
+    closed_positions = get_closed_positions()
+
+    total_invested = 0.0
+    total_value = 0.0
+    realized_pnl = 0.0
+
+    for op in open_positions:
+        pos = op["position"]
+        price = current_prices.get(op["ticker"])
+        pnl = calc_position_pnl(pos, price)
+        total_invested += pnl["invested"]
+        total_value += pnl["current_value"]
+
+    for cp in closed_positions:
+        pos = cp["position"]
+        pnl = calc_position_pnl(pos)
+        realized_pnl += pnl["pnl_eur"]
+
+    unrealized_pnl = total_value - total_invested
+    total_pnl = unrealized_pnl + realized_pnl
+    total_pnl_pct = (total_pnl / total_invested * 100) if total_invested > 0 else 0.0
+
+    return {
+        "total_invested": round(total_invested, 2),
+        "total_value": round(total_value, 2),
+        "unrealized_pnl": round(unrealized_pnl, 2),
+        "realized_pnl": round(realized_pnl, 2),
+        "total_pnl_eur": round(total_pnl, 2),
+        "total_pnl_pct": round(total_pnl_pct, 2),
+        "open_positions_count": len(open_positions),
+        "closed_positions_count": len(closed_positions),
+    }
 
 
 # ---------------------------------------------------------------------------
