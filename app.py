@@ -68,6 +68,9 @@ def main():
     elif page == "Watchlist":
         from controllers.watchlist_page import run
         run()
+    elif page == "Screener":
+        from controllers.screener import run
+        run()
     elif page == "Analyse":
         from controllers.analysis import run
         run()

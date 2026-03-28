@@ -28,6 +28,7 @@ def display_sidebar() -> str:
                 "Startseite",
                 "Gesamtwirtschaft",
                 "Watchlist",
+                "Screener",
                 "Analyse",
                 "Sektoren",
                 "Analyse-Lexikon",
