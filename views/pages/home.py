@@ -167,7 +167,6 @@ def page_market():
     # 4. Alert Archiv (History)
     # -----------------------------------------------------------------------
     with st.expander("🗄️ Alert-Archiv (Historie)", expanded=False):
-        from models.alerts import AlertStore
         import pandas as pd
         
         ach_alerts = AlertStore.get_acknowledged()
