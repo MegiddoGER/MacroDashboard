@@ -56,6 +56,16 @@ def main():
     page = display_sidebar()
     if page == "Startseite":
         display_market_clocks()
+        
+    # Alerts im Hintergrund abgleichen
+    try:
+        from services.alerts import check_active_alerts
+        new_alerts = check_active_alerts()
+        for a in new_alerts:
+            st.toast(f"🚨 **ALARM AUSGELÖST:** {a.ticker} ({a.alert_type} = {a.trigger_value:.2f})", icon="🚨")
+    except Exception as e:
+        print(f"Alert-System Fehler: {e}")
+
     display_header()
     st.markdown("---")
 
@@ -73,6 +83,9 @@ def main():
         run()
     elif page == "Analyse":
         from controllers.analysis import run
+        run()
+    elif page == "Backtesting":
+        from controllers.backtesting import run
         run()
     elif page == "Trade-Journal":
         from controllers.journal import run

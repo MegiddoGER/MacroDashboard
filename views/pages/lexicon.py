@@ -5,11 +5,13 @@ def page_lexicon():
     st.caption("Das essenzielle Nachschlagewerk für technische, strategische und fundamentale Bewertungsmodelle.")
     st.markdown("---")
 
-    tab_fund, tab_quant, tab_tech, tab_strat = st.tabs([
+    tab_fund, tab_quant, tab_tech, tab_strat, tab_risk, tab_sent = st.tabs([
         "📊 Fundamentale Analyse",
         "🏦 Quant-Modelle (Sektoren)", 
         "📈 Technische Indikatoren", 
-        "🎯 Strategische Taktiken"
+        "🎯 Strategische Taktiken",
+        "🛡️ Risiko & Backtesting",
+        "💬 Sentiment & Flow"
     ])
 
     # =========================================================================
@@ -484,4 +486,85 @@ def page_lexicon():
             - 0: Neutral ➖
             - -1 bis -2: Leicht Bearisch ↘️
             - ≤ -3: Bearisch 🔴
+            """)
+
+    # =========================================================================
+    # 5. Risiko & Backtesting
+    # =========================================================================
+    with tab_risk:
+        st.markdown("### Risiko-Management & Strategie-Validierung")
+        st.markdown("Der Unterscheid zwischen einem Zocker und einem Investor ist die mathematische Kontrolle über sein Risiko.")
+        st.markdown("---")
+
+        with st.expander("💸 Value at Risk (VaR) & Monte Carlo Simulation"):
+            st.markdown("""
+            Das ultimative Risiko-Maß für institutionelle Portfolios. VaR beantwortet die Frage:
+            **"Wie viel Geld kann ich an einem extrem schlechten Tag realistisch verlieren?"**
+            
+            - **Monte Carlo Methode:** Eine statistische Simulation, die anhand der historischen Volatilität zehntausende fiktive "Zukünfte" berechnet.
+            - **Beispiel (95% Confidence):** Ein VaR von -2.500 € bedeutet: An 95 von 100 Handelstagen verlierst du *nicht mehr* als 2.500€. Nur an den verbleibenden 5 extremen "Schwarzer Schwan"-Tagen wird dieser Verlust überschritten.
+            
+            **Warum wichtig?** Wer seinen VaR kennt, schließt keine panischen Kurzschluss-Verkäufe ab, wenn das Portfolio mal um 2.000€ schwankt, weil dies noch im erwartbaren statistischen Norm-Rahmen liegt.
+            """)
+
+        with st.expander("📉 Max Drawdown (MDD)"):
+            st.markdown("""
+            Der MDD ist der schlimmste prozentuale Sturzflug, den dein Aktienportfolio jemals "im Schmerz" aussitzen müsste, von einem historischen Hochpunkt (Peak) bis zum tiefsten Tal (Trough), bevor ein neues Hoch erreicht wurde.
+            
+            - Ein MDD von **-40%** bedeutet: Wer am absolut schlechtesten Tag "am Top" investiert hat, saß zwischenzeitlich auf 40% Buchverlust.
+            - **Drawdown Recovery:** Um einen Drawdown von -50% wettzumachen, braucht man +100% Rendite!
+            
+            **Strategie:** Beim Backtesting ist ein exzellenter Profit Factor fast wertlos, wenn der Max Drawdown bei -70% liegt – du wärst psychologisch höchstwahrscheinlich vorher ausgestiegen. Ein MDD < -20% gilt bei professionellen Strategien als Grenzwert.
+            """)
+
+        with st.expander("⚖️ Sharpe Ratio & Profit Factor"):
+            st.markdown("""
+            Die perfekten Indikatoren zur Messung, wie effizient und stressfrei eine Strategie Geld verdient.
+            
+            - **Profit Factor:** Bruttogewinn / Bruttoverlust aller Trades. Ein Wert von 1.0 bedeutet Break-Even. Ein Profit-Factor > 1.5 gilt als überragend gut, da jeder investierte verlorene Euro dir 1,50€ neuen Gewinn bringt.
+            - **Sharpe Ratio:** Risikoadjustierte Rendite. Sie misst, wie viel "Überrendite" du gegenüber einem völlig risikofreien Zinssatz pro Einheit Volatilität ("Stress") erhältst.
+            
+            Ein Sharpe Ratio > 1.0 ist gut, > 2.0 ist grandios. (Bedeutet: Die Renditekurve verläuft extrem geschmeidig bergauf ohne heftige Auf-und-Abs).
+            """)
+
+        with st.expander("🛒 Slippage"):
+            st.markdown("""
+            Der unsichtbare Rendite-Killer im Trading.
+            **Slippage** ist die Differenz zwischen dem Preis, zu dem ein Trading-Signal (z.B. aus dem Screener) gefeuert wurde, und dem tatsächlichen *Ausführungspreis* der Order bei deinem Broker.
+            
+            - Passiert meistens durch extrem schnell drehende Kurse oder schlechte Liquidität (hoher Ask/Bid-Spread).
+            - Die **Backtesting Engine** in dieser App kalkuliert aktiv reale Gebühren (z.B. Trade Republic Flat Fee) sowie *Slippage* ein, um keine unrealistischen Excel-Illusionen zu erschaffen, sondern harte Praxis-Realität.
+            """)
+
+    # =========================================================================
+    # 6. Sentiment & News Flow
+    # =========================================================================
+    with tab_sent:
+        st.markdown("### Qualitative Stimmung & News-Algorithmen")
+        st.markdown("Märkte werden nicht primär von Zahlen bewegt, sondern von Gier, Angst und narrativer Stimmungs-Manipulation.")
+        st.markdown("---")
+
+        with st.expander("🧠 VADER NLP (Sentiment-Analysis)"):
+            st.markdown("""
+            **VADER** (Valence Aware Dictionary and sEntiment Reasoner) ist ein fortschrittlicher "Natural Language Processing" (NLP) Algorithmus zur Textanalyse.
+            
+            - Anstatt dass du alle Yahoo-Finance Artikel selbst lesen musst, lädt die App im Hintergrund Tausende Wörter und füttert sie durch die VADER-Engine, welche durch unsere **spezifische Wall-Street-Erweiterung** kalibriert ist.
+            - "Missed Estimates" oder "Dividend Cut" strafen den Score hart ab, während Worte wie "Surge" oder "Upgrade" den AI-Kompass ins Bullische treiben.
+            - Der **Compound-Score** liegt zwischen -1.0 (Apokalypse) und +1.0 (Euphorie) und fließt live in den Confidence-Score der App mit ein.
+            """)
+
+        with st.expander("🧨 Die Euphorie-Falle (Contrarian-Signal)"):
+            st.markdown("""
+            Eine systemeigene Logik deines MacroDashboards, um "Buy the Rumor, Sell the News" Phänomene abzufangen.
+            
+            Wenn das **NLP-Sentiment** astronomisch positiv ist (Score > 0.15) – sprich die Medienlandschaft lobpreist die Aktie auf jedem Kanal – aber gleichzeitig der technische **RSI (14)** bereits weit über 70 (Overbought) liegt, droht akute Gefahr.
+            Das Dashboard löst einen automatischen **Confidence-Penalty (-15%)** aus, um dich davon abzuhalten, am absoluten lokalen "Retail-Top" zu kaufen.
+            """)
+
+        with st.expander("🔁 Options Flow: Put/Call-Ratio & Max Pain"):
+            st.markdown("""
+            Der professionelle Optionsmarkt diktiert oft, wo eine Aktie am Verfallstag landen muss, da Großinvestoren ("Market Maker") versuchen, ihre Profite zu maximieren.
+            
+            - **Put/Call-Ratio:** Ein extremer Contrarian-Indikator. Ein sehr hoher Wert (> 1.2) bedeutet irrationale Massen-Panik (alle sichern sich ab) – das eigentliche Kaufsignal. Ein extrem tiefer Wert (< 0.5) deutet auf blinde Gier.
+            - **Max Pain Level:** Der magnetische Kurs-Preis (Strike-Preis), bei dem am Verfallstag (Options Expiration) die absolute *Mehrheit* aller Put- und Call-Käufer wertlos verfallen und ihr Geld an die institutionellen Aussteller der Optionen verlieren. Der Aktienkurs "gleitet" magischerweise am Freitag oftmals genau auf die Max-Pain Marke hin.
             """)

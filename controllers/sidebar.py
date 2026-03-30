@@ -30,6 +30,7 @@ def display_sidebar() -> str:
                 "Watchlist",
                 "Screener",
                 "Analyse",
+                "Backtesting",
                 "Trade-Journal",
                 "Sektoren",
                 "Analyse-Lexikon",
@@ -100,6 +101,44 @@ def display_sidebar() -> str:
                             st.rerun()
             else:
                 st.caption("Noch keine Ticker gespeichert.")
+
+        # ── Sektion 3.5: Signal Alerts ─────────────────────────────────────────
+        with st.expander("🔔 Signal-Alerts", expanded=False):
+            from models.alerts import AlertStore, AlertConfig
+            from services.watchlist import get_ticker_list
+            
+            # Anzeige ausgelöster Alerts
+            unack = AlertStore.get_triggered_unacknowledged()
+            if unack:
+                for a in unack:
+                    st.error(f"🚨 **{a.ticker}**: {a.alert_type} ausgelöst bei {a.trigger_value:.2f}!")
+                    if st.button("x Gelesen", key=f"ack_alert_{a.id}"):
+                        AlertStore.acknowledge_alert(a.id)
+                        st.rerun()
+                st.markdown("---")
+                
+            active_alerts = AlertStore.get_active()
+            if active_alerts:
+                for a in active_alerts:
+                    st.caption(f"{a.ticker} | {a.alert_type} | {a.threshold}")
+                    if st.button("Löschen", key=f"del_alert_{a.id}", help="Alert löschen"):
+                        AlertStore.delete_alert(a.id)
+                        st.rerun()
+            else:
+                st.caption("Keine aktiven Alarme.")
+
+            st.markdown("**Neuer Alarm**")
+            # Minimal UI für neue Alarme
+            tk_list = get_ticker_list()
+            a_ticker = st.selectbox("Ticker", tk_list if tk_list else ["AAPL"])
+            a_type = st.selectbox("Typ", ["price_below", "price_above", "rsi_below", "score_above", "score_below"])
+            a_thres = st.number_input("Limit-Wert", format="%.2f", step=1.0)
+            
+            if st.button("Speichern", key="save_alert_btn"):
+                if a_ticker:
+                    AlertStore.save(AlertConfig(ticker=a_ticker, alert_type=a_type, threshold=a_thres))
+                    st.toast(f"✅ Alarm für {a_ticker} ({a_type}) aktiviert!")
+                    st.rerun()
 
         # ── Sektion 4: Footer / Systemsteuerung ──────────────────────────────
         with st.container():
