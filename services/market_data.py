@@ -23,10 +23,13 @@ def get_quote(ticker: str) -> dict | None:
     try:
         tk = yf.Ticker(ticker)
         hist = tk.history(period="5d")
-        if hist.empty or len(hist) < 2:
+        if hist.empty:
             return None
-        current = float(hist["Close"].iloc[-1])
-        prev = float(hist["Close"].iloc[-2])
+        closes = hist["Close"].dropna()
+        if len(closes) < 2:
+            return None
+        current = float(closes.iloc[-1])
+        prev = float(closes.iloc[-2])
         change_pct = ((current - prev) / prev) * 100 if prev else 0.0
         return {"price": round(current, 2), "change_pct": round(change_pct, 2)}
     except Exception as exc:
@@ -69,12 +72,17 @@ def get_multi_quotes(tickers: list[str]) -> pd.DataFrame | None:
             if not t:
                 continue
             hist = get_history(t, period="6mo")
-            if hist is None or hist.empty or len(hist) < 2:
+            if hist is None or hist.empty:
                 records.append({"Ticker": t, "Kurs (€)": None,
                                 "Veränderung %": None, "RSI (14)": None})
                 continue
-            current = float(hist["Close"].iloc[-1])
-            prev = float(hist["Close"].iloc[-2])
+            closes = hist["Close"].dropna()
+            if len(closes) < 2:
+                records.append({"Ticker": t, "Kurs (€)": None,
+                                "Veränderung %": None, "RSI (14)": None})
+                continue
+            current = float(closes.iloc[-1])
+            prev = float(closes.iloc[-2])
             chg = round(((current - prev) / prev) * 100, 2) if prev else 0.0
             rsi_series = calc_rsi(hist["Close"], 14)
             rsi_val = (round(float(rsi_series.dropna().iloc[-1]), 1)
