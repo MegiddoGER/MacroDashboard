@@ -52,6 +52,7 @@ class RiskMetrics:
     avg_correlation: float | None = None
     correlation_warning: str = ""
     high_corr_pairs: list = field(default_factory=list)  # [(t1, t2, corr), ...]
+    corr_matrix: pd.DataFrame | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -454,6 +455,7 @@ def calc_correlation_risk(positions: list[dict]) -> dict:
         "avg_correlation": round(avg_corr, 2),
         "warning": warning,
         "high_corr_pairs": high_pairs[:5],  # Top 5
+        "corr_matrix": corr,
     }
 
 
@@ -509,8 +511,9 @@ def calc_full_risk_report(current_prices: dict[str, float] = None) -> RiskMetric
 
     # Korrelation
     corr = calc_correlation_risk(open_pos)
-    metrics.avg_correlation = corr["avg_correlation"]
-    metrics.correlation_warning = corr["warning"]
-    metrics.high_corr_pairs = corr["high_corr_pairs"]
+    metrics.avg_correlation = corr.get("avg_correlation")
+    metrics.correlation_warning = corr.get("warning", "")
+    metrics.high_corr_pairs = corr.get("high_corr_pairs", [])
+    metrics.corr_matrix = corr.get("corr_matrix")
 
     return metrics

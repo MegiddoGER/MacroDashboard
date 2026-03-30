@@ -290,6 +290,26 @@ def page_watchlist():
                     rec = f"{risk.recovery_days} Tage" if risk.recovery_days else "Noch nicht erholt"
                     st.metric("Recovery", rec)
 
+                # Drawdown Chart
+                if equity is not None and not equity.empty:
+                    import plotly.graph_objects as go
+                    values = equity["Portfolio"].values
+                    cummax = np.maximum.accumulate(values)
+                    drawdowns = (values - cummax) / cummax * 100
+                    fig_dd = go.Figure()
+                    fig_dd.add_trace(go.Scatter(
+                        x=equity["Datum"], y=drawdowns,
+                        fill='tozeroy', fillcolor='rgba(239, 68, 68, 0.2)',
+                        line=dict(color='#ef4444', width=2),
+                        name="Drawdown %"
+                    ))
+                    fig_dd.update_layout(
+                        template="plotly_dark", paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+                        height=250, margin=dict(l=0, r=0, t=10, b=0), yaxis_title="Drawdown (%)"
+                    )
+                    st.plotly_chart(fig_dd, use_container_width=True, config={"displayModeBar": False})
+
+
             # Korrelation
             if risk.avg_correlation is not None:
                 st.markdown("---")
@@ -298,6 +318,11 @@ def page_watchlist():
                           help="Hohe Korrelation = Positionen bewegen sich ähnlich = weniger Diversifikation")
                 if risk.correlation_warning:
                     st.warning(risk.correlation_warning)
+
+                if risk.corr_matrix is not None:
+                    from views.components.charts import plot_correlation_matrix
+                    fig_corr = plot_correlation_matrix(risk.corr_matrix, "Portfolio-Korrelation (6M)")
+                    st.plotly_chart(fig_corr, use_container_width=True, config={"displayModeBar": False})
                 if risk.high_corr_pairs:
                     st.caption("Hoch korrelierte Paare (> 0.7):")
                     for t1, t2, corr in risk.high_corr_pairs:

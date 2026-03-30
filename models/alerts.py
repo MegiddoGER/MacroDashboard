@@ -76,6 +76,10 @@ class AlertStore:
         return [a for a in cls.get_all() if a.status == "triggered"]
 
     @classmethod
+    def get_acknowledged(cls) -> list[AlertConfig]:
+        return [a for a in cls.get_all() if a.status == "acknowledged"]
+
+    @classmethod
     def save(cls, alert: AlertConfig):
         """Speichert einen neuen Alert oder überschreibt ihn."""
         all_data = cls._load_all()

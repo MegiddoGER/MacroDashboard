@@ -23,11 +23,12 @@ def page_journal():
     open_trades = [t for t in trades if t.status == "Offen"]
     closed_trades = [t for t in trades if t.status != "Offen"]
     
-    tab_new, tab_open, tab_closed, tab_stats = st.tabs([
+    tab_new, tab_open, tab_closed, tab_stats, tab_ai = st.tabs([
         "➕ Neuer Eintrag", 
         f"📂 Offen ({len(open_trades)})", 
         f"✅ Historie ({len(closed_trades)})", 
-        "📈 Setup-Statistiken"
+        "📈 Setup-Statistiken",
+        "🤖 System-Signale (AI)"
     ])
     
     # -----------------------------------------------------------------------
@@ -227,3 +228,65 @@ def page_journal():
                 st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
                 
                 st.dataframe(df_stats, use_container_width=True, hide_index=True)
+
+
+    # -----------------------------------------------------------------------
+    # Tab 5: System-Signale (AI)
+    # -----------------------------------------------------------------------
+    with tab_ai:
+        from services.signal_history import calc_calibration_chart, get_signal_statistics
+        
+        st.markdown("### 🤖 Signal-Performance Deep-Dive")
+        st.caption("Auswertung der automatisiert generierten Scoring-Signale (Maschinelle Trefferquote).")
+        st.markdown("---")
+        
+        ai_stats = get_signal_statistics()
+        if ai_stats.get("evaluated_signals", 0) == 0:
+            st.info("Noch nicht genügend evaluierte Signale vorhanden (braucht min. 7 Tage Historie nach Signal-Generierung).")
+        else:
+            # Row 1: Metriken
+            a1, a2, a3, a4 = st.columns(4)
+            a1.metric("Evaluierte Signale", ai_stats["evaluated_signals"])
+            a2.metric("Ausstehende Signale", ai_stats["pending_signals"])
+            a3.metric("∅ Confidence Score", f"{ai_stats['avg_confidence']:.1f}")
+            if ai_stats["best_ticker"]:
+                a4.metric("Bester Ticker", f"{ai_stats['best_ticker'][0]}", f"{ai_stats['best_ticker'][1]}% Win")
+            
+            st.markdown("#### 🎯 Score Breakdown (Trefferquote nach Confidence)")
+            calib = calc_calibration_chart()
+            if calib:
+                import plotly.express as px
+                df_calib = pd.DataFrame(calib)
+                # Filtern wo hit_rate nicht None ist
+                df_calib = df_calib.dropna(subset=['hit_rate'])
+                
+                if not df_calib.empty:
+                    fig_cal = px.bar(
+                        df_calib, x="bucket", y="hit_rate",
+                        color="hit_rate", color_continuous_scale="RdYlGn",
+                        text="hit_rate", title="Win-Rate nach Score-Bereichen (%)",
+                        labels={"bucket": "Confidence-Score Bereich", "hit_rate": "Win-Rate (%)"}
+                    )
+                    fig_cal.update_traces(texttemplate='%{text:.1f}%', textposition='auto')
+                    fig_cal.update_layout(
+                        template="plotly_dark", paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+                        yaxis=dict(range=[0, 100])
+                    )
+                    st.plotly_chart(fig_cal, use_container_width=True, config={"displayModeBar": False})
+
+            # Row 3: Top/Flop Signale
+            st.markdown("#### 🏆 Top & Flop AI-Signale")
+            tf1, tf2 = st.columns(2)
+            with tf1:
+                st.markdown("##### Beste Calls")
+                top_sigs = ai_stats.get("top_signals", [])
+                for s in top_sigs:
+                    c = "🟢" if s['type'] == 'buy' else "🔴"
+                    st.success(f"{c} **{s['ticker']}** ({s['type'].upper()} @ {s['confidence']:.0f}%) ➔ **{s['return_pct']:+.1f}%**")
+                    
+            with tf2:
+                st.markdown("##### Schlechteste Calls")
+                flop_sigs = ai_stats.get("flop_signals", [])
+                for s in flop_sigs:
+                    c = "🟢" if s['type'] == 'buy' else "🔴"
+                    st.error(f"{c} **{s['ticker']}** ({s['type'].upper()} @ {s['confidence']:.0f}%) ➔ **{s['return_pct']:+.1f}%**")

@@ -160,3 +160,34 @@ def page_market():
             )
     else:
         st.info("Deine Watchlist ist leer. Gehe zu 'Analyse' um Ticker hinzuzufügen.")
+
+    st.markdown("---")
+
+    # -----------------------------------------------------------------------
+    # 4. Alert Archiv (History)
+    # -----------------------------------------------------------------------
+    with st.expander("🗄️ Alert-Archiv (Historie)", expanded=False):
+        from models.alerts import AlertStore
+        import pandas as pd
+        
+        ach_alerts = AlertStore.get_acknowledged()
+        if ach_alerts:
+            # Als Tabelle rendern
+            history_data = []
+            for a in ach_alerts:
+                history_data.append({
+                    "Ausgelöst am": a.triggered_at if a.triggered_at else a.created_at,
+                    "Ticker": a.ticker,
+                    "Bedingung": f"{a.alert_type} ({a.threshold:.2f})",
+                    "Kurs bei Trigger": f"{a.trigger_value:.2f}" if a.trigger_value else "Unbekannt"
+                })
+            df_hist = pd.DataFrame(history_data)
+            st.dataframe(df_hist, use_container_width=True, hide_index=True)
+            
+            # Button zum kompletten Leeren des Archivs
+            if st.button("🗑️ Archiv leeren", key="clear_archive_btn"):
+                for a in ach_alerts:
+                    AlertStore.delete_alert(a.id)
+                st.rerun()
+        else:
+            st.info("Keine alten Alerts im Archiv.")

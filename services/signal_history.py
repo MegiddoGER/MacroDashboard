@@ -293,6 +293,42 @@ def get_signal_statistics() -> dict:
     newest = all_signals[0].timestamp if all_signals else None
     oldest = all_signals[-1].timestamp if all_signals else None
 
+    # Top & Flop Individual Signals berechnen
+    signal_returns = []
+    for s in evaluated:
+        if s.price_at_signal <= 0:
+            continue
+        
+        # Nimm den jüngsten/längsten verfügbaren Schlusskurs für die Performance
+        final_price = None
+        if s.price_3m_later is not None:
+            final_price = s.price_3m_later
+        elif s.price_1m_later is not None:
+            final_price = s.price_1m_later
+        elif s.price_1w_later is not None:
+            final_price = s.price_1w_later
+            
+        if final_price:
+            pct_change = ((final_price - s.price_at_signal) / s.price_at_signal) * 100
+            
+            # Hatten wir Buy oder Sell?
+            if s.signal_type == "sell":
+                pct_change = -pct_change  # Bei Short ist ein Kursverfall ein Gewinn
+                
+            signal_returns.append({
+                "ticker": s.ticker,
+                "timestamp": s.timestamp,
+                "type": s.signal_type,
+                "confidence": s.confidence,
+                "return_pct": pct_change,
+                "was_successful": s.was_successful
+            })
+            
+    signal_returns.sort(key=lambda x: x["return_pct"], reverse=True)
+    top_3_signals = signal_returns[:3] if signal_returns else []
+    flop_3_signals = signal_returns[-3:] if len(signal_returns) >= 3 else []
+    flop_3_signals.reverse() # Schlechtester zuerst
+
     return {
         "total_signals": len(all_signals),
         "evaluated_signals": len(evaluated),
@@ -303,6 +339,8 @@ def get_signal_statistics() -> dict:
         "newest_signal": newest,
         "oldest_signal": oldest,
         "ticker_count": len(ticker_stats),
+        "top_signals": top_3_signals,
+        "flop_signals": flop_3_signals,
     }
 
 
