@@ -18,16 +18,18 @@ from dataclasses import dataclass, field
 # ---------------------------------------------------------------------------
 
 WEIGHTS_FULL = {
-    "trend": 0.30,        # SMA 200, SMA-Cross, MACD (langfristig)
-    "volume": 0.25,       # OBV, VWAP, POC (Kapitalfluss)
-    "fundamental": 0.30,  # DCF, Bilanz, Insider, Analysten
-    "oscillator": 0.15,   # RSI, Stochastic, Bollinger (kurzfristig)
+    "trend": 0.30,        # SMC, Trend & Marktstruktur
+    "volume": 0.25,       # OBV, Order Flow
+    "fundamental": 0.20,  # DCF, Value, Margins
+    "sentiment": 0.15,    # News NLP Sentiment
+    "oscillator": 0.10,   # RSI, Timing
 }
 
 WEIGHTS_QUICK = {
-    "trend": 0.40,        # Stärker gewichtet ohne Fundamentaldaten
+    "trend": 0.40,        # Stärker gewichtet ohne Fundamental/Sentiment
     "volume": 0.35,
-    "fundamental": 0.0,   # Nicht verfügbar im Quick-Modus
+    "fundamental": 0.0,
+    "sentiment": 0.0,     # Zuviel API-Last für Screener
     "oscillator": 0.25,
 }
 
@@ -45,10 +47,10 @@ class ScoreResult:
     confidence_label: str = "Gemischte Signale"
 
     cat_scores: dict = field(default_factory=lambda: {
-        "trend": 0, "volume": 0, "fundamental": 0, "oscillator": 0
+        "trend": 0, "volume": 0, "fundamental": 0, "sentiment": 0, "oscillator": 0
     })
     cat_max: dict = field(default_factory=lambda: {
-        "trend": 0, "volume": 0, "fundamental": 0, "oscillator": 0
+        "trend": 0, "volume": 0, "fundamental": 0, "sentiment": 0, "oscillator": 0
     })
     weights: dict = field(default_factory=lambda: dict(WEIGHTS_FULL))
 
@@ -473,21 +475,87 @@ def _score_fundamental(info, ticker, result: ScoreResult):
 
 
 # ---------------------------------------------------------------------------
+# Sentiment (News NLP)
+# ---------------------------------------------------------------------------
+
+def _score_sentiment(ticker: str, result: ScoreResult):
+    """Bewertet das News-Sentiment mittels VADER NLP."""
+    if not ticker:
+        result.cat_max["sentiment"] += 1
+        return
+
+    from services.sentiment import analyze_ticker_news
+    try:
+        sent_data = analyze_ticker_news(ticker)
+        has_news = sent_data.get("n_articles", 0) > 0
+    except Exception:
+        has_news = False
+        sent_data = {}
+
+    if not has_news:
+        result.cat_max["sentiment"] += 1
+        return
+
+    result.cat_max["sentiment"] += 4
+    avg_c = sent_data.get("avg_compound", 0.0)
+    
+    # +2 bis -2 Scoring für Sentiment
+    if avg_c >= 0.15:
+        score = 2
+        sig = "Stark Bullish 🔥"
+    elif avg_c >= 0.05:
+        score = 1
+        sig = "Bullish 🟢"
+    elif avg_c <= -0.15:
+        score = -2
+        sig = "Stark Bearish 🧨"
+    elif avg_c <= -0.05:
+        score = -1
+        sig = "Bearish 🔴"
+    else:
+        score = 0
+        sig = "Neutral ➖"
+
+    result.cat_scores["sentiment"] += score
+    result.checklist.append({"Indikator": "News Sentiment",
+                             "Wert": f"{sent_data['n_articles']} News (∅ {avg_c:.2f})",
+                             "Signal": sig, "Beitrag": f"{score:+}"})
+                             
+    # Speichere das Sentiment im Result für die Euphorie-Logik
+    result.signals["sentiment_avg"] = avg_c
+
+
+# ---------------------------------------------------------------------------
 # Score-Finalisierung
 # ---------------------------------------------------------------------------
 
 def _finalize_score(result: ScoreResult):
-    """Berechnet den gewichteten Confidence-Score und Labels."""
+    """Berechnet den gewichteten Confidence-Score und Labels inkl. Euphorie-Falle."""
     weighted_score = 0.0
     for cat, weight in result.weights.items():
-        mx = result.cat_max[cat]
+        mx = result.cat_max.get(cat, 0)
         if mx > 0:
-            normalized = result.cat_scores[cat] / mx
+            val = result.cat_scores.get(cat, 0)
+            normalized = val / mx
         else:
             normalized = 0.0
         weighted_score += normalized * weight
 
+    # Basis-Confidence (0 bis 100)
     confidence = round((weighted_score + 1) / 2 * 100, 1)
+
+    # 🧨 Contrarian-Logik: Euphorie-Falle!
+    # Wenn Sentiment extrem hoch (>0.15) ist, aber der RSI auf Überkauft (>70) steht,
+    # ist das ein klassisches "Sell the News" oder Top-Building Signal.
+    avg_c = result.signals.get("sentiment_avg", 0.0)
+    rsi_overbought = result.signals.get("rsi_overbought", False)
+    
+    if avg_c >= 0.15 and rsi_overbought:
+        confidence -= 15.0  # Schwerer Malus
+        result.checklist.append({"Indikator": "Contrarian-Warnung 🧨",
+                                 "Wert": "News extrem Bullish + RSI > 70",
+                                 "Signal": "Euphorie-Falle", "Beitrag": "-15% Conf"})
+
     confidence = max(0.0, min(100.0, confidence))
     score = round(weighted_score * 10)
 
@@ -518,13 +586,7 @@ def _finalize_score(result: ScoreResult):
 # ---------------------------------------------------------------------------
 
 def calc_quick_score(hist: pd.DataFrame) -> ScoreResult | None:
-    """Schnelle Score-Berechnung nur aus OHLCV-Preisdaten.
-
-    Keine externen API-Calls, keine Fundamentaldaten, keine SMC-Analyse.
-    Geeignet für Batch-Scans (z.B. Screener über 500 Aktien).
-
-    Mindestens 50 Datenpunkte benötigt.
-    """
+    """Schnelle Score-Berechnung nur aus OHLCV-Preisdaten."""
     if hist is None or hist.empty or len(hist) < 50:
         return None
 
@@ -546,11 +608,7 @@ def calc_quick_score(hist: pd.DataFrame) -> ScoreResult | None:
 
 def calc_full_score(hist: pd.DataFrame, info: dict = None,
                     ticker: str = None) -> ScoreResult | None:
-    """Vollständige Score-Berechnung inkl. Fundamentaldaten und SMC.
-
-    Für Einzelaktien-Analyse. Macht API-Calls für Insider/Analyst-Daten.
-    Mindestens 200 Datenpunkte benötigt (wegen SMA 200).
-    """
+    """Vollständige Score-Berechnung inkl. Fundamentaldaten, SMC und Sentiment."""
     if hist is None or hist.empty or len(hist) < 200:
         return None
 
@@ -567,6 +625,10 @@ def calc_full_score(hist: pd.DataFrame, info: dict = None,
     _score_volume(high, low, close, volume, result)
     _score_smc(hist, result)
     _score_fundamental(info, ticker, result)
+    
+    # Neu in Phase 4: Sentiment
+    _score_sentiment(ticker, result)
+    
     _finalize_score(result)
 
     if ticker:

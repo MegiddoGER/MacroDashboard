@@ -1436,10 +1436,12 @@ def page_analysis():
     cat_scores = sum_data.get('cat_scores', {})
     cat_max = sum_data.get('cat_max', {})
     weights = sum_data.get('weights', {})
-    cat_labels = {"trend": "📊 Trend (30%)", "volume": "📈 Volumen (25%)", "fundamental": "🏦 Fundamental (30%)", "oscillator": "⚡ Oszillatoren (15%)"}
+    cat_labels = {"trend": "📊 Trend (30%)", "volume": "📈 Volumen (25%)", 
+                  "fundamental": "🏦 Fund. (20%)", "sentiment": "📰 NLP (15%)", 
+                  "oscillator": "⚡ Osz. (10%)"}
     
-    bc1, bc2, bc3, bc4 = st.columns(4)
-    for col_ui, (cat, label) in zip([bc1, bc2, bc3, bc4], cat_labels.items()):
+    cols = st.columns(5)
+    for col_ui, (cat, label) in zip(cols, cat_labels.items()):
         mx = cat_max.get(cat, 1) or 1
         val = cat_scores.get(cat, 0)
         pct = round((val / mx + 1) / 2 * 100)

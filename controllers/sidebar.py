@@ -30,6 +30,7 @@ def display_sidebar() -> str:
                 "Watchlist",
                 "Screener",
                 "Analyse",
+                "Trade-Journal",
                 "Sektoren",
                 "Analyse-Lexikon",
                 "Aktien-Verzeichnis",

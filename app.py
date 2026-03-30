@@ -74,6 +74,9 @@ def main():
     elif page == "Analyse":
         from controllers.analysis import run
         run()
+    elif page == "Trade-Journal":
+        from controllers.journal import run
+        run()
     elif page == "Sektoren":
         from controllers.sectors import run
         run()
