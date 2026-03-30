@@ -75,8 +75,8 @@ def page_market():
     with w3:
         with st.container(border=True):
             if upcoming_macro:
-                label = upcoming_macro.get("event", "Event")
-                date_str = upcoming_macro.get("date", "")
+                label = upcoming_macro.name
+                date_str = upcoming_macro.countdown_label
                 st.metric("Nächstes Top-Event", label[:18] + ("..." if len(label)>18 else ""), 
                           date_str, delta_color="off")
             else:
