@@ -136,6 +136,180 @@ def page_watchlist():
             hide_index=True,
         )
 
+    # ── Portfolio-Performance ────────────────────────────────────────
+    if open_pos or closed_pos:
+        st.markdown("---")
+        st.markdown("#### 📈 Portfolio-Performance")
+
+        import hashlib
+        prices_hash = hashlib.md5(str(sorted(current_prices.items())).encode()).hexdigest()[:8]
+
+        with st.spinner("Berechne Portfolio-Performance …"):
+            from services.cache import cached_equity_curve, cached_performance_metrics, cached_sector_allocation
+            equity = cached_equity_curve(prices_hash, current_prices)
+            perf = cached_performance_metrics(prices_hash, current_prices)
+
+        # Equity-Kurve Chart
+        if equity is not None and len(equity) > 5:
+            import plotly.graph_objects as go
+            fig = go.Figure()
+            fig.add_trace(go.Scatter(
+                x=equity["Datum"], y=equity["Portfolio"],
+                name="Portfolio", line=dict(color="#00d4aa", width=2),
+                fill="tozeroy", fillcolor="rgba(0,212,170,0.1)",
+            ))
+            if "Benchmark" in equity.columns:
+                bm_label = equity["Benchmark_Label"].iloc[0] if "Benchmark_Label" in equity.columns else "Benchmark"
+                fig.add_trace(go.Scatter(
+                    x=equity["Datum"], y=equity["Benchmark"],
+                    name=bm_label, line=dict(color="#64748b", width=1, dash="dot"),
+                ))
+            if "Investiert" in equity.columns:
+                fig.add_trace(go.Scatter(
+                    x=equity["Datum"], y=equity["Investiert"],
+                    name="Investiert", line=dict(color="#94a3b8", width=1, dash="dash"),
+                ))
+            fig.update_layout(
+                template="plotly_dark",
+                paper_bgcolor="rgba(0,0,0,0)",
+                plot_bgcolor="rgba(0,0,0,0)",
+                height=350,
+                margin=dict(l=0, r=0, t=30, b=0),
+                legend=dict(orientation="h", y=1.05),
+                yaxis_title="Wert (€)",
+            )
+            st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+
+        # Performance-Metriken
+        if perf:
+            pm1, pm2, pm3, pm4 = st.columns(4)
+            with pm1:
+                sr_val = f"{perf.sharpe_ratio:.2f}" if perf.sharpe_ratio is not None else "—"
+                st.metric("Sharpe Ratio", sr_val,
+                          help="Rendite pro Risikoeinheit. >1 = gut, >2 = sehr gut, <0 = negativ")
+            with pm2:
+                so_val = f"{perf.sortino_ratio:.2f}" if perf.sortino_ratio is not None else "—"
+                st.metric("Sortino Ratio", so_val,
+                          help="Wie Sharpe, aber nur Downside-Risiko. Besser für asymmetrische Returns.")
+            with pm3:
+                st.metric("Max Drawdown", f"{perf.max_drawdown_pct:.1f}%",
+                          help="Maximaler Verlust vom Hoch")
+            with pm4:
+                st.metric("Win-Rate", f"{perf.win_rate:.0f}%",
+                          delta=f"{perf.profit_factor:.1f}x Profit Factor" if perf.profit_factor and perf.profit_factor < 100 else "",
+                          delta_color="off",
+                          help="Prozent der geschlossenen Trades mit Gewinn")
+
+            pm5, pm6, pm7, pm8 = st.columns(4)
+            with pm5:
+                st.metric("Gesamt-Rendite", f"{perf.total_return_pct:+.1f}%")
+            with pm6:
+                st.metric("Ann. Rendite", f"{perf.annualized_return_pct:+.1f}%")
+            with pm7:
+                st.metric("Bester Trade", f"{perf.best_trade_pct:+.1f}%")
+            with pm8:
+                st.metric("Schlechtester", f"{perf.worst_trade_pct:+.1f}%")
+
+        # Sektor-Allokation
+        sectors = cached_sector_allocation(prices_hash, current_prices)
+        if sectors and len(sectors) > 0:
+            st.markdown("##### 🎯 Sektor-Allokation")
+            import plotly.express as px
+            sec_df = pd.DataFrame(sectors)
+            fig_pie = px.pie(
+                sec_df, values="weight_pct", names="sector",
+                color_discrete_sequence=px.colors.qualitative.Set2,
+                hole=0.4,
+            )
+            fig_pie.update_layout(
+                template="plotly_dark",
+                paper_bgcolor="rgba(0,0,0,0)",
+                height=300,
+                margin=dict(l=0, r=0, t=10, b=10),
+                legend=dict(font=dict(size=11)),
+            )
+            fig_pie.update_traces(textposition="inside", textinfo="percent+label")
+            st.plotly_chart(fig_pie, use_container_width=True, config={"displayModeBar": False})
+
+    # ── Risiko-Analyse ───────────────────────────────────────────────
+    if open_pos:
+        with st.expander("🛡️ Risiko-Analyse", expanded=False):
+            with st.spinner("Berechne Risiko-Metriken (Monte Carlo) …"):
+                from services.cache import cached_risk_report
+                risk = cached_risk_report(prices_hash, current_prices)
+
+            # VaR
+            st.markdown("##### 📉 Value at Risk (Monte Carlo, 10.000 Sim.)")
+            rv1, rv2, rv3 = st.columns(3)
+            with rv1:
+                st.metric("VaR 95%", f"{risk.var_95_eur:,.2f} €",
+                          delta=f"{risk.var_95_pct:.1f}%", delta_color="off",
+                          help="Mit 95% Wahrscheinlichkeit verlierst du maximal diesen Betrag pro Tag.")
+            with rv2:
+                st.metric("VaR 99%", f"{risk.var_99_eur:,.2f} €",
+                          delta=f"{risk.var_99_pct:.1f}%", delta_color="off",
+                          help="Extremszenario (1% Wahrscheinlichkeit)")
+            with rv3:
+                st.metric("CVaR 95%", f"{risk.cvar_95_eur:,.2f} €",
+                          help="Expected Shortfall: Durchschnittlicher Verlust wenn VaR überschritten wird.")
+
+            # Beta
+            st.markdown("---")
+            st.markdown("##### ⚖️ Portfolio-Beta")
+            rb1, rb2 = st.columns(2)
+            with rb1:
+                beta_val = f"{risk.portfolio_beta:.2f}" if risk.portfolio_beta is not None else "—"
+                st.metric("Portfolio-Beta", beta_val,
+                          help="Beta > 1 = aggressiver, Beta < 1 = defensiver als der Markt")
+            with rb2:
+                st.info(f"📊 {risk.beta_description}")
+
+            # Konzentration
+            if risk.concentration_warning:
+                st.markdown("---")
+                st.markdown("##### 🎯 Sektor-Konzentration")
+                rc1, rc2 = st.columns(2)
+                with rc1:
+                    st.metric("Herfindahl-Index", f"{risk.herfindahl_index:.3f}",
+                              help="0 = perfekt diversifiziert, 1 = alles in einem Sektor")
+                with rc2:
+                    st.metric("Top Sektor", f"{risk.top_sector} ({risk.top_sector_pct:.0f}%)")
+                st.warning(risk.concentration_warning)
+
+            # Drawdown
+            if risk.max_drawdown_pct < 0:
+                st.markdown("---")
+                st.markdown("##### 📉 Drawdown-Analyse")
+                rd1, rd2, rd3 = st.columns(3)
+                with rd1:
+                    st.metric("Aktuell", f"{risk.current_drawdown_pct:.1f}%")
+                with rd2:
+                    st.metric("Max Drawdown", f"{risk.max_drawdown_pct:.1f}%",
+                              delta=f"{risk.max_dd_start} → {risk.max_dd_end}", delta_color="off")
+                with rd3:
+                    rec = f"{risk.recovery_days} Tage" if risk.recovery_days else "Noch nicht erholt"
+                    st.metric("Recovery", rec)
+
+            # Korrelation
+            if risk.avg_correlation is not None:
+                st.markdown("---")
+                st.markdown("##### 🔗 Korrelationsrisiko")
+                st.metric("∅ Intra-Portfolio-Korrelation", f"{risk.avg_correlation:.2f}",
+                          help="Hohe Korrelation = Positionen bewegen sich ähnlich = weniger Diversifikation")
+                if risk.correlation_warning:
+                    st.warning(risk.correlation_warning)
+                if risk.high_corr_pairs:
+                    st.caption("Hoch korrelierte Paare (> 0.7):")
+                    for t1, t2, corr in risk.high_corr_pairs:
+                        d1 = display_map.get(t1, t1)
+                        d2 = display_map.get(t2, t2)
+                        color = "#ef4444" if corr > 0.85 else "#eab308"
+                        st.markdown(
+                            f"<span style='color:{color};font-weight:600;'>"
+                            f"{d1} ↔ {d2}: {corr:.2f}</span>",
+                            unsafe_allow_html=True,
+                        )
+
     # ── Position kaufen ───────────────────────────────────────────
     st.markdown("---")
     st.markdown("#### ➕ Position kaufen")

@@ -569,4 +569,12 @@ def calc_full_score(hist: pd.DataFrame, info: dict = None,
     _score_fundamental(info, ticker, result)
     _finalize_score(result)
 
+    if ticker:
+        try:
+            from services.signal_history import record_signal
+            current_price = float(close.iloc[-1])
+            record_signal(ticker, result, current_price)
+        except Exception as e:
+            print(f"Warning: Failed to record signal for {ticker} - {e}")
+
     return result

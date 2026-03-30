@@ -18,6 +18,9 @@ from services.market_data import (
 from services.news import get_regional_news, get_company_news
 from services.economic_calendar import get_upcoming_events, get_calendar_summary, get_events_for_ticker
 from services.options import get_options_overview
+from services.portfolio import calc_equity_curve, calc_performance_metrics, calc_sector_allocation
+from services.risk import calc_full_risk_report
+from services.signal_history import get_signal_statistics, calc_hit_rate, calc_calibration_chart
 
 # ---------------------------------------------------------------------------
 # Dynamischer Cache-TTL: Börsen offen → 5 Min, geschlossen → 30 Min
@@ -131,3 +134,31 @@ def cached_events_for_ticker(ticker: str, days: int = 7):
 @st.cache_data(ttl=300, show_spinner=False)
 def cached_options_overview(ticker: str, expiry: str = ""):
     return get_options_overview(ticker, expiry or None)
+
+@st.cache_data(ttl=300, show_spinner=False)
+def cached_equity_curve(_prices_hash: str = "", current_prices: dict = None):
+    return calc_equity_curve(current_prices)
+
+@st.cache_data(ttl=300, show_spinner=False)
+def cached_performance_metrics(_prices_hash: str = "", current_prices: dict = None):
+    return calc_performance_metrics(current_prices)
+
+@st.cache_data(ttl=300, show_spinner=False)
+def cached_sector_allocation(_prices_hash: str = "", current_prices: dict = None):
+    return calc_sector_allocation(current_prices)
+
+@st.cache_data(ttl=300, show_spinner=False)
+def cached_risk_report(_prices_hash: str = "", current_prices: dict = None):
+    return calc_full_risk_report(current_prices)
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def cached_signal_statistics():
+    return get_signal_statistics()
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def cached_hit_rate(days: int = 90):
+    return calc_hit_rate(days)
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def cached_calibration():
+    return calc_calibration_chart()

@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+from datetime import datetime
 
 from watchlist import load_watchlist, resolve_ticker
 from data_cache import cached_stock_details, cached_correlation, cached_company_news, _render_news_list
@@ -1454,6 +1455,44 @@ def page_analysis():
     if sum_data["checklist"]:
         df_check = pd.DataFrame(sum_data["checklist"])
         st.dataframe(df_check, use_container_width=True, hide_index=True)
+
+    # ── Historische Signale für diesen Ticker ──────────────────────────
+    from models.signal import SignalStore
+    from services.signal_history import update_stale_signals
+    
+    # Im Hintergrund alte Signale bewerten
+    try:
+        update_stale_signals()
+    except Exception:
+        pass
+        
+    hist_signals = SignalStore.get_all(ticker=ticker, limit=5)
+    if hist_signals:
+        st.markdown("##### 📡 Signal-Historie (Letzte 5)")
+        st.caption("Das Dashboard speichert automatisch Bewertungssignale, um die eigene Trefferquote zu messen.")
+        
+        hist_rows = []
+        for s in hist_signals:
+            try:
+                date_str = datetime.fromisoformat(s.timestamp).strftime("%d.%m.%Y %H:%M")
+            except:
+                date_str = s.timestamp
+                
+            outcome = "⏳ Ausstehend"
+            if s.was_successful is True:
+                outcome = "✅ Gewonnen"
+            elif s.was_successful is False:
+                outcome = "❌ Verloren"
+                
+            hist_rows.append({
+                "Datum": date_str,
+                "Signal": "KAUFEN 🟢" if s.signal_type == "buy" else ("VERKAUFEN 🔴" if s.signal_type == "sell" else "NEUTRAL 🟡"),
+                "Score": f"{s.confidence:.0f}",
+                "Kurs (damals)": f"{s.price_at_signal:,.2f} €",
+                "Ergebnis (1M)": outcome,
+            })
+            
+        st.dataframe(pd.DataFrame(hist_rows), use_container_width=True, hide_index=True)
 
     # ── Position Sizing (Kelly + ATR) ─────────────────────────────────
     st.markdown("---")

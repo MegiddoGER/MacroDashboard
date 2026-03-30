@@ -38,6 +38,45 @@ def page_market():
 
     st.markdown("---")
 
+    # ── Signal-Trefferquote (Letzte 90 Tage) ─────────────────────────
+    from services.cache import cached_hit_rate
+    from services.signal_history import update_stale_signals, cleanup_old_signals
+
+    # Hintergrund-Tasks (nicht blockierend)
+    try:
+        cleanup_old_signals()
+        update_stale_signals()
+    except Exception:
+        pass
+
+    hit_rate = cached_hit_rate(90)
+    if hit_rate and hit_rate.get("total", 0) > 0:
+        st.markdown("##### 🎯 Signal-Trefferquote (Letzte 90 Tage)")
+        
+        evaluated = hit_rate.get("evaluated", 0)
+        overall = hit_rate.get("overall_hit_rate")
+        buy_rate = hit_rate.get("buy_hit_rate")
+        
+        if evaluated >= 5:
+            hc1, hc2, hc3, hc4 = st.columns(4)
+            with hc1:
+                st.metric("Trefferquote (Gesamt)", f"{overall:.1f}%" if overall is not None else "—",
+                          help="Prozentzahl aller Signale (Kaufen/Verkaufen), die nach 1 Monat im Plus (Kaufen) oder im Minus (Verkaufen) waren.")
+            with hc2:
+                st.metric("Trefferquote (Käufe)", f"{buy_rate:.1f}%" if buy_rate is not None else "—",
+                          help=f"Gewonnene Kaufsignale: {hit_rate.get('buy_wins', 0)} / {hit_rate.get('buy_signals_count', 0)}")
+            with hc3:
+                st.metric("Evaluierte Signale", f"{evaluated}",
+                          help="Anzahl der Signale, deren Zeitablauf > 7 Tage ist (mind. 1W Resultat existiert).")
+            with hc4:
+                pending = hit_rate.get('total', 0) - evaluated
+                st.metric("Ausstehende Signale", f"{pending}",
+                          help="Signale, die noch zu frisch für eine Bewertung sind (< 7 Tage).")
+        else:
+            st.info(f"📊 Sammle noch Daten zur Trefferquote. {evaluated} von 5 nötigen evaluierten Signalen vorhanden.")
+            
+        st.markdown("---")
+
     # Watchlist-Vorschau
     st.markdown("##### 📋 Watchlist-Vorschau")
     tickers = get_ticker_list()
