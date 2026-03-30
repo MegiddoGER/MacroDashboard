@@ -10,7 +10,7 @@ from datetime import datetime
 from data_cache import cached_vix, cached_sp500, cached_gold, cached_multi, _fmt_euro, _fmt_pct, _fmt_rsi, _color_change
 from indicators import calc_fear_greed_components, fear_greed_label
 from charts import plot_fear_greed_gauge
-from services.watchlist import get_ticker_list, get_display_map, get_portfolio_summary, get_ticker_prices
+from services.watchlist import get_ticker_list, get_display_map, calc_portfolio_summary
 from models.alerts import AlertStore
 from models.journal import JournalStore
 from services.economic_calendar import get_upcoming_events
@@ -37,7 +37,7 @@ def page_market():
     except Exception:
         pass
         
-    portfolio = get_portfolio_summary(prices)
+    portfolio = calc_portfolio_summary(prices)
     
     # 2. Alerts
     unack_alerts = AlertStore.get_triggered_unacknowledged()
