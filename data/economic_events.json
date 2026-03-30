@@ -1,0 +1,208 @@
+{
+  "_meta": {
+    "description": "Wirtschaftskalender — Wichtige Makro-Events für Trading.",
+    "last_updated": "2026-03-30",
+    "note": "Termine jährlich aktualisieren. Quellen: Fed, ECB, BLS, BEA, ISM, ifo."
+  },
+  "events": [
+    {
+      "id": "fomc",
+      "name": "FOMC Zinsentscheidung",
+      "name_en": "FOMC Rate Decision",
+      "category": "central_bank",
+      "country": "US",
+      "impact": "high",
+      "description": "Die Fed entscheidet über den Leitzins. Beeinflusst alle Anlageklassen massiv.",
+      "recurring": true,
+      "dates": [
+        "2025-01-29", "2025-03-19", "2025-05-07", "2025-06-18",
+        "2025-07-30", "2025-09-17", "2025-11-05", "2025-12-17",
+        "2026-01-28", "2026-03-18", "2026-04-29", "2026-06-17",
+        "2026-07-29", "2026-09-16", "2026-10-28", "2026-12-16"
+      ],
+      "time_cet": "20:00"
+    },
+    {
+      "id": "ecb",
+      "name": "EZB Zinsentscheidung",
+      "name_en": "ECB Rate Decision",
+      "category": "central_bank",
+      "country": "EU",
+      "impact": "high",
+      "description": "Die EZB entscheidet über den Leitzins im Euroraum. Wichtig für EUR-denominierte Assets und EU-Aktien.",
+      "recurring": true,
+      "dates": [
+        "2025-01-30", "2025-03-06", "2025-04-17", "2025-06-05",
+        "2025-07-24", "2025-09-11", "2025-10-30", "2025-12-18",
+        "2026-01-22", "2026-03-05", "2026-04-16", "2026-06-04",
+        "2026-07-16", "2026-09-10", "2026-10-29", "2026-12-17"
+      ],
+      "time_cet": "14:15"
+    },
+    {
+      "id": "us_cpi",
+      "name": "US Verbraucherpreisindex (CPI)",
+      "name_en": "US CPI Release",
+      "category": "inflation",
+      "country": "US",
+      "impact": "high",
+      "description": "Misst die Inflation in den USA. Kerngröße für Fed-Zinspolitik. Hohe CPI → Zinserhöhungen wahrscheinlicher.",
+      "recurring": true,
+      "dates": [
+        "2025-01-15", "2025-02-12", "2025-03-12", "2025-04-10",
+        "2025-05-13", "2025-06-11", "2025-07-11", "2025-08-12",
+        "2025-09-10", "2025-10-14", "2025-11-12", "2025-12-10",
+        "2026-01-14", "2026-02-11", "2026-03-11", "2026-04-14",
+        "2026-05-12", "2026-06-10", "2026-07-14", "2026-08-12",
+        "2026-09-15", "2026-10-13", "2026-11-12", "2026-12-10"
+      ],
+      "time_cet": "14:30"
+    },
+    {
+      "id": "us_nfp",
+      "name": "US Arbeitsmarktbericht (NFP)",
+      "name_en": "US Non-Farm Payrolls",
+      "category": "employment",
+      "country": "US",
+      "impact": "high",
+      "description": "Non-Farm Payrolls: Anzahl neuer Stellen außerhalb der Landwirtschaft. Stärkstes Signal für die US-Wirtschaft.",
+      "recurring": true,
+      "dates": [
+        "2025-01-10", "2025-02-07", "2025-03-07", "2025-04-04",
+        "2025-05-02", "2025-06-06", "2025-07-03", "2025-08-01",
+        "2025-09-05", "2025-10-03", "2025-11-07", "2025-12-05",
+        "2026-01-09", "2026-02-06", "2026-03-06", "2026-04-03",
+        "2026-05-08", "2026-06-05", "2026-07-02", "2026-08-07",
+        "2026-09-04", "2026-10-02", "2026-11-06", "2026-12-04"
+      ],
+      "time_cet": "14:30"
+    },
+    {
+      "id": "us_gdp",
+      "name": "US Bruttoinlandsprodukt (GDP)",
+      "name_en": "US GDP (Advance Estimate)",
+      "category": "growth",
+      "country": "US",
+      "impact": "medium",
+      "description": "Quartalsweise BIP-Schätzung. Zwei aufeinanderfolgende negative Quartale = technische Rezession.",
+      "recurring": true,
+      "dates": [
+        "2025-01-30", "2025-04-30", "2025-07-30", "2025-10-29",
+        "2026-01-29", "2026-04-29", "2026-07-29", "2026-10-28"
+      ],
+      "time_cet": "14:30"
+    },
+    {
+      "id": "ism_mfg",
+      "name": "ISM Manufacturing PMI",
+      "name_en": "ISM Manufacturing PMI",
+      "category": "growth",
+      "country": "US",
+      "impact": "medium",
+      "description": "Einkaufsmanagerindex Industrie. Über 50 = Expansion, unter 50 = Kontraktion. Frühindikator für Wirtschaft.",
+      "recurring": true,
+      "dates": [
+        "2025-01-03", "2025-02-03", "2025-03-03", "2025-04-01",
+        "2025-05-01", "2025-06-02", "2025-07-01", "2025-08-01",
+        "2025-09-02", "2025-10-01", "2025-11-03", "2025-12-01",
+        "2026-01-05", "2026-02-02", "2026-03-02", "2026-04-01",
+        "2026-05-01", "2026-06-01", "2026-07-01", "2026-08-03",
+        "2026-09-01", "2026-10-01", "2026-11-02", "2026-12-01"
+      ],
+      "time_cet": "16:00"
+    },
+    {
+      "id": "us_pce",
+      "name": "US PCE Preisindex",
+      "name_en": "US PCE Price Index",
+      "category": "inflation",
+      "country": "US",
+      "impact": "medium",
+      "description": "Bevorzugtes Inflationsmaß der Fed. Core PCE ist der wichtigste Maßstab für Zinsentscheidungen.",
+      "recurring": true,
+      "dates": [
+        "2025-01-31", "2025-02-28", "2025-03-28", "2025-04-30",
+        "2025-05-30", "2025-06-27", "2025-07-31", "2025-08-29",
+        "2025-09-26", "2025-10-31", "2025-11-26", "2025-12-23",
+        "2026-01-30", "2026-02-27", "2026-03-27", "2026-04-30",
+        "2026-05-29", "2026-06-26", "2026-07-31", "2026-08-28",
+        "2026-09-25", "2026-10-30", "2026-11-25", "2026-12-23"
+      ],
+      "time_cet": "14:30"
+    },
+    {
+      "id": "ifo",
+      "name": "ifo Geschäftsklimaindex",
+      "name_en": "ifo Business Climate Index",
+      "category": "growth",
+      "country": "DE",
+      "impact": "medium",
+      "description": "Wichtigster deutscher Konjunkturindikator. Misst die Geschäftserwartungen von ~9.000 Unternehmen.",
+      "recurring": true,
+      "dates": [
+        "2025-01-27", "2025-02-24", "2025-03-24", "2025-04-25",
+        "2025-05-26", "2025-06-24", "2025-07-25", "2025-08-25",
+        "2025-09-22", "2025-10-27", "2025-11-24", "2025-12-17",
+        "2026-01-26", "2026-02-23", "2026-03-23", "2026-04-27",
+        "2026-05-25", "2026-06-22", "2026-07-27", "2026-08-24",
+        "2026-09-21", "2026-10-26", "2026-11-23", "2026-12-16"
+      ],
+      "time_cet": "10:00"
+    },
+    {
+      "id": "de_cpi",
+      "name": "DE Verbraucherpreise (VPI)",
+      "name_en": "German CPI (Preliminary)",
+      "category": "inflation",
+      "country": "DE",
+      "impact": "medium",
+      "description": "Vorläufige deutsche Inflationsrate. Frühindikator für die Eurozone-Inflation und EZB-Politik.",
+      "recurring": true,
+      "dates": [
+        "2025-01-30", "2025-02-28", "2025-03-31", "2025-04-30",
+        "2025-05-29", "2025-06-30", "2025-07-31", "2025-08-28",
+        "2025-09-29", "2025-10-30", "2025-11-28", "2025-12-16",
+        "2026-01-29", "2026-02-27", "2026-03-31", "2026-04-29",
+        "2026-05-28", "2026-06-29", "2026-07-30", "2026-08-27",
+        "2026-09-29", "2026-10-29", "2026-11-27", "2026-12-15"
+      ],
+      "time_cet": "14:00"
+    },
+    {
+      "id": "fomc_minutes",
+      "name": "FOMC Sitzungsprotokoll",
+      "name_en": "FOMC Meeting Minutes",
+      "category": "central_bank",
+      "country": "US",
+      "impact": "medium",
+      "description": "Detailliertes Protokoll der letzten Fed-Sitzung. Gibt Einblicke in die Diskussion und zukünftige Geldpolitik.",
+      "recurring": true,
+      "dates": [
+        "2025-01-08", "2025-02-19", "2025-04-09", "2025-05-28",
+        "2025-07-09", "2025-08-20", "2025-10-08", "2025-11-26",
+        "2026-01-07", "2026-02-18", "2026-04-08", "2026-05-27",
+        "2026-07-08", "2026-08-19", "2026-10-07", "2026-11-25"
+      ],
+      "time_cet": "20:00"
+    },
+    {
+      "id": "eu_cpi",
+      "name": "EU Verbraucherpreise (HICP)",
+      "name_en": "Eurozone HICP Flash Estimate",
+      "category": "inflation",
+      "country": "EU",
+      "impact": "medium",
+      "description": "Harmonisierter Verbraucherpreisindex der Eurozone. Maßgeblich für EZB-Zinsentscheidungen.",
+      "recurring": true,
+      "dates": [
+        "2025-01-07", "2025-02-03", "2025-03-03", "2025-04-01",
+        "2025-04-30", "2025-06-03", "2025-07-01", "2025-07-31",
+        "2025-09-02", "2025-10-01", "2025-10-31", "2025-12-02",
+        "2026-01-07", "2026-02-03", "2026-03-03", "2026-04-01",
+        "2026-04-30", "2026-06-02", "2026-07-01", "2026-07-31",
+        "2026-09-01", "2026-10-01", "2026-10-30", "2026-12-01"
+      ],
+      "time_cet": "11:00"
+    }
+  ]
+}

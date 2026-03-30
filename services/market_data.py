@@ -144,6 +144,7 @@ def get_stock_details(ticker: str) -> dict | None:
         hist_1y = tk.history(period="1y", interval="1d")
         hist_5y = tk.history(period="5y", interval="1d")
         hist_max = tk.history(period="max", interval="1wk")
+        hist_monthly = tk.history(period="max", interval="1mo")
         
         if hist_1y.empty:
             return None
@@ -356,6 +357,7 @@ def get_stock_details(ticker: str) -> dict | None:
             "hist_1y": hist_1y,
             "hist_5y": hist_5y,
             "hist_max": hist_max,
+            "hist_monthly": hist_monthly,
             "rsi_series": rsi,
             "sma_20": sma_20,
             "sma_50": sma_50,

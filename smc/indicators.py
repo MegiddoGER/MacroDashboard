@@ -202,16 +202,91 @@ def detect_eqh_eql(df: pd.DataFrame, lookback: int = 10, tolerance_pct: float = 
         "eql": filter_redundant(eql_list)
     }
 
-def analyze_smc(df: pd.DataFrame, htf_df: pd.DataFrame = None) -> dict:
+def _analyze_tf(df: pd.DataFrame, label: str, min_gap_pct: float = 0.5) -> dict:
+    """Analysiert einen einzelnen Timeframe und gibt Scores zurück.
+
+    Returns:
+        Dict mit trend, fvg_bias, structure, fvgs, eq_levels.
+    """
+    if df is None or len(df) < 20:
+        return {
+            "label": label,
+            "trend": "neutral",
+            "fvg_bias": "neutral",
+            "structure": "neutral",
+            "fvgs_bull": 0,
+            "fvgs_bear": 0,
+            "eqh_count": 0,
+            "eql_count": 0,
+        }
+
+    # FVGs
+    fvgs = detect_fvg(df, min_gap_pct=min_gap_pct)
+    unmitigated = [f for f in fvgs if not f["mitigated"]]
+    bull_count = len([f for f in unmitigated if f["type"] == "bullish"])
+    bear_count = len([f for f in unmitigated if f["type"] == "bearish"])
+
+    if bull_count > bear_count:
+        fvg_bias = "bullish"
+    elif bear_count > bull_count:
+        fvg_bias = "bearish"
+    else:
+        fvg_bias = "neutral"
+
+    # Trend (Slope der letzten N Close-Werte)
+    close = df["Close"]
+    lookback = min(10, len(close) - 1)
+    if lookback >= 2:
+        recent = close.iloc[-lookback:]
+        slope = float(recent.iloc[-1]) - float(recent.iloc[0])
+        if slope > 0:
+            trend = "bullish"
+        elif slope < 0:
+            trend = "bearish"
+        else:
+            trend = "neutral"
+    else:
+        trend = "neutral"
+
+    # Structure (EQH/EQL)
+    eq_levels = detect_eqh_eql(df, lookback=max(5, min(10, len(df) // 10)),
+                                tolerance_pct=0.8)
+    eqh_count = len(eq_levels.get("eqh", []))
+    eql_count = len(eq_levels.get("eql", []))
+
+    # Strukturelle Bias
+    if eql_count > eqh_count:
+        structure = "bearish"   # Mehr Liquidität unter dem Markt = bearish Potential
+    elif eqh_count > eql_count:
+        structure = "bullish"   # Mehr Liquidität über dem Markt = bullish Potential
+    else:
+        structure = "neutral"
+
+    return {
+        "label": label,
+        "trend": trend,
+        "fvg_bias": fvg_bias,
+        "structure": structure,
+        "fvgs_bull": bull_count,
+        "fvgs_bear": bear_count,
+        "eqh_count": eqh_count,
+        "eql_count": eql_count,
+    }
+
+
+def analyze_smc(df: pd.DataFrame,
+                htf_df: pd.DataFrame = None,
+                monthly_df: pd.DataFrame = None) -> dict:
     """Führt die komplette SMC-Analyse auf einem DataFrame durch.
-    
+
     Args:
         df: Primary DataFrame (z.B. Daily-Kerzen)
         htf_df: Optional Higher-Timeframe DataFrame (z.B. Weekly) für MTF-Confluence
+        monthly_df: Optional Monthly-Daten für 3-Tier MTF-Confluence
     """
     fvgs = detect_fvg(df, min_gap_pct=0.5)
-    eq_levels = detect_eqh_eql(df, lookback=10, tolerance_pct=0.8) # etwas größere Toleranz für Makro
-    
+    eq_levels = detect_eqh_eql(df, lookback=10, tolerance_pct=0.8)
+
     # Offene FVGs zählen
     unmitigated_fvgs = [f for f in fvgs if not f["mitigated"]]
     bullish_fvgs = [f for f in unmitigated_fvgs if f["type"] == "bullish"]
@@ -219,51 +294,72 @@ def analyze_smc(df: pd.DataFrame, htf_df: pd.DataFrame = None) -> dict:
 
     current_price = df["Close"].iloc[-1]
 
-    # ── Multi-Timeframe Confluence ──────────────────────────────────
-    confluence_score = 0  # 0 = keine Bestätigung, 3 = volle MTF-Confluence
-    htf_trend = "neutral"
-    htf_fvg_bias = "neutral"
-    
-    if htf_df is not None and len(htf_df) >= 20:
-        # 1. HTF-FVGs berechnen
-        htf_fvgs = detect_fvg(htf_df, min_gap_pct=0.3)  # Geringere Schwelle für Weekly
-        htf_unmitigated = [f for f in htf_fvgs if not f["mitigated"]]
-        htf_bull = len([f for f in htf_unmitigated if f["type"] == "bullish"])
-        htf_bear = len([f for f in htf_unmitigated if f["type"] == "bearish"])
-        
-        if htf_bull > htf_bear:
-            htf_fvg_bias = "bullish"
-        elif htf_bear > htf_bull:
-            htf_fvg_bias = "bearish"
-        
-        # 2. HTF-Trend (VWAP Slope der letzten 10 Wochen)
-        htf_close = htf_df["Close"]
-        if len(htf_close) >= 10:
-            htf_recent = htf_close.iloc[-10:]
-            htf_slope = float(htf_recent.iloc[-1]) - float(htf_recent.iloc[0])
-            if htf_slope > 0:
-                htf_trend = "bullish"
-            elif htf_slope < 0:
-                htf_trend = "bearish"
-        
-        # 3. Confluence berechnen
-        # Daily FVG-Bias stimmt mit HTF überein?
-        daily_bias = "bullish" if len(bullish_fvgs) > len(bearish_fvgs) else ("bearish" if len(bearish_fvgs) > len(bullish_fvgs) else "neutral")
-        
-        if daily_bias != "neutral" and daily_bias == htf_fvg_bias:
-            confluence_score += 1  # FVG-Alignment
-        if daily_bias != "neutral" and daily_bias == htf_trend:
-            confluence_score += 1  # Trend-Alignment
-        if htf_fvg_bias == htf_trend and htf_trend != "neutral":
-            confluence_score += 1  # HTF intern konsistent
+    # ── Multi-Timeframe Analyse ─────────────────────────────────────
+    daily_tf = _analyze_tf(df, "Daily", min_gap_pct=0.5)
+    weekly_tf = _analyze_tf(htf_df, "Weekly", min_gap_pct=0.3)
+    monthly_tf = _analyze_tf(monthly_df, "Monthly", min_gap_pct=0.2)
+
+    # MTF-Matrix (für UI-Visualisierung)
+    mtf_matrix = {
+        "timeframes": ["Monthly", "Weekly", "Daily"],
+        "categories": ["Trend", "FVG Bias", "Structure"],
+        "data": {
+            "Monthly": {
+                "Trend": monthly_tf["trend"],
+                "FVG Bias": monthly_tf["fvg_bias"],
+                "Structure": monthly_tf["structure"],
+            },
+            "Weekly": {
+                "Trend": weekly_tf["trend"],
+                "FVG Bias": weekly_tf["fvg_bias"],
+                "Structure": weekly_tf["structure"],
+            },
+            "Daily": {
+                "Trend": daily_tf["trend"],
+                "FVG Bias": daily_tf["fvg_bias"],
+                "Structure": daily_tf["structure"],
+            },
+        },
+        "details": {
+            "Monthly": monthly_tf,
+            "Weekly": weekly_tf,
+            "Daily": daily_tf,
+        },
+    }
+
+    # ── Confluence Score (max 5) ────────────────────────────────────
+    confluence_score = 0
+    htf_trend = weekly_tf["trend"]
+    htf_fvg_bias = weekly_tf["fvg_bias"]
+
+    daily_bias = daily_tf["fvg_bias"]
+
+    # Daily ↔ Weekly FVG Alignment
+    if daily_bias != "neutral" and daily_bias == htf_fvg_bias:
+        confluence_score += 1
+    # Daily ↔ Weekly Trend Alignment
+    if daily_tf["trend"] != "neutral" and daily_tf["trend"] == htf_trend:
+        confluence_score += 1
+    # Weekly intern konsistent (Trend = FVG)
+    if htf_fvg_bias == htf_trend and htf_trend != "neutral":
+        confluence_score += 1
+    # Monthly ↔ Weekly Trend Alignment
+    if monthly_tf["trend"] != "neutral" and monthly_tf["trend"] == htf_trend:
+        confluence_score += 1
+    # Alle drei Trends aligned
+    if (daily_tf["trend"] == weekly_tf["trend"] == monthly_tf["trend"]
+            and daily_tf["trend"] != "neutral"):
+        confluence_score += 1
 
     return {
         "fvgs": fvgs,
         "eqh": eq_levels["eqh"],
         "eql": eq_levels["eql"],
         "confluence_score": confluence_score,
+        "confluence_max": 5,
         "htf_trend": htf_trend,
         "htf_fvg_bias": htf_fvg_bias,
+        "mtf_matrix": mtf_matrix,
         "stats": {
             "unmitigated_bullish": len(bullish_fvgs),
             "unmitigated_bearish": len(bearish_fvgs),
@@ -271,3 +367,4 @@ def analyze_smc(df: pd.DataFrame, htf_df: pd.DataFrame = None) -> dict:
             "nearest_eql": max([e["level"] for e in eq_levels["eql"] if e["level"] < current_price], default=None),
         }
     }
+

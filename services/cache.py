@@ -16,6 +16,8 @@ from services.market_data import (
     get_components_performance
 )
 from services.news import get_regional_news, get_company_news
+from services.economic_calendar import get_upcoming_events, get_calendar_summary, get_events_for_ticker
+from services.options import get_options_overview
 
 # ---------------------------------------------------------------------------
 # Dynamischer Cache-TTL: Börsen offen → 5 Min, geschlossen → 30 Min
@@ -113,3 +115,19 @@ def cached_sp500_components(): return get_sp500_components()
 def cached_components_performance(tickers_str: str, period: str):
     tickers = [t.strip() for t in tickers_str.split(",") if t.strip()]
     return get_components_performance(tickers, period)
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def cached_upcoming_events(days: int = 14, country: str = "", impact: str = ""):
+    return get_upcoming_events(days, country or None, impact or None)
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def cached_calendar_summary():
+    return get_calendar_summary()
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def cached_events_for_ticker(ticker: str, days: int = 7):
+    return get_events_for_ticker(ticker, days)
+
+@st.cache_data(ttl=300, show_spinner=False)
+def cached_options_overview(ticker: str, expiry: str = ""):
+    return get_options_overview(ticker, expiry or None)

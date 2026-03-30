@@ -109,7 +109,38 @@ def page_analysis():
         return
 
     stats = details["stats"]
-    
+
+    # ── Makro-Event Warnung ──────────────────────────────────────────────
+    try:
+        from services.cache import cached_events_for_ticker
+        macro_events = cached_events_for_ticker(ticker, days=7)
+        if macro_events:
+            from services.economic_calendar import get_impact_color, get_country_flag
+            for ev in macro_events:
+                impact_color = get_impact_color(ev.impact)
+                flag = get_country_flag(ev.country)
+                date_str = ev.date.strftime("%d.%m.%Y")
+                time_str = f" um {ev.time_cet} CET" if ev.time_cet else ""
+                st.markdown(
+                    f"<div style='"
+                    f"background:linear-gradient(90deg, {impact_color}22 0%, #0f172a 100%);"
+                    f"border-left:4px solid {impact_color};"
+                    f"border-radius:6px;"
+                    f"padding:10px 16px;"
+                    f"margin-bottom:8px;"
+                    f"'>"
+                    f"<span style='font-size:0.9rem;'>"
+                    f"⚠️ {flag} <b>{ev.name}</b> — "
+                    f"{ev.countdown_label} ({date_str}{time_str})"
+                    f"</span>"
+                    f"<br><span style='color:#94a3b8;font-size:0.78rem;'>"
+                    f"{ev.description}"
+                    f"</span></div>",
+                    unsafe_allow_html=True,
+                )
+    except Exception:
+        pass  # Kalender ist optional — Analyse soll nie daran scheitern
+
     # ── Time Filter Selection ──
     st.markdown("### Zeitraum auswählen")
     time_filter = st.pills(
@@ -466,8 +497,8 @@ def page_analysis():
         sector_cat = "csvs"
         tab_name = "🏛️ CSVS (Dividenden & Buchwert)"
 
-    tab_liq, tab_swing, tab_flow, tab_quant, tab_smc = st.tabs([
-        "🔄 Liquidity Sweep", "📈 Swing Trading", "📊 Order Flow", tab_name, "🧲 SMC (Makro)"
+    tab_liq, tab_swing, tab_flow, tab_quant, tab_smc, tab_options = st.tabs([
+        "🔄 Liquidity Sweep", "📈 Swing Trading", "📊 Order Flow", tab_name, "🧲 SMC (Makro)", "📋 Options Flow"
     ])
 
     with tab_liq:
@@ -494,9 +525,10 @@ def page_analysis():
         from smc.indicators import analyze_smc
         from smc.charts import plot_smc
         
-        # Weekly-Daten (hist_max) als Higher-Timeframe für MTF-Confluence übergeben
+        # Weekly + Monthly-Daten als Higher-Timeframes für MTF-Confluence
         htf_weekly = details.get("hist_max")
-        smc_data = analyze_smc(hist, htf_df=htf_weekly)
+        htf_monthly = details.get("hist_monthly")
+        smc_data = analyze_smc(hist, htf_df=htf_weekly, monthly_df=htf_monthly)
         if smc_data and "fvgs" in smc_data:
             st.plotly_chart(plot_smc(hist, smc_data, f"SMC & Liquiditätszonen — {display_ticker}"), use_container_width=True)
             c1, c2, c3, c4 = st.columns(4)
@@ -509,25 +541,96 @@ def page_analysis():
             if val_eql: c4.metric("Nächstes EQL (Magnet ⬇️)", f"{val_eql:,.2f}")
             else: c4.metric("Nächstes EQL (Magnet ⬇️)", "—")
 
-            # MTF-Confluence Anzeige
+            # MTF-Confluence Metriken
             confluence = smc_data.get("confluence_score", 0)
+            confluence_max = smc_data.get("confluence_max", 5)
             htf_trend = smc_data.get("htf_trend", "neutral")
             htf_bias = smc_data.get("htf_fvg_bias", "neutral")
             trend_icons = {"bullish": "🟢 Aufwärts", "bearish": "🔴 Abwärts", "neutral": "➖ Neutral"}
             
             st.markdown("---")
-            st.markdown("##### 🔗 Multi-Timeframe Confluence")
+            st.markdown("##### 🔗 Multi-Timeframe Confluence (Daily · Weekly · Monthly)")
+
             mc1, mc2, mc3 = st.columns(3)
-            mc1.metric("Confluence-Score", f"{confluence}/3", help="0 = keine Bestätigung, 3 = volle MTF-Confluence zwischen Daily und Weekly.")
+            mc1.metric("Confluence-Score", f"{confluence}/{confluence_max}",
+                       help="0 = keine Bestätigung, 5 = volle 3-Tier MTF-Confluence (Daily/Weekly/Monthly).")
             mc2.metric("Wochentrend (HTF)", trend_icons.get(htf_trend, "—"))
             mc3.metric("HTF FVG-Bias", trend_icons.get(htf_bias, "—"))
 
-            if confluence >= 2:
-                st.success("✅ Starke Multi-Timeframe Confluence: Tages- und Wochensignale bestätigen sich gegenseitig.")
-            elif confluence == 1:
-                st.warning("⚠️ Teilweise Confluence: Nur partielles Alignment zwischen Tages- und Wochenstruktur.")
+            # ── MTF Alignment Matrix ─────────────────────────────────
+            mtf_matrix = smc_data.get("mtf_matrix")
+            if mtf_matrix:
+                st.markdown("##### 📊 MTF-Alignment-Matrix")
+                st.caption("Zeigt Trend, FVG-Bias und Struktur über drei Zeitebenen. "
+                          "Volle Alignment (alle grün) = höchste Überzeugung.")
+
+                signal_colors = {
+                    "bullish": "#22c55e",
+                    "bearish": "#ef4444",
+                    "neutral": "#64748b",
+                }
+                signal_labels = {
+                    "bullish": "▲ Bullish",
+                    "bearish": "▼ Bearish",
+                    "neutral": "— Neutral",
+                }
+
+                # Matrix als HTML-Tabelle
+                matrix_html = """
+                <table style="width:100%; border-collapse:collapse; font-size:0.85rem; margin:8px 0;">
+                    <thead>
+                        <tr style="border-bottom:2px solid #334155;">
+                            <th style="text-align:left;padding:8px;color:#94a3b8;font-weight:500;">Timeframe</th>
+                """
+                for cat in mtf_matrix["categories"]:
+                    matrix_html += f'<th style="text-align:center;padding:8px;color:#94a3b8;font-weight:500;">{cat}</th>'
+                matrix_html += "</tr></thead><tbody>"
+
+                for tf in mtf_matrix["timeframes"]:
+                    tf_icon = {"Monthly": "📅", "Weekly": "📆", "Daily": "📊"}.get(tf, "")
+                    matrix_html += f'<tr style="border-bottom:1px solid #1e293b;"><td style="padding:8px;font-weight:600;color:#e2e8f0;">{tf_icon} {tf}</td>'
+                    for cat in mtf_matrix["categories"]:
+                        val = mtf_matrix["data"].get(tf, {}).get(cat, "neutral")
+                        color = signal_colors.get(val, "#64748b")
+                        label = signal_labels.get(val, "—")
+                        matrix_html += (
+                            f'<td style="text-align:center;padding:8px;">'
+                            f'<span style="color:{color};font-weight:600;">{label}</span></td>'
+                        )
+                    matrix_html += "</tr>"
+
+                matrix_html += "</tbody></table>"
+                st.markdown(matrix_html, unsafe_allow_html=True)
+
+                # Zusammenfassende Bewertung
+                data = mtf_matrix["data"]
+                all_trends = [data[tf]["Trend"] for tf in mtf_matrix["timeframes"]]
+                all_fvg = [data[tf]["FVG Bias"] for tf in mtf_matrix["timeframes"]]
+
+                trends_aligned = len(set(all_trends)) == 1 and all_trends[0] != "neutral"
+                fvg_aligned = len(set(all_fvg)) == 1 and all_fvg[0] != "neutral"
+
+                if trends_aligned and fvg_aligned:
+                    direction = "bullish" if all_trends[0] == "bullish" else "bearish"
+                    if direction == "bullish":
+                        st.success("✅ **Perfekte MTF-Confluence:** Alle drei Zeitebenen (Monthly/Weekly/Daily) "
+                                  "zeigen übereinstimmend bullishe Trends und FVG-Bias — stärkste Überzeugung für Long-Setups.")
+                    else:
+                        st.error("🔴 **Perfekte MTF-Confluence (bearish):** Alle drei Zeitebenen "
+                                "zeigen übereinstimmend bearishe Signale — stärkste Überzeugung für Short/Hedge-Setups.")
+                elif confluence >= 3:
+                    st.success("✅ Starke Multi-Timeframe Confluence: Mehrere Zeitebenen bestätigen sich gegenseitig.")
+                elif confluence >= 1:
+                    st.warning("⚠️ Teilweise Confluence: Nur partielles Alignment zwischen den Zeitebenen.")
+                else:
+                    st.info("ℹ️ Keine Confluence: Die Zeitebenen sind nicht aufeinander abgestimmt — erhöhte Vorsicht.")
             else:
-                st.info("ℹ️ Keine Confluence: Tages- und Wochensignale sind nicht aufeinander abgestimmt — erhöhte Vorsicht.")
+                if confluence >= 2:
+                    st.success("✅ Starke Multi-Timeframe Confluence: Tages- und Wochensignale bestätigen sich gegenseitig.")
+                elif confluence == 1:
+                    st.warning("⚠️ Teilweise Confluence: Nur partielles Alignment zwischen Tages- und Wochenstruktur.")
+                else:
+                    st.info("ℹ️ Keine Confluence: Tages- und Wochensignale sind nicht aufeinander abgestimmt — erhöhte Vorsicht.")
         else:
             st.info("Nicht genügend Daten für SMC Analyse (mind. 20 Kerzen benötigt).")
 
@@ -725,6 +828,146 @@ def page_analysis():
             col3.metric("Strategic Score", res['strategic_importance'])
             if res['is_undervalued_soe']: st.success("✅ **CSVS Unterbewertung:** Hohe Dividende (>5%) und niedriges P/B (<1) bei (potenziell) kritischer Infrastruktur.")
             else: st.info("ℹ️ Kein klassisches CSVS-Value-Play basierend auf P/B und Dividende.")
+
+    with tab_options:
+        st.markdown("#### 📋 Options Flow & Open Interest")
+        st.caption("Options-Daten als Sentiment-Indikator: Put/Call Ratio, Max Pain, Implied vs. Historical Volatility.")
+
+        with st.spinner("Lade Options-Daten …"):
+            from services.cache import cached_options_overview
+            opts = cached_options_overview(ticker)
+
+        if opts is None:
+            st.info("Keine Options-Daten verfügbar für diesen Ticker. "
+                    "Options-Daten sind primär für US-Aktien zugänglich.")
+        else:
+            # Verfallstermin-Info
+            st.markdown(f"**Verfallstermin:** `{opts.expiry_date}` "
+                        f"({len(opts.available_expiries)} Termine verfügbar)")
+
+            # ── Metriken-Übersicht ──
+            oc1, oc2, oc3, oc4 = st.columns(4)
+
+            # Put/Call Ratio
+            with oc1:
+                pc_val = f"{opts.pc_ratio_volume:.2f}" if opts.pc_ratio_volume else "—"
+                sentiment_icon = {"Bullish": "🟢", "Bearish": "🔴", "Neutral": "🟡"}.get(opts.pc_sentiment, "—")
+                st.metric("P/C Ratio (Vol.)",
+                          pc_val,
+                          delta=f"{sentiment_icon} {opts.pc_sentiment}",
+                          delta_color="off",
+                          help="Put/Call Volume Ratio. >1.2 = Bearish (mehr Puts), <0.7 = Bullish (mehr Calls).")
+
+            # Max Pain
+            with oc2:
+                mp_val = f"{opts.max_pain:,.2f} €" if opts.max_pain else "—"
+                mp_delta = f"{opts.max_pain_distance_pct:+.1f} % vom Kurs" if opts.max_pain_distance_pct is not None else ""
+                st.metric("Max Pain",
+                          mp_val,
+                          delta=mp_delta,
+                          delta_color="off",
+                          help="Preis bei dem die meisten Optionen wertlos verfallen. Kurse tendieren an Verfall dorthin.")
+
+            # IV
+            with oc3:
+                iv_val = f"{opts.implied_vol:.1f} %" if opts.implied_vol else "—"
+                st.metric("Implied Volatility",
+                          iv_val,
+                          help="Durchschnittliche ATM Implied Volatility. Misst die erwartete Schwankung.")
+
+            # HV
+            with oc4:
+                hv_val = f"{opts.historical_vol:.1f} %" if opts.historical_vol else "—"
+                iv_signal = opts.iv_hv_signal or ""
+                signal_icon = {"IV Premium": "⬆️", "IV Discount": "⬇️", "Fair": "↔️"}.get(iv_signal, "")
+                st.metric("Historical Volatility",
+                          hv_val,
+                          delta=f"{signal_icon} {iv_signal} (IV/HV: {opts.iv_hv_ratio:.2f})" if opts.iv_hv_ratio else "",
+                          delta_color="off",
+                          help="30-Tage historische Volatilität (annualisiert). Vergleich mit IV zeigt Über/Unterbewertung der Optionsprämie.")
+
+            # Put/Call Beschreibung
+            if opts.pc_description:
+                if opts.pc_sentiment == "Bullish":
+                    st.success(f"✅ {opts.pc_description}")
+                elif opts.pc_sentiment == "Bearish":
+                    st.warning(f"⚠️ {opts.pc_description}")
+                else:
+                    st.info(f"ℹ️ {opts.pc_description}")
+
+            # IV vs HV Signal
+            if opts.iv_hv_signal == "IV Premium":
+                st.warning("⚠️ **IV Premium:** Optionsprämien sind überdurchschnittlich hoch — "
+                          "der Markt erwartet stärkere Kursbewegungen als historisch üblich. "
+                          "Oft vor Earnings oder Events.")
+            elif opts.iv_hv_signal == "IV Discount":
+                st.success("✅ **IV Discount:** Optionsprämien sind günstiger als üblich — "
+                          "keine außergewöhnliche Volatilitätserwartung eingepreist.")
+
+            # ── Top Strikes nach OI ──
+            st.markdown("---")
+            st.markdown("##### Top Strikes nach Open Interest")
+
+            top_col1, top_col2 = st.columns(2)
+            with top_col1:
+                st.markdown("**🟢 Top Calls (Resistance / Targets)**")
+                if opts.top_call_strikes:
+                    for i, s in enumerate(opts.top_call_strikes, 1):
+                        st.markdown(
+                            f"<div style='background:#1e293b;padding:6px 12px;border-radius:6px;"
+                            f"border-left:3px solid #22c55e;margin-bottom:4px;font-size:0.85rem;'>"
+                            f"<b>${s['strike']:,.0f}</b> · "
+                            f"OI: {s['open_interest']:,} · "
+                            f"Vol: {s['volume']:,} · "
+                            f"IV: {s['iv']:.0f}%"
+                            f"</div>",
+                            unsafe_allow_html=True,
+                        )
+                else:
+                    st.caption("Keine Call-OI-Daten verfügbar.")
+
+            with top_col2:
+                st.markdown("**🔴 Top Puts (Support / Hedges)**")
+                if opts.top_put_strikes:
+                    for i, s in enumerate(opts.top_put_strikes, 1):
+                        st.markdown(
+                            f"<div style='background:#1e293b;padding:6px 12px;border-radius:6px;"
+                            f"border-left:3px solid #ef4444;margin-bottom:4px;font-size:0.85rem;'>"
+                            f"<b>${s['strike']:,.0f}</b> · "
+                            f"OI: {s['open_interest']:,} · "
+                            f"Vol: {s['volume']:,} · "
+                            f"IV: {s['iv']:.0f}%"
+                            f"</div>",
+                            unsafe_allow_html=True,
+                        )
+                else:
+                    st.caption("Keine Put-OI-Daten verfügbar.")
+
+            # ── Unusual Activity ──
+            if opts.unusual_calls or opts.unusual_puts:
+                st.markdown("---")
+                st.markdown("##### 🔥 Ungewöhnliche Options-Aktivität")
+                st.caption("Strikes mit Volume > 5× Open Interest — möglicher Hinweis auf große Block-Trades.")
+
+                for item in opts.unusual_calls + opts.unusual_puts:
+                    tag = "CALL" if item["type"] == "call" else "PUT"
+                    tag_color = "#22c55e" if item["type"] == "call" else "#ef4444"
+                    dist = f" ({item['distance_pct']:+.1f}% vom Kurs)" if item.get("distance_pct") is not None else ""
+                    st.markdown(
+                        f"<div style='background:#1e293b;padding:8px 14px;border-radius:6px;"
+                        f"margin-bottom:4px;font-size:0.85rem;'>"
+                        f"<span style='background:{tag_color};color:#fff;padding:2px 8px;border-radius:4px;"
+                        f"font-weight:600;font-size:0.75rem;'>{tag}</span> "
+                        f"<b>${item['strike']:,.0f}</b>{dist} · "
+                        f"Vol: <b>{item['volume']:,}</b> vs OI: {item['open_interest']:,} "
+                        f"({item['vol_oi_ratio']:.0f}x)"
+                        f"</div>",
+                        unsafe_allow_html=True,
+                    )
+
+            st.caption("Put/Call Ratio: <0.7 = bullish, 0.7-1.2 = neutral, >1.2 = bearish. "
+                       "Max Pain: Preislevel bei dem am meisten Optionen wertlos verfallen — "
+                       "der Kurs tendiert am Verfallstag oft in diese Richtung.")
 
     # ── Block 4: Innerer Wert (DCF) ────────────────────────────────────
     st.markdown("---")
