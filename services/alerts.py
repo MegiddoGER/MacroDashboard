@@ -14,8 +14,8 @@ from services.cache import cached_stock_details
 def _get_current_metrics(ticker: str) -> dict:
     """Holt die aktuellsten Werte (Preis, RSI, Score) für einen Ticker."""
     try:
-        from data_cache import cached_stock_history
-        hist = cached_stock_history(ticker, "1mo")
+        from services.market_data import get_history
+        hist = get_history(ticker, "1mo")
         
         if hist is None or hist.empty:
             return {}

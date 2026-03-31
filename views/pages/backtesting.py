@@ -9,7 +9,8 @@ import pandas as pd
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
 
-from data_cache import cached_stock_history, resolve_ticker
+from services.cache import cached_stock_history
+from services.watchlist import resolve_ticker
 from services.backtesting import BacktestEngine
 
 
@@ -60,7 +61,8 @@ def page_backtesting():
     # Backtest Ausführung
     # -----------------------------------------------------------------------
     if run_btn:
-        ticker = resolve_ticker(input_ticker)
+        resolved = resolve_ticker(input_ticker)
+        ticker = resolved["ticker"] if resolved else input_ticker
         
         with st.spinner(f"Lade feingranulare Kaskaden-Daten für {ticker} ({period})..."):
             hist = cached_stock_history(ticker, period)
@@ -155,7 +157,7 @@ def page_backtesting():
                     "exit_price": "€ {:.2f}",
                     "pnl_eur": "€ {:+.2f}",
                     "pnl_pct": "{:+.2f} %"
-                }).applymap(
+                }).map(
                     lambda val: "color: #22c55e;" if val > 0 else "color: #ef4444;", 
                     subset=["pnl_eur", "pnl_pct"]
                 )

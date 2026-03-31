@@ -132,6 +132,11 @@ def cached_events_for_ticker(ticker: str, days: int = 7):
     return get_events_for_ticker(ticker, days)
 
 @st.cache_data(ttl=300, show_spinner=False)
+def cached_stock_history(ticker: str, period: str = "1y"):
+    """Cached wrapper für get_history — liefert OHLCV DataFrame."""
+    return get_history(ticker, period)
+
+@st.cache_data(ttl=300, show_spinner=False)
 def cached_options_overview(ticker: str, expiry: str = ""):
     return get_options_overview(ticker, expiry or None)
 

@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import numpy as np
 from datetime import datetime, date
 from data_cache import cached_multi, cached_earnings, _fmt_euro, _fmt_pct, _fmt_rsi, _color_change
 from watchlist import (
