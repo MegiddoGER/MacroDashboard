@@ -104,7 +104,7 @@ def analyze_ticker_news(ticker: str) -> dict:
         Dict mit avg_compound, n_articles, bullish_pct, bearish_pct, recent_headlines
     """
     # Import hier um Zirkelbezüge zu vermeiden, falls data_cache sentiment.py importiert
-    from data_cache import cached_company_news
+    from services.cache import cached_company_news
     
     news_items = cached_company_news(ticker)
     

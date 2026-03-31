@@ -1,7 +1,7 @@
 import streamlit as st
-from data_cache import cached_history, cached_yield_spread, cached_inflation, cached_regional_news, _render_news_list
-from charts import plot_timeseries, plot_yield_spread, plot_inflation
-from services.cache import cached_upcoming_events, cached_calendar_summary
+from services.cache import cached_history, cached_yield_spread, cached_inflation, cached_regional_news, cached_upcoming_events, cached_calendar_summary
+from views.components.charts import plot_timeseries, plot_yield_spread, plot_inflation
+from views.components.news_list import _render_news_list
 from services.economic_calendar import (
     get_impact_color, get_country_flag, get_category_icon,
     IMPACT_BADGES, COUNTRY_FLAGS,

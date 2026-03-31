@@ -3,19 +3,20 @@ import pandas as pd
 import numpy as np
 from datetime import datetime
 
-from watchlist import load_watchlist, resolve_ticker
-from data_cache import cached_stock_details, cached_correlation, cached_company_news, _render_news_list
-from fundamental import (
+from services.watchlist import load_watchlist, resolve_ticker
+from services.cache import cached_stock_details, cached_correlation, cached_company_news
+from views.components.news_list import _render_news_list
+from services.fundamental import (
     calc_dcf_valuation, calc_balance_sheet_quality, get_margin_trends,
     get_sector_peers, calc_dividend_analysis, get_insider_institutional,
     get_analyst_consensus
 )
-from charts import (
+from views.components.charts import (
     plot_candlestick, plot_rsi, plot_macd, plot_bollinger, plot_stochastic,
     plot_returns_distribution, plot_timeseries, plot_correlation_matrix,
     plot_liquidity_sweeps, plot_swing_overview, plot_order_flow, plot_financials_chart
 )
-from indicators import (
+from services.technical import (
     calc_macd, calc_bollinger, calc_stochastic, calc_atr, detect_liquidity_sweeps,
     calc_swing_signals, calc_order_flow, calc_technical_summary, calc_position_sizing
 )
@@ -695,7 +696,7 @@ def page_analysis():
         
         if sector_cat == "finanzen":
             st.caption("Excess Returns Model — misst die echte Kapitalrentabilität und identifiziert Bewertungsausschläge bei Zinszyklen.")
-            from valuation import calc_excess_returns
+            from services.valuation import calc_excess_returns
             res = calc_excess_returns(info_data)
             col1, col2, col3 = st.columns(3)
             col1.metric("Return on Equity (ROE)", f"{res['roe']*100:.1f} %")
@@ -707,7 +708,7 @@ def page_analysis():
             
         elif sector_cat == "tech":
             st.caption("Rule of 40 & LTV/CAC-Framework — quantifiziert die Qualität des Wachstums vs. 'Value Traps'.")
-            from valuation import calc_rule_of_40
+            from services.valuation import calc_rule_of_40
             res = calc_rule_of_40(info_data)
             col1, col2, col3 = st.columns(3)
             col1.metric("Revenue Growth", f"{res['revenue_growth']*100:.1f} %")
@@ -719,7 +720,7 @@ def page_analysis():
 
         elif sector_cat == "hardware":
             st.caption("Vorlaufende EV/EBITDA-Zyklik & Book-to-Bill — antizipiert zyklische Cashflow-Revisionen.")
-            from valuation import calc_hardware_cycle
+            from services.valuation import calc_hardware_cycle
             res = calc_hardware_cycle(info_data)
             col1, col2, col3 = st.columns(3)
             col1.metric("EV / EBITDA", f"{res['ev_ebitda']:.1f}")
@@ -731,7 +732,7 @@ def page_analysis():
 
         elif sector_cat == "pharma":
             st.caption("rNPV (Risk-Adjusted Net Present Value) — isoliert das binäre technologische Risiko von Marktrisiko.")
-            from valuation import calc_rnpv_proxy
+            from services.valuation import calc_rnpv_proxy
             res = calc_rnpv_proxy(info_data)
             col1, col2, col3 = st.columns(3)
             col1.metric("Enterprise Value", f"{res['ev']:,.0f} €" if res['ev'] else "N/A")
@@ -742,7 +743,7 @@ def page_analysis():
 
         elif sector_cat == "energie":
             st.caption("EV / DACF (Debt-Adjusted Cash Flow) — bereinigt unterschiedliche Verschuldungsgrade für Peer-Vergleiche.")
-            from valuation import calc_ev_dacf
+            from services.valuation import calc_ev_dacf
             res = calc_ev_dacf(info_data)
             col1, col2, col3 = st.columns(3)
             col1.metric("Enterprise Value", f"{res['ev']:,.0f} €" if res['ev'] else "N/A")
@@ -754,7 +755,7 @@ def page_analysis():
 
         elif sector_cat == "telekom":
             st.caption("ARPU-adjustiertes EV/EBITDA — blendet die Kosten der Kundenbindung aus & signalisiert Pricing-Power.")
-            from valuation import calc_telecom_metrics
+            from services.valuation import calc_telecom_metrics
             res = calc_telecom_metrics(info_data)
             col1, col2, col3 = st.columns(3)
             col1.metric("EV / EBITDA", f"{res['ev_ebitda']:.1f}")
@@ -766,7 +767,7 @@ def page_analysis():
 
         elif sector_cat == "logistik":
             st.caption("EV / EBITDAR — Leasing vs. Flottenbesitz verzerrt die Bilanz; diese Metrik neutralisiert dies.")
-            from valuation import calc_logistics_metrics
+            from services.valuation import calc_logistics_metrics
             res = calc_logistics_metrics(info_data)
             col1, col2, col3 = st.columns(3)
             col1.metric("EV / EBITDA", f"{res['ev_ebitda']:.1f}")
@@ -777,7 +778,7 @@ def page_analysis():
 
         elif sector_cat == "defense":
             st.caption("Verteidigung & Luftfahrt — Hohe Visibilität durch Regierungsverträge; Stabilität der operativen Marge ist entscheidend.")
-            from valuation import calc_defense_metrics
+            from services.valuation import calc_defense_metrics
             res = calc_defense_metrics(info_data)
             col1, col2, col3 = st.columns(3)
             col1.metric("EV / EBITDA", f"{res['ev_ebitda']:.1f}")
@@ -788,7 +789,7 @@ def page_analysis():
             
         elif sector_cat == "auto":
             st.caption("Automobilindustrie — Kapitalintensiv; Effizienz bei der Nutzung der Assets (Fabriken etc.) und ROIC treiben die langfristige Bewertung.")
-            from valuation import calc_auto_metrics
+            from services.valuation import calc_auto_metrics
             res = calc_auto_metrics(info_data)
             col1, col2, col3 = st.columns(3)
             col1.metric("Asset Turnover", f"{res['asset_turnover']:.2f}x")
@@ -799,7 +800,7 @@ def page_analysis():
 
         elif sector_cat == "maschinenbau":
             st.caption("Maschinen- und Bauwesen — Starke Zykliker; Ein niedriges EV/EBITDA bei gleichzeitig hohem Buchwert-Premium kann auf nahende Zyklus-Spitzen hindeuten (Value Trap).")
-            from valuation import calc_machinery_metrics
+            from services.valuation import calc_machinery_metrics
             res = calc_machinery_metrics(info_data)
             col1, col2, col3 = st.columns(3)
             col1.metric("EV / EBITDA", f"{res['ev_ebitda']:.1f}")
@@ -810,7 +811,7 @@ def page_analysis():
 
         elif sector_cat == "industrie":
             st.caption("Asset-Based & EWEBIT — Hidden Champions outperformen den Markt durch systematisch höhere ROA.")
-            from valuation import calc_hgb_proxy
+            from services.valuation import calc_hgb_proxy
             res = calc_hgb_proxy(info_data)
             col1, col2, col3 = st.columns(3)
             col1.metric("Return on Assets (ROA)", f"{res['roa']*100:.1f} %")
@@ -821,7 +822,7 @@ def page_analysis():
 
         elif sector_cat == "csvs":
             st.caption("Chinese-Style Valuation System (CSVS) — targetiert die systematische Unterbewertung von kritischer Struktur bei hohem Dividenden-Fokus.")
-            from valuation import calc_csvs
+            from services.valuation import calc_csvs
             res = calc_csvs(info_data)
             col1, col2, col3 = st.columns(3)
             col1.metric("Dividend Yield", f"{res['dividend_yield']*100:.1f} %")

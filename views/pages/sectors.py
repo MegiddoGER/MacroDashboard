@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
-from data_cache import cached_sectors
-from charts import plot_sector_heatmap
+from services.cache import cached_sectors
+from views.components.charts import plot_sector_heatmap
 
 def page_sectors():
     st.markdown("## Sektoren")
@@ -93,7 +93,7 @@ def page_sectors():
 
     # ── Sektor Drilldown (Top/Flop Aktien) ───────────────────────────
     if selected_sector and region == "us":
-        from data_cache import cached_sp500_components, cached_components_performance
+        from services.cache import cached_sp500_components, cached_components_performance
         
         # Mapping von deutschen Sektornamen auf GICS (Wikipedia S&P 500)
         gics_map = {

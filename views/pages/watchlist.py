@@ -2,8 +2,9 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 from datetime import datetime, date
-from data_cache import cached_multi, cached_earnings, _fmt_euro, _fmt_pct, _fmt_rsi, _color_change
-from watchlist import (
+from services.cache import cached_multi, cached_earnings
+from views.components.formatters import _fmt_euro, _fmt_pct, _fmt_rsi, _color_change
+from services.watchlist import (
     load_watchlist, get_display_map, update_status,
     add_position, close_position, update_position, delete_position,
     get_open_positions, get_closed_positions,

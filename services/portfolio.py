@@ -42,7 +42,7 @@ class PerformanceMetrics:
 # Benchmark-Auswahl (dynamisch nach Portfolio-Gewichtung)
 # ---------------------------------------------------------------------------
 
-def _determine_benchmark(positions: list[dict]) -> tuple[str, str]:
+def determine_benchmark(positions: list[dict]) -> tuple[str, str]:
     """Bestimmt den passenden Benchmark basierend auf Portfolio-Gewichtung.
 
     Regeln:
@@ -94,7 +94,7 @@ def calc_equity_curve(current_prices: dict[str, float] = None) -> pd.DataFrame |
     Nutzt die Kaufdaten der Positionen und historische Kursdaten.
     Gibt einen DataFrame mit Spalten [Datum, Portfolio, Benchmark, Benchmark_Label] zurück.
     """
-    from watchlist import get_open_positions, get_closed_positions
+    from services.watchlist import get_open_positions, get_closed_positions
 
     open_pos = get_open_positions()
     closed_pos = get_closed_positions()
@@ -124,7 +124,7 @@ def calc_equity_curve(current_prices: dict[str, float] = None) -> pd.DataFrame |
     tickers = list(set(p["ticker"] for p in all_positions))
 
     # Benchmark bestimmen
-    benchmark_ticker, benchmark_label = _determine_benchmark(all_positions)
+    benchmark_ticker, benchmark_label = determine_benchmark(all_positions)
 
     # Historische Daten laden
     hist_data = {}
@@ -220,7 +220,7 @@ def calc_equity_curve(current_prices: dict[str, float] = None) -> pd.DataFrame |
 
 def calc_performance_metrics(current_prices: dict[str, float] = None) -> PerformanceMetrics:
     """Berechnet alle Portfolio-Performance-Kennzahlen."""
-    from watchlist import get_open_positions, get_closed_positions, calc_position_pnl
+    from services.watchlist import get_open_positions, get_closed_positions, calc_position_pnl
 
     if current_prices is None:
         current_prices = {}
@@ -321,7 +321,7 @@ def calc_sector_allocation(current_prices: dict[str, float] = None) -> list[dict
     Returns:
         Liste von dicts [{sector, value, weight_pct, tickers}, ...]
     """
-    from watchlist import get_open_positions
+    from services.watchlist import get_open_positions
 
     if current_prices is None:
         current_prices = {}

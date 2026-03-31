@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-from data_cache import cached_listings
+from services.cache import cached_listings
 
 def page_listings():
     st.markdown("## Aktien-Verzeichnis")

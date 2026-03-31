@@ -7,9 +7,10 @@ Die Kommandozentrale: Bündelt das Wichtigste aus allen Phasen auf einen Blick.
 import streamlit as st
 from datetime import datetime
 
-from data_cache import cached_vix, cached_sp500, cached_gold, cached_multi, _fmt_euro, _fmt_pct, _fmt_rsi, _color_change
-from indicators import calc_fear_greed_components, fear_greed_label
-from charts import plot_fear_greed_gauge
+from services.cache import cached_vix, cached_sp500, cached_gold, cached_multi, cached_hit_rate
+from views.components.formatters import _fmt_euro, _fmt_pct, _fmt_rsi, _color_change
+from services.technical import calc_fear_greed_components, fear_greed_label
+from views.components.charts import plot_fear_greed_gauge
 from services.watchlist import get_ticker_list, get_display_map, calc_portfolio_summary
 from models.alerts import AlertStore
 from models.journal import JournalStore
@@ -29,7 +30,6 @@ def page_market():
     # 1. Portfolio
     prices = {}
     try:
-        from services.cache import cached_multi
         df_prices = cached_multi(",".join(get_ticker_list()) if get_ticker_list() else "AAPL")
         if df_prices is not None and not df_prices.empty:
             for idx, row in df_prices.iterrows():
@@ -60,7 +60,7 @@ def page_market():
     
     with w1:
         with st.container(border=True):
-            st.metric("Portfolio-Wert", f"{portfolio.get('total_value_eur', 0):,.2f} €", 
+            st.metric("Portfolio-Wert", f"{portfolio.get('total_value', 0):,.2f} €", 
                       f"{portfolio.get('total_pnl_eur', 0):+,.2f} € Netto", 
                       delta_color="normal")
             
@@ -114,7 +114,6 @@ def page_market():
 
     with c_right:
         with st.container(border=True):
-            from services.cache import cached_hit_rate
             hit_rate = cached_hit_rate(90)
             if hit_rate and hit_rate.get("total", 0) > 0:
                 st.markdown("**🎯 Maschinelle Signal-Trefferquote**")

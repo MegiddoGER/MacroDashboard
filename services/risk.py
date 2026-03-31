@@ -465,7 +465,7 @@ def calc_correlation_risk(positions: list[dict]) -> dict:
 
 def calc_full_risk_report(current_prices: dict[str, float] = None) -> RiskMetrics:
     """Erstellt einen vollständigen Risiko-Report für das Portfolio."""
-    from watchlist import get_open_positions
+    from services.watchlist import get_open_positions
     from services.portfolio import calc_sector_allocation, calc_equity_curve
 
     if current_prices is None:
@@ -486,8 +486,8 @@ def calc_full_risk_report(current_prices: dict[str, float] = None) -> RiskMetric
     metrics.cvar_95_eur = var["cvar_95_eur"]
 
     # Beta
-    from services.portfolio import _determine_benchmark
-    bm_ticker, _ = _determine_benchmark(open_pos)
+    from services.portfolio import determine_benchmark
+    bm_ticker, _ = determine_benchmark(open_pos)
     beta_result = calc_portfolio_beta(open_pos, current_prices, bm_ticker)
     metrics.portfolio_beta = beta_result["beta"]
     metrics.beta_description = beta_result["description"]

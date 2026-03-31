@@ -48,5 +48,53 @@
     "price_1m_later": null,
     "price_3m_later": null,
     "was_successful": null
+  },
+  {
+    "ticker": "ABEA.DE",
+    "timestamp": "2026-03-31T22:45:49",
+    "signal_type": "hold",
+    "confidence": 47.9,
+    "score_label": "Neutral ➖",
+    "confidence_label": "Gemischte Signale",
+    "cat_scores": {
+      "trend": -2,
+      "volume": 2,
+      "fundamental": -1,
+      "sentiment": 0,
+      "oscillator": 1
+    },
+    "cat_max": {
+      "trend": 4,
+      "volume": 4,
+      "fundamental": 4,
+      "sentiment": 4,
+      "oscillator": 3
+    },
+    "weights": {
+      "trend": 0.3,
+      "volume": 0.25,
+      "fundamental": 0.2,
+      "sentiment": 0.15,
+      "oscillator": 0.1
+    },
+    "price_at_signal": 244.55,
+    "rsi_at_signal": 33.30865219236345,
+    "volume_spike": false,
+    "contributing_factors": [
+      "❌ MACD: 🔴 Bearishes kurzfristiges Momentum",
+      "❌ OBV Trend: 🔴 Distribution (Verkaufsdruck vorhanden)",
+      "✅ VWAP (Wochen/Monats): 🟢 Käufer dominieren den Durchschnitt",
+      "✅ Volumen-Cluster (POC): 🟢 Kurs oberhalb des stärksten Volumens",
+      "✅ FVG (Fair Value Gap): Bullisch ↑",
+      "❌ DCF Fair Value: Überbewertet ↓",
+      "✅ Bilanzqualität: Solide ↑",
+      "❌ Insider-Sentiment: Netto-Verkäufe ↓"
+    ],
+    "macro_text": "",
+    "actionable_text": "",
+    "price_1w_later": null,
+    "price_1m_later": null,
+    "price_3m_later": null,
+    "was_successful": null
   }
 ]
