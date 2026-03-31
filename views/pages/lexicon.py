@@ -5,7 +5,8 @@ def page_lexicon():
     st.caption("Das essenzielle Nachschlagewerk für technische, strategische und fundamentale Bewertungsmodelle.")
     st.markdown("---")
 
-    tab_fund, tab_quant, tab_tech, tab_strat, tab_risk, tab_sent = st.tabs([
+    tab_guide, tab_fund, tab_quant, tab_tech, tab_strat, tab_risk, tab_sent = st.tabs([
+        "📖 Benutzerhandbuch",
         "📊 Fundamentale Analyse",
         "🏦 Quant-Modelle (Sektoren)", 
         "📈 Technische Indikatoren", 
@@ -13,6 +14,19 @@ def page_lexicon():
         "🛡️ Risiko & Backtesting",
         "💬 Sentiment & Flow"
     ])
+
+    # =========================================================================
+    # 0. Benutzerhandbuch (Handbuch als Lesebuch)
+    # =========================================================================
+    with tab_guide:
+        import os
+        manual_path = os.path.join(os.path.dirname(__file__), "..", "..", "Benutzerhandbuch.md")
+        if os.path.exists(manual_path):
+            with open(manual_path, "r", encoding="utf-8") as f:
+                # Da die md Datei schon einen # Titel hat, rendern wir sie direkt.
+                st.markdown(f.read())
+        else:
+            st.info("Das Benutzerhandbuch (Benutzerhandbuch.md) wurde im Hauptverzeichnis nicht gefunden.")
 
     # =========================================================================
     # 1. Fundamentale Analyse (NEU)
