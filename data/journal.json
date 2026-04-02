@@ -1,0 +1,18 @@
+[
+    {
+        "id": "e197098b",
+        "ticker": "AAPL",
+        "trade_type": "Long",
+        "setup_type": "SMC (Fair Value Gap)",
+        "entry_date": "2026-04-01",
+        "entry_price": 100.0,
+        "conviction": 5,
+        "entry_notes": "",
+        "status": "Offen",
+        "exit_date": null,
+        "exit_price": null,
+        "pnl_eur": null,
+        "pnl_pct": null,
+        "review_notes": ""
+    }
+]

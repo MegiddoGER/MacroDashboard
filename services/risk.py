@@ -132,8 +132,16 @@ def calc_portfolio_var(positions: list[dict],
     # Kovarianzmatrix
     cov_matrix = np.cov(returns_matrix, rowvar=False)
 
+    # Sicherstellung: cov_matrix muss 2D sein (bei nur 1 Ticker ist es ein Skalar)
+    if cov_matrix.ndim == 0:
+        cov_matrix = np.array([[float(cov_matrix)]])
+    elif cov_matrix.ndim == 1:
+        cov_matrix = cov_matrix.reshape(1, 1)
+
     # Monte Carlo Simulation
     mean_returns = np.mean(returns_matrix, axis=0)
+    # Sicherstellen, dass mean_returns ein 1D-Array ist
+    mean_returns = np.atleast_1d(mean_returns)
     np.random.seed(42)
 
     simulated_returns = np.random.multivariate_normal(

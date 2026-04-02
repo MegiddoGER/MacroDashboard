@@ -151,6 +151,10 @@ class BacktestEngine:
         inklusive fixen Gebühren und %-Slippage."""
         
         df = self.df.copy()
+        # position_series kann ein numpy-Array sein (z.B. von np.where),
+        # daher erst in pandas Series konvertieren für .shift()
+        if not isinstance(position_series, pd.Series):
+            position_series = pd.Series(position_series, index=df.index)
         df["Position"] = position_series.shift(1).fillna(0) # Signal am Vortag entstanden -> Trade am Open des aktuellen Tags
         
         trades = []

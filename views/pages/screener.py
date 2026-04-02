@@ -265,10 +265,11 @@ def page_screener():
             st.markdown("#### 🏆 Top 5 (höchster Score)")
             for i, r in enumerate(results[:5], 1):
                 emoji = _score_emoji(r["confidence"])
+                rsi_str = f"{r['rsi']:.1f}" if r['rsi'] else "—"
                 st.markdown(
                     f"**{i}. {emoji} {r['ticker']}** — {r['name']}\n\n"
                     f"Score: **{r['confidence']:.1f}** | "
-                    f"RSI: {r['rsi']:.1f if r['rsi'] else '—'} | "
+                    f"RSI: {rsi_str} | "
                     f"${r['price']:,.2f}"
                 )
 
@@ -278,10 +279,11 @@ def page_screener():
             bottom.reverse()
             for i, r in enumerate(bottom, 1):
                 emoji = _score_emoji(r["confidence"])
+                rsi_str = f"{r['rsi']:.1f}" if r['rsi'] else "—"
                 st.markdown(
                     f"**{i}. {emoji} {r['ticker']}** — {r['name']}\n\n"
                     f"Score: **{r['confidence']:.1f}** | "
-                    f"RSI: {r['rsi']:.1f if r['rsi'] else '—'} | "
+                    f"RSI: {rsi_str} | "
                     f"${r['price']:,.2f}"
                 )
 

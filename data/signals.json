@@ -96,5 +96,101 @@
     "price_1m_later": null,
     "price_3m_later": null,
     "was_successful": null
+  },
+  {
+    "ticker": "UBI.PA",
+    "timestamp": "2026-04-01T21:11:57",
+    "signal_type": "hold",
+    "confidence": 39.6,
+    "score_label": "Verkaufstendenz ↘️",
+    "confidence_label": "Schwache Confidence",
+    "cat_scores": {
+      "trend": -1,
+      "volume": -4,
+      "fundamental": 1,
+      "sentiment": 2,
+      "oscillator": 0
+    },
+    "cat_max": {
+      "trend": 3,
+      "volume": 4,
+      "fundamental": 3,
+      "sentiment": 4,
+      "oscillator": 3
+    },
+    "weights": {
+      "trend": 0.3,
+      "volume": 0.25,
+      "fundamental": 0.2,
+      "sentiment": 0.15,
+      "oscillator": 0.1
+    },
+    "price_at_signal": 3.88,
+    "rsi_at_signal": 45.26703686520387,
+    "volume_spike": false,
+    "contributing_factors": [
+      "❌ Trend (SMAs): 🔴 Intakter Abwärtstrend (Kurs < SMA 200, Death Cross)",
+      "✅ MACD: 🟢 Bullishes kurzfristiges Momentum",
+      "❌ OBV Trend: 🔴 Distribution (Verkaufsdruck vorhanden)",
+      "❌ VWAP (Wochen/Monats): 🔴 Verkäufer dominieren den Durchschnitt",
+      "❌ Volumen-Cluster (POC): 🔴 Kurs unterhalb des stärksten Volumens",
+      "❌ FVG (Fair Value Gap): Bearisch ↓",
+      "✅ DCF Fair Value: Unterbewertet ↑"
+    ],
+    "macro_text": "",
+    "actionable_text": "",
+    "price_1w_later": null,
+    "price_1m_later": null,
+    "price_3m_later": null,
+    "was_successful": null
+  },
+  {
+    "ticker": "PLTR",
+    "timestamp": "2026-04-01T21:12:27",
+    "signal_type": "hold",
+    "confidence": 48.8,
+    "score_label": "Neutral ➖",
+    "confidence_label": "Gemischte Signale",
+    "cat_scores": {
+      "trend": -1,
+      "volume": 0,
+      "fundamental": 0,
+      "sentiment": 2,
+      "oscillator": 0
+    },
+    "cat_max": {
+      "trend": 3,
+      "volume": 4,
+      "fundamental": 4,
+      "sentiment": 4,
+      "oscillator": 3
+    },
+    "weights": {
+      "trend": 0.3,
+      "volume": 0.25,
+      "fundamental": 0.2,
+      "sentiment": 0.15,
+      "oscillator": 0.1
+    },
+    "price_at_signal": 146.32,
+    "rsi_at_signal": 47.44567826948795,
+    "volume_spike": false,
+    "contributing_factors": [
+      "❌ MACD: 🔴 Bearishes kurzfristiges Momentum",
+      "✅ OBV Trend: 🟢 Akkumulation (Kaufdruck vorhanden)",
+      "✅ VWAP (Wochen/Monats): 🟢 Käufer dominieren den Durchschnitt",
+      "❌ Volumen-Cluster (POC): 🔴 Kurs unterhalb des stärksten Volumens",
+      "❌ FVG (Fair Value Gap): Bearisch ↓",
+      "❌ DCF Fair Value: Überbewertet ↓",
+      "✅ Bilanzqualität: Solide ↑",
+      "❌ Insider-Sentiment: Netto-Verkäufe ↓",
+      "✅ Analysten-Konsens: Strong Buy ↑"
+    ],
+    "macro_text": "",
+    "actionable_text": "",
+    "price_1w_later": null,
+    "price_1m_later": null,
+    "price_3m_later": null,
+    "was_successful": null
   }
 ]

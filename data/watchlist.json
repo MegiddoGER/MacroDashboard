@@ -68,5 +68,26 @@
     "display": "RWE",
     "status": "Beobachtet",
     "positions": []
+  },
+  {
+    "ticker": "UBI.PA",
+    "name": "UBISOFT ENTERTAIN",
+    "display": "UBI",
+    "status": "Investiert",
+    "positions": [
+      {
+        "id": "cf76f9c5",
+        "buy_date": "2026-04-01",
+        "buy_price": 1000.0,
+        "quantity": 1.0,
+        "stop_loss": null,
+        "take_profit": null,
+        "fees": 1.0,
+        "notes": "starwars bald",
+        "sell_date": null,
+        "sell_price": null,
+        "sell_fees": 0.0
+      }
+    ]
   }
 ]
