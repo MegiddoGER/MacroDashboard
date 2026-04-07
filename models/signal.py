@@ -1,18 +1,15 @@
 """
 models/signal.py — Standardisiertes Signal-Datenmodell für das MacroDashboard.
 
-Gemeinsame Datenstruktur für:
-- Analyse-Signale (Confidence Score + Empfehlung)
-- Signal-Historisierung (Trefferquoten-Tracking)
-- Alerts (Benachrichtigungen bei Score-Änderungen)
-- Trade-Journal (Verknüpfung mit Trades)
+Persistenz: SQLAlchemy (SQLite → PostgreSQL ready).
 """
 
 import json
-import os
 from dataclasses import dataclass, field, asdict
 from datetime import datetime
 from typing import Optional
+
+from database import get_session, SignalRecord
 
 
 # ---------------------------------------------------------------------------
@@ -30,50 +27,65 @@ class Signal:
     confidence: float = 50.0               # 0-100, aus Scoring Engine
 
     # Score-Details
-    score_label: str = ""                  # z.B. "Starkes Kaufsignal 🟢"
-    confidence_label: str = ""             # z.B. "Hohe Confidence"
-    cat_scores: dict = field(default_factory=dict)    # {"trend": X, ...}
+    score_label: str = ""
+    confidence_label: str = ""
+    cat_scores: dict = field(default_factory=dict)
     cat_max: dict = field(default_factory=dict)
     weights: dict = field(default_factory=dict)
 
     # Marktdaten zum Signal-Zeitpunkt
-    price_at_signal: float = 0.0           # Kurs bei Signal-Erzeugung
+    price_at_signal: float = 0.0
     rsi_at_signal: Optional[float] = None
     volume_spike: bool = False
 
     # Kontext
-    contributing_factors: list = field(default_factory=list)  # ["RSI überverkauft", "FVG Support", ...]
-    macro_text: str = ""                   # Makro-Zusammenfassung
-    actionable_text: str = ""              # Handlungsempfehlung
+    contributing_factors: list = field(default_factory=list)
+    macro_text: str = ""
+    actionable_text: str = ""
 
-    # Nachverfolgung (wird später durch Signal-Historisierung befüllt)
+    # Nachverfolgung
     price_1w_later: Optional[float] = None
     price_1m_later: Optional[float] = None
     price_3m_later: Optional[float] = None
-    was_successful: Optional[bool] = None  # None = noch nicht bewertet
+    was_successful: Optional[bool] = None
 
     def to_dict(self) -> dict:
-        """Konvertiert Signal zu serialisierbarem dict."""
         return asdict(self)
 
     @classmethod
     def from_dict(cls, data: dict) -> "Signal":
-        """Erstellt ein Signal aus einem dict (z.B. aus JSON)."""
-        # Nur Felder übernehmen die im Dataclass existieren
         valid_fields = {f.name for f in cls.__dataclass_fields__.values()}
         filtered = {k: v for k, v in data.items() if k in valid_fields}
         return cls(**filtered)
 
     @classmethod
-    def from_score_result(cls, ticker: str, score_result, price: float = 0.0) -> "Signal":
-        """Erstellt ein Signal aus einem ScoreResult (von scoring.py).
+    def from_db(cls, row: SignalRecord) -> "Signal":
+        """Erstellt ein Signal aus einem DB-Row."""
+        return cls(
+            ticker=row.ticker or "",
+            timestamp=row.timestamp or "",
+            signal_type=row.signal_type or "hold",
+            confidence=row.confidence or 50.0,
+            score_label=row.score_label or "",
+            confidence_label=row.confidence_label or "",
+            cat_scores=json.loads(row.cat_scores_json) if row.cat_scores_json else {},
+            cat_max=json.loads(row.cat_max_json) if row.cat_max_json else {},
+            weights=json.loads(row.weights_json) if row.weights_json else {},
+            price_at_signal=row.price_at_signal or 0.0,
+            rsi_at_signal=row.rsi_at_signal,
+            volume_spike=bool(row.volume_spike),
+            contributing_factors=json.loads(row.contributing_factors_json) if row.contributing_factors_json else [],
+            macro_text=row.macro_text or "",
+            actionable_text=row.actionable_text or "",
+            price_1w_later=row.price_1w_later,
+            price_1m_later=row.price_1m_later,
+            price_3m_later=row.price_3m_later,
+            was_successful=row.was_successful,
+        )
 
-        Args:
-            ticker: Aktien-Ticker
-            score_result: ScoreResult Objekt von services/scoring.py
-            price: Aktueller Kurs zum Signal-Zeitpunkt
-        """
-        # Signal-Typ aus Confidence ableiten
+    @classmethod
+    def from_score_result(cls, ticker: str, score_result, price: float = 0.0) -> "Signal":
+        """Erstellt ein Signal aus einem ScoreResult (von scoring.py)."""
         if score_result.confidence >= 65:
             signal_type = "buy"
         elif score_result.confidence <= 35:
@@ -81,7 +93,6 @@ class Signal:
         else:
             signal_type = "hold"
 
-        # Contributing Factors aus Checklist extrahieren
         factors = []
         for entry in score_result.checklist:
             signal_text = entry.get("Signal", "")
@@ -107,65 +118,57 @@ class Signal:
 
 
 # ---------------------------------------------------------------------------
-# Signal-Store (Persistenz)
+# Signal-Store (SQLAlchemy Persistenz)
 # ---------------------------------------------------------------------------
 
-_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-_DATA_DIR = os.path.join(_PROJECT_ROOT, "data")
-_SIGNALS_FILE = os.path.join(_DATA_DIR, "signals.json")
-
-
 class SignalStore:
-    """Persistente Speicherung von Signalen in JSON."""
-
-    @staticmethod
-    def _load_all() -> list[dict]:
-        """Lädt alle gespeicherten Signale."""
-        if not os.path.exists(_SIGNALS_FILE):
-            return []
-        try:
-            with open(_SIGNALS_FILE, "r", encoding="utf-8") as f:
-                data = json.load(f)
-            return data if isinstance(data, list) else []
-        except (json.JSONDecodeError, Exception):
-            return []
-
-    @staticmethod
-    def _save_all(signals: list[dict]) -> None:
-        """Speichert alle Signale."""
-        os.makedirs(_DATA_DIR, exist_ok=True)
-        with open(_SIGNALS_FILE, "w", encoding="utf-8") as f:
-            json.dump(signals, f, indent=2, ensure_ascii=False)
+    """Persistente Speicherung von Signalen in der Datenbank."""
 
     @classmethod
     def save(cls, signal: Signal) -> None:
         """Speichert ein neues Signal."""
-        signals = cls._load_all()
-        signals.append(signal.to_dict())
-        cls._save_all(signals)
+        session = get_session()
+        try:
+            row = SignalRecord(
+                ticker=signal.ticker,
+                timestamp=signal.timestamp,
+                signal_type=signal.signal_type,
+                confidence=signal.confidence,
+                score_label=signal.score_label,
+                confidence_label=signal.confidence_label,
+                cat_scores_json=json.dumps(signal.cat_scores),
+                cat_max_json=json.dumps(signal.cat_max),
+                weights_json=json.dumps(signal.weights),
+                price_at_signal=signal.price_at_signal,
+                rsi_at_signal=signal.rsi_at_signal,
+                volume_spike=signal.volume_spike,
+                contributing_factors_json=json.dumps(signal.contributing_factors),
+                macro_text=signal.macro_text,
+                actionable_text=signal.actionable_text,
+                price_1w_later=signal.price_1w_later,
+                price_1m_later=signal.price_1m_later,
+                price_3m_later=signal.price_3m_later,
+                was_successful=signal.was_successful,
+            )
+            session.add(row)
+            session.commit()
+        finally:
+            session.close()
 
     @classmethod
     def get_all(cls, ticker: str = None, limit: int = None) -> list[Signal]:
-        """Lädt Signale, optional gefiltert nach Ticker.
-
-        Args:
-            ticker: Optional. Nur Signale für diesen Ticker.
-            limit: Optional. Max. Anzahl (neueste zuerst).
-
-        Rückgabe: Liste von Signal-Objekten, neueste zuerst.
-        """
-        raw = cls._load_all()
-
-        if ticker:
-            raw = [s for s in raw if s.get("ticker", "").upper() == ticker.upper()]
-
-        # Neueste zuerst
-        raw.sort(key=lambda s: s.get("timestamp", ""), reverse=True)
-
-        if limit:
-            raw = raw[:limit]
-
-        return [Signal.from_dict(s) for s in raw]
+        """Lädt Signale, optional gefiltert nach Ticker."""
+        session = get_session()
+        try:
+            query = session.query(SignalRecord)
+            if ticker:
+                query = query.filter(SignalRecord.ticker == ticker.upper())
+            query = query.order_by(SignalRecord.timestamp.desc())
+            if limit:
+                query = query.limit(limit)
+            return [Signal.from_db(r) for r in query.all()]
+        finally:
+            session.close()
 
     @classmethod
     def get_latest(cls, ticker: str) -> Signal | None:
@@ -176,40 +179,47 @@ class SignalStore:
     @classmethod
     def count(cls, ticker: str = None) -> int:
         """Zählt gespeicherte Signale."""
-        raw = cls._load_all()
-        if ticker:
-            raw = [s for s in raw if s.get("ticker", "").upper() == ticker.upper()]
-        return len(raw)
+        session = get_session()
+        try:
+            query = session.query(SignalRecord)
+            if ticker:
+                query = query.filter(SignalRecord.ticker == ticker.upper())
+            return query.count()
+        finally:
+            session.close()
 
     @classmethod
     def update_outcome(cls, ticker: str, timestamp: str,
                        price_1w: float = None, price_1m: float = None,
                        price_3m: float = None) -> bool:
-        """Aktualisiert die Nachverfolgung eines Signals.
+        """Aktualisiert die Nachverfolgung eines Signals."""
+        session = get_session()
+        try:
+            row = session.query(SignalRecord).filter_by(
+                ticker=ticker.upper(), timestamp=timestamp
+            ).first()
+            if not row:
+                return False
 
-        Berechnet automatisch ob das Signal erfolgreich war.
-        """
-        signals = cls._load_all()
-        for s in signals:
-            if s.get("ticker") == ticker.upper() and s.get("timestamp") == timestamp:
-                if price_1w is not None:
-                    s["price_1w_later"] = round(price_1w, 2)
-                if price_1m is not None:
-                    s["price_1m_later"] = round(price_1m, 2)
-                if price_3m is not None:
-                    s["price_3m_later"] = round(price_3m, 2)
+            if price_1w is not None:
+                row.price_1w_later = round(price_1w, 2)
+            if price_1m is not None:
+                row.price_1m_later = round(price_1m, 2)
+            if price_3m is not None:
+                row.price_3m_later = round(price_3m, 2)
 
-                # Erfolgsberechnung
-                entry_price = s.get("price_at_signal", 0)
-                signal_type = s.get("signal_type", "hold")
-                check_price = price_1m or price_1w  # Primär 1M, Fallback 1W
+            # Erfolgsberechnung
+            entry_price = row.price_at_signal or 0
+            signal_type = row.signal_type or "hold"
+            check_price = price_1m or price_1w
 
-                if entry_price > 0 and check_price and signal_type != "hold":
-                    if signal_type == "buy":
-                        s["was_successful"] = check_price > entry_price
-                    elif signal_type == "sell":
-                        s["was_successful"] = check_price < entry_price
+            if entry_price > 0 and check_price and signal_type != "hold":
+                if signal_type == "buy":
+                    row.was_successful = check_price > entry_price
+                elif signal_type == "sell":
+                    row.was_successful = check_price < entry_price
 
-                cls._save_all(signals)
-                return True
-        return False
+            session.commit()
+            return True
+        finally:
+            session.close()

@@ -5,3 +5,4 @@ pandas>=2.0.0
 pandas_datareader>=0.10.0
 feedparser>=6.0.0
 vaderSentiment>=3.3.2
+sqlalchemy>=2.0.0

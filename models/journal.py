@@ -2,19 +2,14 @@
 models/journal.py — Datenmodell & Speicherung für das Trade-Journal.
 
 Verwaltet aktive und abgeschlossene Trades sowie Post-Trade-Reviews.
+Persistenz: SQLAlchemy (SQLite → PostgreSQL ready).
 """
 
-import json
-import os
 from dataclasses import dataclass, asdict, field
 from datetime import datetime
 from uuid import uuid4
 
-
-DATA_FILE = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "journal.json")
-
-# Stelle sicher, dass das Verzeichnis existiert
-os.makedirs(os.path.dirname(DATA_FILE), exist_ok=True)
+from database import get_session, JournalEntry
 
 
 @dataclass
@@ -41,85 +36,103 @@ class TradeEntry:
     def from_dict(cls, data: dict):
         return cls(**{k: v for k, v in data.items() if k in cls.__dataclass_fields__})
 
+    @classmethod
+    def from_db(cls, row: JournalEntry):
+        """Erstellt TradeEntry aus einem DB-Row."""
+        return cls(
+            id=row.id, ticker=row.ticker or "", trade_type=row.trade_type or "Long",
+            setup_type=row.setup_type or "", entry_date=row.entry_date or "",
+            entry_price=row.entry_price or 0.0, conviction=row.conviction or 3,
+            entry_notes=row.entry_notes or "", status=row.status or "Offen",
+            exit_date=row.exit_date, exit_price=row.exit_price,
+            pnl_eur=row.pnl_eur, pnl_pct=row.pnl_pct,
+            review_notes=row.review_notes or "",
+        )
+
 
 class JournalStore:
-    """Verwaltet das Laden und Speichern von Trades."""
-
-    @staticmethod
-    def _load_all() -> list[dict]:
-        if not os.path.exists(DATA_FILE):
-            return []
-        try:
-            with open(DATA_FILE, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except (json.JSONDecodeError, FileNotFoundError):
-            return []
-
-    @staticmethod
-    def _save_all(data: list[dict]):
-        with open(DATA_FILE, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=4, ensure_ascii=False)
+    """Verwaltet das Laden und Speichern von Trades via SQLAlchemy."""
 
     @classmethod
     def get_all(cls) -> list[TradeEntry]:
         """Gibt alle Trades (absteigend sortiert nach Datum) zurück."""
-        data = cls._load_all()
-        trades = [TradeEntry.from_dict(t) for t in data]
-        
-        # Sortieren nach Entry Date, neueste zuerst
-        def get_date(t):
-            try:
-                return datetime.strptime(t.entry_date, "%Y-%m-%d")
-            except Exception:
-                return datetime.min
-                
-        trades.sort(key=get_date, reverse=True)
-        return trades
+        session = get_session()
+        try:
+            rows = session.query(JournalEntry).order_by(
+                JournalEntry.entry_date.desc()
+            ).all()
+            return [TradeEntry.from_db(r) for r in rows]
+        finally:
+            session.close()
 
     @classmethod
     def save(cls, trade: TradeEntry):
         """Speichert einen neuen Trade oder aktualisiert einen bestehenden."""
-        all_data = cls._load_all()
-        found = False
-        
-        trade_dict = asdict(trade)
-        for i, existing in enumerate(all_data):
-            if existing.get("id") == trade.id:
-                all_data[i] = trade_dict
-                found = True
-                break
-                
-        if not found:
-            all_data.append(trade_dict)
-            
-        cls._save_all(all_data)
+        session = get_session()
+        try:
+            existing = session.query(JournalEntry).filter_by(id=trade.id).first()
+            if existing:
+                existing.ticker = trade.ticker
+                existing.trade_type = trade.trade_type
+                existing.setup_type = trade.setup_type
+                existing.entry_date = trade.entry_date
+                existing.entry_price = trade.entry_price
+                existing.conviction = trade.conviction
+                existing.entry_notes = trade.entry_notes
+                existing.status = trade.status
+                existing.exit_date = trade.exit_date
+                existing.exit_price = trade.exit_price
+                existing.pnl_eur = trade.pnl_eur
+                existing.pnl_pct = trade.pnl_pct
+                existing.review_notes = trade.review_notes
+            else:
+                row = JournalEntry(
+                    id=trade.id, ticker=trade.ticker, trade_type=trade.trade_type,
+                    setup_type=trade.setup_type, entry_date=trade.entry_date,
+                    entry_price=trade.entry_price, conviction=trade.conviction,
+                    entry_notes=trade.entry_notes, status=trade.status,
+                    exit_date=trade.exit_date, exit_price=trade.exit_price,
+                    pnl_eur=trade.pnl_eur, pnl_pct=trade.pnl_pct,
+                    review_notes=trade.review_notes,
+                )
+                session.add(row)
+            session.commit()
+        finally:
+            session.close()
 
     @classmethod
     def close_trade(cls, trade_id: str, exit_price: float, exit_date: str,
                     status: str, pnl_eur: float, pnl_pct: float, review_notes: str) -> bool:
         """Schließt einen offenen Trade mit Review-Ergebnissen."""
-        trades = cls.get_all()
-        for t in trades:
-            if t.id == trade_id:
-                t.status = status
-                t.exit_price = exit_price
-                t.exit_date = exit_date
-                t.pnl_eur = pnl_eur
-                t.pnl_pct = pnl_pct
-                t.review_notes = review_notes
-                cls.save(t)
-                return True
-        return False
+        session = get_session()
+        try:
+            row = session.query(JournalEntry).filter_by(id=trade_id).first()
+            if not row:
+                return False
+            row.status = status
+            row.exit_price = exit_price
+            row.exit_date = exit_date
+            row.pnl_eur = pnl_eur
+            row.pnl_pct = pnl_pct
+            row.review_notes = review_notes
+            session.commit()
+            return True
+        finally:
+            session.close()
 
     @classmethod
     def delete_trade(cls, trade_id: str):
         """Löscht einen Trade unwiderruflich aus dem Journal."""
-        all_data = cls._load_all()
-        filtered = [t for t in all_data if t.get("id") != trade_id]
-        if len(filtered) < len(all_data):
-            cls._save_all(filtered)
-            return True
-        return False
+        session = get_session()
+        try:
+            row = session.query(JournalEntry).filter_by(id=trade_id).first()
+            if row:
+                session.delete(row)
+                session.commit()
+                return True
+            return False
+        finally:
+            session.close()
         
     @classmethod
     def get_statistics(cls) -> dict:
@@ -146,7 +159,6 @@ class JournalStore:
             if t.pnl_eur is not None:
                 setup_stats[s_type]["pnl"] += t.pnl_eur
                 
-        # Hitraten und Profitfaktoren ausrechnen
         for s_type, data in setup_stats.items():
             if data["total"] > 0:
                 data["win_rate"] = round((data["wins"] / data["total"]) * 100, 1)

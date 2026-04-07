@@ -1,7 +1,7 @@
 """
 watchlist.py — Persistente Watchlist mit Xetra-Priorisierung & Positions-Tracking.
 
-Speichert die Watchlist als JSON-Datei im Projektverzeichnis.
+Persistenz: SQLAlchemy (SQLite → PostgreSQL ready).
 Sucht Aktien per US-Ticker oder Firmenname und löst automatisch
 zum Xetra-Ticker (.DE) auf, damit die Kurse in EUR angezeigt werden.
 
@@ -17,10 +17,11 @@ import warnings
 from datetime import datetime
 import yfinance as yf
 
+from database import get_session, WatchlistItem, Position as PositionRow
+
 # Pfad zur Watchlist-Datei (im data/ Verzeichnis des Projekts)
 _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _DATA_DIR = os.path.join(_PROJECT_ROOT, "data")
-_WATCHLIST_FILE = os.path.join(_DATA_DIR, "watchlist.json")
 _XETRA_CSV = os.path.join(_DATA_DIR, "xetra_stocks.csv")
 
 
@@ -32,10 +33,7 @@ _xetra_cache: list[dict] | None = None
 
 
 def _load_xetra_csv() -> list[dict]:
-    """Lädt die lokale Xetra-CSV mit Kürzel, Name, Index.
-
-    Rückgabe: Liste von {"ticker": str, "name": str, "index": str}
-    """
+    """Lädt die lokale Xetra-CSV mit Kürzel, Name, Index."""
     global _xetra_cache
     if _xetra_cache is not None:
         return _xetra_cache
@@ -61,11 +59,7 @@ def _load_xetra_csv() -> list[dict]:
 
 
 def _search_xetra_csv(query: str) -> list[dict]:
-    """Sucht in der Xetra-CSV nach Ticker oder Firmenname.
-
-    Rückgabe: Liste von {"ticker": str, "name": str}, sortiert nach Relevanz.
-    Gibt ALLE Matches zurück, damit bei Validierung Alternativen getestet werden.
-    """
+    """Sucht in der Xetra-CSV nach Ticker oder Firmenname."""
     entries = _load_xetra_csv()
     q = query.strip()
     if not q:
@@ -78,125 +72,154 @@ def _search_xetra_csv(query: str) -> list[dict]:
     # 1. Exakter Ticker-Match (mit und ohne .DE)
     q_de = q_upper if q_upper.endswith(".DE") else q_upper + ".DE"
     for e in entries:
-        if e["ticker"].upper() == q_de and e["ticker"] not in seen:
-            results.append({"ticker": e["ticker"], "name": e["name"]})
-            seen.add(e["ticker"])
+        if e["ticker"].upper() == q_de:
+            if e["ticker"] not in seen:
+                results.append(e)
+                seen.add(e["ticker"])
 
-    # 2. Exakter Ticker ohne .DE prüfen (z.B. "SAP" → "SAP.DE")
+    # 2. Ticker beginnt mit Query
     for e in entries:
-        base = e["ticker"].upper().replace(".DE", "")
-        if base == q_upper and e["ticker"] not in seen:
-            results.append({"ticker": e["ticker"], "name": e["name"]})
+        if e["ticker"].upper().startswith(q_upper) and e["ticker"] not in seen:
+            results.append(e)
             seen.add(e["ticker"])
 
-    # 3. Namenssuche (case-insensitive, enthält)
+    # 3. Name enthält Query (case-insensitive)
     q_lower = q.lower()
-    name_matches = []
     for e in entries:
-        name_lower = e["name"].lower()
-        if q_lower in name_lower and e["ticker"] not in seen:
-            score = len(q_lower) / len(name_lower)
-            name_matches.append((score, e))
+        if q_lower in e["name"].lower() and e["ticker"] not in seen:
+            results.append(e)
             seen.add(e["ticker"])
-
-    # Sortiere nach Relevanz (höchster Score zuerst)
-    name_matches.sort(key=lambda x: x[0], reverse=True)
-    for _, e in name_matches:
-        results.append({"ticker": e["ticker"], "name": e["name"]})
 
     return results
 
 
 # ---------------------------------------------------------------------------
-# Persistenz
+# Watchlist CRUD (SQLAlchemy)
 # ---------------------------------------------------------------------------
 
 def load_watchlist() -> list[dict]:
-    """Liest die Watchlist aus der JSON-Datei.
+    """Lädt die komplette Watchlist aus der Datenbank.
 
-    Rückgabe: Liste von {"ticker": str, "name": str, "display": str, "status": str, "positions": list}
-    Migriert automatisch alte Einträge ohne positions-Feld.
+    Rückgabe: Liste von dicts mit ticker, name, display, status, positions.
     """
-    if not os.path.exists(_WATCHLIST_FILE):
-        return []
+    session = get_session()
     try:
-        with open(_WATCHLIST_FILE, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        if isinstance(data, list):
-            migrated = False
-            for item in data:
-                if "display" not in item:
-                    t = item.get("ticker", "")
-                    item["display"] = t.replace(".DE", "") if t.endswith(".DE") else t
-                    migrated = True
-                if "status" not in item:
-                    item["status"] = "Beobachtet"
-                    migrated = True
-                elif item["status"] == "Watchlist":
-                    item["status"] = "Beobachtet"
-                    migrated = True
-                # Migration: positions-Feld hinzufügen falls nicht vorhanden
-                if "positions" not in item:
-                    item["positions"] = []
-                    migrated = True
-            if migrated:
-                save_watchlist(data)
-            return data
-        return []
-    except (json.JSONDecodeError, Exception):
-        return []
+        items = session.query(WatchlistItem).all()
+        return [item.to_dict() for item in items]
+    finally:
+        session.close()
 
 
 def save_watchlist(watchlist: list[dict]) -> None:
-    """Speichert die Watchlist in die JSON-Datei."""
+    """Speichert eine komplette Watchlist (Bulk-Ersetzung).
+
+    Legacy-Kompatibilität. Neue Operationen nutzen add/remove/update.
+    """
+    session = get_session()
     try:
-        with open(_WATCHLIST_FILE, "w", encoding="utf-8") as f:
-            json.dump(watchlist, f, indent=2, ensure_ascii=False)
+        session.query(PositionRow).delete()
+        session.query(WatchlistItem).delete()
+        for item in watchlist:
+            wl = WatchlistItem(
+                ticker=item["ticker"],
+                name=item.get("name", ""),
+                display=item.get("display"),
+                status=item.get("status", "Beobachtet"),
+            )
+            session.add(wl)
+            for pos in item.get("positions", []):
+                p = PositionRow(
+                    id=pos.get("id", ""),
+                    ticker=item["ticker"],
+                    buy_date=pos.get("buy_date"),
+                    buy_price=pos.get("buy_price"),
+                    quantity=pos.get("quantity"),
+                    stop_loss=pos.get("stop_loss"),
+                    take_profit=pos.get("take_profit"),
+                    fees=pos.get("fees", 0),
+                    notes=pos.get("notes", ""),
+                    sell_date=pos.get("sell_date"),
+                    sell_price=pos.get("sell_price"),
+                    sell_fees=pos.get("sell_fees"),
+                )
+                session.add(p)
+        session.commit()
     except Exception as exc:
+        session.rollback()
         warnings.warn(f"Watchlist konnte nicht gespeichert werden: {exc}")
+    finally:
+        session.close()
 
 
 def add_to_watchlist(ticker: str, name: str, display: str = "",
                      status: str = "Beobachtet") -> list[dict]:
     """Fügt einen Ticker zur Watchlist hinzu (keine Duplikate)."""
-    wl = load_watchlist()
-    existing_tickers = {item["ticker"].upper() for item in wl}
-    if ticker.upper() not in existing_tickers:
-        if not display:
-            display = ticker.replace(".DE", "") if ticker.endswith(".DE") else ticker
-        wl.append({"ticker": ticker.upper(), "name": name,
-                   "display": display.upper(), "status": status})
-        save_watchlist(wl)
-    return wl
+    session = get_session()
+    try:
+        existing = session.query(WatchlistItem).filter_by(ticker=ticker.upper()).first()
+        if not existing:
+            if not display:
+                display = ticker.replace(".DE", "") if ticker.endswith(".DE") else ticker
+            wl = WatchlistItem(
+                ticker=ticker.upper(),
+                name=name,
+                display=display.upper(),
+                status=status,
+            )
+            session.add(wl)
+            session.commit()
+    finally:
+        session.close()
+    return load_watchlist()
 
 
 def update_status(ticker: str, new_status: str) -> None:
     """Ändert den Status eines Watchlist-Eintrags."""
-    wl = load_watchlist()
-    for item in wl:
-        if item["ticker"].upper() == ticker.upper():
-            item["status"] = new_status
-            break
-    save_watchlist(wl)
+    session = get_session()
+    try:
+        item = session.query(WatchlistItem).filter(
+            WatchlistItem.ticker.ilike(ticker)
+        ).first()
+        if item:
+            item.status = new_status
+            session.commit()
+    finally:
+        session.close()
 
 
 def remove_from_watchlist(ticker: str) -> list[dict]:
-    """Entfernt einen Ticker aus der Watchlist."""
-    wl = load_watchlist()
-    wl = [item for item in wl if item["ticker"].upper() != ticker.upper()]
-    save_watchlist(wl)
-    return wl
+    """Entfernt einen Ticker aus der Watchlist (CASCADE löscht Positionen)."""
+    session = get_session()
+    try:
+        item = session.query(WatchlistItem).filter(
+            WatchlistItem.ticker.ilike(ticker)
+        ).first()
+        if item:
+            session.delete(item)
+            session.commit()
+    finally:
+        session.close()
+    return load_watchlist()
 
 
 def get_ticker_list() -> list[str]:
-    """Gibt nur die Ticker-Symbole als Liste zurück (Xetra-Ticker)."""
-    return [item["ticker"] for item in load_watchlist()]
+    """Gibt nur die Ticker-Symbole als Liste zurück."""
+    session = get_session()
+    try:
+        items = session.query(WatchlistItem.ticker).all()
+        return [t[0] for t in items]
+    finally:
+        session.close()
 
 
 def get_display_map() -> dict[str, str]:
     """Gibt ein Mapping von Ticker → Display-Name zurück."""
-    return {item["ticker"]: item.get("display", item["ticker"])
-            for item in load_watchlist()}
+    session = get_session()
+    try:
+        items = session.query(WatchlistItem.ticker, WatchlistItem.display).all()
+        return {t: d or t for t, d in items}
+    finally:
+        session.close()
 
 
 # ---------------------------------------------------------------------------
@@ -212,167 +235,164 @@ def add_position(ticker: str, buy_price: float, quantity: float,
                  buy_date: str = None, stop_loss: float = None,
                  take_profit: float = None, fees: float = 0.0,
                  notes: str = "") -> dict | None:
-    """Fügt eine neue Position zu einem Watchlist-Eintrag hinzu.
+    """Fügt eine neue Position zu einem Watchlist-Eintrag hinzu."""
+    session = get_session()
+    try:
+        item = session.query(WatchlistItem).filter(
+            WatchlistItem.ticker.ilike(ticker)
+        ).first()
+        if not item:
+            return None
 
-    Args:
-        ticker: Watchlist-Ticker
-        buy_price: Einkaufspreis pro Aktie
-        quantity: Anzahl Aktien
-        buy_date: Kaufdatum (ISO-Format, z.B. '2024-01-15'). Default: heute.
-        stop_loss: Stop-Loss Kurs (optional)
-        take_profit: Take-Profit Kurs (optional)
-        fees: Gebühren in EUR (optional)
-        notes: Notizen zum Trade (optional)
-
-    Rückgabe: Die erstellte Position als dict, oder None bei Fehler.
-    """
-    wl = load_watchlist()
-    for item in wl:
-        if item["ticker"].upper() == ticker.upper():
-            if "positions" not in item:
-                item["positions"] = []
-
-            position = {
-                "id": _new_position_id(),
-                "buy_date": buy_date or datetime.now().strftime("%Y-%m-%d"),
-                "buy_price": round(buy_price, 2),
-                "quantity": round(quantity, 4),
-                "stop_loss": round(stop_loss, 2) if stop_loss else None,
-                "take_profit": round(take_profit, 2) if take_profit else None,
-                "fees": round(fees, 2),
-                "notes": notes,
-                "sell_date": None,
-                "sell_price": None,
-                "sell_fees": 0.0,
-            }
-            item["positions"].append(position)
-
-            # Status automatisch auf "Investiert" setzen
-            item["status"] = "Investiert"
-            save_watchlist(wl)
-            return position
-    return None
+        pos = PositionRow(
+            id=_new_position_id(),
+            ticker=item.ticker,
+            buy_date=buy_date or datetime.now().strftime("%Y-%m-%d"),
+            buy_price=round(buy_price, 2),
+            quantity=round(quantity, 4),
+            stop_loss=round(stop_loss, 2) if stop_loss else None,
+            take_profit=round(take_profit, 2) if take_profit else None,
+            fees=round(fees, 2),
+            notes=notes,
+            sell_date=None,
+            sell_price=None,
+            sell_fees=0.0,
+        )
+        session.add(pos)
+        item.status = "Investiert"
+        session.commit()
+        return pos.to_dict()
+    finally:
+        session.close()
 
 
 def close_position(ticker: str, position_id: str, sell_price: float,
                    sell_date: str = None, sell_fees: float = 0.0) -> dict | None:
-    """Schließt eine offene Position (Verkauf).
+    """Schließt eine offene Position (Verkauf)."""
+    session = get_session()
+    try:
+        pos = session.query(PositionRow).filter_by(id=position_id).first()
+        if not pos or pos.sell_date is not None:
+            return None
 
-    Rückgabe: Die geschlossene Position als dict, oder None bei Fehler.
-    """
-    wl = load_watchlist()
-    for item in wl:
-        if item["ticker"].upper() == ticker.upper():
-            for pos in item.get("positions", []):
-                if pos.get("id") == position_id and pos.get("sell_date") is None:
-                    pos["sell_date"] = sell_date or datetime.now().strftime("%Y-%m-%d")
-                    pos["sell_price"] = round(sell_price, 2)
-                    pos["sell_fees"] = round(sell_fees, 2)
-                    # Prüfe ob noch offene Positionen existieren
-                    open_positions = [p for p in item["positions"] if p.get("sell_date") is None]
-                    if not open_positions:
-                        item["status"] = "Beobachtet"
-                    save_watchlist(wl)
-                    return pos
-    return None
+        pos.sell_date = sell_date or datetime.now().strftime("%Y-%m-%d")
+        pos.sell_price = round(sell_price, 2)
+        pos.sell_fees = round(sell_fees, 2)
+
+        # Prüfe ob noch offene Positionen existieren
+        open_count = session.query(PositionRow).filter(
+            PositionRow.ticker.ilike(ticker),
+            PositionRow.sell_date.is_(None),
+            PositionRow.id != position_id,
+        ).count()
+        if open_count == 0:
+            item = session.query(WatchlistItem).filter(
+                WatchlistItem.ticker.ilike(ticker)
+            ).first()
+            if item:
+                item.status = "Beobachtet"
+
+        session.commit()
+        return pos.to_dict()
+    finally:
+        session.close()
 
 
 def update_position(ticker: str, position_id: str, **kwargs) -> dict | None:
-    """Aktualisiert Felder einer offenen Position (z.B. Stop-Loss, Take-Profit).
-
-    Erlaubte kwargs: stop_loss, take_profit, notes, quantity
-    Rückgabe: Die aktualisierte Position, oder None bei Fehler.
-    """
+    """Aktualisiert Felder einer offenen Position (z.B. Stop-Loss, Take-Profit)."""
     allowed_fields = {"stop_loss", "take_profit", "notes", "quantity"}
-    wl = load_watchlist()
-    for item in wl:
-        if item["ticker"].upper() == ticker.upper():
-            for pos in item.get("positions", []):
-                if pos.get("id") == position_id:
-                    for key, value in kwargs.items():
-                        if key in allowed_fields:
-                            if key in ("stop_loss", "take_profit") and value is not None:
-                                value = round(value, 2)
-                            elif key == "quantity" and value is not None:
-                                value = round(value, 4)
-                            pos[key] = value
-                    save_watchlist(wl)
-                    return pos
-    return None
+    session = get_session()
+    try:
+        pos = session.query(PositionRow).filter_by(id=position_id).first()
+        if not pos:
+            return None
+        for key, value in kwargs.items():
+            if key in allowed_fields:
+                if key in ("stop_loss", "take_profit") and value is not None:
+                    value = round(value, 2)
+                elif key == "quantity" and value is not None:
+                    value = round(value, 4)
+                setattr(pos, key, value)
+        session.commit()
+        return pos.to_dict()
+    finally:
+        session.close()
 
 
 def delete_position(ticker: str, position_id: str) -> bool:
-    """Löscht eine Position komplett (z.B. fehlerhafte Eingabe).
+    """Löscht eine Position komplett."""
+    session = get_session()
+    try:
+        pos = session.query(PositionRow).filter_by(id=position_id).first()
+        if not pos:
+            return False
+        session.delete(pos)
 
-    Rückgabe: True wenn gelöscht, False wenn nicht gefunden.
-    """
-    wl = load_watchlist()
-    for item in wl:
-        if item["ticker"].upper() == ticker.upper():
-            before = len(item.get("positions", []))
-            item["positions"] = [p for p in item.get("positions", [])
-                                 if p.get("id") != position_id]
-            if len(item["positions"]) < before:
-                # Status aktualisieren
-                open_positions = [p for p in item["positions"] if p.get("sell_date") is None]
-                if not open_positions:
-                    item["status"] = "Beobachtet"
-                save_watchlist(wl)
-                return True
-    return False
+        # Status aktualisieren
+        open_count = session.query(PositionRow).filter(
+            PositionRow.ticker.ilike(ticker),
+            PositionRow.sell_date.is_(None),
+            PositionRow.id != position_id,
+        ).count()
+        if open_count == 0:
+            item = session.query(WatchlistItem).filter(
+                WatchlistItem.ticker.ilike(ticker)
+            ).first()
+            if item:
+                item.status = "Beobachtet"
+
+        session.commit()
+        return True
+    finally:
+        session.close()
 
 
 def get_open_positions(ticker: str = None) -> list[dict]:
-    """Gibt alle offenen (nicht verkauften) Positionen zurück.
-
-    Args:
-        ticker: Optional. Nur Positionen für diesen Ticker.
-                Wenn None, werden ALLE offenen Positionen zurückgegeben.
-
-    Rückgabe: Liste von dicts mit {ticker, name, display, position}.
-    """
-    wl = load_watchlist()
-    results = []
-    for item in wl:
-        if ticker and item["ticker"].upper() != ticker.upper():
-            continue
-        for pos in item.get("positions", []):
-            if pos.get("sell_date") is None:
-                results.append({
-                    "ticker": item["ticker"],
-                    "name": item["name"],
-                    "display": item.get("display", item["ticker"]),
-                    "position": pos,
-                })
-    return results
+    """Gibt alle offenen (nicht verkauften) Positionen zurück."""
+    session = get_session()
+    try:
+        query = session.query(PositionRow).filter(PositionRow.sell_date.is_(None))
+        if ticker:
+            query = query.filter(PositionRow.ticker.ilike(ticker))
+        positions = query.all()
+        results = []
+        for pos in positions:
+            item = session.query(WatchlistItem).filter_by(ticker=pos.ticker).first()
+            results.append({
+                "ticker": pos.ticker,
+                "name": item.name if item else pos.ticker,
+                "display": item.display if item else pos.ticker,
+                "position": pos.to_dict(),
+            })
+        return results
+    finally:
+        session.close()
 
 
 def get_closed_positions(ticker: str = None) -> list[dict]:
     """Gibt alle geschlossenen (verkauften) Positionen zurück."""
-    wl = load_watchlist()
-    results = []
-    for item in wl:
-        if ticker and item["ticker"].upper() != ticker.upper():
-            continue
-        for pos in item.get("positions", []):
-            if pos.get("sell_date") is not None:
-                results.append({
-                    "ticker": item["ticker"],
-                    "name": item["name"],
-                    "display": item.get("display", item["ticker"]),
-                    "position": pos,
-                })
-    return results
+    session = get_session()
+    try:
+        query = session.query(PositionRow).filter(PositionRow.sell_date.isnot(None))
+        if ticker:
+            query = query.filter(PositionRow.ticker.ilike(ticker))
+        positions = query.all()
+        results = []
+        for pos in positions:
+            item = session.query(WatchlistItem).filter_by(ticker=pos.ticker).first()
+            results.append({
+                "ticker": pos.ticker,
+                "name": item.name if item else pos.ticker,
+                "display": item.display if item else pos.ticker,
+                "position": pos.to_dict(),
+            })
+        return results
+    finally:
+        session.close()
 
 
 def calc_position_pnl(position: dict, current_price: float = None) -> dict:
-    """Berechnet P&L für eine einzelne Position.
-
-    Für offene Positionen: Unrealisierter P&L basierend auf current_price.
-    Für geschlossene Positionen: Realisierter P&L basierend auf sell_price.
-
-    Rückgabe: dict mit pnl_eur, pnl_pct, invested, current_value, is_closed.
-    """
+    """Berechnet P&L für eine einzelne Position."""
     buy_price = position.get("buy_price", 0)
     quantity = position.get("quantity", 0)
     fees = position.get("fees", 0)
@@ -380,7 +400,6 @@ def calc_position_pnl(position: dict, current_price: float = None) -> dict:
     invested = buy_price * quantity + fees
 
     if position.get("sell_date") is not None:
-        # Geschlossene Position: realisierter P&L
         sell_price = position.get("sell_price", 0)
         current_value = sell_price * quantity - sell_fees
         pnl_eur = current_value - invested
@@ -393,7 +412,6 @@ def calc_position_pnl(position: dict, current_price: float = None) -> dict:
             "is_closed": True,
         }
     elif current_price is not None:
-        # Offene Position: unrealisierter P&L
         current_value = current_price * quantity
         pnl_eur = current_value - invested
         pnl_pct = (pnl_eur / invested * 100) if invested > 0 else 0.0
@@ -415,14 +433,7 @@ def calc_position_pnl(position: dict, current_price: float = None) -> dict:
 
 
 def calc_portfolio_summary(current_prices: dict[str, float] = None) -> dict:
-    """Berechnet eine Gesamt-Portfolio-Übersicht.
-
-    Args:
-        current_prices: Dict {ticker: aktueller_kurs}. Wenn None, wird nur Invest berechnet.
-
-    Rückgabe: dict mit total_invested, total_value, total_pnl_eur, total_pnl_pct,
-              open_positions_count, closed_positions_count.
-    """
+    """Berechnet eine Gesamt-Portfolio-Übersicht."""
     if current_prices is None:
         current_prices = {}
 
@@ -466,11 +477,7 @@ def calc_portfolio_summary(current_prices: dict[str, float] = None) -> dict:
 # ---------------------------------------------------------------------------
 
 def _get_company_name_from_yahoo(query: str) -> tuple[str, str] | None:
-    """Ermittelt Firmennamen und Symbol über Yahoo Finance.
-
-    Rückgabe: (symbol, company_name) oder None.
-    """
-    # 1. Direkt als Ticker versuchen
+    """Ermittelt Firmennamen und Symbol über Yahoo Finance."""
     try:
         tk = yf.Ticker(query.upper())
         info = tk.info
@@ -481,7 +488,6 @@ def _get_company_name_from_yahoo(query: str) -> tuple[str, str] | None:
     except Exception:
         pass
 
-    # 2. Yahoo-Suche
     try:
         results = yf.Search(query)
         quotes = results.quotes if hasattr(results, "quotes") else []
@@ -508,24 +514,14 @@ def _validate_ticker(ticker: str) -> bool:
 
 
 def resolve_ticker(query: str) -> dict | None:
-    """Versucht einen Firmennamen oder Ticker zu einem Xetra-Ticker aufzulösen.
-
-    Priorisierung:
-    1. Direkt-Match in Xetra-CSV (Ticker oder Name)
-    2. Yahoo Finance → Firmennamen ermitteln → CSV-Match
-    3. Yahoo-Symbol + .DE direkt testen
-    4. Fallback auf Original-Ticker
-
-    Rückgabe: {"ticker": str, "name": str, "display": str} oder None.
-    """
+    """Versucht einen Firmennamen oder Ticker zu einem Xetra-Ticker aufzulösen."""
     query = query.strip()
     if not query:
         return None
 
-    # Basis-Display (User-Eingabe bereinigt)
     display = query.upper().replace(".DE", "")
 
-    # 1. Direkt-Match in Xetra-CSV (schnellster Weg)
+    # 1. Direkt-Match in Xetra-CSV
     csv_matches = _search_xetra_csv(query)
     for csv_match in csv_matches:
         if _validate_ticker(csv_match["ticker"]):
@@ -540,7 +536,6 @@ def resolve_ticker(query: str) -> dict | None:
     if yahoo_result:
         us_symbol, company_name = yahoo_result
 
-        # Firmenname in CSV suchen (z.B. "Apple Inc." → findet APC.DE)
         csv_by_name = _search_xetra_csv(company_name)
         for match in csv_by_name:
             if _validate_ticker(match["ticker"]):
@@ -550,7 +545,6 @@ def resolve_ticker(query: str) -> dict | None:
                     "display": us_symbol.split(".")[0].upper(),
                 }
 
-        # Auch den Firmennamen verkürzt suchen (z.B. "Apple" statt "Apple Inc.")
         short_name = company_name.split(" ")[0] if " " in company_name else ""
         if short_name and len(short_name) > 2:
             csv_by_short = _search_xetra_csv(short_name)
@@ -562,7 +556,7 @@ def resolve_ticker(query: str) -> dict | None:
                         "display": us_symbol.split(".")[0].upper(),
                     }
 
-        # 3. Yahoo Search nach .DE-Listings durchsuchen
+        # 3. Yahoo Search nach .DE-Listings
         try:
             search_results = yf.Search(company_name)
             quotes = search_results.quotes if hasattr(search_results, "quotes") else []
@@ -577,7 +571,7 @@ def resolve_ticker(query: str) -> dict | None:
         except Exception:
             pass
 
-        # 4. Fallback: Original US-Ticker verwenden
+        # 4. Fallback: Original US-Ticker
         if _validate_ticker(us_symbol):
             return {
                 "ticker": us_symbol.upper(),
@@ -585,7 +579,7 @@ def resolve_ticker(query: str) -> dict | None:
                 "display": us_symbol.split(".")[0].upper(),
             }
 
-    # 4. Letzter Fallback: Ticker direkt testen
+    # Letzter Fallback
     if _validate_ticker(query.upper()):
         return {
             "ticker": query.upper(),

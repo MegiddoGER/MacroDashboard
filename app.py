@@ -35,6 +35,12 @@ from style_manager import apply_custom_styles
 apply_custom_styles()
 
 # ---------------------------------------------------------------------------
+# Datenbank initialisieren (erstellt Tabellen + migriert JSON-Daten)
+# ---------------------------------------------------------------------------
+from database import init_db
+init_db()
+
+# ---------------------------------------------------------------------------
 # Controller Imports
 # ---------------------------------------------------------------------------
 from controllers.sidebar import display_sidebar
