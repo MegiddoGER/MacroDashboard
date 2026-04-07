@@ -73,7 +73,7 @@
     "ticker": "UBI.PA",
     "name": "UBISOFT ENTERTAIN",
     "display": "UBI",
-    "status": "Investiert",
+    "status": "Beobachtet",
     "positions": [
       {
         "id": "cf76f9c5",
@@ -84,8 +84,8 @@
         "take_profit": null,
         "fees": 1.0,
         "notes": "starwars bald",
-        "sell_date": null,
-        "sell_price": null,
+        "sell_date": "2026-04-07",
+        "sell_price": 1000.0,
         "sell_fees": 0.0
       }
     ]
