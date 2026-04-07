@@ -83,22 +83,53 @@ def display_sidebar() -> str:
 
             wl_items = load_watchlist()
             if wl_items:
+                # Gruppierung nach Status
+                invested = [i for i in wl_items if i.get("status") == "Investiert"]
+                watching = [i for i in wl_items if i.get("status", "Beobachtet") != "Investiert"]
+
+                def _render_wl_group(title, icon, items, accent_color, dot_color):
+                    if not items:
+                        return
+                    st.markdown(
+                        f"<div class='wl-group-header'>"
+                        f"<span class='wl-group-dot' style='background:{dot_color};'></span>"
+                        f"<span class='wl-group-title'>{icon} {title}</span>"
+                        f"<span class='wl-group-count'>{len(items)}</span>"
+                        f"</div>",
+                        unsafe_allow_html=True,
+                    )
+                    for item in items:
+                        display_name = item.get("display", item["ticker"])
+                        company = item["name"]
+                        # Kürze den Firmennamen für die Sidebar
+                        if len(company) > 28:
+                            company = company[:26] + "…"
+
+                        col_card, col_x = st.columns([5, 1])
+                        with col_card:
+                            st.markdown(
+                                f"<div class='wl-card'>"
+                                f"<span class='wl-card-dot' style='background:{accent_color};'></span>"
+                                f"<div class='wl-card-info'>"
+                                f"<span class='wl-card-ticker'>{display_name}</span>"
+                                f"<span class='wl-card-name'>{company}</span>"
+                                f"</div>"
+                                f"</div>",
+                                unsafe_allow_html=True,
+                            )
+                        with col_x:
+                            st.markdown('<span class="marker-btn-delete" style="display:none;"></span>', unsafe_allow_html=True)
+                            if st.button("✕", key=f"del_{item['ticker']}",
+                                         help=f"{display_name} entfernen"):
+                                remove_from_watchlist(item["ticker"])
+                                st.rerun()
+
                 st.markdown("---")
-                for item in wl_items:
-                    col_name, col_del = st.columns([4, 1])
-                    display_name = item.get("display", item["ticker"])
-                    with col_name:
-                        st.markdown(f"**{display_name}**"
-                                    f"<br><span style='color:#64748b;font-size:0.75rem'>"
-                                    f"{item['name']}</span>",
-                                    unsafe_allow_html=True)
-                    with col_del:
-                        # Marker für den Lösch-Button
-                        st.markdown('<span class="marker-btn-delete" style="display:none;"></span>', unsafe_allow_html=True)
-                        if st.button("✕", key=f"del_{item['ticker']}",
-                                     help=f"{display_name} entfernen"):
-                            remove_from_watchlist(item["ticker"])
-                            st.rerun()
+                _render_wl_group("Investiert", "💰", invested, "#00d4aa", "#00d4aa")
+                _render_wl_group("Beobachtet", "👁", watching, "#64748b", "#475569")
+
+                if not invested and not watching:
+                    st.caption("Noch keine Ticker gespeichert.")
             else:
                 st.caption("Noch keine Ticker gespeichert.")
 

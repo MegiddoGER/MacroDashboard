@@ -19,7 +19,7 @@ Architektur:
 import streamlit as st
 
 from styles.layout import css_layout
-from styles.sidebar import css_sidebar, css_sidebar_nav, css_sidebar_logo
+from styles.sidebar import css_sidebar, css_sidebar_nav, css_sidebar_logo, css_sidebar_watchlist
 from styles.metrics import css_metrics
 from styles.tables import css_tables
 from styles.tabs import css_tabs
@@ -35,6 +35,7 @@ def apply_custom_styles():
         css_sidebar(),
         css_sidebar_nav(),
         css_sidebar_logo(),
+        css_sidebar_watchlist(),
         css_metrics(),
         css_tables(),
         css_tabs(),

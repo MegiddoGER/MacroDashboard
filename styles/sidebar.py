@@ -116,3 +116,92 @@ def css_sidebar_logo() -> str:
     color: {COLORS["accent_glow"]};
 }}
 """
+
+
+def css_sidebar_watchlist() -> str:
+    """Sidebar-Watchlist: Gruppierte Mini-Karten mit Status-Dots."""
+    return f"""
+/* ── Watchlist: Gruppen-Header ── */
+.wl-group-header {{
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 4px 4px 4px;
+    margin-top: 8px;
+    margin-bottom: 2px;
+}}
+.wl-group-dot {{
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    box-shadow: 0 0 6px currentColor;
+}}
+.wl-group-title {{
+    font-family: {FONT["family"]};
+    font-size: 0.7rem;
+    font-weight: {FONT["weight_semibold"]};
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: {COLORS["text_dim"]};
+    flex-grow: 1;
+}}
+.wl-group-count {{
+    font-family: {FONT["family"]};
+    font-size: 0.65rem;
+    font-weight: {FONT["weight_semibold"]};
+    color: {COLORS["text_muted"]};
+    background: rgba(148, 163, 184, 0.12);
+    padding: 1px 7px;
+    border-radius: 10px;
+    min-width: 18px;
+    text-align: center;
+}}
+
+/* ── Watchlist: Ticker-Karte ── */
+.wl-card {{
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 8px;
+    border-radius: 6px;
+    transition: {TRANSITION["fast"]};
+    cursor: default;
+    margin: -4px 0;
+}}
+.wl-card:hover {{
+    background: rgba(148, 163, 184, 0.08);
+}}
+.wl-card-dot {{
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    opacity: 0.85;
+}}
+.wl-card-info {{
+    display: flex;
+    flex-direction: column;
+    gap: 0px;
+    min-width: 0;
+    overflow: hidden;
+}}
+.wl-card-ticker {{
+    font-family: {FONT["family"]};
+    font-size: 0.82rem;
+    font-weight: {FONT["weight_semibold"]};
+    color: {COLORS["text"]};
+    letter-spacing: 0.03em;
+    line-height: 1.2;
+}}
+.wl-card-name {{
+    font-family: {FONT["family"]};
+    font-size: 0.65rem;
+    font-weight: {FONT["weight_regular"]};
+    color: {COLORS["text_muted"]};
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.3;
+}}
+"""
