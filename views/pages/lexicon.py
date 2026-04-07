@@ -5,14 +5,15 @@ def page_lexicon():
     st.caption("Das essenzielle Nachschlagewerk für technische, strategische und fundamentale Bewertungsmodelle.")
     st.markdown("---")
 
-    tab_guide, tab_fund, tab_quant, tab_tech, tab_strat, tab_risk, tab_sent = st.tabs([
+    tab_guide, tab_fund, tab_quant, tab_tech, tab_strat, tab_risk, tab_sent, tab_arch = st.tabs([
         "📖 Benutzerhandbuch",
         "📊 Fundamentale Analyse",
         "🏦 Quant-Modelle (Sektoren)", 
         "📈 Technische Indikatoren", 
         "🎯 Strategische Taktiken",
         "🛡️ Risiko & Backtesting",
-        "💬 Sentiment & Flow"
+        "💬 Sentiment & Flow",
+        "🧠 System-Architektur"
     ])
 
     # =========================================================================
@@ -582,3 +583,167 @@ def page_lexicon():
             - **Put/Call-Ratio:** Ein extremer Contrarian-Indikator. Ein sehr hoher Wert (> 1.2) bedeutet irrationale Massen-Panik (alle sichern sich ab) – das eigentliche Kaufsignal. Ein extrem tiefer Wert (< 0.5) deutet auf blinde Gier.
             - **Max Pain Level:** Der magnetische Kurs-Preis (Strike-Preis), bei dem am Verfallstag (Options Expiration) die absolute *Mehrheit* aller Put- und Call-Käufer wertlos verfallen und ihr Geld an die institutionellen Aussteller der Optionen verlieren. Der Aktienkurs "gleitet" magischerweise am Freitag oftmals genau auf die Max-Pain Marke hin.
             """)
+
+    # =========================================================================
+    # 7. System-Architektur — Warum jedes Tool existiert
+    # =========================================================================
+    with tab_arch:
+        st.markdown("### 🧠 System-Architektur — Warum jedes Tool existiert")
+        st.markdown(
+            "Studien zeigen: **80–90% aller privaten Trader verlieren Geld.** "
+            "Nicht wegen fehlender Strategie, sondern wegen wiederkehrender, vermeidbarer Fehler. "
+            "Jedes Feature im MacroDashboard existiert, um einen spezifischen dieser Fehler zu verhindern."
+        )
+        st.markdown("---")
+
+        # ── Fehler-Präventions-Tabelle ────────────────────────────────
+        st.markdown("#### Die 7 häufigsten Trading-Fehler")
+        import pandas as pd
+        error_data = pd.DataFrame([
+            {"#": "1", "Fehlertyp": "Ohne Analyse kaufen (FOMO)", "Häufigkeit": "Sehr häufig", "Schutzmechanismus": "Scoring Engine + Analyse"},
+            {"#": "2", "Fehlertyp": "Kein Stop-Loss setzen", "Häufigkeit": "Häufig", "Schutzmechanismus": "Position Sizing + SL-Pflichtfeld"},
+            {"#": "3", "Fehlertyp": "Zu viel in einen Sektor", "Häufigkeit": "Häufig", "Schutzmechanismus": "Risiko-Analyse (Herfindahl)"},
+            {"#": "4", "Fehlertyp": "Gegen den Markttrend handeln", "Häufigkeit": "Häufig", "Schutzmechanismus": "Home (Fear & Greed) + Makro"},
+            {"#": "5", "Fehlertyp": "Aus Fehlern nicht lernen", "Häufigkeit": "Sehr häufig", "Schutzmechanismus": "Trade-Journal (Auto-Review)"},
+            {"#": "6", "Fehlertyp": "Strategie nie getestet", "Häufigkeit": "Häufig", "Schutzmechanismus": "Backtesting Engine"},
+            {"#": "7", "Fehlertyp": "Euphorie-Falle (Retail-Top)", "Häufigkeit": "Häufig", "Schutzmechanismus": "Contrarian-Warnung (-15% Conf.)"},
+        ])
+        st.dataframe(error_data, use_container_width=True, hide_index=True)
+
+        st.markdown("---")
+
+        # ── Der 8-Phasen Workflow ─────────────────────────────────────
+        st.markdown("#### Der optimale Trading-Workflow (8 Phasen)")
+
+        with st.expander("🌍 Phase 1: Marktlage checken (Home + Gesamtwirtschaft)", expanded=False):
+            st.markdown("""
+            **Ziel:** Niemals kaufen, wenn der Gesamtmarkt zusammenbricht.
+
+            | Feature | Funktion | Regel |
+            |---------|----------|-------|
+            | Fear & Greed Index | Marktstimmung (0-100) | Extreme Gier (>80) → NICHT kaufen. Extreme Angst (<20) → Kaufchancen |
+            | Wirtschaftskalender | Wichtige Termine | Nie kurz vor Fed-Zinsentscheid einsteigen |
+            | Zinsstrukturkurve | Rezessions-Frühindikator | Wenn invertiert → defensiv bleiben |
+            """)
+
+        with st.expander("🔍 Phase 2: Kandidaten finden (Screener + Sektoren)", expanded=False):
+            st.markdown("""
+            **Ziel:** Aus tausenden Aktien die besten filtern.
+
+            - **Screener:** Filtert S&P 500 nach deinen Kriterien (z.B. RSI < 30 + über SMA 200)
+            - **Sektor-Heatmap:** Profis kaufen die stärkste Aktie im stärksten Sektor — nie eine "billige" Aktie in einem sterbenden Sektor
+            """)
+
+        with st.expander("🔬 Phase 3: Tiefenanalyse + Scoring Engine", expanded=False):
+            st.markdown("""
+            **Ziel:** Emotionale Entscheidungen verhindern. Das Herzstück der Analyse.
+
+            Die Scoring Engine bewertet jede Aktie auf **5 Kategorien**:
+
+            | Kategorie | Gewichtung | Indikatoren |
+            |-----------|-----------|-------------|
+            | Trend | 30% | SMA 200, MACD, ADX |
+            | Volumen | 25% | OBV, VWAP, POC |
+            | Fundamental | 20% | DCF, Bilanz, Insider |
+            | Sentiment | 15% | News NLP Analyse |
+            | Oszillator | 10% | RSI, Stochastic, Bollinger |
+
+            **Euphorie-Falle:** Wenn News extrem bullish (>0.15) UND RSI überkauft (>70) → automatisch **-15% Confidence**.
+            Das verhindert Käufe am "Retail-Top".
+            """)
+
+        with st.expander("⏱ Phase 4: Backtesting — Strategie beweisen", expanded=False):
+            st.markdown("""
+            **Ziel:** Nie echtes Geld in eine ungetestete Strategie stecken.
+
+            - Simuliert Strategien über 1+ Jahre historischer Daten
+            - Zeigt Win-Rate, Max Drawdown, Sharpe Ratio
+            - **Beispiel:** "Kaufen wenn RSI < 30" → Backtest zeigt: 62% Win-Rate, aber Max Drawdown -28%. Kannst du das aushalten?
+            """)
+
+        with st.expander("🛒 Phase 5: Position eröffnen — Professionelle Buchführung", expanded=False):
+            st.markdown("""
+            **Ziel:** Disziplin erzwingen durch 3 Mechanismen:
+
+            **1. Stop-Loss & Take-Profit VOR dem Kauf definieren**
+            - Ohne SL: Apple bei 150€ gekauft → fällt auf 100€ → -33% Verlust
+            - Mit SL bei 135€: Maximal -10% Verlust → Kapital für bessere Trades frei
+
+            **2. Position Sizing Calculator**
+            - Berechnet automatisch: "Bei 2% Risiko auf 10.000€ Konto und SL 15€ unter Kaufkurs → max. 13 Stück"
+            - Zeigt Risk/Reward Ratio (ideal ≥ 1:2)
+
+            **3. Live P&L + Risiko-Analyse**
+            - Unrealisierter Gewinn/Verlust in Echtzeit
+            - VaR, Beta, Sektor-Konzentration, Korrelationsrisiko
+            """)
+
+        with st.expander("🛡️ Phase 6: Risiko überwachen", expanded=False):
+            st.markdown("""
+            **Ziel:** Wissen, ob das Gesamtportfolio gesund ist.
+
+            | Metrik | Was es sagt | Grenzwert |
+            |--------|------------|----------|
+            | VaR (95%) | "Max. 500€ Tagesverlust mit 95% Wahrscheinlichkeit" | Individuell |
+            | Portfolio-Beta | Schwankung relativ zum Markt | > 1.5 = zu aggressiv |
+            | Herfindahl-Index | Sektor-Konzentration | > 0.4 = Klumpenrisiko |
+            | Korrelation | "NVDA und AMD korrelieren 0.85" | > 0.7 = schlechte Diversifikation |
+            | Max Drawdown | Tiefster Punkt seit dem Hoch | > -20% = Strategie überdenken |
+            """)
+
+        with st.expander("📤 Phase 7: Position schließen + Auto-Journal", expanded=False):
+            st.markdown("""
+            **Ziel:** Jeder Trade wird dokumentiert — automatisch.
+
+            Beim Schließen einer Position wird automatisch ein Journal-Eintrag erstellt mit:
+            - Entry/Exit Preis + Datum
+            - P&L in € und % (automatisch als Gewonnen/Verloren/Break-Even klassifiziert)
+            - Setup-Kategorie (SMC, Trendfolge, Breakout, etc.)
+            - Dein persönliches "Lessons Learned" Review
+            """)
+
+        with st.expander("📓 Phase 8: Lernen (Trade-Journal)", expanded=False):
+            st.markdown("""
+            **Ziel:** Aus Fehlern lernen, Stärken erkennen.
+
+            Das Journal zeigt:
+            - **Win-Rate pro Setup-Typ:** "Trendfolge hat 68% Win-Rate, Breakout nur 42%" → Mehr Trendfolge!
+            - **AI-Signale:** Wie treffsicher war der automatische Scoring-Algorithmus? Kalibrierungschart nach Confidence-Bereichen.
+            - **Historische Trades:** Vollständige Chronik mit Review-Kommentaren.
+            """)
+
+        st.markdown("---")
+
+        # ── Vergleich: Mit vs. Ohne ───────────────────────────────────
+        st.markdown("#### Ohne vs. Mit MacroDashboard")
+        compare_data = pd.DataFrame([
+            {"Bereich": "Analyse", "Ohne": '"Hab auf Reddit gelesen"', "Mit MacroDashboard": "5-Kategorie-Score + Euphorie-Check"},
+            {"Bereich": "Timing", "Ohne": '"Gefühl"', "Mit MacroDashboard": "RSI + MACD + Bollinger"},
+            {"Bereich": "Risiko", "Ohne": '"Geht schon"', "Mit MacroDashboard": "VaR, Beta, Korrelation"},
+            {"Bereich": "Stop-Loss", "Ohne": "Vergessen", "Mit MacroDashboard": "Beim Kauf definiert + Position Sizing"},
+            {"Bereich": "Dokumentation", "Ohne": "Keine", "Mit MacroDashboard": "Auto-Journal bei jedem Exit"},
+            {"Bereich": "Lernen", "Ohne": '"Aus Fehlern? Welche?"', "Mit MacroDashboard": "Win-Rate pro Setup + P&L Historie"},
+            {"Bereich": "Strategie-Test", "Ohne": '"Trust me bro"', "Mit MacroDashboard": "Backtesting mit echten Daten"},
+        ])
+        st.dataframe(compare_data, use_container_width=True, hide_index=True)
+
+        st.markdown("---")
+
+        # ── Täglicher Workflow ────────────────────────────────────────
+        st.markdown("#### 🎯 Optimaler täglicher Workflow (~25 Min.)")
+        workflow_data = pd.DataFrame([
+            {"Zeit": "08:00", "Aktion": "Marktcheck: Fear & Greed, Termine", "Tool": "Home + Gesamtwirtschaft", "Dauer": "5 Min"},
+            {"Zeit": "08:05", "Aktion": "Screener laufen lassen", "Tool": "Screener", "Dauer": "3 Min"},
+            {"Zeit": "08:08", "Aktion": "Top-Kandidaten analysieren", "Tool": "Analyse + Scoring", "Dauer": "10 Min"},
+            {"Zeit": "08:18", "Aktion": "Strategie per Backtest validieren", "Tool": "Backtesting", "Dauer": "5 Min"},
+            {"Zeit": "08:23", "Aktion": "Position eröffnen mit SL/TP", "Tool": "Watchlist", "Dauer": "2 Min"},
+            {"Zeit": "Laufend", "Aktion": "Portfolio + Risiko überwachen", "Tool": "Watchlist → Risiko", "Dauer": "—"},
+            {"Zeit": "Bei Exit", "Aktion": "Position schließen + Journal", "Tool": "Journal", "Dauer": "5 Min"},
+        ])
+        st.dataframe(workflow_data, use_container_width=True, hide_index=True)
+
+        st.info(
+            "💡 **Jedes einzelne Feature existiert, weil es einen spezifischen Fehler verhindert, "
+            "der nachweislich zu Verlusten führt.** Nichts ist \"nice to have\" — es ist die Differenz "
+            "zwischen einem emotionalen Gambler und einem datengetriebenen Trader."
+        )
