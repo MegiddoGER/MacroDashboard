@@ -49,13 +49,16 @@ COLORS = {
 # ── Navigations-Glow-Farben (je Menüpunkt) ──────────────────────────────
 
 NAV_GLOW_COLORS = [
-    {"color": "#3b82f6", "rgb": "59, 130, 246"},    # Startseite — Blau
-    {"color": "#10b981", "rgb": "16, 185, 129"},     # Gesamtwirtschaft — Grün
-    {"color": "#f59e0b", "rgb": "245, 158, 11"},     # Watchlist — Amber
-    {"color": "#8b5cf6", "rgb": "139, 92, 246"},     # Analyse — Violett
-    {"color": "#ec4899", "rgb": "236, 72, 153"},     # Sektoren — Pink
-    {"color": "#06b6d4", "rgb": "6, 182, 212"},      # Lexikon — Cyan
-    {"color": "#94a3b8", "rgb": "148, 163, 184"},    # Verzeichnis — Grau
+    {"color": "#3b82f6", "rgb": "59, 130, 246"},    # 1  Startseite — Blau
+    {"color": "#10b981", "rgb": "16, 185, 129"},     # 2  Gesamtwirtschaft — Grün
+    {"color": "#f59e0b", "rgb": "245, 158, 11"},     # 3  Watchlist — Amber
+    {"color": "#a855f7", "rgb": "168, 85, 247"},     # 4  Screener — Violett
+    {"color": "#ec4899", "rgb": "236, 72, 153"},     # 5  Analyse — Pink
+    {"color": "#f97316", "rgb": "249, 115, 22"},     # 6  Backtesting — Orange
+    {"color": "#eab308", "rgb": "234, 179, 8"},      # 7  Trade-Journal — Gelb
+    {"color": "#14b8a6", "rgb": "20, 184, 166"},     # 8  Sektoren — Teal
+    {"color": "#06b6d4", "rgb": "6, 182, 212"},      # 9  Analyse-Lexikon — Cyan
+    {"color": "#94a3b8", "rgb": "148, 163, 184"},    # 10 Aktien-Verzeichnis — Grau
 ]
 
 

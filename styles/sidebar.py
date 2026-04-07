@@ -55,15 +55,40 @@ section[data-testid="stSidebar"] .stRadio div[role="radiogroup"] > div > label >
 .stRadio > label, .stCheckbox > label {{ color: var(--text-dim) !important; }}
 """
 
-    # Glow-Effekte dynamisch generieren
+    # Glow-Effekte dynamisch generieren (auto-fallback für neue Seiten)
+    # Erzeugt Regeln für bis zu 20 Nav-Items. Definierte Farben werden verwendet,
+    # darüber hinaus rotiert ein HSL-Farbkreis automatisch neue Farben.
+    _FALLBACK_HUES = [200, 280, 330, 40, 160, 60, 300, 120, 20, 240]
+    MAX_NAV_ITEMS = 20
+
     glow_rules = ""
-    for i, glow in enumerate(NAV_GLOW_COLORS, 1):
+    for i in range(1, MAX_NAV_ITEMS + 1):
+        if i <= len(NAV_GLOW_COLORS):
+            glow = NAV_GLOW_COLORS[i - 1]
+            color = glow["color"]
+            rgb = glow["rgb"]
+        else:
+            # Auto-Fallback: HSL-Rotation für unbekannte Nav-Einträge
+            hue = _FALLBACK_HUES[(i - len(NAV_GLOW_COLORS) - 1) % len(_FALLBACK_HUES)]
+            color = f"hsl({hue}, 70%, 55%)"
+            rgb = f"hsl({hue}, 70%, 55%)"
+            # Für box-shadow mit rgba brauchen wir einen Standardwert
+            glow_rules += f"""
+section[data-testid="stSidebar"] .stRadio div[role="radiogroup"] > label:nth-of-type({i}):hover,
+section[data-testid="stSidebar"] .stRadio div[role="radiogroup"] > label:has(input:checked):nth-of-type({i}),
+section[data-testid="stSidebar"] .stRadio div[role="radiogroup"] > div:nth-child({i}) label:hover,
+section[data-testid="stSidebar"] .stRadio div[role="radiogroup"] > div:nth-child({i}) label:has(input:checked) {{
+    border-color: {color}; box-shadow: 0 0 15px {color}40; background-color: {color}20;
+}}
+"""
+            continue
+
         glow_rules += f"""
 section[data-testid="stSidebar"] .stRadio div[role="radiogroup"] > label:nth-of-type({i}):hover,
 section[data-testid="stSidebar"] .stRadio div[role="radiogroup"] > label:has(input:checked):nth-of-type({i}),
 section[data-testid="stSidebar"] .stRadio div[role="radiogroup"] > div:nth-child({i}) label:hover,
 section[data-testid="stSidebar"] .stRadio div[role="radiogroup"] > div:nth-child({i}) label:has(input:checked) {{
-    border-color: {glow["color"]}; box-shadow: 0 0 15px rgba({glow["rgb"]}, 0.35); background-color: rgba({glow["rgb"]}, 0.15);
+    border-color: {color}; box-shadow: 0 0 15px rgba({rgb}, 0.35); background-color: rgba({rgb}, 0.15);
 }}
 """
 
