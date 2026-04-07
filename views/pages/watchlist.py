@@ -10,6 +10,7 @@ from services.watchlist import (
     get_open_positions, get_closed_positions,
     calc_position_pnl, calc_portfolio_summary,
 )
+from models.journal import TradeEntry, JournalStore
 
 def page_watchlist():
     st.markdown("## Watchlist")
@@ -378,6 +379,57 @@ def page_watchlist():
             buy_fees = st.number_input("Gebühren (€)", min_value=0.0,
                                         value=0.0, step=0.01, key="pos_buy_fees")
 
+        # ── Position Sizing Calculator ────────────────────────────
+        if buy_sl > 0 and buy_price > buy_sl:
+            with st.expander("🎯 Position Sizing Rechner", expanded=True):
+                ps_col1, ps_col2 = st.columns(2)
+                with ps_col1:
+                    account_size = st.number_input(
+                        "Kontogröße (€)", min_value=100.0,
+                        value=10000.0, step=500.0, key="pos_account_size",
+                        help="Dein gesamtes Trading-Kapital",
+                    )
+                with ps_col2:
+                    risk_pct = st.number_input(
+                        "Max. Risiko pro Trade (%)", min_value=0.1, max_value=20.0,
+                        value=2.0, step=0.5, key="pos_risk_pct",
+                        help="Profis riskieren 1-2% pro Trade. Nie mehr als 5%.",
+                    )
+
+                risk_per_share = buy_price - buy_sl
+                risk_budget = account_size * (risk_pct / 100)
+                optimal_qty = risk_budget / risk_per_share
+                optimal_invest = optimal_qty * buy_price
+                reward = (buy_tp - buy_price) if buy_tp > buy_price else None
+                rrr = reward / risk_per_share if reward and risk_per_share > 0 else None
+
+                ps_m1, ps_m2, ps_m3 = st.columns(3)
+                with ps_m1:
+                    st.metric("Max. Stückzahl", f"{optimal_qty:,.2f}",
+                              help=f"Bei {risk_pct}% Risiko auf {account_size:,.0f}€")
+                with ps_m2:
+                    st.metric("Max. Investition", f"{optimal_invest:,.2f} €",
+                              delta=f"Risiko: {risk_budget:,.2f} €", delta_color="off")
+                with ps_m3:
+                    if rrr:
+                        rrr_color = "🟢" if rrr >= 2.0 else ("🟡" if rrr >= 1.0 else "🔴")
+                        st.metric("Risk/Reward", f"{rrr_color} 1:{rrr:.1f}",
+                                  help="Ideal ≥ 1:2. Unter 1:1 = nicht empfohlen.")
+                    else:
+                        st.metric("Risk/Reward", "— (TP setzen)")
+
+                # Farbige Warnung/Info
+                if rrr and rrr < 1.0:
+                    st.warning("⚠️ Risk/Reward unter 1:1 — das Verlustrisiko ist größer als die Gewinnchance. Überdenke den Einstieg.")
+                elif rrr and rrr >= 3.0:
+                    st.success("🎯 Exzellentes Risk/Reward! Genau so sehen profitable Setups aus.")
+
+                st.caption(
+                    f"📐 Berechnung: Risiko pro Aktie = {buy_price:,.2f}€ − {buy_sl:,.2f}€ = **{risk_per_share:,.2f}€** · "
+                    f"Budget = {account_size:,.0f}€ × {risk_pct}% = **{risk_budget:,.2f}€** · "
+                    f"Max. Stück = {risk_budget:,.2f}€ ÷ {risk_per_share:,.2f}€ = **{optimal_qty:,.2f}**"
+                )
+
         buy_notes = st.text_input("Notizen (optional)", key="pos_buy_notes",
                                    placeholder="z.B. RSI überverkauft, FVG Entry")
 
@@ -401,7 +453,7 @@ def page_watchlist():
             else:
                 st.error("❌ Position konnte nicht erstellt werden.")
 
-    # ── Position schließen (Verkauf) ──────────────────────────────
+    # ── Position schließen (Verkauf) + Auto-Journal ───────────────
     if open_pos:
         st.markdown("---")
         st.markdown("#### 💰 Position schließen (Verkauf)")
@@ -411,7 +463,7 @@ def page_watchlist():
             pos = op["position"]
             disp = display_map.get(op["ticker"], op["ticker"])
             label = f"{disp} — {pos['quantity']}x @ {pos['buy_price']:.2f} € ({pos['buy_date']})"
-            sell_options[label] = (op["ticker"], pos)
+            sell_options[label] = (op["ticker"], pos, op)
 
         sell_selection = st.selectbox(
             "Position zum Verkauf auswählen",
@@ -420,7 +472,7 @@ def page_watchlist():
         )
 
         if sell_selection:
-            sell_ticker, sell_pos = sell_options[sell_selection]
+            sell_ticker, sell_pos, sell_op = sell_options[sell_selection]
             col_s1, col_s2, col_s3 = st.columns(3)
             with col_s1:
                 sell_price = st.number_input("Verkaufskurs (€)", min_value=0.01,
@@ -437,7 +489,36 @@ def page_watchlist():
             pnl_symbol = "🟢" if pnl_preview["pnl_eur"] >= 0 else "🔴"
             st.caption(f"{pnl_symbol} Voraussichtlicher P&L: **{pnl_preview['pnl_eur']:+,.2f} €** ({pnl_preview['pnl_pct']:+.1f}%)")
 
-            if st.button("📤 Position schließen", key="pos_sell_btn", use_container_width=True):
+            # ── Auto-Journal: Review beim Schließen ──────────────
+            st.markdown("##### 📓 Trade-Review (Auto-Journal)")
+            st.caption("Wird automatisch im Trade-Journal gespeichert.")
+
+            jr_col1, jr_col2 = st.columns(2)
+            with jr_col1:
+                sell_setup = st.selectbox(
+                    "Setup-Kategorie",
+                    ["SMC (Fair Value Gap)", "Trendfolge (Pullback)", "Breakout",
+                     "Mean Reversion (Oversold)", "Earnings Play", "Sonstiges"],
+                    key="pos_sell_setup",
+                    help="Welche Strategie lag diesem Trade zugrunde?",
+                )
+            with jr_col2:
+                sell_conviction = st.slider(
+                    "Conviction (Rückblick)", 1, 5, 3,
+                    key="pos_sell_conviction",
+                    help="Wie stark war das Setup rückblickend betrachtet?",
+                )
+
+            sell_review = st.text_area(
+                "Lessons Learned / Review",
+                key="pos_sell_review",
+                placeholder="Was hast du gelernt? Hast du dich ans System gehalten? "
+                            "Z.B. 'Stop-Loss hat gegriffen, Disziplin war gut' oder "
+                            "'Panikverkauf — nächstes Mal SL-Plan einhalten'",
+                height=100,
+            )
+
+            if st.button("📤 Position schließen + Journal speichern", key="pos_sell_btn", use_container_width=True):
                 result = close_position(
                     ticker=sell_ticker,
                     position_id=sell_pos["id"],
@@ -446,7 +527,40 @@ def page_watchlist():
                     sell_fees=sell_fees,
                 )
                 if result:
-                    st.success(f"✅ Position geschlossen @ {sell_price:,.2f} €")
+                    # Automatischer Journal-Eintrag
+                    pnl_final = calc_position_pnl(sell_pos, sell_price)
+                    pnl_eur = pnl_final["pnl_eur"]
+                    pnl_pct = pnl_final["pnl_pct"]
+
+                    if pnl_pct > 0.5:
+                        auto_status = "Gewonnen"
+                    elif pnl_pct < -0.5:
+                        auto_status = "Verloren"
+                    else:
+                        auto_status = "Break-Even"
+
+                    disp_name = display_map.get(sell_ticker, sell_ticker)
+                    auto_notes = sell_pos.get("notes", "")
+                    entry_text = f"[Auto] {auto_notes}" if auto_notes else "[Auto-Import aus Watchlist]"
+
+                    journal_entry = TradeEntry(
+                        ticker=disp_name,
+                        trade_type="Long",
+                        setup_type=sell_setup,
+                        entry_date=sell_pos.get("buy_date", date.today().strftime("%Y-%m-%d")),
+                        entry_price=sell_pos.get("buy_price", 0),
+                        conviction=sell_conviction,
+                        entry_notes=entry_text,
+                        status=auto_status,
+                        exit_date=sell_date.strftime("%Y-%m-%d"),
+                        exit_price=sell_price,
+                        pnl_eur=pnl_eur,
+                        pnl_pct=pnl_pct,
+                        review_notes=sell_review or f"Position geschlossen: {pnl_eur:+,.2f}€ ({pnl_pct:+.1f}%)",
+                    )
+                    JournalStore.save(journal_entry)
+
+                    st.success(f"✅ Position geschlossen @ {sell_price:,.2f} € — Journal-Eintrag erstellt!")
                     st.rerun()
 
     # ── Status-Verwaltung ──────────────────────────────────────
