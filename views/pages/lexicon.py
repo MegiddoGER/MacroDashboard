@@ -612,7 +612,42 @@ def page_lexicon():
 
         st.markdown("---")
 
-        # ── Der 8-Phasen Workflow ─────────────────────────────────────
+        # ── Trading-Workflow Flowchart (kompakt) ─────────────────────
+        st.markdown("#### Der Trading-Workflow als Flussdiagramm")
+        st.graphviz_chart("""
+            digraph workflow {
+                bgcolor="transparent"
+                rankdir=TB
+                ranksep=0.3
+                nodesep=0.25
+                node [
+                    shape=box style="rounded,filled" fontname="Inter"
+                    fontsize=9 fontcolor="#e2e8f0" color="#334155"
+                    penwidth=1.2 margin="0.12,0.06" height=0.35
+                ]
+                edge [color="#64748b" fontname="Inter" fontsize=8 fontcolor="#94a3b8" arrowsize=0.6]
+
+                A [label="Marktlage" fillcolor="#0f172a"]
+                B [label="Screener" fillcolor="#0f172a"]
+                C [label="Analyse" fillcolor="#0f172a"]
+                D [label="Score >= 75%?" shape=diamond fillcolor="#1e293b" color="#00d4aa" penwidth=2 fontsize=8 height=0.5]
+                E [label="Backtest" fillcolor="#0f172a"]
+                F [label="Watchlist" fillcolor="#1e293b" color="#ef4444" penwidth=1.5]
+                G [label="Kauf + SL/TP" fillcolor="#1e293b" color="#eab308" penwidth=1.5]
+                H [label="Risiko" fillcolor="#0f172a"]
+                I [label="Verkauf" fillcolor="#0f172a"]
+                J [label="Journal" fillcolor="#0f172a"]
+
+                A -> B -> C -> D
+                D -> E [label="Ja" color="#00d4aa" fontcolor="#00d4aa"]
+                D -> F [label="Nein" color="#ef4444" fontcolor="#ef4444"]
+                E -> G -> H -> I -> J
+                J -> A [style=dashed label="Loop"]
+            }
+        """, use_container_width=False)
+
+        st.markdown("---")
+
         st.markdown("#### Der optimale Trading-Workflow (8 Phasen)")
 
         with st.expander("🌍 Phase 1: Marktlage checken (Home + Gesamtwirtschaft)", expanded=False):
