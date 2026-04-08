@@ -3,10 +3,14 @@ services/backtesting.py — Vektorisierte Backtesting Engine.
 
 Simuliert verschiedene Handelsstrategien auf historischen OHLCV-Daten
 unter Berücksichtigung von Gebühren (z.B. Trade Republic/Scalable) und Slippage.
+
+Metriken: Sharpe Ratio, Sortino Ratio, Calmar Ratio, Max Drawdown,
+          Win-Rate, Profit Factor, annualisierte Rendite, Volatilität.
 """
 
 import pandas as pd
 import numpy as np
+from datetime import datetime
 
 
 class BacktestEngine:
@@ -37,11 +41,13 @@ class BacktestEngine:
         self.df["SMA_50"] = close.rolling(window=50).mean()
         self.df["SMA_200"] = close.rolling(window=200).mean()
         
-        # RSI 14
+        # RSI 14 (Wilder EMA — Industriestandard, konsistent mit services/technical.py)
         delta = close.diff()
-        gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
-        loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
-        rs = gain / loss
+        gain = delta.where(delta > 0, 0)
+        loss = -delta.where(delta < 0, 0)
+        avg_gain = gain.ewm(alpha=1/14, min_periods=14, adjust=False).mean()
+        avg_loss = loss.ewm(alpha=1/14, min_periods=14, adjust=False).mean()
+        rs = avg_gain / avg_loss
         self.df["RSI_14"] = 100 - (100 / (1 + rs))
         
         # MACD (12, 26, 9)
@@ -72,7 +78,7 @@ class BacktestEngine:
         Returns:
             equity_df: DataFrame mit Portfolio-Entwicklung über Zeit
             trades_log: Liste aller durchgeführten Trades
-            metrics: Z.B. Win-Rate, Net Profit.
+            metrics: Z.B. Win-Rate, Net Profit, Sharpe, Sortino.
         """
         # Alle Signal-Logiken geben eine Series von 1 (Buy), -1 (Sell) oder 0 (Hold) zurück
         if strategy_name == "SMA_Cross_Trend":
@@ -92,15 +98,12 @@ class BacktestEngine:
 
     # -----------------------------------------------------------------------
     # Strategie-Definitionen (Vectorized Signal Generation)
-    # 1.0 = Position eröffnen/halten, -1.0 = Position schließen (Flat)
+    # 1.0 = Position eröffnen/halten, 0.0 = Position schließen (Flat)
     # -----------------------------------------------------------------------
 
     def _strat_sma_cross(self) -> pd.Series:
         """Trendfolge: Kaufe wenn 50 crosses > 200."""
-        # Condition: long when SMA 50 > SMA 200
         long_cond = self.df["SMA_50"] > self.df["SMA_200"]
-        
-        # Wir sind investiert, solange long_cond True ist
         return np.where(long_cond, 1.0, 0.0)
 
     def _strat_rsi_mean_reversion(self) -> pd.Series:
@@ -162,15 +165,13 @@ class BacktestEngine:
         entry_price = 0.0
         entry_date = None
         shares_held = 0.0
-        
+        entry_cost = 0.0       # Gesamtkosten beim Einstieg (inkl. Gebühr)
+
         capital = self.initial_capital
         df["Equity"] = float(capital)
         df["Benchmark"] = float(capital)  # Buy&Hold Startkapital
         
         bnh_shares = capital / df["Open"].iloc[0]
-        
-        # Iteriere durch Tage (für komplexeres Funding/Slippage iterativ besser)
-        # Könnte vollvektorisiert werden, aber iterativ ist für detaillierte Trade-Logs sicherer!
         
         for i in range(len(df)):
             date = df.index[i]
@@ -192,6 +193,7 @@ class BacktestEngine:
                     shares_held = investable / exec_price
                     entry_price = exec_price
                     entry_date = date
+                    entry_cost = investable + self.commission  # = capital
                     in_trade = True
                     capital = 0.0 # Voll investiert
                     
@@ -200,23 +202,25 @@ class BacktestEngine:
                 # Execution with Slippage (Verkaufskurs = Open - Slippage)
                 exec_price = open_p * (1 - self.slippage)
                 
-                revenue = shares_held * exec_price
-                capital = revenue - self.commission
-                
-                pnl = capital - self.initial_capital # Netto Vergleich nicht perf.. Besser: delta zum Entry
-                trade_pnl_eur = capital - (shares_held * entry_price) - (2*self.commission)
+                revenue = shares_held * exec_price - self.commission
+                capital = revenue
+
+                # P&L = Verkaufserlös (nach Gebühr) − Kaufkosten (nach Gebühr)
+                trade_pnl_eur = revenue - entry_cost
                 trade_pnl_pct = (exec_price / entry_price - 1) * 100
                 
                 trades.append({
                     "entry_date": entry_date.strftime("%Y-%m-%d"),
                     "exit_date": date.strftime("%Y-%m-%d"),
-                    "entry_price": entry_price,
-                    "exit_price": exec_price,
-                    "pnl_eur": trade_pnl_eur,
-                    "pnl_pct": trade_pnl_pct,
+                    "entry_price": round(entry_price, 4),
+                    "exit_price": round(exec_price, 4),
+                    "shares": round(shares_held, 4),
+                    "pnl_eur": round(trade_pnl_eur, 2),
+                    "pnl_pct": round(trade_pnl_pct, 2),
                 })
                 
                 shares_held = 0.0
+                entry_cost = 0.0
                 in_trade = False
 
             # Mark to Market (Täglicher Portfolio Wert)
@@ -227,31 +231,68 @@ class BacktestEngine:
 
         # Force Close am Ende der Testperiode falls noch offener Trade
         if in_trade:
-             exec_price = df["Close"].iloc[-1]
-             revenue = shares_held * exec_price
-             capital = revenue - self.commission
-             trade_pnl_pct = (exec_price / entry_price - 1) * 100
-             trades.append({
-                  "entry_date": entry_date.strftime("%Y-%m-%d"),
-                  "exit_date": df.index[-1].strftime("%Y-%m-%d"),
-                  "entry_price": entry_price,
-                  "exit_price": exec_price,
-                  "pnl_eur": capital - (shares_held * entry_price) - (2*self.commission), # ca
-                  "pnl_pct": trade_pnl_pct,
-             })
-             df.loc[df.index[-1], "Equity"] = capital
+            exec_price = df["Close"].iloc[-1] * (1 - self.slippage)
+            revenue = shares_held * exec_price - self.commission
+            capital = revenue
+            trade_pnl_eur = revenue - entry_cost
+            trade_pnl_pct = (exec_price / entry_price - 1) * 100
+            trades.append({
+                "entry_date": entry_date.strftime("%Y-%m-%d"),
+                "exit_date": df.index[-1].strftime("%Y-%m-%d"),
+                "entry_price": round(entry_price, 4),
+                "exit_price": round(exec_price, 4),
+                "shares": round(shares_held, 4),
+                "pnl_eur": round(trade_pnl_eur, 2),
+                "pnl_pct": round(trade_pnl_pct, 2),
+            })
+            df.loc[df.index[-1], "Equity"] = capital
+
+        # -------------------------------------------------------------------
+        # Drawdown-Serie (für Chart-Export)
+        # -------------------------------------------------------------------
+        roll_max = df["Equity"].cummax()
+        df["Drawdown"] = (df["Equity"] - roll_max) / roll_max * 100
 
         # -------------------------------------------------------------------
         # Metrics Calculation
         # -------------------------------------------------------------------
-        total_return_pct = (df["Equity"].iloc[-1] / self.initial_capital - 1) * 100
+        equity_arr = df["Equity"].values.astype(float)
+        total_return_pct = (equity_arr[-1] / self.initial_capital - 1) * 100
         bnh_return_pct = (df["Benchmark"].iloc[-1] / self.initial_capital - 1) * 100
-        
-        # Drawdown Base Array
-        roll_max = df["Equity"].cummax()
-        drawdowns = (df["Equity"] - roll_max) / roll_max * 100
-        max_dd = drawdowns.min()
-        
+        max_dd = df["Drawdown"].min()
+
+        # Tägliche Returns für risikoadjustierte Metriken
+        daily_returns = np.diff(equity_arr) / equity_arr[:-1]
+        daily_returns = daily_returns[np.isfinite(daily_returns)]
+
+        # Annualisierung
+        n_days = len(equity_arr)
+        total_return_dec = equity_arr[-1] / self.initial_capital - 1
+        ann_return = (1 + total_return_dec) ** (252 / max(n_days, 1)) - 1
+        ann_volatility = np.std(daily_returns) * np.sqrt(252) if len(daily_returns) > 1 else 0.0
+
+        # Sharpe Ratio (Risk-free ≈ 4% p.a. aktuelle Phase)
+        rf_daily = 0.04 / 252
+        sharpe = None
+        if len(daily_returns) > 5:
+            excess = daily_returns - rf_daily
+            if np.std(excess) > 0:
+                sharpe = round(np.mean(excess) / np.std(excess) * np.sqrt(252), 2)
+
+        # Sortino Ratio (nur Downside-Volatilität)
+        sortino = None
+        if len(daily_returns) > 5:
+            downside = daily_returns[daily_returns < 0]
+            if len(downside) > 0 and np.std(downside) > 0:
+                sortino = round(
+                    (np.mean(daily_returns) - rf_daily) / np.std(downside) * np.sqrt(252), 2)
+
+        # Calmar Ratio (Ann. Return / Max DD)
+        calmar = None
+        if max_dd < 0 and ann_return != 0:
+            calmar = round(ann_return / abs(max_dd / 100), 2)
+
+        # Trade-Level Metriken
         if trades:
             wins = [t for t in trades if t["pnl_eur"] > 0]
             losses = [t for t in trades if t["pnl_eur"] <= 0]
@@ -261,27 +302,52 @@ class BacktestEngine:
             gross_loss = abs(sum(t["pnl_eur"] for t in losses))
             profit_factor = gross_profit / gross_loss if gross_loss > 0 else 99.9
             
-            avg_win = np.mean([t["pnl_pct"] for t in wins]) if wins else 0.0
-            avg_loss = np.mean([t["pnl_pct"] for t in losses]) if losses else 0.0
+            avg_win = float(np.mean([t["pnl_pct"] for t in wins])) if wins else 0.0
+            avg_loss = float(np.mean([t["pnl_pct"] for t in losses])) if losses else 0.0
+            best_trade = max(t["pnl_pct"] for t in trades)
+            worst_trade = min(t["pnl_pct"] for t in trades)
+
+            # Durchschnittliche Haltedauer
+            holding_days = []
+            for t in trades:
+                try:
+                    bd = datetime.strptime(t["entry_date"], "%Y-%m-%d")
+                    sd = datetime.strptime(t["exit_date"], "%Y-%m-%d")
+                    holding_days.append((sd - bd).days)
+                except ValueError:
+                    pass
+            avg_hold = round(float(np.mean(holding_days)), 1) if holding_days else 0.0
         else:
             win_rate = 0.0
             profit_factor = 0.0
             avg_win = 0.0
             avg_loss = 0.0
+            best_trade = 0.0
+            worst_trade = 0.0
+            avg_hold = 0.0
 
         metrics = {
             "initial_capital": self.initial_capital,
-            "final_capital": df["Equity"].iloc[-1],
-            "total_return_pct": total_return_pct,
-            "benchmark_return_pct": bnh_return_pct,
-            "outperformance": total_return_pct - bnh_return_pct,
-            "max_drawdown_pct": max_dd,
+            "final_capital": round(equity_arr[-1], 2),
+            "total_return_pct": round(total_return_pct, 2),
+            "benchmark_return_pct": round(bnh_return_pct, 2),
+            "outperformance": round(total_return_pct - bnh_return_pct, 2),
+            "max_drawdown_pct": round(max_dd, 2),
             "total_trades": len(trades),
-            "win_rate": win_rate,
-            "profit_factor": profit_factor,
-            "avg_win_pct": avg_win,
-            "avg_loss_pct": avg_loss,
-            "commission_paid": len(trades) * 2 * self.commission, # Buy + Sell = 2
+            "win_rate": round(win_rate, 1),
+            "profit_factor": round(profit_factor, 2),
+            "avg_win_pct": round(avg_win, 2),
+            "avg_loss_pct": round(avg_loss, 2),
+            "best_trade_pct": round(best_trade, 2),
+            "worst_trade_pct": round(worst_trade, 2),
+            "avg_holding_days": avg_hold,
+            "commission_paid": round(len(trades) * 2 * self.commission, 2),
+            # Risikoadjustierte Metriken
+            "sharpe_ratio": sharpe,
+            "sortino_ratio": sortino,
+            "calmar_ratio": calmar,
+            "annualized_return_pct": round(ann_return * 100, 2),
+            "volatility_pct": round(ann_volatility * 100, 2),
         }
 
-        return df[["Equity", "Benchmark", "Close", "Position"]], trades, metrics
+        return df[["Equity", "Benchmark", "Close", "Position", "Drawdown"]], trades, metrics
