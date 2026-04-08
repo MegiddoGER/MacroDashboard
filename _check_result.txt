@@ -1,0 +1,54 @@
+﻿=== GESAMT: 176 Zeilen ===
+
+1) EXAKTE DUPLIKATE (gleicher Ticker im gleichen Index): 1
+   ÔØî APC.DE doppelt in 'XETRA International'
+
+2) CROSS-INDEX TICKER (Ticker in mehreren Indizes): 14
+   ÔÜá´©Å  AIXA.DE (AIXTRON SE) ÔåÆ SDAX, TecDAX
+   ÔÜá´©Å  BC8.DE (Bechtle AG) ÔåÆ SDAX, TecDAX
+   ÔÜá´©Å  DWNI.DE (Deutsche Wohnen SE) ÔåÆ MDAX, TecDAX
+   ÔÜá´©Å  EVT.DE (Evotec SE) ÔåÆ MDAX, TecDAX
+   ÔÜá´©Å  FNTN.DE (Freenet AG) ÔåÆ SDAX, TecDAX
+   ÔÜá´©Å  IFX.DE (Infineon Technologies AG) ÔåÆ DAX, TecDAX
+   ÔÜá´©Å  NDX1.DE (Nordex SE) ÔåÆ MDAX, TecDAX
+   ÔÜá´©Å  NEM.DE (Nemetschek SE) ÔåÆ MDAX, TecDAX
+   ÔÜá´©Å  QIA.DE (QIAGEN N.V.) ÔåÆ DAX, TecDAX
+   ÔÜá´©Å  S92.DE (SMA Solar Technology AG) ÔåÆ MDAX, TecDAX
+   ÔÜá´©Å  SAP.DE (SAP SE) ÔåÆ DAX, TecDAX
+   ÔÜá´©Å  SRT3.DE (Sartorius AG Vz.) ÔåÆ DAX, TecDAX
+   ÔÜá´©Å  UTDI.DE (United Internet AG) ÔåÆ MDAX, TecDAX
+   ÔÜá´©Å  WAF.DE (Siltronic AG) ÔåÆ MDAX, TecDAX
+
+3) TICKER PRO INDEX:
+   DAX: 39 Ticker (39 Zeilen)
+   MDAX: 51 Ticker (51 Zeilen)
+   SDAX: 39 Ticker (39 Zeilen)
+   TecDAX: 16 Ticker (16 Zeilen)
+   XETRA International: 30 Ticker (31 Zeilen) (ÔÜá´©Å 1 Duplikate!)
+
+4) DAX CHECK: 39 von 40 Aktien enthalten
+   ÔÜá´©Å  Es fehlen 1 DAX-Aktien!
+
+5) XETRA INTERNATIONAL vs US PRESETS:
+   Xetra Int. Ticker die das gleiche Unternehmen wie ein US-Preset sind:
+   ­ƒôÄ APC.DE (Apple Inc.) Ôåö US: AAPL
+   ­ƒôÄ CCC3.DE (Coca-Cola Co.) Ôåö US: KO
+   ­ƒôÄ FB2A.DE (Meta Platforms Inc.) Ôåö US: META
+   ­ƒôÄ CMC.DE (JPMorgan Chase & Co.) Ôåö US: JPM
+   ­ƒôÄ HDI.DE (Home Depot Inc.) Ôåö US: HD
+   ­ƒôÄ JNJ.DE (Johnson & Johnson) Ôåö US: JNJ
+   ­ƒôÄ MDO.DE (McDonald's Corp.) Ôåö US: MCD
+   ­ƒôÄ MSF.DE (Microsoft Corp.) Ôåö US: MSFT
+   ­ƒôÄ NFC.DE (Netflix Inc.) Ôåö US: NFLX
+   ­ƒôÄ NVD.DE (NVIDIA Corp.) Ôåö US: NVDA
+   ­ƒôÄ PRG.DE (Procter & Gamble Co.) Ôåö US: PG
+   ­ƒôÄ PEP.DE (PepsiCo Inc.) Ôåö US: PEP
+   ­ƒôÄ TL0.DE (Tesla Inc.) Ôåö US: TSLA
+   ­ƒôÄ UNH.DE (UnitedHealth Group Inc.) Ôåö US: UNH
+   ­ƒôÄ 3V64.DE (Visa Inc.) Ôåö US: V
+   ­ƒôÄ WDP.DE (Walt Disney Co.) Ôåö US: DIS
+   ­ƒôÄ APC.DE (Apple Inc.) Ôåö US: AAPL
+   ­ƒôÄ XONA.DE (Exxon Mobil Corp.) Ôåö US: XOM
+   ÔåÆ 18 ├£berlappungen (Xetra .DE Version des gleichen US-Unternehmens)
+
+=== FERTIG ===
