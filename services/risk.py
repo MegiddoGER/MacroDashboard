@@ -142,7 +142,7 @@ def calc_portfolio_var(positions: list[dict],
     mean_returns = np.mean(returns_matrix, axis=0)
     # Sicherstellen, dass mean_returns ein 1D-Array ist
     mean_returns = np.atleast_1d(mean_returns)
-    np.random.seed(42)
+    # Kein fester Seed — Monte Carlo soll stochastisch sein
 
     simulated_returns = np.random.multivariate_normal(
         mean_returns * n_days,

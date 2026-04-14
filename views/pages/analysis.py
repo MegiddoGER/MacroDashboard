@@ -999,7 +999,7 @@ def page_analysis():
             if val >= 1e6: return f"{val/1e6:.1f} Mio."
             return f"{val:,.0f}"
 
-        st.caption(f"Annahmen: Wachstum {dcf['growth_used']:.1f}% (abflachend) · WACC {dcf['wacc']:.1f}% · Terminal Growth 2.5% · FCF Basis: {_fmt_big(dcf['fcf'])} €")
+        st.caption(f"Annahmen: Wachstum {dcf['growth_used']:.1f}% (abflachend) · WACC {dcf['wacc']:.1f}% (EK-Anteil {dcf.get('equity_weight', 70):.0f}%) · Terminal Growth {dcf.get('terminal_growth_used', 2.5):.1f}% · FCF Basis: {_fmt_big(dcf['fcf'])} €")
     else:
         st.info("ℹ️ DCF-Berechnung nicht möglich (kein positiver Free Cashflow oder fehlende Daten).")
 

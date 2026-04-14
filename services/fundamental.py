@@ -39,6 +39,12 @@ def _get_live_risk_free_rate(fallback: float = 0.03) -> float:
 # ---------------------------------------------------------------------------
 
 def calc_dcf_valuation(info: dict) -> dict | None:
+    """Berechnet den DCF Fair Value mit dynamischer Kapitalstruktur.
+
+    WACC-Berechnung nutzt die tatsächliche EK/FK-Gewichtung des Unternehmens
+    statt einer pauschalen 70/30-Annahme. Terminal Growth Rate variiert
+    nach Sektor für realistischere Bewertungen.
+    """
     try:
         fcf = info.get("freeCashflow")
         shares = info.get("sharesOutstanding")
@@ -51,14 +57,55 @@ def calc_dcf_valuation(info: dict) -> dict | None:
         if not fcf or not shares or fcf <= 0 or shares <= 0:
             return None
 
+        # --- Dynamische Kapitalstruktur ---
+        # EK-Wert: Market Cap (Aktienanzahl × Kurs) als Proxy
+        market_cap = info.get("marketCap")
+        if not market_cap and current_price and shares:
+            market_cap = current_price * shares
+
+        # Enterprise Value → Anteil FK / Gesamt
+        if market_cap and market_cap > 0 and total_debt >= 0:
+            total_capital = market_cap + total_debt
+            debt_weight = total_debt / total_capital if total_capital > 0 else 0.0
+            equity_weight = 1.0 - debt_weight
+        else:
+            # Fallback: konservative Annahme
+            equity_weight = 0.70
+            debt_weight = 0.30
+
+        # Clamp auf sinnvollen Bereich (min 20% EK, max 95% EK)
+        equity_weight = max(0.20, min(0.95, equity_weight))
+        debt_weight = 1.0 - equity_weight
+
+        # --- WACC ---
         risk_free = _get_live_risk_free_rate()
         erp = 0.055
         cost_of_equity = risk_free + beta * erp
-        wacc = 0.7 * cost_of_equity + 0.3 * 0.04 * 0.75
+
+        # After-Tax Cost of Debt (Proxy: Risk-Free + 1.5% Spread, Tax Shield 25%)
+        cost_of_debt_pretax = risk_free + 0.015
+        tax_rate = 0.25
+        cost_of_debt = cost_of_debt_pretax * (1.0 - tax_rate)
+
+        wacc = equity_weight * cost_of_equity + debt_weight * cost_of_debt
         wacc = max(wacc, 0.06)
 
+        # --- Terminal Growth Rate nach Sektor ---
+        sector = (info.get("sector") or "").lower()
+        if sector in ("utilities", "real estate"):
+            terminal_growth = 0.020  # Versorger/Immobilien: stabile ~2%
+        elif sector in ("technology", "communication services"):
+            terminal_growth = 0.030  # Tech: höheres langfristiges Wachstum ~3%
+        elif sector in ("health care",):
+            terminal_growth = 0.028  # Gesundheit: leicht über Durchschnitt
+        else:
+            terminal_growth = 0.025  # Default: ~2.5% (nominales BIP)
+
+        # Sicherheit: Terminal Growth darf nicht >= WACC sein
+        if terminal_growth >= wacc:
+            terminal_growth = wacc * 0.5
+
         growth = min(max(rev_growth, -0.05), 0.25)
-        terminal_growth = 0.025
 
         projected_fcfs = []
         current_fcf = float(fcf)
@@ -86,6 +133,8 @@ def calc_dcf_valuation(info: dict) -> dict | None:
             "margin_of_safety": margin_of_safety,
             "wacc": round(wacc * 100, 1),
             "growth_used": round(growth * 100, 1),
+            "terminal_growth_used": round(terminal_growth * 100, 1),
+            "equity_weight": round(equity_weight * 100, 1),
             "fcf": fcf,
             "dcf_ev": round(dcf_ev, 0),
         }

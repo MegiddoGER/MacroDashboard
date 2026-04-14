@@ -62,14 +62,17 @@ class BacktestEngine:
         self.df["BB_Upper"] = sma20 + (std20 * 2)
         self.df["BB_Lower"] = sma20 - (std20 * 2)
         
-        # Proxy für SMC FVG Bounces (stark vereinfacht für Vectorized Speed)
-        # FVG Bullish = Vorletztes High < Aktuelles Low, dazwischen eine Riesenkerze
-        h_prev = self.df["High"].shift(2)
-        l_curr = self.df["Low"]
-        is_fvg_bullish = (h_prev < l_curr) & (close.shift(1) > self.df["Open"].shift(1))
+        # Proxy für SMC FVG Bounces (vektorisiert, SMC-konform)
+        # Echte FVG: Low[i] > High[i-2] (3-Candle-Gap) + Mindest-Gapgröße
+        h_prev2 = self.df["High"].shift(2)       # High der 1. Kerze (i-2)
+        l_curr = self.df["Low"]                    # Low der 3. Kerze (i)
+        gap_size = l_curr - h_prev2
+        min_gap_pct = 0.005  # 0.5% Mindest-Gap (wie in smc/indicators.py)
+        is_fvg_bullish = (gap_size > 0) & (gap_size / h_prev2 >= min_gap_pct)
         self.df["SM_FVG"] = is_fvg_bullish
         
-        # Drop NaNs für sauberen Backtest ab Tag 200
+        # Drop NaNs — nur für SMA 200 wenn die Strategie es braucht,
+        # aber markiere den sauberen Bereich statt Rows destruktiv zu löschen
         self.df.dropna(subset=["SMA_200"], inplace=True)
 
     def run_strategy(self, strategy_name: str) -> tuple[pd.DataFrame, list[dict], dict]:

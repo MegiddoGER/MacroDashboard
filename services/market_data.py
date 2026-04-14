@@ -739,98 +739,12 @@ def get_sector_performance(period: str = "1d", region: str = "us") -> pd.DataFra
 
 
 # ---------------------------------------------------------------------------
-# Nachrichten — Regionale Macro-News (RSS-Feeds)
+# Nachrichten — Regionale Macro-News (Re-Export aus services/news.py)
 # ---------------------------------------------------------------------------
+# Kanonische Implementierung liegt in services/news.py.
+# Re-Export hier für Abwärtskompatibilität mit bestehenden Importern.
+from services.news import _RSS_FEEDS, get_regional_news  # noqa: F401
 
-# Kuratierte RSS-Feed-URLs nach Region
-_RSS_FEEDS = {
-    "europa": [
-        ("Tagesschau",    "https://www.tagesschau.de/wirtschaft/konjunktur/index~rss2.xml"),
-        ("Handelsblatt",  "https://www.handelsblatt.com/contentexport/feed/schlagzeilen"),
-    ],
-    "usa": [
-        ("CNBC",          "https://www.cnbc.com/id/100727362/device/rss/rss.html"),
-    ],
-    "asien": [
-        ("Nikkei Asia",   "https://asia.nikkei.com/rss/feed/nar"),
-        ("CNBC Asia",     "https://www.cnbc.com/id/19832390/device/rss/rss.html"),
-    ],
-}
-
-
-def get_regional_news(region: str, max_items: int = 15) -> list[dict] | None:
-    """Lädt Macro-Nachrichten für eine Region via RSS-Feeds.
-
-    region: 'europa', 'usa' oder 'asien'.
-    Rückgabe: Liste von Dicts [{title, link, published, source}, ...],
-              sortiert nach Datum (neueste zuerst), oder None bei Fehler.
-    """
-    import feedparser
-    from datetime import datetime
-    from time import mktime
-
-    feeds = _RSS_FEEDS.get(region.lower())
-    if not feeds:
-        warnings.warn(f"get_regional_news: unbekannte Region '{region}'")
-        return None
-
-    articles = []
-    seen_titles = set()
-
-    for source_name, feed_url in feeds:
-        try:
-            feed = feedparser.parse(feed_url)
-            for entry in feed.entries[:20]:
-                title = entry.get("title", "").strip()
-                if not title or title in seen_titles:
-                    continue
-                seen_titles.add(title)
-
-                link = entry.get("link", "")
-                # Datum parsen
-                published = None
-                if hasattr(entry, "published_parsed") and entry.published_parsed:
-                    try:
-                        published = datetime.fromtimestamp(mktime(entry.published_parsed))
-                    except Exception:
-                        pass
-                elif hasattr(entry, "updated_parsed") and entry.updated_parsed:
-                    try:
-                        published = datetime.fromtimestamp(mktime(entry.updated_parsed))
-                    except Exception:
-                        pass
-
-                # Zusammenfassung (Kernaussage) aus RSS-Feed
-                summary = ""
-                raw_summary = entry.get("summary", "") or entry.get("description", "")
-                if raw_summary:
-                    # HTML-Tags entfernen (einfach)
-                    import re
-                    summary = re.sub(r"<[^>]+>", "", raw_summary).strip()
-                    # Auf sinnvolle Länge kürzen
-                    if len(summary) > 200:
-                        summary = summary[:197] + "…"
-
-                articles.append({
-                    "title": title,
-                    "link": link,
-                    "published": published,
-                    "source": source_name,
-                    "summary": summary,
-                })
-        except Exception as exc:
-            warnings.warn(f"RSS-Feed {source_name} ({feed_url}): {exc}")
-            continue
-
-    if not articles:
-        return None
-
-    # Nach Datum sortieren (neueste zuerst), Einträge ohne Datum ans Ende
-    articles.sort(
-        key=lambda a: a["published"] or datetime.min,
-        reverse=True,
-    )
-    return articles[:max_items]
 
 
 # ---------------------------------------------------------------------------

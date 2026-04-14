@@ -416,17 +416,20 @@ def calc_order_flow(high: pd.Series, low: pd.Series,
                     close: pd.Series, volume: pd.Series) -> dict | None:
     """Order-Flow-Analyse über volumenbasierte Proxies.
 
-    Berechnet VWAP, OBV, Volume-Profil und Volumen-Spikes.
+    Berechnet rollierenden VWAP (20 Tage), OBV, Volume-Profil und Volumen-Spikes.
     Rückgabe: dict mit Serien und Zusammenfassungen oder None.
     """
     if close is None or len(close) < 20:
         return None
 
-    # ── VWAP (kumulativ über den sichtbaren Zeitraum) ──
+    # ── VWAP (rollierend 20 Tage — institutioneller Standard) ──
+    # Anchored VWAP mit 20-Tage-Fenster statt kumulativ über den
+    # gesamten Zeitraum, damit das Signal nicht mit der Zeit konvergiert.
     typical = (high + low + close) / 3
-    cum_vol = volume.cumsum()
-    cum_tp_vol = (typical * volume).cumsum()
-    vwap = cum_tp_vol / cum_vol.replace(0, np.nan)
+    tp_vol = typical * volume
+    rolling_tp_vol = tp_vol.rolling(20).sum()
+    rolling_vol = volume.rolling(20).sum()
+    vwap = rolling_tp_vol / rolling_vol.replace(0, np.nan)
 
     current = float(close.iloc[-1])
     vwap_val = float(vwap.dropna().iloc[-1]) if not vwap.dropna().empty else None
@@ -434,10 +437,10 @@ def calc_order_flow(high: pd.Series, low: pd.Series,
     if vwap_val:
         if current > vwap_val:
             vwap_signal = "bullish"
-            vwap_desc = "Kurs über VWAP — Käufer dominieren"
+            vwap_desc = "Kurs über VWAP (20T) — Käufer dominieren"
         else:
             vwap_signal = "bearish"
-            vwap_desc = "Kurs unter VWAP — Verkäufer dominieren"
+            vwap_desc = "Kurs unter VWAP (20T) — Verkäufer dominieren"
     else:
         vwap_signal = "neutral"
         vwap_desc = "—"
@@ -454,7 +457,7 @@ def calc_order_flow(high: pd.Series, low: pd.Series,
         obv_slope = (float(obv_recent.iloc[-1]) - float(obv_recent.iloc[0]))
         if obv_slope > 0:
             obv_signal = "bullish"
-            obv_desc = "OBV steigt — akkumulation (Kaufdruck)"
+            obv_desc = "OBV steigt — Akkumulation (Kaufdruck)"
         else:
             obv_signal = "bearish"
             obv_desc = "OBV fällt — Distribution (Verkaufsdruck)"
@@ -464,6 +467,7 @@ def calc_order_flow(high: pd.Series, low: pd.Series,
         obv_slope = 0
 
     # ── Volume-Profil (Preis-Bins mit Volumenverteilung) ──
+    # Vektorisiert statt Python for-Loop für ~10x Speedup
     n_bins = 30
     price_min = float(low.min())
     price_max = float(high.max())
@@ -472,14 +476,10 @@ def calc_order_flow(high: pd.Series, low: pd.Series,
 
     bin_edges = np.linspace(price_min, price_max, n_bins + 1)
     bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
-    vol_profile = np.zeros(n_bins)
-
-    for i in range(len(close)):
-        idx = int(np.clip(
-            np.searchsorted(bin_edges, float(close.iloc[i])) - 1,
-            0, n_bins - 1
-        ))
-        vol_profile[idx] += float(volume.iloc[i])
+    close_arr = close.values.astype(float)
+    volume_arr = volume.values.astype(float)
+    bin_indices = np.clip(np.searchsorted(bin_edges, close_arr) - 1, 0, n_bins - 1)
+    vol_profile = np.bincount(bin_indices, weights=volume_arr, minlength=n_bins)[:n_bins]
 
     vol_profile_df = pd.DataFrame({
         "Preis": bin_centers,

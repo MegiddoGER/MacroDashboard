@@ -8,6 +8,7 @@ Extrahiert aus technical.py für Wiederverwendbarkeit in:
 - Alerts (Score-basierte Benachrichtigungen)
 """
 
+import warnings
 import pandas as pd
 import numpy as np
 from dataclasses import dataclass, field
@@ -342,8 +343,8 @@ def _score_smc(hist, result: ScoreResult):
                 "nearest_eqh": nearest_eqh,
                 "nearest_eql": nearest_eql,
             })
-    except Exception:
-        pass  # SMC-Daten optional
+    except Exception as exc:
+        warnings.warn(f"_score_smc: SMC-Analyse fehlgeschlagen: {exc}")
 
 
 # ---------------------------------------------------------------------------
@@ -470,8 +471,8 @@ def _score_fundamental(info, ticker, result: ScoreResult):
                     "Signal": "Risiko ⚠️", "Beitrag": "0"})
                 result.fundamental_text_parts.append(
                     f"Achtung: Die Ausschüttungsquote ({div_data['payout_ratio']:.0f}%) ist sehr hoch — die Dividende könnte unter Druck geraten.")
-    except Exception:
-        pass  # Fundamentaldaten optional
+    except Exception as exc:
+        warnings.warn(f"_score_fundamental: Fundamentaldaten fehlgeschlagen: {exc}")
 
 
 # ---------------------------------------------------------------------------
@@ -496,10 +497,11 @@ def _score_sentiment(ticker: str, result: ScoreResult):
         result.cat_max["sentiment"] += 1
         return
 
-    result.cat_max["sentiment"] += 4
+    # cat_max = 2: Score-Bereich [-2, +2], Normalisiert auf [-1, +1]
+    result.cat_max["sentiment"] += 2
     avg_c = sent_data.get("avg_compound", 0.0)
-    
-    # +2 bis -2 Scoring für Sentiment
+
+    # +2 bis -2 Scoring für Sentiment (symmetrisch mit cat_max=2)
     if avg_c >= 0.15:
         score = 2
         sig = "Stark Bullish 🔥"
@@ -530,32 +532,44 @@ def _score_sentiment(ticker: str, result: ScoreResult):
 # ---------------------------------------------------------------------------
 
 def _finalize_score(result: ScoreResult):
-    """Berechnet den gewichteten Confidence-Score und Labels inkl. Euphorie-Falle."""
+    """Berechnet den gewichteten Confidence-Score und Labels inkl. Euphorie-Falle.
+
+    Normalisierung:
+    - Jede Kategorie hat cat_scores ∈ [-cat_max, +cat_max]
+    - normalized = val / mx  →  ∈ [-1.0, +1.0]  für jede Kategorie
+    - weighted_score = Σ(normalized × weight)  →  ∈ [-1.0, +1.0] da Σweights = 1.0
+    - confidence = (weighted_score + 1) / 2 × 100  →  [0, 100]
+    """
     weighted_score = 0.0
     for cat, weight in result.weights.items():
         mx = result.cat_max.get(cat, 0)
         if mx > 0:
             val = result.cat_scores.get(cat, 0)
-            normalized = val / mx
+            # Clamp auf [-mx, +mx] um Überläufe abzufangen
+            val = max(-mx, min(mx, val))
+            normalized = val / mx  # ∈ [-1.0, +1.0]
         else:
             normalized = 0.0
         weighted_score += normalized * weight
 
-    # Basis-Confidence (0 bis 100)
-    confidence = round((weighted_score + 1) / 2 * 100, 1)
+    # Clamp weighted_score auf [-1, +1] (Sicherheit gegen Fließkomma-Drift)
+    weighted_score = max(-1.0, min(1.0, weighted_score))
 
     # 🧨 Contrarian-Logik: Euphorie-Falle!
-    # Wenn Sentiment extrem hoch (>0.15) ist, aber der RSI auf Überkauft (>70) steht,
-    # ist das ein klassisches "Sell the News" oder Top-Building Signal.
+    # Operiert auf dem gewichteten Score VOR der Confidence-Umrechnung,
+    # damit der Malus proportional zum Scoring-System wirkt.
     avg_c = result.signals.get("sentiment_avg", 0.0)
     rsi_overbought = result.signals.get("rsi_overbought", False)
-    
+
     if avg_c >= 0.15 and rsi_overbought:
-        confidence -= 15.0  # Schwerer Malus
+        weighted_score -= 0.30  # ≈ 15% Confidence-Malus (0.30 auf [-1,+1] Skala)
+        weighted_score = max(-1.0, weighted_score)
         result.checklist.append({"Indikator": "Contrarian-Warnung 🧨",
                                  "Wert": "News extrem Bullish + RSI > 70",
                                  "Signal": "Euphorie-Falle", "Beitrag": "-15% Conf"})
 
+    # Basis-Confidence: [-1, +1] → [0, 100]
+    confidence = round((weighted_score + 1.0) / 2.0 * 100.0, 1)
     confidence = max(0.0, min(100.0, confidence))
     score = round(weighted_score * 10)
 

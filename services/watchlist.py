@@ -433,7 +433,11 @@ def calc_position_pnl(position: dict, current_price: float = None) -> dict:
 
 
 def calc_portfolio_summary(current_prices: dict[str, float] = None) -> dict:
-    """Berechnet eine Gesamt-Portfolio-Übersicht."""
+    """Berechnet eine Gesamt-Portfolio-Übersicht.
+
+    Hinweis: Mischt EUR- (.DE) und USD-Positionen OHNE Wechselkursumrechnung.
+    Das currency_mixed-Flag gibt an, ob die P&L-Werte FX-Effekte enthalten.
+    """
     if current_prices is None:
         current_prices = {}
 
@@ -443,16 +447,28 @@ def calc_portfolio_summary(current_prices: dict[str, float] = None) -> dict:
     total_invested = 0.0
     total_value = 0.0
     realized_pnl = 0.0
+    has_de = False
+    has_us = False
 
     for op in open_positions:
         pos = op["position"]
-        price = current_prices.get(op["ticker"])
+        ticker = op.get("ticker", "")
+        if ticker.endswith(".DE"):
+            has_de = True
+        else:
+            has_us = True
+        price = current_prices.get(ticker)
         pnl = calc_position_pnl(pos, price)
         total_invested += pnl["invested"]
         total_value += pnl["current_value"]
 
     for cp in closed_positions:
         pos = cp["position"]
+        ticker = cp.get("ticker", "")
+        if ticker.endswith(".DE"):
+            has_de = True
+        else:
+            has_us = True
         pnl = calc_position_pnl(pos)
         realized_pnl += pnl["pnl_eur"]
 
@@ -469,6 +485,7 @@ def calc_portfolio_summary(current_prices: dict[str, float] = None) -> dict:
         "total_pnl_pct": round(total_pnl_pct, 2),
         "open_positions_count": len(open_positions),
         "closed_positions_count": len(closed_positions),
+        "currency_mixed": has_de and has_us,
     }
 
 

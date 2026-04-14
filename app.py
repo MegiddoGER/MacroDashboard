@@ -8,7 +8,6 @@ Starte mit:  py launcher.py   (natives Fenster)
 """
 
 import streamlit as st
-import streamlit.components.v1 as components
 
 # ---------------------------------------------------------------------------
 # Page-Config (muss der ERSTE Streamlit-Aufruf sein)
@@ -51,13 +50,15 @@ from services.cache import _is_market_open
 # Main Routing
 # ---------------------------------------------------------------------------
 def main():
-    refresh_ms = 300000 if _is_market_open() else 1800000
-    components.html(
-        f"""<script>setTimeout(function(){{
-            window.parent.location.reload();
-        }}, {refresh_ms})</script>""",
-        height=0,
-    )
+    # Auto-Refresh via Streamlit-native Mechanik statt JS-Injection.
+    # Verhindert, dass laufende Berechnungen (Screener, Backtest) abgebrochen werden.
+    import time
+    refresh_s = 300 if _is_market_open() else 1800  # 5 Min / 30 Min
+    if "last_refresh" not in st.session_state:
+        st.session_state.last_refresh = time.time()
+    elif time.time() - st.session_state.last_refresh > refresh_s:
+        st.session_state.last_refresh = time.time()
+        st.rerun()
 
     page = display_sidebar()
     if page == "Startseite":
