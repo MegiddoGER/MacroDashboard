@@ -152,7 +152,7 @@ def calc_equity_curve(current_prices: dict[str, float] = None) -> pd.DataFrame |
         price_df[t] = series
     price_df = price_df.ffill().bfill()
 
-    # Portfolio-Wert pro Tag berechnen
+    # Portfolio-Wert pro Tag berechnen (vektorisiert statt O(T×N) for-Loop)
     portfolio_values = pd.Series(0.0, index=price_df.index)
     cash_invested = pd.Series(0.0, index=price_df.index)
 
@@ -177,14 +177,14 @@ def calc_equity_curve(current_prices: dict[str, float] = None) -> pd.DataFrame |
             except ValueError:
                 pass
 
-        # Position-Wert für jeden Tag
-        for dt in price_df.index:
-            if dt >= buy_dt:
-                if sell_dt is None or dt <= sell_dt:
-                    price = price_df.loc[dt, ticker]
-                    if not pd.isna(price):
-                        portfolio_values[dt] += price * qty
-                        cash_invested[dt] += buy_price * qty
+        # Vektorisierte Zeitmaske statt for-Loop über jeden Tag
+        mask = price_df.index >= buy_dt
+        if sell_dt is not None:
+            mask &= price_df.index <= sell_dt
+
+        prices_in_range = price_df.loc[mask, ticker].fillna(0)
+        portfolio_values[mask] += prices_in_range * qty
+        cash_invested[mask] += buy_price * qty
 
     # Nur Tage mit Werten > 0
     mask = portfolio_values > 0

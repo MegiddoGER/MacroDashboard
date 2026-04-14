@@ -480,7 +480,12 @@ def _score_fundamental(info, ticker, result: ScoreResult):
 # ---------------------------------------------------------------------------
 
 def _score_sentiment(ticker: str, result: ScoreResult):
-    """Bewertet das News-Sentiment mittels VADER NLP."""
+    """Bewertet das News-Sentiment mittels VADER NLP + Earnings Surprise.
+
+    Zwei Signalquellen:
+    1. VADER-NLP auf aktuelle News-Headlines (cat_max += 2, Score ±2)
+    2. Letztes Earnings-Ergebnis wenn < 90 Tage alt (cat_max += 1, Score ±1)
+    """
     if not ticker:
         result.cat_max["sentiment"] += 1
         return
@@ -497,6 +502,7 @@ def _score_sentiment(ticker: str, result: ScoreResult):
         result.cat_max["sentiment"] += 1
         return
 
+    # ── Signal 1: VADER NLP auf News ──
     # cat_max = 2: Score-Bereich [-2, +2], Normalisiert auf [-1, +1]
     result.cat_max["sentiment"] += 2
     avg_c = sent_data.get("avg_compound", 0.0)
@@ -525,6 +531,56 @@ def _score_sentiment(ticker: str, result: ScoreResult):
                              
     # Speichere das Sentiment im Result für die Euphorie-Logik
     result.signals["sentiment_avg"] = avg_c
+
+    # ── Signal 2: Earnings Surprise (letztes Quartal) ──
+    # Ergänzt VADER, überstimmt es nicht (cat_max += 1, Score ±1)
+    try:
+        from services.earnings import get_earnings_history
+        from datetime import datetime, timedelta
+
+        ep = get_earnings_history(ticker)
+        if ep and ep.events:
+            latest = ep.events[0]  # Neuester Event (sortiert nach Datum)
+            # Alter des Events berechnen
+            event_date = latest.date
+            if hasattr(event_date, 'tzinfo') and event_date.tzinfo:
+                event_date = event_date.replace(tzinfo=None)
+            event_age_days = (datetime.now() - event_date).days
+
+            if 0 <= event_age_days <= 90 and latest.surprise_pct is not None:
+                result.cat_max["sentiment"] += 1
+                if latest.surprise_pct > 5.0:
+                    # Starker Beat → bullishes Signal
+                    result.cat_scores["sentiment"] += 1
+                    result.checklist.append({
+                        "Indikator": "Earnings Surprise",
+                        "Wert": f"{latest.quarter}: {latest.surprise_pct:+.1f}%",
+                        "Signal": "Beat 🟢",
+                        "Beitrag": "+1"
+                    })
+                elif latest.surprise_pct < -5.0:
+                    # Starker Miss → bearishes Signal
+                    result.cat_scores["sentiment"] -= 1
+                    result.checklist.append({
+                        "Indikator": "Earnings Surprise",
+                        "Wert": f"{latest.quarter}: {latest.surprise_pct:+.1f}%",
+                        "Signal": "Miss 🔴",
+                        "Beitrag": "-1"
+                    })
+                else:
+                    # Moderate Surprise (±5%) → kein Score, aber Info
+                    result.checklist.append({
+                        "Indikator": "Earnings Surprise",
+                        "Wert": f"{latest.quarter}: {latest.surprise_pct:+.1f}%",
+                        "Signal": "Inline ➖",
+                        "Beitrag": "0"
+                    })
+                    
+                # Speichere für ggf. weitere Logik
+                result.signals["last_earnings_surprise"] = latest.surprise_pct
+                result.signals["last_earnings_age_days"] = event_age_days
+    except Exception as exc:
+        warnings.warn(f"_score_sentiment: Earnings-Integration fehlgeschlagen: {exc}")
 
 
 # ---------------------------------------------------------------------------
