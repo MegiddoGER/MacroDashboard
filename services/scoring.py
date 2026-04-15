@@ -120,11 +120,20 @@ def _score_trend(close, high, low, volume, result: ScoreResult):
     adx_strong = False
     if adx_val and adx_val > 25:
         adx_strong = True
+        # ADX > 25 bestätigt Trendstärke — wird als Info geloggt,
+        # aber KEIN eigenes cat_max/cat_scores (vermeidet Doppelzählung mit SMA-Cross)
+        result.checklist.append({"Indikator": "ADX", "Wert": f"{adx_val:.0f}",
+            "Signal": "🟢 Starker Trend bestätigt", "Beitrag": "Info"})
+    elif adx_val and adx_val < 20:
+        # NEU: Seitwärtsmarkt-Penalty — ADX < 20 bedeutet kein Trend,
+        # Trend-Signale sollten abgeschwächt werden
         result.cat_max["trend"] += 1
-        if cross_bullish:
-            result.cat_scores["trend"] += 1
-        elif cross_bearish:
-            result.cat_scores["trend"] -= 1
+        result.cat_scores["trend"] -= 1
+        result.checklist.append({"Indikator": "ADX", "Wert": f"{adx_val:.0f}",
+            "Signal": "🟡 Schwacher Trend / Seitwärts", "Beitrag": "-1"})
+    elif adx_val:
+        result.checklist.append({"Indikator": "ADX", "Wert": f"{adx_val:.0f}",
+            "Signal": "➖ Moderater Trend", "Beitrag": "0"})
 
     # Checklist
     if trend_macro_bullish and cross_bullish:
@@ -193,7 +202,7 @@ def _score_oscillators(close, high, low, result: ScoreResult):
                 "Signal": "🟢 Überverkauft (Chance auf Rebound)"})
         else:
             result.checklist.append({"Indikator": "RSI (14)", "Wert": f"{rsi_val:.1f}",
-                "Signal": "➖ Neutraler Bereich"})
+                "Signal": "➖ Neutraler Bereich", "Beitrag": "0"})
 
     k_line, _ = calc_stochastic(high, low, close)
     if not k_line.dropna().empty:
@@ -222,7 +231,7 @@ def _score_oscillators(close, high, low, result: ScoreResult):
                 "Signal": "🟢 Kurs stark abgestraft"})
         else:
             result.checklist.append({"Indikator": "Bollinger Bänder", "Wert": "Im Kanal",
-                "Signal": "➖ Normale Volatilität"})
+                "Signal": "➖ Normale Volatilität", "Beitrag": "0"})
 
     result.signals.update({
         "rsi_overbought": rsi_overbought,
@@ -310,14 +319,14 @@ def _score_smc(hist, result: ScoreResult):
             nearest_eqh = smc["stats"].get("nearest_eqh")
             nearest_eql = smc["stats"].get("nearest_eql")
 
-            result.cat_max["volume"] += 1
+            result.cat_max["trend"] += 1
             if unmitigated_bull > unmitigated_bear:
-                result.cat_scores["volume"] += 1
+                result.cat_scores["trend"] += 1
                 result.checklist.append({"Indikator": "FVG (Fair Value Gap)",
                     "Wert": f"{unmitigated_bull} bullish / {unmitigated_bear} bearish",
                     "Signal": "Bullisch ↑", "Beitrag": "+1"})
             elif unmitigated_bear > unmitigated_bull:
-                result.cat_scores["volume"] -= 1
+                result.cat_scores["trend"] -= 1
                 result.checklist.append({"Indikator": "FVG (Fair Value Gap)",
                     "Wert": f"{unmitigated_bull} bullish / {unmitigated_bear} bearish",
                     "Signal": "Bearisch ↓", "Beitrag": "-1"})

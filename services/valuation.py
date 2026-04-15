@@ -6,7 +6,7 @@ def _safe_float(val, default=0.0):
         if val is None or pd.isna(val):
             return default
         return float(val)
-    except:
+    except Exception:
         return default
 
 def calc_excess_returns(info: dict) -> dict:
