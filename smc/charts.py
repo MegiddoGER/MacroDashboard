@@ -1,6 +1,6 @@
 import pandas as pd
 import plotly.graph_objects as go
-from charts import LAYOUT_DEFAULTS
+from views.components.charts import LAYOUT_DEFAULTS
 
 def plot_smc(df: pd.DataFrame, smc_data: dict, title: str = "SMC (Makro-Level)") -> go.Figure:
     """Zeichnet den Candlestick-Chart mit FVG Rechtecken und EQH/EQL Linien."""

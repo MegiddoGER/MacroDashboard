@@ -1,19 +1,27 @@
 """Übersichts-Section: Metriken-Header mit Kurs, SMAs, Fundamentals."""
 import streamlit as st
 import pandas as pd
+import math
 from services.technical import calc_atr
+
+
+def _fmt_price(val, suffix=" €"):
+    """Formatiert einen Preis sicher — gibt '—' zurück bei None/NaN."""
+    if val is None or (isinstance(val, float) and math.isnan(val)):
+        return "—"
+    return f"{val:,.2f}{suffix}"
 
 
 def render_overview(stats: dict, hist: pd.DataFrame, close: pd.Series,
                     ticker: str, display_ticker: str):
     """Rendert die Übersichts-Metriken (Kurs, SMAs, RSI, PE, ATR, Volumen)."""
     c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Aktueller Kurs", f"{stats['current_price']:,.2f} €")
-    c2.metric("52W Hoch", f"{stats['high_52w']:,.2f} €")
-    c3.metric("52W Tief", f"{stats['low_52w']:,.2f} €")
+    c1.metric("Aktueller Kurs", _fmt_price(stats['current_price']))
+    c2.metric("52W Hoch", _fmt_price(stats['high_52w']))
+    c3.metric("52W Tief", _fmt_price(stats['low_52w']))
     c4.metric(
         "Volatilität (ann.)", 
-        f"{stats['volatility']:.1f} %",
+        f"{stats['volatility']:.1f} %" if stats.get('volatility') and not math.isnan(stats['volatility']) else "—",
         help="Annualisierte historische Volatilität. Misst die durchschnittliche Schwankungsbreite der Aktie über ein Jahr. Höhere Werte bedeuten höheres Risiko/größere Preisschwankungen."
     )
 
