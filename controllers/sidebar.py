@@ -23,37 +23,162 @@ def display_sidebar() -> str:
 
         # ── Sektion 2: Navigation ────────────────────────────────────────────
         with st.container():
-            # Seiten-Synchronisierung mit URL Parametern
-            pages = [
-                "Startseite",
-                "Gesamtwirtschaft",
-                "Watchlist",
-                "Screener",
-                "Analyse",
-                "Backtesting",
-                "Trade-Journal",
-                "Sektoren",
-                "Analyse-Lexikon",
-                "Aktien-Verzeichnis",
+            # ── Kategorisierte Navigation mit Klapp-Animation ──
+            _NAV_CATEGORIES = [
+                {
+                    "id": "dashboard", "icon": "🏠", "label": "Dashboard",
+                    "pages": ["Startseite", "Gesamtwirtschaft"],
+                },
+                {
+                    "id": "tools", "icon": "🔬", "label": "Tools",
+                    "pages": ["Analyse", "Screener", "Backtesting"],
+                },
+                {
+                    "id": "portfolio", "icon": "📂", "label": "Portfolio",
+                    "pages": ["Watchlist", "Trade-Journal"],
+                },
+                {
+                    "id": "resources", "icon": "📚", "label": "Ressourcen",
+                    "pages": ["Sektoren", "Analyse-Lexikon", "Aktien-Verzeichnis"],
+                },
             ]
-            
+
+            # Session-State: Welche Kategorien sind aufgeklappt?
+            if "nav_expanded" not in st.session_state:
+                # Beim Start: Kategorie der aktuellen Seite aufklappen
+                st.session_state.nav_expanded = set()
+                cur = st.query_params.get("page", "Startseite")
+                for cat in _NAV_CATEGORIES:
+                    if cur in cat["pages"]:
+                        st.session_state.nav_expanded.add(cat["id"])
+                        break
+                else:
+                    st.session_state.nav_expanded.add("dashboard")
+
             current_page = st.query_params.get("page", "Startseite")
-            try:
-                default_idx = pages.index(current_page)
-            except ValueError:
-                default_idx = 0
+            # Sicherstellen, dass die aktive Seite gültig ist
+            all_pages = [p for cat in _NAV_CATEGORIES for p in cat["pages"]]
+            if current_page not in all_pages:
+                current_page = "Startseite"
 
-            def on_page_change():
-                st.query_params["page"] = st.session_state.nav_radio
+            # ── CSS: Navigation Styling ──
+            st.markdown("""
+            <style>
+            /* ── Sidebar Nav Buttons: Base Style (secondary = nicht aktiv) ── */
+            div[data-testid="stSidebar"] [data-testid="stBaseButton-secondary"] {
+                background: transparent !important;
+                border: 1px solid rgba(148, 163, 184, 0.08) !important;
+                box-shadow: none !important;
+                color: #94a3b8 !important;
+                font-size: 0.84rem !important;
+                font-weight: 400 !important;
+                padding: 8px 12px 8px 36px !important;
+                text-align: left !important;
+                width: 100% !important;
+                border-radius: 6px !important;
+                transition: all 0.15s ease !important;
+                min-height: unset !important;
+                cursor: pointer !important;
+            }
+            div[data-testid="stSidebar"] [data-testid="stBaseButton-secondary"]:hover {
+                background: rgba(148, 163, 184, 0.08) !important;
+                color: #e2e8f0 !important;
+                border-color: rgba(148, 163, 184, 0.15) !important;
+            }
+            div[data-testid="stSidebar"] [data-testid="stBaseButton-secondary"]:focus {
+                box-shadow: none !important;
+                outline: none !important;
+            }
+            div[data-testid="stSidebar"] [data-testid="stBaseButton-secondary"] p {
+                margin: 0 !important;
+                padding: 0 !important;
+            }
 
-            page = st.radio(
-                "Navigation",
-                pages,
-                index=default_idx,
-                key="nav_radio",
-                on_change=on_page_change,
-                label_visibility="collapsed",
-            )
+            /* ── Active Page: primary type = grüne Akzentlinie ── */
+            section[data-testid="stSidebar"] [data-testid="stBaseButton-primaryFormSubmit"],
+            section[data-testid="stSidebar"] [data-testid="stBaseButton-primary"],
+            section[data-testid="stSidebar"] button[kind="primary"],
+            section[data-testid="stSidebar"] button[kind="primaryFormSubmit"],
+            div[data-testid="stSidebar"] div[data-testid="stBaseButton-primary"] button,
+            div[data-testid="stSidebar"] div[data-testid="stBaseButton-primaryFormSubmit"] button {
+                background: linear-gradient(90deg, rgba(0, 212, 170, 0.15) 0%, transparent 100%) !important;
+                background-color: transparent !important;
+                color: #00d4aa !important;
+                font-weight: 500 !important;
+                font-size: 0.84rem !important;
+                border: none !important;
+                border-left: 3px solid #00d4aa !important;
+                padding: 8px 12px 8px 33px !important;
+                text-align: left !important;
+                width: 100% !important;
+                border-radius: 6px !important;
+                box-shadow: none !important;
+                min-height: unset !important;
+                cursor: pointer !important;
+            }
+            section[data-testid="stSidebar"] [data-testid="stBaseButton-primaryFormSubmit"]:hover,
+            section[data-testid="stSidebar"] [data-testid="stBaseButton-primary"]:hover,
+            div[data-testid="stSidebar"] div[data-testid="stBaseButton-primary"] button:hover,
+            div[data-testid="stSidebar"] div[data-testid="stBaseButton-primaryFormSubmit"] button:hover {
+                background: linear-gradient(90deg, rgba(0, 212, 170, 0.22) 0%, transparent 100%) !important;
+                background-color: transparent !important;
+                color: #00ffcc !important;
+                border-color: #00d4aa !important;
+            }
+            section[data-testid="stSidebar"] [data-testid="stBaseButton-primaryFormSubmit"] p,
+            section[data-testid="stSidebar"] [data-testid="stBaseButton-primary"] p,
+            div[data-testid="stSidebar"] div[data-testid="stBaseButton-primary"] button p,
+            div[data-testid="stSidebar"] div[data-testid="stBaseButton-primaryFormSubmit"] button p {
+                margin: 0 !important;
+                padding: 0 !important;
+                color: #00d4aa !important;
+            }
+            </style>
+            """, unsafe_allow_html=True)
+
+            # ── Render ──
+            page = current_page
+
+            for cat in _NAV_CATEGORIES:
+                cat_id = cat["id"]
+                is_expanded = cat_id in st.session_state.nav_expanded
+                has_active = current_page in cat["pages"]
+
+                # Aktive Kategorie immer aufklappen
+                if has_active and not is_expanded:
+                    st.session_state.nav_expanded.add(cat_id)
+                    is_expanded = True
+
+                # Chevron-Symbol
+                chevron = "▾" if is_expanded else "▸"
+
+                # Kategorie-Header als Button
+                if st.button(
+                    f"{cat['icon']}  {cat['label']}   {chevron}",
+                    key=f"nav_cat_{cat_id}",
+                    use_container_width=True,
+                ):
+                    if cat_id in st.session_state.nav_expanded:
+                        st.session_state.nav_expanded.discard(cat_id)
+                    else:
+                        st.session_state.nav_expanded.add(cat_id)
+                    st.rerun()
+
+                # Seiten-Buttons (nur wenn aufgeklappt)
+                if is_expanded:
+                    for pg in cat["pages"]:
+                        is_active = (pg == current_page)
+                        btn_type = "primary" if is_active else "secondary"
+                        if st.button(
+                            f"    {pg}",
+                            key=f"nav_page_{pg}",
+                            use_container_width=True,
+                            type=btn_type,
+                        ):
+                            st.query_params["page"] = pg
+                            page = pg
+                            st.rerun()
+
             st.markdown("---")
 
         # ── Sektion 3: Watchlist Verwaltung ──────────────────────────────────
