@@ -125,24 +125,22 @@ def render_smc(hist: pd.DataFrame, close: pd.Series,
                 if trends_aligned and fvg_aligned:
                     direction = "bullish" if all_trends[0] == "bullish" else "bearish"
                     if direction == "bullish":
-                        st.success("✅ **Perfekte MTF-Confluence:** Alle drei Zeitebenen (Monthly/Weekly/Daily) "
-                                  "zeigen übereinstimmend bullishe Trends und FVG-Bias — stärkste Überzeugung für Long-Setups.")
+                        st.success("✅ **Perfekte MTF-Confluence (bullish)** — volle Long-Überzeugung.")
                     else:
-                        st.error("🔴 **Perfekte MTF-Confluence (bearish):** Alle drei Zeitebenen "
-                                "zeigen übereinstimmend bearishe Signale — stärkste Überzeugung für Short/Hedge-Setups.")
+                        st.error("🔴 **Perfekte MTF-Confluence (bearish)** — volle Short/Hedge-Überzeugung.")
                 elif confluence >= 3:
-                    st.success("✅ Starke Multi-Timeframe Confluence: Mehrere Zeitebenen bestätigen sich gegenseitig.")
+                    st.success("✅ Starke Confluence — mehrere Zeitebenen bestätigen sich.")
                 elif confluence >= 1:
-                    st.warning("⚠️ Teilweise Confluence: Nur partielles Alignment zwischen den Zeitebenen.")
+                    st.warning("⚠️ Teilweise Confluence — nur partielles Alignment.")
                 else:
-                    st.info("ℹ️ Keine Confluence: Die Zeitebenen sind nicht aufeinander abgestimmt — erhöhte Vorsicht.")
+                    st.info("ℹ️ Keine Confluence — Zeitebenen nicht abgestimmt, erhöhte Vorsicht.")
             else:
                 if confluence >= 2:
-                    st.success("✅ Starke Multi-Timeframe Confluence: Tages- und Wochensignale bestätigen sich gegenseitig.")
+                    st.success("✅ Starke Confluence — Tages- und Wochensignale bestätigen sich.")
                 elif confluence == 1:
-                    st.warning("⚠️ Teilweise Confluence: Nur partielles Alignment zwischen Tages- und Wochenstruktur.")
+                    st.warning("⚠️ Teilweise Confluence — partielles Alignment.")
                 else:
-                    st.info("ℹ️ Keine Confluence: Tages- und Wochensignale sind nicht aufeinander abgestimmt — erhöhte Vorsicht.")
+                    st.info("ℹ️ Keine Confluence — erhöhte Vorsicht.")
         else:
             st.info("Nicht genügend Daten für SMC Analyse (mind. 20 Kerzen benötigt).")
 

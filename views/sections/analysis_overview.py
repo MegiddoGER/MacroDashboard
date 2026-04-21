@@ -22,36 +22,36 @@ def render_overview(stats: dict, hist: pd.DataFrame, close: pd.Series,
     c4.metric(
         "Volatilität (ann.)", 
         f"{stats['volatility']:.1f} %" if stats.get('volatility') and not math.isnan(stats['volatility']) else "—",
-        help="Annualisierte historische Volatilität. Misst die durchschnittliche Schwankungsbreite der Aktie über ein Jahr. Höhere Werte bedeuten höheres Risiko/größere Preisschwankungen."
+        help="Durchschnittliche Jahresschwankung — höher = riskanter."
     )
 
     c5, c6, c7, c8 = st.columns(4)
     c5.metric(
         "RSI (14)", 
         f"{stats['rsi']:.1f}" if stats["rsi"] else "—",
-        help="Relative Strength Index (14 Tage). Ein Momentum-Indikator, der die Geschwindigkeit und Veränderung von Kursbewegungen misst. Werte > 70 gelten als überkauft, < 30 als überverkauft."
+        help="Momentum-Indikator: >70 = überkauft, <30 = überverkauft."
     )
     c6.metric(
         "SMA 20", 
         f"{stats['sma_20']:,.2f} €" if stats["sma_20"] else "—",
-        help="Simple Moving Average (20 Tage). Der einfache gleitende Durchschnitt der letzten 20 Handelstage. Dient zur Identifikation des kurzfristigen Trends."
+        help="Gleitender 20-Tage-Durchschnitt — kurzfristiger Trend."
     )
     c7.metric(
         "SMA 50", 
         f"{stats['sma_50']:,.2f} €" if stats["sma_50"] else "—",
-        help="Simple Moving Average (50 Tage). Zeigt den mittelfristigen Trend an."
+        help="Gleitender 50-Tage-Durchschnitt — mittelfristiger Trend."
     )
     c8.metric(
         "SMA 200", 
         f"{stats['sma_200']:,.2f} €" if stats["sma_200"] else "—",
-        help="Simple Moving Average (200 Tage). Einer der wichtigsten Indikatoren für den langfristigen Trend. Liegt der Kurs darüber, herrscht ein Aufwärtstrend."
+        help="Gleitender 200-Tage-Durchschnitt — langfristiger Trend. Kurs darüber = Aufwärtstrend."
     )
 
     c9, c10, c11, c12 = st.columns(4)
     c9.metric(
         "KGV (P/E)", 
         f"{stats['pe_ratio']:.1f}" if stats["pe_ratio"] else "—",
-        help="Kurs-Gewinn-Verhältnis (Price-to-Earnings). Setzt den Kurs der Aktie in Relation zum Gewinn je Aktie (EPS). Ein niedriges KGV kann auf eine Unterbewertung hinweisen, variiert jedoch stark nach Sektor."
+        help="Kurs / Gewinn je Aktie. Niedrig = potenziell günstig (sektorabhängig)."
     )
     if stats["dividend_yield"]:
         c10.metric("Dividendenrendite", f"{stats['dividend_yield']*100:.2f} %")
@@ -63,7 +63,7 @@ def render_overview(stats: dict, hist: pd.DataFrame, close: pd.Series,
     c11.metric(
         "ATR (14)", 
         f"{atr_val:.2f} €" if atr_val else "—",
-        help="Average True Range (14 Tage). Misst die absolute Volatilität in Euro. Gibt an, um wie viel Euro die Aktie im Durchschnitt pro Tag schwankt. Hilft bei der Festlegung von Stop-Loss-Leveln."
+        help="Durchschnittliche Tagesschwankung in €. Basis für Stop-Loss-Berechnung."
     )
     if stats["avg_volume"]:
         vol = stats["avg_volume"]

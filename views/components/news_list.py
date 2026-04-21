@@ -22,7 +22,11 @@ def render_news_list(articles: list[dict]):
             except Exception: pass
 
         meta_parts = []
-        if source: meta_parts.append(f"<b>{source}</b>")
+        if source:
+            # Premium-Badge für seriöse Quellen
+            is_premium = article.get("premium", False)
+            badge = " ⭐" if is_premium else ""
+            meta_parts.append(f"<b>{source}{badge}</b>")
         if date_str: meta_parts.append(date_str)
         meta = " · ".join(meta_parts)
 

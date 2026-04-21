@@ -14,16 +14,37 @@ import yfinance as yf
 
 _RSS_FEEDS = {
     "europa": [
+        ("Reuters DE",    "https://news.google.com/rss/search?q=when:24h+site:reuters.com+Wirtschaft&hl=de&gl=DE&ceid=DE:de"),
         ("Tagesschau",    "https://www.tagesschau.de/wirtschaft/konjunktur/index~rss2.xml"),
         ("Handelsblatt",  "https://www.handelsblatt.com/contentexport/feed/schlagzeilen"),
     ],
     "usa": [
+        ("Reuters",       "https://news.google.com/rss/search?q=when:24h+site:reuters.com+markets&hl=en-US&gl=US&ceid=US:en"),
         ("CNBC",          "https://www.cnbc.com/id/100727362/device/rss/rss.html"),
     ],
     "asien": [
+        ("Reuters Asia",  "https://news.google.com/rss/search?q=when:24h+site:reuters.com+Asia+markets&hl=en&gl=US&ceid=US:en"),
         ("Nikkei Asia",   "https://asia.nikkei.com/rss/feed/nar"),
         ("CNBC Asia",     "https://www.cnbc.com/id/19832390/device/rss/rss.html"),
     ],
+}
+
+
+# ---------------------------------------------------------------------------
+# Quellenqualität — Filter & Badges
+# ---------------------------------------------------------------------------
+
+_PREMIUM_SOURCES = {
+    "Reuters", "Bloomberg", "Financial Times", "AP News",
+    "Wall Street Journal", "Barron's", "Yahoo Finance",
+    "CNBC", "Handelsblatt", "Tagesschau", "Nikkei Asia",
+}
+
+_CLICKBAIT_SOURCES = {
+    "Motley Fool", "The Motley Fool", "InvestorPlace",
+    "24/7 Wall St.", "24/7 Wall Street", "Zacks",
+    "TipRanks", "Benzinga", "TheStreet", "Insider Monkey",
+    "GuruFocus", "Seeking Alpha",
 }
 
 
@@ -151,12 +172,21 @@ def get_company_news(ticker: str, max_items: int = 10) -> list[dict] | None:
             # Zusammenfassung (Kernaussage) — direkt von Yahoo geliefert
             summary = content.get("summary", "").strip()
 
+            # Quellenqualität prüfen
+            is_premium = any(ps.lower() in source.lower() for ps in _PREMIUM_SOURCES)
+            is_clickbait = any(cs.lower() in source.lower() for cs in _CLICKBAIT_SOURCES)
+
+            # Clickbait-Quellen komplett filtern
+            if is_clickbait:
+                continue
+
             articles.append({
                 "title": title,
                 "link": link,
                 "published": published,
                 "source": source,
                 "summary": summary,
+                "premium": is_premium,
             })
 
         return articles if articles else None

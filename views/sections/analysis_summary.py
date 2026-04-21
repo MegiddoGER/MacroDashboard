@@ -36,15 +36,15 @@ def render_summary(stats: dict, hist: pd.DataFrame, close: pd.Series,
         st.markdown(f"#### Momentaufnahme: **{score_label}**")
         st.caption(f"{confidence_label} — Gewichtete Auswertung aus Trend, Volumen, Fundamentaldaten und Oszillatoren.")
 
-    # ── Explizite Kaufempfehlung ──
+    # ── Explizite Kaufempfehlung (kompakt) ──
     if confidence >= 70:
-        st.success(f"🟢 **Kaufempfehlung — KAUFEN** | Confidence {confidence:.0f}/100: Technisch und fundamental überzeugendes Setup. Risk/Reward spricht für einen Einstieg.")
+        st.success(f"🟢 **KAUFEN** | {confidence:.0f}/100 — Technisch & fundamental intakt, R:R positiv.")
     elif confidence >= 55:
-        st.warning(f"🟡 **Kaufempfehlung — HALTEN / BEOBACHTEN** | Confidence {confidence:.0f}/100: Gemischte Signale. Auf Bestätigung (z.B. Pullback an Support) warten.")
+        st.warning(f"🟡 **HALTEN** | {confidence:.0f}/100 — Gemischte Signale, auf Bestätigung warten.")
     elif confidence >= 40:
-        st.info(f"➖ **Kaufempfehlung — NEUTRAL** | Confidence {confidence:.0f}/100: Kein klares Setup. Abseits bleiben oder nur mit kleiner Position.")
+        st.info(f"➖ **NEUTRAL** | {confidence:.0f}/100 — Kein klares Setup, abseits bleiben.")
     else:
-        st.error(f"🔴 **Kaufempfehlung — NICHT KAUFEN / VERKAUFEN** | Confidence {confidence:.0f}/100: Technisch und/oder fundamental kritisches Bild. Bestehende Positionen absichern.")
+        st.error(f"🔴 **NICHT KAUFEN** | {confidence:.0f}/100 — Technisch/fundamental kritisch.")
 
     # Kategorie-Breakdown
     cat_scores = sum_data.get('cat_scores', {})
@@ -62,15 +62,63 @@ def render_summary(stats: dict, hist: pd.DataFrame, close: pd.Series,
         pct = max(0, min(100, pct))
         col_ui.metric(label, f"{pct}%", delta=f"{val:+}/{mx}", delta_color="off")
 
-    st.markdown("##### 📌 Synthese & Interpretation")
-    st.info(f"**Makro-Bild (Trend):** {sum_data['macro']}")
-    st.info(f"**Mikro-Bild (Momentum):** {sum_data['micro']}")
-    st.success(f"**Actionable Insight:** {sum_data['actionable']}")
+    # ── Synthese (strukturierte Bullet-Liste statt 3 Info-Boxen) ──
+    st.markdown("##### 📌 Synthese")
+    st.markdown(
+        f"- 📊 **Trend:** {sum_data['macro']}\n"
+        f"- ⚡ **Momentum:** {sum_data['micro']}\n"
+        f"- 💡 **Handlung:** {sum_data['actionable']}"
+    )
 
+    # ── Indikatoren-Checkliste (nach Kategorie gruppiert) ──
     st.markdown("##### 🔍 Indikatoren-Checkliste")
     if sum_data["checklist"]:
-        df_check = pd.DataFrame(sum_data["checklist"])
-        st.dataframe(df_check, use_container_width=True, hide_index=True)
+        # Kategorie-Zuordnung der Indikatoren
+        _CATEGORY_MAP = {
+            "ADX": "Technisch", "Trend (SMAs)": "Technisch", "MACD": "Technisch",
+            "RSI (14)": "Technisch", "Bollinger Bänder": "Technisch",
+            "OBV Trend": "Volumen & Struktur", "VWAP (Wochen/Monats)": "Volumen & Struktur",
+            "Volumen-Cluster (POC)": "Volumen & Struktur",
+            "FVG (Fair Value Gap)": "Volumen & Struktur",
+            "Equal Highs (EQH)": "Volumen & Struktur", "Equal Lows (EQL)": "Volumen & Struktur",
+            "DCF Fair Value": "Fundamental", "Bilanzqualität": "Fundamental",
+            "Insider-Sentiment": "Fundamental", "Analysten-Konsens": "Fundamental",
+            "Dividende": "Fundamental",
+            "News Sentiment": "Sentiment",
+        }
+        _CAT_ORDER = ["Technisch", "Volumen & Struktur", "Fundamental", "Sentiment"]
+        _CAT_ICONS = {
+            "Technisch": "🔬", "Volumen & Struktur": "📊",
+            "Fundamental": "🏦", "Sentiment": "📰",
+        }
+
+        # Gruppieren
+        grouped = {}
+        uncategorized = []
+        for item in sum_data["checklist"]:
+            cat = _CATEGORY_MAP.get(item.get("Indikator", ""), None)
+            if cat:
+                grouped.setdefault(cat, []).append(item)
+            else:
+                uncategorized.append(item)
+
+        for cat in _CAT_ORDER:
+            items = grouped.get(cat, [])
+            if not items:
+                continue
+            icon = _CAT_ICONS.get(cat, "")
+            st.markdown(f"**{icon} {cat}**")
+            df_cat = pd.DataFrame(items)
+            # Spalten sauber anordnen
+            display_cols = [c for c in ["Indikator", "Wert", "Signal", "Beitrag"] if c in df_cat.columns]
+            st.dataframe(
+                df_cat[display_cols], use_container_width=True, hide_index=True,
+                height=min(250, 35 * len(items) + 38),
+            )
+
+        if uncategorized:
+            st.markdown("**Sonstige**")
+            st.dataframe(pd.DataFrame(uncategorized), use_container_width=True, hide_index=True)
 
     # ── Historische Signale ──
     from models.signal import SignalStore

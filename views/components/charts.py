@@ -68,14 +68,17 @@ def plot_timeseries(df, title: str, y_col: str = "Close",
         x, y = df.index, df
     else:
         x, y = df.index, df[y_col]
-    # Unsichtbare Basis-Linie auf Y=0 erzwingt sauberes SVG-Rendering beim Zoomen
+
+    # Basislinie am Datenminimum — so zoomt die Y-Achse auf den
+    # tatsächlichen Kursbereich statt bei 0 zu starten.
+    y_clean = pd.Series(y).dropna()
+    y_min = float(y_clean.min()) if not y_clean.empty else 0
     fig.add_trace(go.Scatter(
-        x=x, y=[0] * len(x), mode="lines",
+        x=x, y=[y_min] * len(x), mode="lines",
         line=dict(width=0, color="rgba(0,0,0,0)"),
         showlegend=False, hoverinfo="skip",
     ))
-    
-    # Eigentliche Linie füllt zur unsichtbaren Basis-Linie (tonexty)
+
     fig.add_trace(go.Scatter(
         x=x, y=y, mode="lines",
         line=dict(color=color, width=1.8),

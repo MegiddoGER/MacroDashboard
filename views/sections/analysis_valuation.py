@@ -337,11 +337,11 @@ def render_valuation(details: dict, hist: pd.DataFrame, ticker: str,
         dc4.metric("WACC", f"{dcf['wacc']:.1f} %")
 
         if dcf['margin_of_safety']:
-            st.success(f"✅ **Margin of Safety vorhanden:** Fair Value ({dcf['fair_value']:,.2f} €) liegt > 20% über dem aktuellen Kurs.")
+            st.success(f"✅ **Margin of Safety:** Fair Value {dcf['upside_pct']:+.1f}% über Kurs.")
         elif dcf['upside_pct'] > 0:
-            st.info(f"ℹ️ Leichtes Upside-Potenzial ({dcf['upside_pct']:+.1f} %), aber noch keine volle Margin of Safety.")
+            st.info(f"ℹ️ Leichtes Upside ({dcf['upside_pct']:+.1f}%), keine volle Margin of Safety.")
         else:
-            st.warning(f"⚠️ Aktie erscheint überbewertet ({dcf['upside_pct']:+.1f} % vs. DCF Fair Value).")
+            st.warning(f"⚠️ Überbewertet ({dcf['upside_pct']:+.1f}% vs. DCF Fair Value).")
 
         def _fmt_big(val):
             if val >= 1e12: return f"{val/1e12:.1f} Bio."

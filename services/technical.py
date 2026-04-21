@@ -615,18 +615,18 @@ def calc_technical_summary(stats: dict, hist: pd.DataFrame, info: dict = None, t
     adx_strong = signals.get("adx_strong", False)
 
     if trend_macro_bullish and cross_bullish:
-        macro = "Die Aktie befindet sich in einem voll intakten, bestätigten Aufwärtstrend auf allen relevanten Zeitebenen."
+        macro = "Intakter Aufwärtstrend auf allen Zeitebenen (Kurs > SMA 200, Golden Cross)."
     elif trend_macro_bullish and cross_bearish:
-        macro = "Die Aktie befindet sich langfristig im Aufwärtstrend, vollzieht aber momentan eine mittelfristige Korrektur."
+        macro = "Langfristig Aufwärtstrend, kurzfristig Korrektur (Death Cross bei intaktem SMA 200)."
     elif trend_macro_bearish and cross_bearish:
-        macro = "Das übergeordnete Chartbild ist stark angeschlagen; die Aktie befindet sich in einem klaren Abwärtstrend."
+        macro = "Klarer Abwärtstrend — Kurs unter SMA 200 und SMA 50 < SMA 200."
     elif trend_macro_bearish and cross_bullish:
-        macro = "Die Aktie steckt langfristig in einem Abwärtstrend, baut aber aktuell ein kurzfristiges Erholungsmomentum auf (mögliche Bodenbildung)."
+        macro = "Übergeordnet Abwärtstrend, kurzfristig Erholungsansatz (mögliche Bodenbildung)."
     else:
-        macro = "Das Trendverhalten ist aktuell gemischt und deutet auf eine richtungslose Phase hin."
+        macro = "Gemischtes Trendverhalten — richtungslose Phase."
 
     if adx_strong:
-        macro += " Der aktuelle Trend wird durch hohes Momentum (ADX > 25) gestützt."
+        macro += " ADX > 25: hohe Trendstärke."
 
     # ── Micro-Text (Kurzfristiges Momentum) ───────────────────────────
     rsi_overbought = signals.get("rsi_overbought", False)
@@ -636,25 +636,25 @@ def calc_technical_summary(stats: dict, hist: pd.DataFrame, info: dict = None, t
 
     micro_parts = []
     if rsi_overbought and bollinger_state == "Am oberen Band":
-        micro_parts.append("Kurzfristig ist die Aktie jedoch stark überdehnt (RSI > 70 und am oberen Bollinger Band). Ein Rücksetzer zum Abbau der Heißläufersituation ist wahrscheinlich.")
+        micro_parts.append("Überkauft: RSI > 70 + oberes Bollinger Band → Rücksetzer wahrscheinlich.")
     elif rsi_oversold and bollinger_state == "Am unteren Band":
-        micro_parts.append("Auf kurzer Sichtelebene ist der Wert massiv abgestraft und überverkauft. Die Wahrscheinlichkeit für einen technischen Rebound steigt signifikant.")
+        micro_parts.append("Überverkauft: RSI < 30 + unteres Bollinger Band → technischer Rebound möglich.")
     elif rsi_overbought:
-        micro_parts.append("Das kurzfristige Momentum kühlt potenziell bald ab, da der Oszillator überkaufte Niveaus anzeigt.")
+        micro_parts.append("RSI > 70: Überkaufte Niveaus, Momentum könnte abkühlen.")
     elif rsi_oversold:
-        micro_parts.append("Kurzfristig zeigt sich die Aktie bereits stark abverkauft, was Verkäufern weniger Spielraum lässt.")
+        micro_parts.append("RSI < 30: Überverkauft, begrenztes Abwärtspotenzial.")
 
     if obv_bullish and not trend_macro_bullish:
-        micro_parts.append("Trotz des schwachen Gesamtbildes zeigt das On-Balance-Volume klare Akkumulation – Großkapital scheint sich bereits verdeckt einzukaufen.")
+        micro_parts.append("OBV steigend trotz schwachem Trend — verdeckte Akkumulation.")
     elif not obv_bullish and trend_macro_bullish:
-        micro_parts.append("Ein Warnsignal liefert allerdings das sinkende Orderbuch-Volumen (Distribution) in steigende Kurse hinein.")
+        micro_parts.append("OBV fallend bei steigendem Kurs — Warnsignal (Distribution).")
 
     if not micro_parts:
-        micro = "Momentum und Volatilität bewegen sich in normalen Bahnen ohne extreme Ausschläge."
+        micro = "Momentum und Volatilität im neutralen Bereich."
     else:
         micro = " ".join(micro_parts)
 
-    # SMC-Ergänzungen zum Micro-Text
+    # SMC-Ergänzungen
     unmitigated_bull = signals.get("unmitigated_bull", 0)
     unmitigated_bear = signals.get("unmitigated_bear", 0)
     nearest_eqh = signals.get("nearest_eqh")
@@ -662,18 +662,18 @@ def calc_technical_summary(stats: dict, hist: pd.DataFrame, info: dict = None, t
     current = signals.get("current_price", 0)
 
     if unmitigated_bull > unmitigated_bear:
-        micro += f" Es gibt {unmitigated_bull} offene bullische Fair Value Gaps als potenzielle Support-Zonen."
+        micro += f" {unmitigated_bull} offene bullische FVGs als Support."
     elif unmitigated_bear > unmitigated_bull:
-        micro += f" {unmitigated_bear} offene bearische Fair Value Gaps bilden Widerstandszonen über dem aktuellen Kurs."
+        micro += f" {unmitigated_bear} offene bearische FVGs als Widerstand."
 
     if nearest_eqh and current:
         dist_eqh = ((nearest_eqh - current) / current) * 100
         if dist_eqh < 3:
-            micro += f" Ein Equal-High-Cluster bei {nearest_eqh:,.2f} ({dist_eqh:+.1f}%) wirkt als kurzfristiger Magnet nach oben."
+            micro += f" EQH-Magnet bei {nearest_eqh:,.2f} ({dist_eqh:+.1f}%)."
     if nearest_eql and current:
         dist_eql = ((nearest_eql - current) / current) * 100
         if abs(dist_eql) < 3:
-            micro += f" Ein Equal-Low-Cluster bei {nearest_eql:,.2f} ({dist_eql:+.1f}%) signalisiert Risiko eines Liquidity Sweeps nach unten."
+            micro += f" EQL-Risiko bei {nearest_eql:,.2f} ({dist_eql:+.1f}%)."
 
     # ── Actionable-Text (Handlungsempfehlung) ─────────────────────────
     confidence = result.confidence
@@ -681,24 +681,24 @@ def calc_technical_summary(stats: dict, hist: pd.DataFrame, info: dict = None, t
     fundamental_context = " ".join(result.fundamental_text_parts) if result.fundamental_text_parts else ""
 
     if confidence >= 75 and not rsi_overbought:
-        action = "Technisch und fundamental ein starkes Gesamtbild. Das Momentum und die Bewertung sprechen für sich — Neueinstiege bei kleinen Rücksetzern an den SMA 20 oder VWAP bieten ein gutes Chance-Risiko-Verhältnis."
+        action = "Starkes Setup. Entry bei Pullback auf SMA 20 oder VWAP, SL unter letztem Swing-Tief."
     elif confidence >= 60 and not rsi_overbought:
-        action = "Ein attraktives Setup für Trendfolger. Das Momentum spricht für sich, Neueinstiege bei kleinen Rücksetzern an den SMA 20 oder den VWAP bieten ein gutes Chance-Risiko-Verhältnis."
+        action = "Attraktives Trendfolge-Setup. Rücksetzer an SMA 20/VWAP als Entry nutzen."
     elif confidence >= 55 and rsi_overbought:
-        action = "Der Trend ist intakt, aber frisches Kapital sollte geduldig bleiben. Gewinne absichern und erst bei einem Rücklauf (Pullback) an den nächsten Support einkaufen."
+        action = "Trend intakt, aber überkauft. Gewinne sichern, auf Pullback zum Support warten."
     elif rsi_oversold and poc_bullish:
-        action = "Spekulativer antizyklischer Einstieg: Die Aktie ist technisch überverkauft und konnte sich über dem stärksten Volumenknoten (POC) stabilisieren. Enger Stop-Loss unter dem letzten Tief ratsam."
+        action = "Antizyklischer Einstieg möglich: Überverkauft + Stabilisierung über POC. Enger SL."
     elif confidence <= 20:
-        action = "Technisch und fundamental ein schwieriges Bild. Weder Chartstruktur noch Bewertung sprechen für eine Positionierung — Abstand halten."
+        action = "Kein Setup. Technisch und fundamental schwach — Abstand halten."
     elif confidence <= 30:
-        action = "Ein klassisches 'Falling Knife'. Solange die Struktur keine höheren Hochs (Golden Cross) und steigendes Volumen (OBV) ausbildet, drängt sich fundamental oder technisch kein Kauf auf."
+        action = "Falling Knife. Erst bei höheren Hochs + steigendem OBV wieder interessant."
     elif trend_macro_bullish and cross_bearish:
-        action = "Abwarten, bis die mittelfristige Korrektur endet. Erst wenn der Kurs zurück über den SMA 50 klettert, löst sich das Setup wieder in Trendrichtung auf."
+        action = "Korrektur abwarten. Entry erst bei Rückkehr über SMA 50."
     else:
-        action = "Unklare Gesamtlage. Das Setup rechtfertigt aktuell keine größeren Positionierungen. Auf eine klarere Trendbestätigung (z.B. Ausbruch über starken VWAP/POC-Bereich) sollte gewartet werden."
+        action = "Unklare Lage. Auf Trendbestätigung (Ausbruch über VWAP/POC) warten."
 
     if fundamental_context:
-        action += " — Fundamental: " + fundamental_context
+        action += " Fundamental: " + fundamental_context
 
     return {
         "score": result.score,
