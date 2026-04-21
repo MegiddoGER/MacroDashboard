@@ -7,7 +7,7 @@ als interaktive Tabelle an.
 
 import streamlit as st
 import pandas as pd
-from services.screener import PRESETS, scan_sp500
+from services.screener import PRESETS, scan_sp500, scan_dax_mdax
 
 
 # ---------------------------------------------------------------------------
@@ -75,9 +75,20 @@ def page_screener():
     """Rendert die Screener-Seite."""
     st.markdown("## 🔍 Aktien-Screener")
     st.caption(
-        "Scannt alle S&P 500 Aktien und bewertet sie nach technischen Kriterien. "
+        "Scannt Aktien und bewertet sie nach technischen Kriterien. "
         "Der Quick-Score nutzt Trend-, Volumen- und Oszillator-Indikatoren."
     )
+
+    # ── Index-Auswahl ─────────────────────────────────────────────
+    index_choice = st.pills(
+        "Index",
+        ["🇺🇸 S&P 500", "🇩🇪 DAX & MDAX"],
+        default="🇺🇸 S&P 500",
+        key="screener_index",
+        label_visibility="collapsed",
+    )
+    is_dax = index_choice == "🇩🇪 DAX & MDAX"
+    currency_symbol = "€" if is_dax else "$"
 
     # ── Preset-Auswahl ────────────────────────────────────────────
     st.markdown("#### 📋 Screener-Typ auswählen")
@@ -158,7 +169,8 @@ def page_screener():
         def update_progress(progress: float, status: str):
             progress_bar.progress(min(progress, 1.0), text=status)
 
-        with st.spinner("Scanne S&P 500..."):
+        scan_label = "DAX & MDAX" if is_dax else "S&P 500"
+        with st.spinner(f"Scanne {scan_label}..."):
             # Custom-Filter zusammenbauen
             custom_filters = {}
             if custom_score_min > 0:
@@ -169,11 +181,18 @@ def page_screener():
             if sector_filter:
                 custom_filters["sector"] = sector_filter
 
-            results = scan_sp500(
-                preset=selected_preset,
-                custom_filters=custom_filters if custom_filters else None,
-                progress_callback=update_progress,
-            )
+            if is_dax:
+                results = scan_dax_mdax(
+                    preset=selected_preset,
+                    custom_filters=custom_filters if custom_filters else None,
+                    progress_callback=update_progress,
+                )
+            else:
+                results = scan_sp500(
+                    preset=selected_preset,
+                    custom_filters=custom_filters if custom_filters else None,
+                    progress_callback=update_progress,
+                )
 
         progress_bar.empty()
         st.session_state[cache_key] = results
@@ -219,7 +238,7 @@ def page_screener():
             "Score": r["confidence"],
             "Signal": _signal_type(r["confidence"]),
             "RSI": round(r["rsi"], 1) if r["rsi"] else None,
-            "Kurs ($)": r["price"],
+            f"Kurs ({currency_symbol})": r["price"],
             "Trend ▲": "✅" if r["trend_bullish"] else "❌",
             "MACD ▲": "✅" if r["macd_bullish"] else "❌",
             "OBV ▲": "✅" if r["obv_bullish"] else "❌",
@@ -228,11 +247,14 @@ def page_screener():
     df = pd.DataFrame(rows)
 
     # Stil anwenden
+    kurs_col = f"Kurs ({currency_symbol})"
+    kurs_fmt = f"{currency_symbol}"  + "{:,.2f}"
+
     styled = df.style.map(
         _color_confidence, subset=["Score"]
     ).format({
         "Score": "{:.1f}",
-        "Kurs ($)": "${:,.2f}",
+        kurs_col: kurs_fmt,
         "RSI": lambda v: _format_rsi(v),
     })
 
@@ -249,7 +271,7 @@ def page_screener():
             "Score": st.column_config.NumberColumn("Score", width="small"),
             "Signal": st.column_config.TextColumn("Signal", width="small"),
             "RSI": st.column_config.TextColumn("RSI", width="small"),
-            "Kurs ($)": st.column_config.TextColumn("Kurs", width="small"),
+            kurs_col: st.column_config.TextColumn("Kurs", width="small"),
             "Trend ▲": st.column_config.TextColumn("Trend", width="small"),
             "MACD ▲": st.column_config.TextColumn("MACD", width="small"),
             "OBV ▲": st.column_config.TextColumn("OBV", width="small"),
@@ -270,7 +292,7 @@ def page_screener():
                     f"**{i}. {emoji} {r['ticker']}** — {r['name']}\n\n"
                     f"Score: **{r['confidence']:.1f}** | "
                     f"RSI: {rsi_str} | "
-                    f"${r['price']:,.2f}"
+                    f"{currency_symbol}{r['price']:,.2f}"
                 )
 
         with col_flop:
@@ -284,7 +306,7 @@ def page_screener():
                     f"**{i}. {emoji} {r['ticker']}** — {r['name']}\n\n"
                     f"Score: **{r['confidence']:.1f}** | "
                     f"RSI: {rsi_str} | "
-                    f"${r['price']:,.2f}"
+                    f"{currency_symbol}{r['price']:,.2f}"
                 )
 
     # Footer

@@ -2,6 +2,7 @@
 data.py — Datenabruf-Funktionen (yfinance).
 
 Jede Funktion gibt bei Fehlern None zurück und loggt eine Warnung.
+Alle Preise werden in EUR umgerechnet (via services/forex.py).
 """
 
 import warnings
@@ -9,6 +10,7 @@ import os
 import pandas as pd
 import numpy as np
 import yfinance as yf
+from services.forex import convert_to_eur, get_rate_to_eur, get_fx_info
 
 
 # ---------------------------------------------------------------------------
@@ -61,6 +63,7 @@ def get_history(ticker: str, period: str = "1y") -> pd.DataFrame | None:
 def get_multi_quotes(tickers: list[str]) -> pd.DataFrame | None:
     """Lädt Kursdaten für mehrere Ticker und fasst sie zusammen.
 
+    Alle Kurse werden nach EUR umgerechnet.
     Rückgabe: DataFrame mit Spalten [Ticker, Kurs (€), Veränderung %, RSI (14)].
     """
     try:
@@ -88,9 +91,18 @@ def get_multi_quotes(tickers: list[str]) -> pd.DataFrame | None:
             rsi_val = (round(float(rsi_series.dropna().iloc[-1]), 1)
                        if rsi_series is not None and not rsi_series.dropna().empty
                        else None)
+
+            # Währung ermitteln und nach EUR konvertieren
+            try:
+                tk_info = yf.Ticker(t).info
+                currency = (tk_info.get("currency") or "USD").upper() if tk_info else "USD"
+            except Exception:
+                currency = "EUR" if t.endswith(".DE") else "USD"
+            current_eur = convert_to_eur(current, currency)
+
             records.append({
                 "Ticker": t,
-                "Kurs (€)": round(current, 2),
+                "Kurs (€)": round(current_eur, 2) if current_eur else round(current, 2),
                 "Veränderung %": chg,
                 "RSI (14)": rsi_val,
             })
@@ -139,7 +151,8 @@ def _get_cik_for_ticker(ticker: str) -> str | None:
 def get_stock_details(ticker: str) -> dict | None:
     """Sammelt umfangreiche Daten für die Einzelaktien-Analyse.
 
-    Rückgabe: Dict mit keys: info, hist_1y, hist_5y, oder None.
+    Alle Preisfelder werden nach EUR umgerechnet.
+    Rückgabe: Dict mit keys: info, hist_1y, hist_5y, stats (inkl. currency/fx_rate), oder None.
     """
     try:
         tk = yf.Ticker(ticker)
@@ -157,6 +170,17 @@ def get_stock_details(ticker: str) -> dict | None:
         if hist_1y.empty:
             return None
 
+        # ── Währung erkennen und FX-Rate holen ──
+        currency = (info.get("currency") or "USD").upper()
+        fx_rate = get_rate_to_eur(currency)
+        is_eur = currency == "EUR"
+
+        def _to_eur(val):
+            """Konvertiert einen Einzelwert nach EUR."""
+            if val is None:
+                return None
+            return round(val * fx_rate, 2)
+
         # Statistiken berechnen
         from services.technical import calc_rsi
         close = hist_1y["Close"]
@@ -171,26 +195,42 @@ def get_stock_details(ticker: str) -> dict | None:
         returns = close.pct_change().dropna()
         volatility = float(returns.std() * np.sqrt(252) * 100) if len(returns) > 1 else 0.0
 
-        # 52-Wochen-Range
+        # 52-Wochen-Range (in Originalwährung)
         high_52w = float(close.max())
         low_52w = float(close.min())
-        current_price = float(close.iloc[-1])
+        current_price = float(close.iloc[-1]) if not close.empty and not np.isnan(close.iloc[-1]) else 0.0
+
+        # SMA-Werte (Originalwährung)
+        sma_20_val = float(sma_20.dropna().iloc[-1]) if not sma_20.dropna().empty else None
+        sma_50_val = float(sma_50.dropna().iloc[-1]) if not sma_50.dropna().empty else None
+        sma_200_val = float(sma_200.dropna().iloc[-1]) if not sma_200.dropna().empty else None
+
+        # Market Cap nach EUR konvertieren
+        market_cap_raw = info.get("marketCap", None)
+        market_cap_eur = _to_eur(market_cap_raw) if market_cap_raw else None
 
         stats = {
-            "current_price": round(current_price, 2),
-            "high_52w": round(high_52w, 2),
-            "low_52w": round(low_52w, 2),
+            # Preise — bereits in EUR konvertiert
+            "current_price": _to_eur(current_price),
+            "high_52w": _to_eur(high_52w),
+            "low_52w": _to_eur(low_52w),
+            "sma_20": _to_eur(sma_20_val),
+            "sma_50": _to_eur(sma_50_val),
+            "sma_200": _to_eur(sma_200_val),
+            # Währungsbewusst: Marktkapitalisierung
+            "market_cap": market_cap_eur,
+            # Andere Felder (währungsunabhängig)
             "volatility": round(volatility, 1),
             "rsi": round(float(rsi.dropna().iloc[-1]), 1) if rsi is not None and not rsi.dropna().empty else None,
-            "sma_20": round(float(sma_20.dropna().iloc[-1]), 2) if not sma_20.dropna().empty else None,
-            "sma_50": round(float(sma_50.dropna().iloc[-1]), 2) if not sma_50.dropna().empty else None,
-            "sma_200": round(float(sma_200.dropna().iloc[-1]), 2) if not sma_200.dropna().empty else None,
             "avg_volume": int(hist_1y["Volume"].mean()) if "Volume" in hist_1y.columns else 0,
             "name": info.get("shortName", ticker),
             "sector": info.get("sector", "—"),
-            "market_cap": info.get("marketCap", None),
             "pe_ratio": info.get("trailingPE", None),
             "dividend_yield": info.get("dividendYield", None),
+            # FX-Metadaten
+            "currency": currency,
+            "fx_rate": round(fx_rate, 6),
+            "currency_converted": not is_eur,
         }
 
         # Nächste Quartalszahlen (Earnings Date)

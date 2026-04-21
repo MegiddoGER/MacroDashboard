@@ -12,11 +12,20 @@ Funktionalität:
 """
 
 import warnings
+import os
 import pandas as pd
 import numpy as np
 import yfinance as yf
 
 from services.scoring import calc_quick_score
+
+
+# ---------------------------------------------------------------------------
+# Pfade
+# ---------------------------------------------------------------------------
+
+_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_XETRA_CSV = os.path.join(_PROJECT_ROOT, "data", "xetra_stocks.csv")
 
 
 # ---------------------------------------------------------------------------
@@ -40,6 +49,42 @@ def get_sp500_tickers() -> pd.DataFrame | None:
         return df[["Symbol", "Security", "GICS Sector", "GICS Sub-Industry"]]
     except Exception as exc:
         warnings.warn(f"get_sp500_tickers: {exc}")
+        return None
+
+
+def get_dax_mdax_tickers() -> pd.DataFrame | None:
+    """Lädt DAX + MDAX Komponenten aus der lokalen xetra_stocks.csv.
+
+    Rückgabe: DataFrame mit [Symbol, Security, GICS Sector, GICS Sub-Industry]
+              (gleiche Spaltenstruktur wie S&P 500 für Kompatibilität).
+    """
+    try:
+        import csv
+        if not os.path.exists(_XETRA_CSV):
+            warnings.warn(f"Xetra-CSV nicht gefunden: {_XETRA_CSV}")
+            return None
+
+        records = []
+        with open(_XETRA_CSV, "r", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                ticker = row.get("Kürzel", "").strip()
+                name = row.get("Name", "").strip()
+                index = row.get("Index", "").strip()
+                # Nur DAX und MDAX
+                if ticker and name and index in ("DAX", "MDAX"):
+                    records.append({
+                        "Symbol": ticker,
+                        "Security": name,
+                        "GICS Sector": index,  # DAX/MDAX als "Sektor"
+                        "GICS Sub-Industry": "",
+                    })
+
+        if not records:
+            return None
+        return pd.DataFrame(records)
+    except Exception as exc:
+        warnings.warn(f"get_dax_mdax_tickers: {exc}")
         return None
 
 
@@ -330,6 +375,38 @@ def scan_sp500(preset: str = "all",
     return scan_batch(
         tickers=tickers,
         sp500_info=sp500_df,
+        filters=filters,
+        progress_callback=progress_callback,
+    )
+
+
+def scan_dax_mdax(preset: str = "all",
+                  custom_filters: dict | None = None,
+                  progress_callback=None) -> list[dict]:
+    """Scannt alle DAX + MDAX Aktien mit einem vordefinierten Preset.
+
+    Args:
+        preset: Schlüssel aus PRESETS
+        custom_filters: Überschreibt/ergänzt die Preset-Filter
+        progress_callback: Callable(progress, status) für UI-Updates
+
+    Returns: Sortierte Liste von Screener-Ergebnissen
+    """
+    dax_df = get_dax_mdax_tickers()
+    if dax_df is None or dax_df.empty:
+        return []
+
+    tickers = dax_df["Symbol"].tolist()
+
+    preset_config = PRESETS.get(preset, PRESETS["all"])
+    filters = dict(preset_config.get("filters", {}))
+
+    if custom_filters:
+        filters.update(custom_filters)
+
+    return scan_batch(
+        tickers=tickers,
+        sp500_info=dax_df,
         filters=filters,
         progress_callback=progress_callback,
     )

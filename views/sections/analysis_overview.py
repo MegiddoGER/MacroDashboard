@@ -91,3 +91,12 @@ def render_overview(stats: dict, hist: pd.DataFrame, close: pd.Series,
         except Exception:
             earnings_str = str(earnings_raw)
         st.caption(f"📅 Nächste Quartalszahlen: **{earnings_str}**")
+
+    # FX-Hinweis bei Nicht-EUR-Aktien
+    if stats.get("currency_converted"):
+        currency = stats.get("currency", "USD")
+        fx_rate = stats.get("fx_rate", 0)
+        st.caption(
+            f"💱 Originalwährung: **{currency}** — Umrechnungskurs: "
+            f"1 {currency} = {fx_rate:.4f} EUR *(alle Preise in EUR umgerechnet)*"
+        )
