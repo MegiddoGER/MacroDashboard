@@ -530,8 +530,40 @@ def _validate_ticker(ticker: str) -> bool:
         return False
 
 
+def _get_ticker_currency(ticker: str) -> str:
+    """Ermittelt die Handelswährung eines Tickers.
+
+    Heuristik-Fallback: .DE/.F → EUR, sonst USD.
+    """
+    try:
+        tk = yf.Ticker(ticker)
+        info = tk.info
+        if info and info.get("currency"):
+            return info["currency"].upper()
+    except Exception:
+        pass
+    # Heuristik
+    t = ticker.upper()
+    if t.endswith(".DE") or t.endswith(".F"):
+        return "EUR"
+    if t.endswith(".L"):
+        return "GBP"
+    if t.endswith(".SW"):
+        return "CHF"
+    if t.endswith(".AS") or t.endswith(".PA") or t.endswith(".MI"):
+        return "EUR"
+    if t.endswith(".TO"):
+        return "CAD"
+    if t.endswith(".AX"):
+        return "AUD"
+    return "USD"
+
+
 def resolve_ticker(query: str) -> dict | None:
-    """Versucht einen Firmennamen oder Ticker zu einem Xetra-Ticker aufzulösen."""
+    """Versucht einen Firmennamen oder Ticker zu einem Xetra-Ticker aufzulösen.
+
+    Rückgabe: dict mit ticker, name, display, currency oder None.
+    """
     query = query.strip()
     if not query:
         return None
@@ -546,6 +578,7 @@ def resolve_ticker(query: str) -> dict | None:
                 "ticker": csv_match["ticker"],
                 "name": csv_match["name"],
                 "display": display,
+                "currency": _get_ticker_currency(csv_match["ticker"]),
             }
 
     # 2. Yahoo Finance → Firmenname → CSV-Match
@@ -560,6 +593,7 @@ def resolve_ticker(query: str) -> dict | None:
                     "ticker": match["ticker"],
                     "name": company_name,
                     "display": us_symbol.split(".")[0].upper(),
+                    "currency": _get_ticker_currency(match["ticker"]),
                 }
 
         short_name = company_name.split(" ")[0] if " " in company_name else ""
@@ -571,6 +605,7 @@ def resolve_ticker(query: str) -> dict | None:
                         "ticker": match["ticker"],
                         "name": company_name,
                         "display": us_symbol.split(".")[0].upper(),
+                        "currency": _get_ticker_currency(match["ticker"]),
                     }
 
         # 3. Yahoo Search nach .DE-Listings
@@ -584,6 +619,7 @@ def resolve_ticker(query: str) -> dict | None:
                         "ticker": sym.upper(),
                         "name": company_name,
                         "display": us_symbol.split(".")[0].upper(),
+                        "currency": _get_ticker_currency(sym),
                     }
         except Exception:
             pass
@@ -594,6 +630,7 @@ def resolve_ticker(query: str) -> dict | None:
                 "ticker": us_symbol.upper(),
                 "name": company_name,
                 "display": us_symbol.split(".")[0].upper(),
+                "currency": _get_ticker_currency(us_symbol),
             }
 
     # Letzter Fallback
@@ -602,6 +639,7 @@ def resolve_ticker(query: str) -> dict | None:
             "ticker": query.upper(),
             "name": query.upper(),
             "display": display,
+            "currency": _get_ticker_currency(query.upper()),
         }
 
     return None

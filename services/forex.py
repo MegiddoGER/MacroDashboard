@@ -157,4 +157,3 @@ def get_fx_info(currency: str) -> dict:
         "is_eur": is_eur,
         "label": f"1 {currency} = {rate:.4f} EUR" if not is_eur else "EUR (keine Umrechnung)",
     }
-"""

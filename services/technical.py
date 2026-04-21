@@ -544,8 +544,13 @@ def calc_position_sizing(current_price: float, atr_val: float,
     # Max. Risiko in Euro
     max_risk_eur = portfolio_value * max_risk_pct
     
-    # Positionsgröße (Stückzahl)
-    shares = int(max_risk_eur / risk_per_share) if risk_per_share > 0 else 0
+    # Positionsgröße (Stückzahl) nach Risiko (ATR)
+    shares_risk = int(max_risk_eur / risk_per_share) if risk_per_share > 0 else 0
+    
+    # Deckelung der Positionsgröße auf das Gesamtkapital (Cash-Account ohne Hebel)
+    max_shares_capital = int(portfolio_value / current_price) if current_price > 0 else 0
+    shares = min(shares_risk, max_shares_capital)
+    
     position_value = shares * current_price
     position_pct = (position_value / portfolio_value) * 100 if portfolio_value > 0 else 0
     
