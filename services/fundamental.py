@@ -367,40 +367,134 @@ def calc_dividend_analysis(ticker: str) -> dict | None:
 # ---------------------------------------------------------------------------
 
 def get_insider_institutional(ticker: str) -> dict | None:
-    """Lädt Insider-Transaktionen und Top institutionelle Halter."""
+    """Lädt Insider-Transaktionen und Top institutionelle Halter.
+
+    Nutzt drei yfinance-Quellen:
+    1. insider_purchases  → Aggregierte Kauf/Verkauf-Statistik (6 Monate)
+    2. insider_transactions → Detail-Tabelle der letzten Transaktionen
+    3. institutional_holders → Top institutionelle Halter mit Positionsänderungen
+    Plus: heldPercentInsiders/Institutions aus info für Holdings-Überblick.
+    """
     try:
         tk = yf.Ticker(ticker)
+        info = tk.info or {}
 
+        # ── 1. Aggregierte Insider-Statistik (Primärquelle für Scoring) ──
+        purchases_count, sales_count = 0, 0
+        purchases_shares, sales_shares, net_shares = 0, 0, 0
+        has_summary = False
+        try:
+            ip = tk.insider_purchases
+            if ip is not None and not ip.empty:
+                has_summary = True
+                # Zeile 0 = Purchases, Zeile 1 = Sales, Zeile 2 = Net
+                for _, row in ip.iterrows():
+                    label = str(row.iloc[0]).strip().lower()
+                    shares_val = row.get("Shares", 0)
+                    trans_val = row.get("Trans", 0)
+                    if pd.isna(shares_val):
+                        shares_val = 0
+                    if pd.isna(trans_val):
+                        trans_val = 0
+                    if label == "purchases":
+                        purchases_count = int(trans_val)
+                        purchases_shares = int(shares_val)
+                    elif label == "sales":
+                        sales_count = int(trans_val)
+                        sales_shares = int(shares_val)
+                    elif label.startswith("net") and "purchased" in label:
+                        net_shares = int(shares_val)
+        except Exception:
+            pass
+
+        # ── 2. Insider-Transaktionen Detail-Tabelle (Display) ──
         insider_df = None
         try:
             ins = tk.insider_transactions
             if ins is not None and not ins.empty:
-                insider_df = ins.head(10)
+                # Relevante Spalten auswählen und übersetzen
+                display_cols = {}
+                if "Insider" in ins.columns:
+                    display_cols["Insider"] = "Name"
+                if "Position" in ins.columns:
+                    display_cols["Position"] = "Position"
+                if "Text" in ins.columns:
+                    display_cols["Text"] = "Transaktion"
+                if "Shares" in ins.columns:
+                    display_cols["Shares"] = "Aktien"
+                if "Value" in ins.columns:
+                    display_cols["Value"] = "Wert ($)"
+                if "Start Date" in ins.columns:
+                    display_cols["Start Date"] = "Datum"
+
+                available = [c for c in display_cols.keys() if c in ins.columns]
+                insider_df = ins[available].head(10).rename(columns=display_cols)
+
+                # Datum formatieren falls vorhanden
+                if "Datum" in insider_df.columns:
+                    insider_df["Datum"] = pd.to_datetime(
+                        insider_df["Datum"], errors="coerce"
+                    ).dt.strftime("%d.%m.%Y")
         except Exception:
             pass
 
+        # ── 3. Institutionelle Halter ──
         institutional_df = None
         try:
             inst = tk.institutional_holders
             if inst is not None and not inst.empty:
-                institutional_df = inst.head(5)
+                inst_display = inst.head(10).copy()
+                col_map = {
+                    "Holder": "Halter",
+                    "Shares": "Aktien",
+                    "Value": "Wert ($)",
+                    "pctHeld": "Anteil (%)",
+                    "pctChange": "Änderung (%)",
+                    "Date Reported": "Berichtsdatum",
+                }
+                inst_display = inst_display.rename(
+                    columns={k: v for k, v in col_map.items() if k in inst_display.columns}
+                )
+                # Prozente formatieren
+                if "Anteil (%)" in inst_display.columns:
+                    inst_display["Anteil (%)"] = (
+                        inst_display["Anteil (%)"].apply(
+                            lambda x: f"{x * 100:.2f}%" if pd.notna(x) else "—"
+                        )
+                    )
+                if "Änderung (%)" in inst_display.columns:
+                    inst_display["Änderung (%)"] = (
+                        inst_display["Änderung (%)"].apply(
+                            lambda x: f"{x * 100:+.2f}%" if pd.notna(x) else "—"
+                        )
+                    )
+                if "Berichtsdatum" in inst_display.columns:
+                    inst_display["Berichtsdatum"] = pd.to_datetime(
+                        inst_display["Berichtsdatum"], errors="coerce"
+                    ).dt.strftime("%d.%m.%Y")
+
+                institutional_df = inst_display
         except Exception:
             pass
 
-        net_buys, net_sells = 0, 0
-        if insider_df is not None and not insider_df.empty:
-            for _, row in insider_df.iterrows():
-                transaction = str(row.get("Transaction", "") or row.get("Text", "")).lower()
-                if "purchase" in transaction or "buy" in transaction or "acquisition" in transaction:
-                    net_buys += 1
-                elif "sale" in transaction or "sell" in transaction:
-                    net_sells += 1
+        # ── 4. Holdings-Anteile aus info ──
+        insider_pct = info.get("heldPercentInsiders")
+        institutional_pct = info.get("heldPercentInstitutions")
 
         return {
             "insider_df": insider_df,
             "institutional_df": institutional_df,
-            "net_buys": net_buys,
-            "net_sells": net_sells,
+            # Aggregierte Kauf/Verkauf-Statistik (aus insider_purchases)
+            "purchases_count": purchases_count,
+            "sales_count": sales_count,
+            "purchases_shares": purchases_shares,
+            "sales_shares": sales_shares,
+            "net_shares": net_shares,
+            # Holdings-Überblick
+            "insider_pct": round(insider_pct * 100, 2) if insider_pct else None,
+            "institutional_pct": round(institutional_pct * 100, 2) if institutional_pct else None,
+            # Flags
+            "has_summary": has_summary,
             "has_insider_data": insider_df is not None and not insider_df.empty,
             "has_institutional_data": institutional_df is not None and not institutional_df.empty,
         }

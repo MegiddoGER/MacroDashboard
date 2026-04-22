@@ -82,20 +82,55 @@ def render_fundamentals(details: dict, ticker: str, display_ticker: str):
         tab_insider, tab_inst = st.tabs(["🔑 Insider-Transaktionen", "🏛️ Top Institutionelle"])
 
         with tab_insider:
-            if insider['has_insider_data']:
-                st.dataframe(insider['insider_df'], use_container_width=True, hide_index=True)
-                ic1, ic2 = st.columns(2)
-                ic1.metric("Insider Käufe", insider['net_buys'])
-                ic2.metric("Insider Verkäufe", insider['net_sells'])
-                if insider['net_buys'] > insider['net_sells']:
-                    st.success("✅ Netto-Käufe: Insider kaufen mehr als sie verkaufen — bullisches Signal.")
-                elif insider['net_sells'] > insider['net_buys']:
-                    st.warning("⚠️ Netto-Verkäufe: Insider verkaufen mehr. Kann verschiedene Gründe haben (Steuerplanung, Diversifikation).")
+            # ── Aggregierte Statistik (letzte 6 Monate) ──
+            if insider['has_summary']:
+                st.caption("📊 Aggregierte Insider-Aktivität der letzten 6 Monate (SEC-Meldungen)")
+                ic1, ic2, ic3, ic4 = st.columns(4)
+                ic1.metric("Käufe (Transaktionen)", insider['purchases_count'])
+                ic2.metric("Verkäufe (Transaktionen)", insider['sales_count'])
+
+                # Net Shares mit Delta-Farbcodierung
+                net_s = insider['net_shares']
+                if net_s > 0:
+                    ic3.metric("Netto-Aktien", f"{net_s:,}".replace(",", "."),
+                               delta=f"+{net_s:,}".replace(",", "."), delta_color="normal")
+                elif net_s < 0:
+                    ic3.metric("Netto-Aktien", f"{net_s:,}".replace(",", "."),
+                               delta=f"{net_s:,}".replace(",", "."), delta_color="inverse")
+                else:
+                    ic3.metric("Netto-Aktien", "0")
+
+                if insider['insider_pct']:
+                    ic4.metric("Insider-Anteil", f"{insider['insider_pct']:.2f} %",
+                               help="Prozent aller ausstehenden Aktien im Besitz von Insidern.")
+                else:
+                    ic4.metric("Insider-Anteil", "—")
+
+                # Signal-Interpretation
+                if insider['purchases_count'] > insider['sales_count'] and net_s > 0:
+                    st.success("✅ **Netto-Käufe:** Insider kaufen mehr als sie verkaufen — bullisches Vertrauenssignal.")
+                elif insider['sales_count'] > insider['purchases_count'] and net_s < 0:
+                    st.warning("⚠️ **Netto-Verkäufe:** Insider verkaufen mehr. "
+                               "Kann verschiedene Gründe haben (Steuerplanung, Diversifikation, Vesting-Verkäufe).")
+                else:
+                    st.info("ℹ️ **Ausgeglichen:** Keine eindeutige Tendenz bei den Insider-Transaktionen.")
             else:
-                st.info("ℹ️ Keine Insider-Transaktionen verfügbar (nur für US-Aktien via SEC-Filings).")
+                if insider['insider_pct']:
+                    st.metric("Insider-Anteil", f"{insider['insider_pct']:.2f} %")
+                st.info("ℹ️ Keine aggregierten Insider-Statistiken verfügbar (nur für US-Aktien via SEC-Filings).")
+
+            # ── Detail-Tabelle der letzten Transaktionen ──
+            if insider['has_insider_data']:
+                with st.expander("📋 Letzte Insider-Transaktionen (Detail)", expanded=False):
+                    st.dataframe(insider['insider_df'], use_container_width=True, hide_index=True)
+            else:
+                st.caption("Keine Detail-Transaktionen verfügbar.")
 
         with tab_inst:
             if insider['has_institutional_data']:
+                if insider['institutional_pct']:
+                    st.metric("Institutioneller Anteil", f"{insider['institutional_pct']:.1f} %",
+                              help="Prozent aller ausstehenden Aktien im Besitz institutioneller Investoren (Fonds, ETFs, etc.).")
                 st.dataframe(insider['institutional_df'], use_container_width=True, hide_index=True)
             else:
                 st.info("ℹ️ Keine institutionellen Daten verfügbar.")

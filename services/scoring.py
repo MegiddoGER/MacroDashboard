@@ -417,25 +417,28 @@ def _score_fundamental(info, ticker, result: ScoreResult):
 
         # Insider-Sentiment
         insider = get_insider_institutional(ticker)
-        if insider and insider.get('has_insider_data'):
+        if insider and insider.get('has_summary'):
+            buys = insider['purchases_count']
+            sells = insider['sales_count']
+            net_s = insider['net_shares']
             result.cat_max["fundamental"] += 1
-            if insider['net_buys'] > insider['net_sells'] and insider['net_buys'] >= 2:
+            if buys > sells and net_s > 0 and buys >= 2:
                 result.cat_scores["fundamental"] += 1
                 result.checklist.append({"Indikator": "Insider-Sentiment",
-                    "Wert": f"{insider['net_buys']} Käufe / {insider['net_sells']} Verkäufe",
+                    "Wert": f"{buys} Käufe / {sells} Verkäufe (Netto: {net_s:+,} Aktien)".replace(",", "."),
                     "Signal": "Netto-Käufe ↑", "Beitrag": "+1"})
                 result.fundamental_text_parts.append(
                     "Insider kaufen aktiv eigene Aktien — ein starkes Vertrauenssignal des Managements.")
-            elif insider['net_sells'] > insider['net_buys'] + 2:
+            elif sells > buys + 2 and net_s < 0:
                 result.cat_scores["fundamental"] -= 1
                 result.checklist.append({"Indikator": "Insider-Sentiment",
-                    "Wert": f"{insider['net_buys']} Käufe / {insider['net_sells']} Verkäufe",
+                    "Wert": f"{buys} Käufe / {sells} Verkäufe (Netto: {net_s:+,} Aktien)".replace(",", "."),
                     "Signal": "Netto-Verkäufe ↓", "Beitrag": "-1"})
                 result.fundamental_text_parts.append(
                     "Auffällig viele Insider-Verkäufe — das Management scheint Gewinne zu sichern.")
             else:
                 result.checklist.append({"Indikator": "Insider-Sentiment",
-                    "Wert": f"{insider['net_buys']} K / {insider['net_sells']} V",
+                    "Wert": f"{buys} K / {sells} V",
                     "Signal": "Neutral ≈", "Beitrag": "0"})
 
         # Analysten-Konsens
