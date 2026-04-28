@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% block title %}Analyse — Macro Dashboard{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>🔬 Aktien-Analyse</h2>
+    <p class="caption">
+        Vollstaendige technische \u0026 fundamentale Analyse mit Scoring, Charts, SMC-Signalen und Handlungsempfehlung.
+    </p>
+</div>
+
+<!-- Ticker-Eingabe -->
+<div class="card" style="margin-bottom: var(--gap);">
+    <h5>🎯 Ticker auswaehlen</h5>
+    <form id="analysis-form"
+          hx-post="/analysis/load"
+          hx-target="#analysis-content"
+          hx-swap="innerHTML"
+          hx-indicator="#analysis-spinner"
+          style="margin-top: 12px;">
+
+        <div class="grid-2" style="gap: 12px; margin-bottom: 12px;">
+            <!-- Watchlist Dropdown -->
+            <div>
+                <label class="form-label">Watchlist</label>
+                <select class="form-input" id="wl-select"
+                        onchange="if(this.value){document.getElementById('ticker-input').value=this.value;}">
+                    <option value="">— Manuell eingeben —</option>
+                    {% for item in watchlist_items %}
+                    <option value="{{ item.ticker }}">
+                        {{ item.get('display', item.ticker) }} · {{ item.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Manual Input -->
+            <div>
+                <label class="form-label">Ticker oder Firmenname</label>
+                <input type="text" name="ticker_input" id="ticker-input"
+                       class="form-input" placeholder="z.B. AAPL, SAP, NVIDIA"
+                       autocomplete="off">
+            </div>
+        </div>
+
+        <!-- Time Filter -->
+        <div style="margin-bottom: 12px;">
+            <label class="form-label">Zeitraum</label>
+            <div class="btn-group">
+                {% for tf in ["1 Tag", "1 Woche", "1 Monat", "YTD", "1 Jahr", "5 Jahre", "Gesamt"] %}
+                <label class="btn btn-outline {{ 'active' if tf == '1 Jahr' else '' }}">
+                    <input type="radio" name="time_filter" value="{{ tf }}"
+                           {{ 'checked' if tf == '1 Jahr' else '' }}
+                           onchange="this.closest('.btn-group').querySelectorAll('label').forEach(l=>l.classList.remove('active'));this.parentElement.classList.add('active');">
+                    {{ tf }}
+                </label>
+                {% endfor %}
+            </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary" style="width: 100%;">
+            🚀 Analyse starten
+        </button>
+
+        <!-- Spinner -->
+        <div id="analysis-spinner" class="htmx-indicator"
+             style="text-align: center; padding: 24px; display: none;">
+            <div class="spinner"></div>
+            <p class="caption" style="margin-top: 12px;">Lade Analyse... Daten werden von mehreren Quellen aggregiert.</p>
+        </div>
+    </form>
+</div>
+
+<hr>
+
+<!-- Analyse-Content (wird via HTMX befuellt) -->
+<div id="analysis-content">
+    <div class="card" style="text-align: center; padding: 48px;">
+        <div style="font-size: 3rem; margin-bottom: 12px;">🔬</div>
+        <p>Waehle einen Ticker und klicke <strong>Analyse starten</strong>.</p>
+    </div>
+</div>
+
+<style>
+    .btn-group {
+        display: inline-flex; gap: 0; border-radius: var(--radius); overflow: hidden;
+    }
+    .btn-group label {
+        border-radius: 0; border: 1px solid var(--border); margin: 0;
+        padding: 6px 14px; cursor: pointer; transition: all 0.2s; font-size: 0.85rem;
+    }
+    .btn-group label:first-child { border-radius: var(--radius) 0 0 var(--radius); }
+    .btn-group label:last-child { border-radius: 0 var(--radius) var(--radius) 0; }
+    .btn-group label.active {
+        background: var(--accent); color: var(--bg-primary); border-color: var(--accent);
+    }
+    .btn-group input[type="radio"] { display: none; }
+    .htmx-indicator { display: none; }
+    .htmx-request .htmx-indicator, .htmx-request.htmx-indicator { display: block; }
+    .spinner {
+        width: 32px; height: 32px; border: 3px solid var(--border);
+        border-top-color: var(--accent); border-radius: 50%;
+        animation: spin 0.8s linear infinite; margin: 0 auto;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+{% endblock %}

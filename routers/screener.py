@@ -9,9 +9,14 @@ from fastapi import APIRouter, Request, Form
 from fastapi.responses import HTMLResponse
 
 from services.screener import PRESETS, scan_sp500, scan_dax_mdax
-from main import get_header_metrics
 
 router = APIRouter(tags=["pages"])
+
+
+def _get_header_metrics():
+    """Lazy import to break circular dependency with main.py."""
+    from main import get_header_metrics
+    return get_header_metrics()
 
 
 # ---------------------------------------------------------------------------
@@ -78,7 +83,7 @@ async def screener_page(request: Request):
     ctx = {
         "request": request,
         "current_path": "/screener",
-        "header_metrics": get_header_metrics(),
+        "header_metrics": _get_header_metrics(),
         "presets": PRESETS,
         "sectors": sectors,
     }
