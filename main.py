@@ -105,10 +105,12 @@ async def inject_common_context(request: Request, call_next):
 from routers.api import router as api_router
 from routers.home import router as home_router
 from routers.screener import router as screener_router
+from routers.analysis import router as analysis_router
 
 app.include_router(api_router)
 app.include_router(home_router)
 app.include_router(screener_router)
+app.include_router(analysis_router)
 
 
 # ---------------------------------------------------------------------------
@@ -117,7 +119,6 @@ app.include_router(screener_router)
 
 _PLACEHOLDER_PAGES = {
     "/economy": "Gesamtwirtschaft",
-    "/analysis": "Analyse",
     "/backtesting": "Backtesting",
     "/watchlist": "Watchlist",
     "/journal": "Trade-Journal",

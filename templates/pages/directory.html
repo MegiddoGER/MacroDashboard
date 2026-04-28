@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Aktien-Verzeichnis — Macro Dashboard{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h2>📋 Aktien-Verzeichnis</h2>
+  <p class="caption">Alle handelbaren Aktien — NYSE, NASDAQ, AMEX (Quelle: NASDAQ Screener)</p>
+</div>
+
+<div class="card" style="margin-bottom:var(--gap);">
+  <form method="get" action="/directory" style="display:flex;gap:12px;flex-wrap:wrap;align-items:end;">
+    <div style="flex:2;min-width:200px;">
+      <label class="form-label">🔍 Suche</label>
+      <input type="text" name="q" class="form-input" value="{{ search }}" placeholder="z.B. AAPL, Microsoft">
+    </div>
+    <div style="flex:1;min-width:140px;">
+      <label class="form-label">Börse</label>
+      <select name="exchange" class="form-input">
+        {% for ex in exchanges %}
+        <option value="{{ ex }}" {{ 'selected' if ex == selected_exchange else '' }}>{{ ex }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <button type="submit" class="btn btn-primary">Filtern</button>
+  </form>
+
+  <div style="margin-top:12px;display:flex;gap:4px;flex-wrap:wrap;">
+    {% set alphabet = ["Alle","A","B","C","D","E","F","G","H","I","J","K","L","M","N","O","P","Q","R","S","T","U","V","W","X","Y","Z"] %}
+    {% for l in alphabet %}
+    <a href="/directory?letter={{ l }}&exchange={{ selected_exchange }}" class="btn btn-sm {{ 'btn-primary' if l == selected_letter else 'btn-secondary' }}" style="padding:4px 8px;font-size:0.75rem;">{{ l }}</a>
+    {% endfor %}
+  </div>
+</div>
+
+<p><strong>{{ total }}</strong> Aktien gefunden</p>
+
+{% if rows %}
+<div class="table-container">
+  <table class="data-table">
+    <thead><tr><th>Kürzel</th><th>Unternehmen</th><th>Börse</th></tr></thead>
+    <tbody>
+    {% for r in rows %}
+    <tr>
+      <td><a href="/analysis?ticker={{ r['Kürzel'] }}" style="color:var(--accent);">{{ r["Kürzel"] }}</a></td>
+      <td>{{ r["Name"] }}</td>
+      <td>{{ r.get("Börse","") }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% if total > 500 %}<p class="caption" style="margin-top:8px;">Zeige die ersten 500 von {{ total }} Ergebnissen.</p>{% endif %}
+{% else %}
+<div class="alert alert-info">Keine Aktien gefunden.</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,364 @@
+<!-- analysis_content.html — HTMX partial loaded by POST /analysis/load -->
+<div class="card" style="margin-bottom:var(--gap);">
+  <h3>{{ display_ticker }} — Analyse</h3>
+  <p class="caption">{{ stats.get('name','') }} · {{ stats.get('sector','') }} · {{ stats.get('industry','') }}</p>
+</div>
+
+<!-- ═══ Overview Metrics ═══ -->
+<div class="grid-4" style="gap:12px;margin-bottom:var(--gap);">
+  <div class="metric-card"><div class="metric-label">Aktueller Kurs</div><div class="metric-value">{{ fmt_price(stats.current_price) }}</div></div>
+  <div class="metric-card"><div class="metric-label">52W Hoch</div><div class="metric-value">{{ fmt_price(stats.high_52w) }}</div></div>
+  <div class="metric-card"><div class="metric-label">52W Tief</div><div class="metric-value">{{ fmt_price(stats.low_52w) }}</div></div>
+  <div class="metric-card"><div class="metric-label">Volatilität (ann.)</div><div class="metric-value">{{ "%.1f %%"|format(stats.volatility) if stats.volatility else "—" }}</div></div>
+</div>
+<div class="grid-4" style="gap:12px;margin-bottom:var(--gap);">
+  <div class="metric-card"><div class="metric-label">RSI (14)</div><div class="metric-value">{{ "%.1f"|format(rsi_val) if rsi_val else "—" }}</div></div>
+  <div class="metric-card"><div class="metric-label">SMA 20</div><div class="metric-value">{{ fmt_price(stats.sma_20) }}</div></div>
+  <div class="metric-card"><div class="metric-label">SMA 50</div><div class="metric-value">{{ fmt_price(stats.sma_50) }}</div></div>
+  <div class="metric-card"><div class="metric-label">SMA 200</div><div class="metric-value">{{ fmt_price(stats.sma_200) }}</div></div>
+</div>
+<div class="grid-4" style="gap:12px;margin-bottom:var(--gap);">
+  <div class="metric-card"><div class="metric-label">KGV (P/E)</div><div class="metric-value">{{ "%.1f"|format(stats.pe_ratio) if stats.pe_ratio else "—" }}</div></div>
+  <div class="metric-card"><div class="metric-label">Dividendenrendite</div><div class="metric-value">{{ "%.2f %%"|format(stats.dividend_yield*100) if stats.dividend_yield else "—" }}</div></div>
+  <div class="metric-card"><div class="metric-label">ATR (14)</div><div class="metric-value">{{ "%.2f"|format(atr_val) if atr_val else "—" }}</div></div>
+  <div class="metric-card"><div class="metric-label">Marktkapitalisierung</div><div class="metric-value">{{ fmt_big(stats.market_cap) if stats.market_cap else "—" }}</div></div>
+</div>
+
+{% if stats.get('currency_converted') %}
+<div class="alert alert-info">💱 Originalwährung: <b>{{ stats.get('currency','USD') }}</b> — Umrechnungskurs: 1 {{ stats.get('currency','USD') }} = {{ "%.4f"|format(stats.get('fx_rate',0)) }} EUR</div>
+{% endif %}
+
+<hr>
+
+<!-- ═══ TABS: Charts ═══ -->
+<div>
+  <div class="tabs">
+    <button class="tab active" data-tab="tab-candle">📊 Kurs</button>
+    <button class="tab" data-tab="tab-rsi">📉 RSI</button>
+    <button class="tab" data-tab="tab-macd">📀 MACD</button>
+    <button class="tab" data-tab="tab-boll">🌐 Bollinger</button>
+    <button class="tab" data-tab="tab-stoch">📈 Stochastic</button>
+    <button class="tab" data-tab="tab-returns">🎲 Renditen</button>
+    <button class="tab" data-tab="tab-5y">🗓️ 5 Jahre</button>
+  </div>
+
+  <div id="tab-candle" class="tab-content active">
+    {% if charts.candlestick != "null" %}
+    <div id="chart-candle" class="chart-container" style="height:500px;"></div>
+    {% else %}<div class="alert alert-info">Chart nicht verfügbar.</div>{% endif %}
+    <p class="caption">SMA 20 (gelb) · SMA 50 (blau) · SMA 200 (violett)</p>
+  </div>
+
+  <div id="tab-rsi" class="tab-content">
+    {% if charts.rsi != "null" %}
+    <div id="chart-rsi" class="chart-container" style="height:400px;"></div>
+    {% if rsi_val %}
+      {% if rsi_val > 70 %}<div class="alert alert-warning">RSI bei <b>{{ "%.1f"|format(rsi_val) }}</b> → Überkauft</div>
+      {% elif rsi_val < 30 %}<div class="alert alert-success">RSI bei <b>{{ "%.1f"|format(rsi_val) }}</b> → Überverkauft</div>
+      {% else %}<div class="alert alert-info">RSI bei <b>{{ "%.1f"|format(rsi_val) }}</b> → Neutral</div>{% endif %}
+    {% endif %}
+    {% else %}<div class="alert alert-info">RSI nicht verfügbar.</div>{% endif %}
+  </div>
+
+  <div id="tab-macd" class="tab-content">
+    {% if charts.macd != "null" %}
+    <div id="chart-macd" class="chart-container" style="height:400px;"></div>
+    {% if macd_bullish is not none %}
+      {% if macd_bullish %}<div class="alert alert-success">✅ MACD über Signal → Bullish</div>
+      {% else %}<div class="alert alert-warning">⚠️ MACD unter Signal → Bearish</div>{% endif %}
+    {% endif %}
+    {% else %}<div class="alert alert-info">MACD nicht verfügbar.</div>{% endif %}
+  </div>
+
+  <div id="tab-boll" class="tab-content">
+    {% if charts.bollinger != "null" %}
+    <div id="chart-boll" class="chart-container" style="height:400px;"></div>
+    {% if boll_signal == "overbought" %}<div class="alert alert-warning">Kurs am oberen Band → überkauft</div>
+    {% elif boll_signal == "oversold" %}<div class="alert alert-success">Kurs am unteren Band → überverkauft</div>
+    {% elif boll_signal %}<div class="alert alert-info">Kurs innerhalb der Bänder</div>{% endif %}
+    {% else %}<div class="alert alert-info">Bollinger nicht verfügbar.</div>{% endif %}
+  </div>
+
+  <div id="tab-stoch" class="tab-content">
+    {% if charts.stochastic != "null" %}
+    <div id="chart-stoch" class="chart-container" style="height:400px;"></div>
+    {% if last_k is not none %}
+      {% if last_k > 80 %}<div class="alert alert-warning">%K bei <b>{{ "%.0f"|format(last_k) }}</b> → Überkauft</div>
+      {% elif last_k < 20 %}<div class="alert alert-success">%K bei <b>{{ "%.0f"|format(last_k) }}</b> → Überverkauft</div>
+      {% else %}<div class="alert alert-info">%K bei <b>{{ "%.0f"|format(last_k) }}</b> → Neutral</div>{% endif %}
+    {% endif %}
+    {% else %}<div class="alert alert-info">Stochastic nicht verfügbar.</div>{% endif %}
+  </div>
+
+  <div id="tab-returns" class="tab-content">
+    {% if charts.returns != "null" %}
+    <div id="chart-returns" class="chart-container" style="height:400px;"></div>
+    {% if returns_stats %}
+    <div class="grid-4" style="gap:12px;margin-top:12px;">
+      <div class="metric-card"><div class="metric-label">Ø Tagesrendite</div><div class="metric-value">{{ returns_stats.avg }} %</div></div>
+      <div class="metric-card"><div class="metric-label">Max Gewinn</div><div class="metric-value">{{ returns_stats.max_gain }} %</div></div>
+      <div class="metric-card"><div class="metric-label">Max Verlust</div><div class="metric-value">{{ returns_stats.max_loss }} %</div></div>
+      <div class="metric-card"><div class="metric-label">Sharpe (ann.)</div><div class="metric-value">{{ returns_stats.sharpe }}</div></div>
+    </div>
+    {% endif %}
+    {% else %}<div class="alert alert-info">Rendite-Daten nicht verfügbar.</div>{% endif %}
+  </div>
+
+  <div id="tab-5y" class="tab-content">
+    {% if charts.hist5y != "null" %}
+    <div id="chart-5y" class="chart-container" style="height:400px;"></div>
+    {% else %}<div class="alert alert-info">5-Jahres-Daten nicht verfügbar.</div>{% endif %}
+  </div>
+</div>
+
+<hr>
+
+<!-- ═══ SMC / Swing / Order Flow ═══ -->
+<h4>🧲 Smart Money Concepts</h4>
+<div>
+  <div class="tabs">
+    <button class="tab active" data-tab="tab-liq">🔄 Liquidity</button>
+    <button class="tab" data-tab="tab-smc">🧲 SMC</button>
+    <button class="tab" data-tab="tab-swing">📈 Swing</button>
+    <button class="tab" data-tab="tab-flow">📊 Order Flow</button>
+  </div>
+
+  <div id="tab-liq" class="tab-content active">
+    {% if charts.liquidity != "null" and sweeps %}
+    <div id="chart-liq" class="chart-container" style="height:450px;"></div>
+    <div class="grid-3" style="gap:12px;margin-top:12px;">
+      <div class="metric-card"><div class="metric-label">Erkannte Sweeps</div><div class="metric-value">{{ sweeps|length }}</div></div>
+      <div class="metric-card"><div class="metric-label">🟢 Bullish</div><div class="metric-value">{{ sweeps|selectattr('type','equalto','bullish')|list|length }}</div></div>
+      <div class="metric-card"><div class="metric-label">🔴 Bearish</div><div class="metric-value">{{ sweeps|selectattr('type','equalto','bearish')|list|length }}</div></div>
+    </div>
+    {% else %}<div class="alert alert-info">Keine Liquidity Sweeps erkannt.</div>{% endif %}
+  </div>
+
+  <div id="tab-smc" class="tab-content">
+    {% if charts.smc != "null" and smc_data %}
+    <div id="chart-smc" class="chart-container" style="height:450px;"></div>
+    <div class="grid-4" style="gap:12px;margin-top:12px;">
+      <div class="metric-card"><div class="metric-label">Bullish FVGs</div><div class="metric-value">{{ smc_data.stats.get('unmitigated_bullish',0) }}</div></div>
+      <div class="metric-card"><div class="metric-label">Bearish FVGs</div><div class="metric-value">{{ smc_data.stats.get('unmitigated_bearish',0) }}</div></div>
+      <div class="metric-card"><div class="metric-label">Confluence</div><div class="metric-value">{{ smc_data.get('confluence_score',0) }}/{{ smc_data.get('confluence_max',5) }}</div></div>
+      <div class="metric-card"><div class="metric-label">HTF Trend</div><div class="metric-value">{{ smc_data.get('htf_trend','—') }}</div></div>
+    </div>
+    {% else %}<div class="alert alert-info">SMC-Analyse nicht verfügbar.</div>{% endif %}
+  </div>
+
+  <div id="tab-swing" class="tab-content">
+    {% if charts.swing != "null" and swing %}
+    <div id="chart-swing" class="chart-container" style="height:450px;"></div>
+    <div class="grid-3" style="gap:12px;margin-top:12px;">
+      <div class="metric-card"><div class="metric-label">ADX</div><div class="metric-value">{{ "%.1f"|format(swing.adx) if swing.adx else "—" }}</div><div class="metric-delta neutral">{{ swing.trend_strength }}</div></div>
+      <div class="metric-card"><div class="metric-label">SMA-Cross</div><div class="metric-value">{{ swing.cross_label }}</div></div>
+      <div class="metric-card"><div class="metric-label">Richtung</div><div class="metric-value">{{ swing.direction }}</div></div>
+    </div>
+    <div class="grid-5" style="gap:8px;margin-top:12px;">
+      <div class="metric-card"><div class="metric-label">S2</div><div class="metric-value">{{ "%.2f"|format(swing.s2) }}</div></div>
+      <div class="metric-card"><div class="metric-label">S1</div><div class="metric-value">{{ "%.2f"|format(swing.s1) }}</div></div>
+      <div class="metric-card"><div class="metric-label">Pivot</div><div class="metric-value">{{ "%.2f"|format(swing.pivot) }}</div></div>
+      <div class="metric-card"><div class="metric-label">R1</div><div class="metric-value">{{ "%.2f"|format(swing.r1) }}</div></div>
+      <div class="metric-card"><div class="metric-label">R2</div><div class="metric-value">{{ "%.2f"|format(swing.r2) }}</div></div>
+    </div>
+    {% else %}<div class="alert alert-info">Swing-Analyse nicht verfügbar.</div>{% endif %}
+  </div>
+
+  <div id="tab-flow" class="tab-content">
+    {% if charts.orderflow != "null" and flow %}
+    <div id="chart-flow" class="chart-container" style="height:450px;"></div>
+    <div class="grid-3" style="gap:12px;margin-top:12px;">
+      <div class="metric-card"><div class="metric-label">VWAP</div><div class="metric-value">{{ flow.vwap_signal|upper }}</div><div class="metric-delta neutral">{{ flow.vwap_desc }}</div></div>
+      <div class="metric-card"><div class="metric-label">OBV Trend</div><div class="metric-value">{{ flow.obv_signal|upper }}</div><div class="metric-delta neutral">{{ flow.obv_desc }}</div></div>
+      <div class="metric-card"><div class="metric-label">Point of Control</div><div class="metric-value">{{ fmt_price(flow.poc_price) }}</div></div>
+    </div>
+    {% else %}<div class="alert alert-info">Order-Flow nicht verfügbar.</div>{% endif %}
+  </div>
+</div>
+
+<hr>
+
+<!-- ═══ Financials ═══ -->
+{% if fin_data %}
+<h4>📄 Gemeldete Finanzzahlen</h4>
+{% if charts.financials != "null" %}
+<div id="chart-fin" class="chart-container" style="height:400px;"></div>
+{% endif %}
+<div class="table-container" style="margin-top:12px;">
+  <table class="data-table">
+    <thead><tr><th>Periode</th><th>Umsatz</th><th>EBITDA</th><th>Nettogewinn</th></tr></thead>
+    <tbody>
+    {% for item in fin_data %}
+    <tr>
+      <td><b>{{ item.year }}</b></td>
+      <td>{{ fmt_big(item.revenue) if item.revenue else "—" }}</td>
+      <td>{{ fmt_big(item.ebitda) if item.ebitda else "—" }}</td>
+      <td>{{ fmt_big(item.net_income) if item.net_income else "—" }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+<hr>
+{% endif %}
+
+<!-- ═══ Valuation: DCF, Bilanz, Margen ═══ -->
+<h4>💰 Innerer Wert (DCF)</h4>
+{% if dcf %}
+<div class="grid-4" style="gap:12px;margin-bottom:12px;">
+  <div class="metric-card"><div class="metric-label">Fair Value</div><div class="metric-value">{{ fmt_price(dcf.fair_value) }}</div></div>
+  <div class="metric-card"><div class="metric-label">Aktueller Kurs</div><div class="metric-value">{{ fmt_price(dcf.current_price) }}</div></div>
+  <div class="metric-card"><div class="metric-label">Upside</div><div class="metric-value {% if dcf.upside_pct > 0 %}positive{% else %}negative{% endif %}">{{ "%+.1f %%"|format(dcf.upside_pct) }}</div></div>
+  <div class="metric-card"><div class="metric-label">WACC</div><div class="metric-value">{{ "%.1f %%"|format(dcf.wacc) }}</div></div>
+</div>
+{% if dcf.margin_of_safety %}<div class="alert alert-success">✅ Margin of Safety vorhanden ({{ "%+.1f"|format(dcf.upside_pct) }}%)</div>
+{% elif dcf.upside_pct > 0 %}<div class="alert alert-info">Leichtes Upside ({{ "%+.1f"|format(dcf.upside_pct) }}%)</div>
+{% else %}<div class="alert alert-warning">⚠️ Überbewertet ({{ "%+.1f"|format(dcf.upside_pct) }}% vs. DCF)</div>{% endif %}
+{% else %}<div class="alert alert-info">DCF nicht berechenbar (fehlende Daten).</div>{% endif %}
+
+<h4>🏦 Bilanzqualität</h4>
+{% if balance %}
+<div class="grid-4" style="gap:12px;margin-bottom:12px;">
+  <div class="metric-card"><div class="metric-label">Debt/Equity</div><div class="metric-value">{{ "%.1f %%"|format(balance.debt_to_equity) if balance.debt_to_equity else "—" }}</div></div>
+  <div class="metric-card"><div class="metric-label">Current Ratio</div><div class="metric-value">{{ "%.2f"|format(balance.current_ratio) if balance.current_ratio else "—" }}</div></div>
+  <div class="metric-card"><div class="metric-label">Net Debt/EBITDA</div><div class="metric-value">{{ "%.1fx"|format(balance.net_debt_ebitda) if balance.net_debt_ebitda is not none else "—" }}</div></div>
+  <div class="metric-card"><div class="metric-label">Cash</div><div class="metric-value">{{ fmt_big(balance.total_cash) }}</div></div>
+</div>
+{% for w in balance.get('warnings',[]) %}<div class="alert alert-warning">⚠️ {{ w }}</div>{% endfor %}
+{% else %}<div class="alert alert-info">Bilanzdaten nicht verfügbar.</div>{% endif %}
+
+{% if margins_chart != "null" %}
+<h4>📈 Margen-Trends</h4>
+<div id="chart-margins" class="chart-container" style="height:350px;"></div>
+{% endif %}
+
+<hr>
+
+<!-- ═══ Fundamentals: Peers, Dividende, Insider, Analyst ═══ -->
+{% if peers_html %}
+<h4>🏭 Peer-Vergleich</h4>
+<div class="table-container">{{ peers_html|safe }}</div>
+<hr>
+{% endif %}
+
+{% if div_data and div_data.get('has_dividends') %}
+<h4>💎 Dividende</h4>
+<div class="grid-4" style="gap:12px;margin-bottom:12px;">
+  <div class="metric-card"><div class="metric-label">Rendite</div><div class="metric-value">{{ "%.2f %%"|format(div_data.current_yield) }}</div></div>
+  <div class="metric-card"><div class="metric-label">Payout Ratio</div><div class="metric-value">{{ "%.1f %%"|format(div_data.payout_ratio) }}</div></div>
+  <div class="metric-card"><div class="metric-label">CAGR</div><div class="metric-value">{{ "%.1f %%"|format(div_data.growth_rate) if div_data.growth_rate else "—" }}</div></div>
+  <div class="metric-card"><div class="metric-label">Streak</div><div class="metric-value">{{ div_data.streak }} J.</div></div>
+</div>
+{% if div_chart != "null" %}
+<div id="chart-div" class="chart-container" style="height:300px;"></div>
+{% endif %}
+<hr>
+{% endif %}
+
+{% if insider %}
+<h4>👔 Insider & Institutionelle</h4>
+{% if insider.has_summary %}
+<div class="grid-4" style="gap:12px;margin-bottom:12px;">
+  <div class="metric-card"><div class="metric-label">Käufe</div><div class="metric-value">{{ insider.purchases_count }}</div></div>
+  <div class="metric-card"><div class="metric-label">Verkäufe</div><div class="metric-value">{{ insider.sales_count }}</div></div>
+  <div class="metric-card"><div class="metric-label">Netto-Aktien</div><div class="metric-value">{{ "{:,}".format(insider.net_shares) }}</div></div>
+  <div class="metric-card"><div class="metric-label">Insider-Anteil</div><div class="metric-value">{{ "%.2f %%"|format(insider.insider_pct) if insider.insider_pct else "—" }}</div></div>
+</div>
+{% if insider.purchases_count > insider.sales_count and insider.net_shares > 0 %}
+<div class="alert alert-success">✅ Netto-Käufe: Insider kaufen mehr als sie verkaufen.</div>
+{% elif insider.sales_count > insider.purchases_count and insider.net_shares < 0 %}
+<div class="alert alert-warning">⚠️ Netto-Verkäufe durch Insider.</div>
+{% endif %}
+{% endif %}
+<hr>
+{% endif %}
+
+{% if analyst and analyst.get('target_mean') %}
+<h4>🎯 Analysten-Konsens</h4>
+<div class="grid-4" style="gap:12px;margin-bottom:12px;">
+  <div class="metric-card"><div class="metric-label">Kursziel</div><div class="metric-value">{{ fmt_price(analyst.target_mean) }}</div></div>
+  <div class="metric-card"><div class="metric-label">Spanne</div><div class="metric-value">{{ fmt_price(analyst.target_low) }} — {{ fmt_price(analyst.target_high) }}</div></div>
+  <div class="metric-card"><div class="metric-label">Potenzial</div><div class="metric-value">{{ "%+.1f %%"|format(analyst.upside_pct) if analyst.upside_pct else "—" }}</div></div>
+  <div class="metric-card"><div class="metric-label">Empfehlung</div><div class="metric-value">{{ analyst.recommendation }}</div></div>
+</div>
+{% if analyst.num_analysts %}<p class="caption">Basierend auf {{ analyst.num_analysts }} Analysten.</p>{% endif %}
+<hr>
+{% endif %}
+
+<!-- ═══ Summary / Scoring ═══ -->
+{% if sum_data %}
+<h4>📝 Zusammenfassung</h4>
+{% set confidence = sum_data.get('confidence', 50) %}
+{% if confidence >= 60 %}{% set conf_color = "#22c55e" %}
+{% elif confidence >= 45 %}{% set conf_color = "#eab308" %}
+{% else %}{% set conf_color = "#ef4444" %}{% endif %}
+
+<div class="card" style="margin-bottom:12px;">
+  <div style="display:flex;align-items:center;gap:24px;">
+    <div style="text-align:center;min-width:80px;">
+      <span style="font-size:2.5rem;font-weight:bold;color:{{ conf_color }};">{{ "%.0f"|format(confidence) }}</span><br>
+      <span class="caption">/ 100</span>
+    </div>
+    <div>
+      <h5 style="margin:0;">{{ sum_data.score_label }}</h5>
+      <p class="caption">{{ sum_data.get('confidence_label','') }}</p>
+    </div>
+  </div>
+</div>
+
+{% if confidence >= 70 %}<div class="alert alert-success">🟢 <b>KAUFEN</b> | {{ "%.0f"|format(confidence) }}/100</div>
+{% elif confidence >= 55 %}<div class="alert alert-warning">🟡 <b>HALTEN</b> | {{ "%.0f"|format(confidence) }}/100</div>
+{% elif confidence >= 40 %}<div class="alert alert-info">➖ <b>NEUTRAL</b> | {{ "%.0f"|format(confidence) }}/100</div>
+{% else %}<div class="alert alert-danger">🔴 <b>NICHT KAUFEN</b> | {{ "%.0f"|format(confidence) }}/100</div>{% endif %}
+
+{% if sum_data.get('macro') %}
+<div class="card" style="margin-top:12px;">
+  <h5>📌 Synthese</h5>
+  <ul style="margin:8px 0;padding-left:20px;">
+    <li>📊 <b>Trend:</b> {{ sum_data.macro }}</li>
+    <li>⚡ <b>Momentum:</b> {{ sum_data.micro }}</li>
+    <li>💡 <b>Handlung:</b> {{ sum_data.actionable }}</li>
+  </ul>
+</div>
+{% endif %}
+{% endif %}
+
+<!-- ═══ News ═══ -->
+{% if company_news %}
+<hr>
+<h4>📰 Nachrichten</h4>
+{% for news in company_news[:8] %}
+<div class="card" style="margin-bottom:8px;padding:10px 14px;">
+  <a href="{{ news.get('link','#') }}" target="_blank" rel="noopener" style="color:var(--accent);font-weight:500;font-size:0.9rem;">{{ news.get('title','') }}</a>
+  <p class="caption" style="margin-top:4px;">{{ news.get('publisher','') }} · {{ news.get('date','') }}</p>
+</div>
+{% endfor %}
+{% endif %}
+
+<!-- ═══ Plotly Rendering ═══ -->
+<script>
+(function(){
+  const charts = {
+    'chart-candle': {{ charts.candlestick|safe }},
+    'chart-rsi': {{ charts.rsi|safe }},
+    'chart-macd': {{ charts.macd|safe }},
+    'chart-boll': {{ charts.bollinger|safe }},
+    'chart-stoch': {{ charts.stochastic|safe }},
+    'chart-returns': {{ charts.returns|safe }},
+    'chart-5y': {{ charts.hist5y|safe }},
+    'chart-liq': {{ charts.liquidity|safe }},
+    'chart-smc': {{ charts.smc|safe }},
+    'chart-swing': {{ charts.swing|safe }},
+    'chart-flow': {{ charts.orderflow|safe }},
+    'chart-fin': {{ charts.financials|safe }},
+    'chart-margins': {{ margins_chart|safe }},
+    'chart-div': {{ div_chart|safe }},
+  };
+  for (const [id, fig] of Object.entries(charts)) {
+    const el = document.getElementById(id);
+    if (el && fig) {
+      Plotly.newPlot(el, fig.data, Object.assign({}, PLOTLY_LAYOUT, fig.layout || {}), {displayModeBar:true, scrollZoom:true, responsive:true});
+    }
+  }
+})();
+</script>
