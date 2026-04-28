@@ -22,7 +22,7 @@ async def sectors_page(
 ):
     templates = request.app.state.templates
     from services.cache_core import cached_sectors
-    from views.components.charts import plot_sector_heatmap
+    from charts import plot_sector_heatmap
 
     period_labels = {
         "1d": "1 Tag", "1w": "1 Woche", "1m": "1 Monat",

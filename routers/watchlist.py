@@ -25,7 +25,7 @@ async def watchlist_page(request: Request):
         get_open_positions, get_closed_positions,
         calc_position_pnl, calc_portfolio_summary,
     )
-    from services.cache import cached_multi
+    from services.cache_core import cached_multi
 
     wl_items = load_watchlist()
     display_map = get_display_map()

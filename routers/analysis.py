@@ -159,7 +159,7 @@ async def analysis_load(
     charts = {}
 
     # 1. Candlestick
-    from views.components.charts import (
+    from charts import (
         plot_candlestick, plot_rsi, plot_macd as plot_macd_chart,
         plot_bollinger as plot_boll_chart, plot_stochastic as plot_stoch_chart,
         plot_returns_distribution, plot_timeseries,
@@ -472,8 +472,8 @@ async def analysis_load(
     # === Quant (sector-specific) ===
     quant_data = {}
     try:
-        from views.sections.analysis_valuation import _determine_sector_category
-        sector_cat, tab_name = _determine_sector_category(stats, details)
+        from services.valuation import determine_sector_category
+        sector_cat, tab_name = determine_sector_category(stats, details)
         quant_data["sector_cat"] = sector_cat
         quant_data["tab_name"] = tab_name
 

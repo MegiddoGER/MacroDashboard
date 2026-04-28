@@ -120,7 +120,7 @@ async def backtesting_run(
     slippage: float = Form(0.1),
 ):
     templates = request.app.state.templates
-    from services.cache import cached_stock_history
+    from services.cache_core import cached_stock_history
     from services.watchlist import resolve_ticker
     from services.backtesting import BacktestEngine
     import plotly.graph_objects as go

@@ -21,7 +21,7 @@ async def economy_page(request: Request):
         cached_history, cached_yield_spread, cached_inflation,
         cached_regional_news, cached_upcoming_events, cached_calendar_summary,
     )
-    from views.components.charts import plot_timeseries, plot_yield_spread, plot_inflation
+    from charts import plot_timeseries, plot_yield_spread, plot_inflation
 
     # Calendar
     summary = cached_calendar_summary()

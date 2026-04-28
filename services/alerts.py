@@ -8,7 +8,7 @@ from datetime import datetime
 import pandas as pd
 
 from models.alerts import AlertStore, AlertConfig
-from services.cache import cached_stock_details
+from services.cache_core import cached_stock_details
 
 
 def _get_current_metrics(ticker: str) -> dict:
