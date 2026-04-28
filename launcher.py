@@ -95,14 +95,12 @@ def open_browser():
 
 
 def main():
-    # 1. Streamlit-Server im Hintergrund starten
-    streamlit_proc = subprocess.Popen(
+    # 1. FastAPI/Uvicorn-Server im Hintergrund starten
+    server_proc = subprocess.Popen(
         [
-            sys.executable, "-m", "streamlit", "run", "app.py",
-            "--server.headless", "true",
-            "--server.port", str(PORT),
-            "--server.address", "127.0.0.1",
-            "--browser.gatherUsageStats", "false",
+            sys.executable, "-m", "uvicorn", "main:app",
+            "--host", "127.0.0.1",
+            "--port", str(PORT),
         ],
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
@@ -110,18 +108,18 @@ def main():
     )
 
     # 2. Warten bis der HTTP-Server wirklich antwortet (max 45 Sek.)
-    print("⏳ Starte Streamlit-Server …")
+    print("⏳ Starte FastAPI-Server …")
     for i in range(90):
         if _server_ready(URL):
             break
         # Prüfen ob der Prozess abgestürzt ist
-        if streamlit_proc.poll() is not None:
-            print("❌ Streamlit-Prozess unerwartet beendet.")
+        if server_proc.poll() is not None:
+            print("❌ Server-Prozess unerwartet beendet.")
             sys.exit(1)
         time.sleep(0.5)
     else:
-        print("❌ Streamlit-Server antwortet nicht. Timeout.")
-        streamlit_proc.terminate()
+        print("❌ Server antwortet nicht. Timeout.")
+        server_proc.terminate()
         sys.exit(1)
 
     time.sleep(1.0)
@@ -144,11 +142,10 @@ def main():
 
     icon = pystray.Icon("MacroDashboard", create_icon_image(), "Macro Dashboard", menu)
 
-    # 5. Monitor Thread: Überwacht ob der Streamlit Server stirbt (z.B. durch Quit-Button)
+    # 5. Monitor Thread: Überwacht ob der Server stirbt
     def monitor_process():
         while True:
-            # Falls Streamlit beendet wurde (durch Sidebar Quit Button) -> Icon auch beenden
-            if streamlit_proc.poll() is not None:
+            if server_proc.poll() is not None:
                 icon.stop()
                 break
             time.sleep(1)
@@ -164,12 +161,12 @@ def main():
 
     # 7. Aufräumen nachdem icon.stop() gerufen wurde
     print("🛑 Beende Server …")
-    if streamlit_proc.poll() is None:
-        streamlit_proc.terminate()
+    if server_proc.poll() is None:
+        server_proc.terminate()
         try:
-            streamlit_proc.wait(timeout=5)
+            server_proc.wait(timeout=5)
         except subprocess.TimeoutExpired:
-            streamlit_proc.kill()
+            server_proc.kill()
             
     # Browser-Fenster schließen
     for bproc in browser_procs:
