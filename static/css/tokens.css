@@ -1,0 +1,78 @@
+/*
+ * tokens.css — Zentrale Design-Tokens (portiert aus styles/theme.py).
+ *
+ * Alle Farben, Fonts, Abstände und Transitions als CSS Custom Properties.
+ * Änderungen hier wirken sich auf das gesamte Dashboard aus.
+ */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+    /* ── Hintergrund ────────────────────────────────────────── */
+    --bg-app-start:       #0a0f1a;
+    --bg-app-mid:         #0f172a;
+    --bg-app-end:         #111827;
+    --bg-card:            rgba(15, 23, 42, 0.55);
+    --bg-sidebar:         rgba(10, 15, 26, 0.95);
+    --bg-sidebar-solid:   rgba(10, 15, 26, 1);
+
+    /* ── Bordüren ──────────────────────────────────────────── */
+    --border:             rgba(148, 163, 184, 0.10);
+    --border-subtle:      rgba(148, 163, 184, 0.15);
+
+    /* ── Text ──────────────────────────────────────────────── */
+    --text:               #e2e8f0;
+    --text-secondary:     #cbd5e1;
+    --text-dim:           #94a3b8;
+    --text-muted:         #64748b;
+
+    /* ── Akzent ────────────────────────────────────────────── */
+    --accent:             #00d4aa;
+    --accent-glow:        rgba(0, 212, 170, 0.6);
+    --accent-hover:       #00ffcc;
+
+    /* ── Status ────────────────────────────────────────────── */
+    --green:              #22c55e;
+    --red:                #ef4444;
+    --yellow:             #eab308;
+    --blue:               #3b82f6;
+    --purple:             #a855f7;
+    --sky:                #87CEEB;
+
+    /* ── Semantisch ────────────────────────────────────────── */
+    --danger:             #e11d48;
+    --danger-hover:       #be123c;
+    --success:            #22c55e;
+
+    /* ── Typography ────────────────────────────────────────── */
+    --font-family:        'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-weight-regular: 400;
+    --font-weight-medium:  500;
+    --font-weight-semibold: 600;
+    --font-weight-bold:    700;
+
+    /* ── Spacing & Radien ──────────────────────────────────── */
+    --radius-sm:          8px;
+    --radius-md:          10px;
+    --radius-lg:          12px;
+    --padding-card:       14px 18px;
+    --padding-nav:        12px 16px;
+    --sidebar-width:      260px;
+
+    /* ── Transitions ───────────────────────────────────────── */
+    --transition-fast:    all 0.2s ease;
+    --transition-normal:  all 0.3s ease;
+    --transition-slow:    all 0.4s ease;
+
+    /* ── Nav Glow Colors ───────────────────────────────────── */
+    --nav-1:  #3b82f6;   /* Startseite — Blau */
+    --nav-2:  #10b981;   /* Gesamtwirtschaft — Grün */
+    --nav-3:  #f59e0b;   /* Watchlist — Amber */
+    --nav-4:  #a855f7;   /* Screener — Violett */
+    --nav-5:  #ec4899;   /* Analyse — Pink */
+    --nav-6:  #f97316;   /* Backtesting — Orange */
+    --nav-7:  #eab308;   /* Trade-Journal — Gelb */
+    --nav-8:  #14b8a6;   /* Sektoren — Teal */
+    --nav-9:  #06b6d4;   /* Analyse-Lexikon — Cyan */
+    --nav-10: #94a3b8;   /* Aktien-Verzeichnis — Grau */
+}

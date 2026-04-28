@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="google" content="notranslate">
+    <meta http-equiv="content-language" content="de">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Macro Dashboard{% endblock %}</title>
+
+    <!-- CSS -->
+    <link rel="stylesheet" href="/static/css/tokens.css">
+    <link rel="stylesheet" href="/static/css/layout.css">
+    <link rel="stylesheet" href="/static/css/components.css">
+    <link rel="stylesheet" href="/static/css/sidebar.css">
+
+    <!-- HTMX -->
+    <script src="https://unpkg.com/htmx.org@2.0.4"
+            integrity="sha384-HGfztofotfshcF7+8n44JQL2oJmowVChPTg48S+jvZoztPfvwD79OC/LTtG6dMp+"
+            crossorigin="anonymous"></script>
+
+    <!-- Plotly -->
+    <script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
+</head>
+<body>
+    <div class="app-shell">
+        <!-- ═══ Sidebar ═══ -->
+        <aside class="sidebar" id="sidebar">
+            {% include "partials/sidebar.html" %}
+        </aside>
+
+        <!-- ═══ Main Content ═══ -->
+        <main class="main-content" id="main-content">
+            <!-- Top Metrics Header -->
+            <div id="top-metrics"
+                 hx-get="/api/header"
+                 hx-trigger="every 300s"
+                 hx-swap="innerHTML">
+                {% include "partials/header.html" %}
+            </div>
+
+            <hr>
+
+            <!-- Page Content -->
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toast-container"></div>
+
+    <!-- Global JS -->
+    <script>
+        // ── Tab Switching ──
+        document.addEventListener('click', function(e) {
+            const tab = e.target.closest('.tab');
+            if (!tab) return;
+            const tabGroup = tab.closest('.tabs');
+            const contentId = tab.dataset.tab;
+            if (!tabGroup || !contentId) return;
+
+            // Deactivate all tabs in group
+            tabGroup.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+
+            // Show corresponding content
+            const parent = tabGroup.parentElement;
+            parent.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            const target = parent.querySelector('#' + contentId);
+            if (target) target.classList.add('active');
+        });
+
+        // ── Expander Toggle ──
+        document.addEventListener('click', function(e) {
+            const header = e.target.closest('.expander-header');
+            if (!header) return;
+            header.closest('.expander').classList.toggle('open');
+        });
+
+        // ── Nav Category Toggle ──
+        document.addEventListener('click', function(e) {
+            const btn = e.target.closest('.nav-category-btn');
+            if (!btn) return;
+            btn.classList.toggle('expanded');
+            const pages = btn.nextElementSibling;
+            if (pages && pages.classList.contains('nav-pages')) {
+                pages.classList.toggle('expanded');
+            }
+        });
+
+        // ── Toast Utility ──
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = 'toast toast-' + type;
+            toast.textContent = message;
+            container.appendChild(toast);
+            setTimeout(() => toast.remove(), 4000);
+        }
+
+        // ── Plotly Dark Theme Defaults ──
+        const PLOTLY_LAYOUT = {
+            template: 'plotly_dark',
+            paper_bgcolor: 'rgba(0,0,0,0)',
+            plot_bgcolor: 'rgba(0,0,0,0)',
+            margin: {t: 50, b: 30, l: 10, r: 10},
+            font: {family: 'Inter, sans-serif', size: 12, color: '#cbd5e1'},
+            hovermode: 'x unified',
+            xaxis: {
+                gridcolor: 'rgba(148,163,184,0.06)',
+                zerolinecolor: 'rgba(148,163,184,0.1)',
+            },
+            yaxis: {
+                gridcolor: 'rgba(148,163,184,0.06)',
+                zerolinecolor: 'rgba(148,163,184,0.1)',
+            },
+            modebar: {
+                bgcolor: 'rgba(0,0,0,0)',
+                color: '#ffffff',
+                activecolor: '#00d4aa',
+            },
+        };
+
+        // Render a Plotly chart from JSON (used by HTMX responses)
+        function renderPlotly(elementId, figJson) {
+            const fig = JSON.parse(figJson);
+            Plotly.newPlot(elementId, fig.data, fig.layout, {displayModeBar: true, scrollZoom: true});
+        }
+    </script>
+</body>
+</html>

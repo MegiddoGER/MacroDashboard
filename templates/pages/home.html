@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+{% block title %}Cockpit — Macro Dashboard{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>🕹️ Cockpit</h2>
+    <p class="caption">Dein High-Win-Rate Handelszentrum. Alle Systeme online.</p>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     1. System-Status
+     ═══════════════════════════════════════════════════════════ -->
+<h4>⚡ System-Status</h4>
+
+<div class="grid-4">
+    <!-- Portfolio-Wert -->
+    <div class="metric-card">
+        <div class="metric-label">Portfolio-Wert</div>
+        <div class="metric-value">{{ "%.2f"|format(portfolio.total_value|default(0)) }} €</div>
+        <div class="metric-delta {{ 'positive' if portfolio.total_pnl_eur|default(0) >= 0 else 'negative' }}">
+            {{ "%+.2f"|format(portfolio.total_pnl_eur|default(0)) }} € Netto
+        </div>
+    </div>
+
+    <!-- Alerts -->
+    <div class="metric-card">
+        {% if unack_alerts %}
+        <div class="metric-label">Signal-Wachhunde</div>
+        <div class="metric-value" style="color: var(--red);">🚨 {{ unack_alerts|length }} Alarme!</div>
+        {% else %}
+        <div class="metric-label">Signal-Wachhunde</div>
+        <div class="metric-value">{{ active_alerts|length }} aktiv</div>
+        <div class="metric-delta neutral">Keine Auslösungen</div>
+        {% endif %}
+    </div>
+
+    <!-- Macro Event -->
+    <div class="metric-card">
+        <div class="metric-label">Nächstes Top-Event</div>
+        {% if upcoming_macro %}
+        <div class="metric-value">{{ upcoming_macro.name[:18] }}{{ '...' if upcoming_macro.name|length > 18 else '' }}</div>
+        <div class="metric-delta neutral">{{ upcoming_macro.countdown_label }}</div>
+        {% else %}
+        <div class="metric-value">Ruhig</div>
+        <div class="metric-delta neutral">Keine Events</div>
+        {% endif %}
+    </div>
+
+    <!-- Eigene Trefferquote -->
+    <div class="metric-card">
+        {% if j_stats and j_stats.total_closed|default(0) > 0 %}
+        <div class="metric-label">Eigene Trefferquote</div>
+        <div class="metric-value">{{ "%.1f"|format(j_stats.win_rate|default(0)) }} %</div>
+        <div class="metric-delta neutral">aus {{ j_stats.total_closed }} Trades</div>
+        {% else %}
+        <div class="metric-label">Trade-Journal</div>
+        <div class="metric-value">Inaktiv</div>
+        <div class="metric-delta neutral">Keine Historie</div>
+        {% endif %}
+    </div>
+</div>
+
+<hr>
+
+<!-- ═══════════════════════════════════════════════════════════
+     2. Markt-Metriken (Fear & Greed + AI Hit-Rate)
+     ═══════════════════════════════════════════════════════════ -->
+<h4>🌡️ Markt-Metriken</h4>
+
+<div class="grid-2">
+    <!-- Fear & Greed -->
+    <div class="card">
+        {% if fg_value is not none %}
+        <div id="fg-gauge" class="chart-container" style="height: 260px;"></div>
+        <script>
+            (function() {
+                var gaugeData = [{
+                    type: "indicator",
+                    mode: "gauge+number",
+                    value: {{ fg_value }},
+                    title: {text: "Fear & Greed — {{ fg_label }}", font: {size: 16, color: "#cbd5e1"}},
+                    number: {font: {size: 42, color: "#e2e8f0"}, suffix: " / 100"},
+                    gauge: {
+                        axis: {range: [0, 100], tickcolor: "#475569", tickfont: {color: "#64748b", size: 10}},
+                        bar: {color: "#f8fafc", thickness: 0.2},
+                        bgcolor: "rgba(0,0,0,0)", borderwidth: 0,
+                        steps: [
+                            {range: [0, 20], color: "#991b1b"},
+                            {range: [20, 40], color: "#c2410c"},
+                            {range: [40, 60], color: "#a16207"},
+                            {range: [60, 80], color: "#15803d"},
+                            {range: [80, 100], color: "#166534"},
+                        ],
+                        threshold: {line: {color: "#f8fafc", width: 2}, thickness: 0.75, value: {{ fg_value }}},
+                    },
+                }];
+                Plotly.newPlot('fg-gauge', gaugeData, {
+                    height: 260,
+                    paper_bgcolor: 'rgba(0,0,0,0)',
+                    plot_bgcolor: 'rgba(0,0,0,0)',
+                    font: {family: 'Inter, sans-serif'},
+                    margin: {t: 50, b: 30, l: 10, r: 10},
+                }, {displayModeBar: false});
+            })();
+        </script>
+        {% else %}
+        <div class="alert alert-info">Sentiment-Daten laden...</div>
+        {% endif %}
+    </div>
+
+    <!-- AI Hit-Rate -->
+    <div class="card">
+        {% if hit_rate and hit_rate.total|default(0) > 0 %}
+        <h5>🎯 Maschinelle Signal-Trefferquote</h5>
+        <p class="caption">Wie gut performt unser Confidence-Score aktuell (90T)?</p>
+        {% set evaluated = hit_rate.evaluated|default(0) %}
+        {% if evaluated >= 5 %}
+        <div class="grid-2" style="margin-top: 12px;">
+            <div class="metric-card">
+                <div class="metric-label">Trefferquote Gesamt</div>
+                <div class="metric-value">{{ "%.1f"|format(hit_rate.overall_hit_rate|default(0)) }}%</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Nur Kaufsignale</div>
+                <div class="metric-value">{{ "%.1f"|format(hit_rate.buy_hit_rate|default(0)) }}%</div>
+            </div>
+        </div>
+        <p class="caption" style="margin-top: 8px;">{{ evaluated }} verifizierte Signale (>7 Tage alt).</p>
+        {% else %}
+        <div class="alert alert-info">Sammle Daten: {{ evaluated }}/5 evaluierten Signalen.</div>
+        {% endif %}
+        {% else %}
+        <h5>🎯 Maschinelle Signal-Trefferquote</h5>
+        <div class="alert alert-info">Noch keine algorithmischen Signale gesammelt.</div>
+        {% endif %}
+    </div>
+</div>
+
+<hr>
+
+<!-- ═══════════════════════════════════════════════════════════
+     3. Watchlist Flow
+     ═══════════════════════════════════════════════════════════ -->
+<h5>📋 Watchlist Flow</h5>
+
+{% if watchlist_df is not none %}
+<div class="table-container">
+    <table class="data-table">
+        <thead>
+            <tr>
+                {% for col in watchlist_df.columns %}
+                <th>{{ col }}</th>
+                {% endfor %}
+            </tr>
+        </thead>
+        <tbody>
+            {% for _, row in watchlist_df.iterrows() %}
+            <tr>
+                {% for col in watchlist_df.columns %}
+                <td {% if col == 'Veränderung %' %}
+                    style="color: {{ '#22c55e' if row[col] is defined and row[col] > 0 else ('#ef4444' if row[col] is defined and row[col] < 0 else 'inherit') }}"
+                {% endif %}>
+                    {% if col == 'Kurs (€)' %}{{ "%.2f €"|format(row[col]) if row[col] is defined else '—' }}
+                    {% elif col == 'Veränderung %' %}{{ "%+.2f %%"|format(row[col]) if row[col] is defined else '—' }}
+                    {% elif col == 'RSI (14)' %}{{ "%.1f"|format(row[col]) if row[col] is defined else '—' }}
+                    {% else %}{{ row[col] if row[col] is defined else '—' }}
+                    {% endif %}
+                </td>
+                {% endfor %}
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="alert alert-info">Deine Watchlist ist leer. Gehe zu 'Analyse' um Ticker hinzuzufügen.</div>
+{% endif %}
+
+{% endblock %}

@@ -1,0 +1,98 @@
+<!-- partials/sidebar.html — Navigation + Watchlist -->
+
+<!-- Logo -->
+<div class="analyzer-logo">
+    <span class="logo-icon">📊</span> Analyzer
+    <span class="logo-sub">Macro Dashboard</span>
+</div>
+<hr>
+
+<!-- Navigation -->
+<nav>
+    {% set categories = [
+        {"id": "dashboard", "icon": "🏠", "label": "Dashboard",   "pages": [
+            {"name": "Startseite",       "url": "/"},
+            {"name": "Gesamtwirtschaft", "url": "/economy"},
+        ]},
+        {"id": "tools", "icon": "🔬", "label": "Tools",   "pages": [
+            {"name": "Analyse",     "url": "/analysis"},
+            {"name": "Screener",    "url": "/screener"},
+            {"name": "Backtesting", "url": "/backtesting"},
+        ]},
+        {"id": "portfolio", "icon": "📂", "label": "Portfolio",   "pages": [
+            {"name": "Watchlist",     "url": "/watchlist"},
+            {"name": "Trade-Journal", "url": "/journal"},
+        ]},
+        {"id": "resources", "icon": "📚", "label": "Ressourcen",   "pages": [
+            {"name": "Sektoren",          "url": "/sectors"},
+            {"name": "Analyse-Lexikon",   "url": "/lexicon"},
+            {"name": "Aktien-Verzeichnis","url": "/directory"},
+        ]},
+    ] %}
+
+    {% for cat in categories %}
+    <div class="nav-section">
+        {% set has_active = false %}
+        {% for pg in cat.pages %}
+            {% if pg.url == current_path %}{% set has_active = true %}{% endif %}
+        {% endfor %}
+
+        <button class="nav-category-btn {{ 'expanded' if has_active else '' }}"
+                aria-expanded="{{ 'true' if has_active else 'false' }}">
+            {{ cat.icon }}  {{ cat.label }}
+            <span class="chevron">▾</span>
+        </button>
+        <div class="nav-pages {{ 'expanded' if has_active else '' }}">
+            {% for pg in cat.pages %}
+            <a href="{{ pg.url }}"
+               class="nav-link {{ 'active' if pg.url == current_path else '' }}">
+                {{ pg.name }}
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+    {% endfor %}
+</nav>
+
+<hr>
+
+<!-- Watchlist -->
+<div>
+    <h5 class="sidebar-section-title">⚡ Watchlist</h5>
+
+    <form class="wl-add-form"
+          hx-post="/api/watchlist/add"
+          hx-target="#watchlist-items"
+          hx-swap="innerHTML"
+          hx-indicator=".wl-spinner">
+        <input type="text" name="query" class="form-input"
+               placeholder="Ticker oder Name" autocomplete="off">
+        <button type="submit" class="btn btn-success btn-sm">➕</button>
+    </form>
+    <span class="wl-spinner spinner" style="display:none;"></span>
+
+    <div id="watchlist-items"
+         hx-get="/api/watchlist/items"
+         hx-trigger="load"
+         hx-swap="innerHTML">
+        <!-- Watchlist items loaded via HTMX -->
+    </div>
+</div>
+
+<hr>
+
+<!-- Footer -->
+<div class="sidebar-footer">
+    <p class="caption">Daten via Yahoo Finance · Cache 5 Min</p>
+    <button class="btn btn-purple btn-block btn-sm"
+            hx-post="/api/cache/clear"
+            hx-swap="none"
+            onclick="showToast('Cache geleert — Seite wird aktualisiert.'); setTimeout(() => location.reload(), 500);">
+        Alle Daten Aktualisieren
+    </button>
+    <div style="height: 12px;"></div>
+    <button class="btn btn-danger btn-block btn-sm"
+            onclick="if(confirm('Dashboard wirklich beenden?')) fetch('/api/shutdown', {method:'POST'});">
+        🔴 System Beenden
+    </button>
+</div>

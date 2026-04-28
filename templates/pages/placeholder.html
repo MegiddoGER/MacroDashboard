@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}{{ page_title }} — Macro Dashboard{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>🚧 {{ page_title }}</h2>
+    <p class="caption">Diese Seite wird aktuell migriert und ist bald verfügbar.</p>
+</div>
+
+<div class="card" style="text-align: center; padding: 48px;">
+    <div style="font-size: 4rem; margin-bottom: 16px;">🏗️</div>
+    <h3>Migration in Arbeit</h3>
+    <p style="max-width: 500px; margin: 12px auto; color: var(--text-dim);">
+        Die Seite <strong>{{ page_title }}</strong> wird gerade vom alten Streamlit-Framework
+        auf das neue FastAPI + HTMX System portiert.
+    </p>
+    <a href="/" class="btn btn-primary" style="margin-top: 16px;">← Zurück zum Cockpit</a>
+</div>
+{% endblock %}

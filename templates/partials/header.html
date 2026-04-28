@@ -1,0 +1,14 @@
+<!-- partials/header.html — Top-3-Metriken (S&P 500 Futures, Gold, Dollar Index) -->
+
+<div class="grid-3">
+    {% for m in header_metrics %}
+    <div class="metric-card">
+        <div class="metric-label">{{ m.label }}</div>
+        <div class="metric-value">{{ m.value }}</div>
+        <div class="metric-delta {{ 'positive' if m.change_pct and m.change_pct > 0 else ('negative' if m.change_pct and m.change_pct < 0 else 'neutral') }}">
+            {{ "%.2f"|format(m.change_pct) if m.change_pct is not none else 'n/a' }} %
+        </div>
+        <div class="caption" style="margin-top: 2px;">Tagesveränderung</div>
+    </div>
+    {% endfor %}
+</div>

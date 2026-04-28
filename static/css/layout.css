@@ -1,0 +1,118 @@
+/*
+ * layout.css — App-Grundlayout (Sidebar + Main Grid, Typografie).
+ */
+
+*, *::before, *::after {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: var(--font-family);
+}
+
+html, body {
+    height: 100%;
+    overflow: hidden;
+    background: linear-gradient(160deg, var(--bg-app-start) 0%, var(--bg-app-mid) 40%, var(--bg-app-end) 100%);
+    color: var(--text-secondary);
+}
+
+/* ── App Shell: Sidebar + Main ──────────────────────────── */
+.app-shell {
+    display: flex;
+    height: 100vh;
+    overflow: hidden;
+}
+
+/* ── Sidebar ────────────────────────────────────────────── */
+.sidebar {
+    width: var(--sidebar-width);
+    min-width: var(--sidebar-width);
+    max-width: var(--sidebar-width);
+    height: 100vh;
+    overflow-y: auto;
+    overflow-x: hidden;
+    background: var(--bg-sidebar);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    padding: 0 16px 16px 16px;
+}
+
+/* ── Main Content ───────────────────────────────────────── */
+.main-content {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 24px 32px 32px 32px;
+}
+
+/* ── Typography ─────────────────────────────────────────── */
+h1, h2, h3, h4, h5 {
+    color: var(--text);
+    font-weight: var(--font-weight-semibold);
+    margin-bottom: 0.5em;
+}
+h1 { font-size: 1.8rem; }
+h2 { font-size: 1.5rem; }
+h3 { font-size: 1.2rem; }
+h4 { font-size: 1.05rem; }
+h5 { font-size: 0.9rem; }
+
+p, span, li { color: var(--text-secondary); }
+
+a {
+    color: var(--accent);
+    text-decoration: none;
+    transition: var(--transition-fast);
+}
+a:hover {
+    color: var(--accent-hover);
+    text-decoration: underline;
+}
+
+hr {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 1.5rem 0;
+}
+
+.caption {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    margin-top: 4px;
+}
+
+/* ── Scrollbar Styling ──────────────────────────────────── */
+::-webkit-scrollbar {
+    width: 6px;
+}
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+::-webkit-scrollbar-thumb {
+    background: rgba(148, 163, 184, 0.2);
+    border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(148, 163, 184, 0.35);
+}
+
+/* ── Grid Helpers ───────────────────────────────────────── */
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: var(--radius-lg); }
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--radius-lg); }
+.grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--radius-lg); }
+.grid-5 { display: grid; grid-template-columns: repeat(5, 1fr); gap: var(--radius-lg); }
+
+.flex-row { display: flex; gap: 16px; align-items: center; }
+.flex-between { display: flex; justify-content: space-between; align-items: center; }
+
+/* ── Page Header ────────────────────────────────────────── */
+.page-header {
+    margin-bottom: 8px;
+}
+.page-header h2 {
+    margin-bottom: 0;
+}
+.page-header .caption {
+    margin-top: 2px;
+}
