@@ -106,40 +106,22 @@ from routers.api import router as api_router
 from routers.home import router as home_router
 from routers.screener import router as screener_router
 from routers.analysis import router as analysis_router
+from routers.economy import router as economy_router
+from routers.directory import router as directory_router
+from routers.sectors import router as sectors_router
+from routers.lexicon import router as lexicon_router
+from routers.watchlist import router as watchlist_router
+from routers.journal import router as journal_router
+from routers.backtesting import router as backtesting_router
 
 app.include_router(api_router)
 app.include_router(home_router)
 app.include_router(screener_router)
 app.include_router(analysis_router)
-
-
-# ---------------------------------------------------------------------------
-# Placeholder routes for pages not yet migrated
-# ---------------------------------------------------------------------------
-
-_PLACEHOLDER_PAGES = {
-    "/economy": "Gesamtwirtschaft",
-    "/backtesting": "Backtesting",
-    "/watchlist": "Watchlist",
-    "/journal": "Trade-Journal",
-    "/sectors": "Sektoren",
-    "/lexicon": "Analyse-Lexikon",
-    "/directory": "Aktien-Verzeichnis",
-}
-
-for _path, _title in _PLACEHOLDER_PAGES.items():
-    def _make_handler(page_title: str, page_path: str):
-        async def handler(request: Request):
-            return templates.TemplateResponse(
-                request=request,
-                name="pages/placeholder.html",
-                context={
-                    "current_path": page_path,
-                    "page_title": page_title,
-                    "header_metrics": get_header_metrics(),
-                },
-            )
-        handler.__name__ = f"placeholder_{page_title.replace('-', '_').lower()}"
-        return handler
-
-    app.add_api_route(_path, _make_handler(_title, _path), response_class=HTMLResponse)
+app.include_router(economy_router)
+app.include_router(directory_router)
+app.include_router(sectors_router)
+app.include_router(lexicon_router)
+app.include_router(watchlist_router)
+app.include_router(journal_router)
+app.include_router(backtesting_router)

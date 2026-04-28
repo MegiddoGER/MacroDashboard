@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+{% block title %}Gesamtwirtschaft — Macro Dashboard{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h2>🌍 Weltwirtschaft</h2>
+  <p class="caption">Makroökonomische Indikatoren: Wirtschaftskalender, Rohstoffe, Zinsen und Inflation</p>
+</div>
+
+<!-- Calendar Summary -->
+{% if summary %}
+<div class="grid-4" style="gap:12px;margin-bottom:var(--gap);">
+  <div class="metric-card"><div class="metric-label">Events (14 Tage)</div><div class="metric-value">{{ summary.get('total',0) }}</div></div>
+  <div class="metric-card"><div class="metric-label">🔴 High Impact</div><div class="metric-value">{{ summary.get('high_count',0) }}</div></div>
+  <div class="metric-card"><div class="metric-label">🟠 Medium Impact</div><div class="metric-value">{{ summary.get('medium_count',0) }}</div></div>
+  <div class="metric-card"><div class="metric-label">Nächstes High-Event</div><div class="metric-value">{{ summary.get('next_high_event',{}).countdown_label if summary.get('next_high_event') else '—' }}</div></div>
+</div>
+{% endif %}
+
+<!-- Calendar Events Tabs -->
+<h4>📅 Wirtschaftskalender</h4>
+<div>
+  <div class="tabs">
+    <button class="tab active" data-tab="tab-ev-all">📋 Alle</button>
+    <button class="tab" data-tab="tab-ev-us">🇺🇸 USA</button>
+    <button class="tab" data-tab="tab-ev-eu">🇪🇺 Eurozone</button>
+    <button class="tab" data-tab="tab-ev-de">🇩🇪 Deutschland</button>
+  </div>
+  {% macro render_events(events, tab_id, active) %}
+  <div id="{{ tab_id }}" class="tab-content {{ 'active' if active else '' }}">
+    {% if events %}
+      {% for e in events %}
+      {% set impact_color = '#ef4444' if e.impact == 'high' else ('#f59e0b' if e.impact == 'medium' else '#22c55e') %}
+      <div style="background:linear-gradient(135deg,#1e293b 0%,#0f172a 100%);border-left:4px solid {{ impact_color }};border-radius:8px;padding:12px 16px;margin-bottom:8px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <span style="font-weight:600;color:#e2e8f0;font-size:0.9rem;">{{ e.name }}</span>
+          <span class="badge {{ 'badge-red' if e.impact=='high' else ('badge-yellow' if e.impact=='medium' else 'badge-green') }}">{{ e.countdown_label }}</span>
+        </div>
+        <div style="color:#64748b;font-size:0.78rem;margin-top:4px;">{{ e.date.strftime('%a, %d. %b %Y') }}{% if e.time_cet %} · {{ e.time_cet }} CET{% endif %}</div>
+        {% if e.description %}<div style="color:#94a3b8;font-size:0.78rem;margin-top:4px;">{{ e.description }}</div>{% endif %}
+      </div>
+      {% endfor %}
+    {% else %}
+      <div class="alert alert-info">Keine Events in den nächsten 14 Tagen.</div>
+    {% endif %}
+  </div>
+  {% endmacro %}
+  {{ render_events(events_all, 'tab-ev-all', true) }}
+  {{ render_events(events_us, 'tab-ev-us', false) }}
+  {{ render_events(events_eu, 'tab-ev-eu', false) }}
+  {{ render_events(events_de, 'tab-ev-de', false) }}
+</div>
+
+<hr>
+
+<!-- Commodities -->
+<h4>🌍 Rohstoffmärkte</h4>
+<div class="grid-2" style="gap:var(--gap);">
+  <div>{% if charts.gold != "null" %}<div id="chart-gold" class="chart-container" style="height:350px;"></div>{% else %}<div class="alert alert-info">Gold-Daten nicht verfügbar.</div>{% endif %}</div>
+  <div>{% if charts.oil != "null" %}<div id="chart-oil" class="chart-container" style="height:350px;"></div>{% else %}<div class="alert alert-info">Rohöl-Daten nicht verfügbar.</div>{% endif %}</div>
+</div>
+
+<hr>
+
+<!-- Yield Spread -->
+<h4>📊 Zinsstrukturkurve (Yield Spread)</h4>
+{% if charts.yield != "null" %}
+<div id="chart-yield" class="chart-container" style="height:400px;"></div>
+<div class="grid-3" style="gap:12px;margin-top:12px;">
+  <div class="metric-card"><div class="metric-label">Aktueller Spread</div><div class="metric-value">{{ "%.2f %%"|format(spread_val) if spread_val is not none else '—' }}</div></div>
+  <div class="metric-card"><div class="metric-label">10J-Rendite</div><div class="metric-value">{{ "%.2f %%"|format(ten_y) if ten_y is not none else '—' }}</div></div>
+  <div class="metric-card"><div class="metric-label">Status</div><div class="metric-value">{{ spread_status or '—' }}</div></div>
+</div>
+{% else %}<div class="alert alert-info">Yield-Daten nicht verfügbar.</div>{% endif %}
+
+<hr>
+
+<!-- Inflation -->
+<h4>📈 Inflationsrate Deutschland</h4>
+{% if charts.inflation != "null" %}
+<div id="chart-inflation" class="chart-container" style="height:350px;"></div>
+<div class="grid-2" style="gap:12px;margin-top:12px;">
+  <div class="metric-card"><div class="metric-label">Aktuelle Rate</div><div class="metric-value">{{ "%.1f %%"|format(infl_val) if infl_val is not none else '—' }}</div></div>
+  <div class="metric-card"><div class="metric-label">EZB-Ziel</div><div class="metric-value">2.0 %</div></div>
+</div>
+{% else %}<div class="alert alert-info">Inflationsdaten nicht verfügbar.</div>{% endif %}
+
+<hr>
+
+<!-- News -->
+<h4>📰 Nachrichten</h4>
+<div>
+  <div class="tabs">
+    <button class="tab active" data-tab="tab-news-eu">🇪🇺 Europa</button>
+    <button class="tab" data-tab="tab-news-us">🇺🇸 USA</button>
+    <button class="tab" data-tab="tab-news-asia">🇨🇳 Asien</button>
+  </div>
+  {% macro render_news(items, tab_id, active) %}
+  <div id="{{ tab_id }}" class="tab-content {{ 'active' if active else '' }}">
+    {% if items %}
+      {% for n in items[:12] %}
+      <div class="card" style="margin-bottom:6px;padding:10px 14px;">
+        <a href="{{ n.get('link','#') }}" target="_blank" rel="noopener" style="color:var(--accent);font-weight:500;font-size:0.88rem;">{{ n.get('title','') }}</a>
+        <p class="caption" style="margin-top:2px;">{{ n.get('publisher','') }}{% if n.get('date') %} · {{ n.get('date') }}{% endif %}</p>
+      </div>
+      {% endfor %}
+    {% else %}
+      <div class="alert alert-info">Keine Nachrichten verfügbar.</div>
+    {% endif %}
+  </div>
+  {% endmacro %}
+  {{ render_news(news_eu, 'tab-news-eu', true) }}
+  {{ render_news(news_us, 'tab-news-us', false) }}
+  {{ render_news(news_asia, 'tab-news-asia', false) }}
+</div>
+
+<script>
+(function(){
+  const charts = {
+    'chart-gold': {{ charts.gold|safe }},
+    'chart-oil': {{ charts.oil|safe }},
+    'chart-yield': {{ charts.yield|safe }},
+    'chart-inflation': {{ charts.inflation|safe }},
+  };
+  for (const [id, fig] of Object.entries(charts)) {
+    const el = document.getElementById(id);
+    if (el && fig) {
+      Plotly.newPlot(el, fig.data, Object.assign({}, PLOTLY_LAYOUT, fig.layout || {}), {displayModeBar:true, scrollZoom:true, responsive:true});
+    }
+  }
+})();
+</script>
+{% endblock %}

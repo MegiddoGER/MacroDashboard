@@ -1,0 +1,122 @@
+<!-- partials/backtest_results.html — HTMX partial for backtest results -->
+<h4>📊 Resultate: {{ strat_name }} auf <strong>{{ display_name }}</strong></h4>
+
+<!-- Row 1: Core Metrics -->
+<div class="grid-5" style="margin-bottom:var(--gap);">
+  <div class="metric-card">
+    <div class="metric-label">Endkapital</div>
+    <div class="metric-value">€ {{ "{:,.2f}".format(metrics.final_capital) }}</div>
+    <div class="metric-delta neutral">Start: € {{ "{:,.2f}".format(initial_capital) }}</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-label">Rendite (Netto)</div>
+    <div class="metric-value" style="color:{{ '#22c55e' if metrics.total_return_pct > 0 else '#ef4444' }}">{{ "{:+.2f}".format(metrics.total_return_pct) }} %</div>
+    <div class="metric-delta {{ 'positive' if metrics.outperformance > 0 else 'negative' }}">{{ "{:+.2f}".format(metrics.outperformance) }} % vs B&amp;H</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-label">Win-Rate</div>
+    <div class="metric-value">{{ "{:.1f}".format(metrics.win_rate) }} %</div>
+    <div class="metric-delta neutral">{{ metrics.total_trades }} Trades</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-label">Profit-Faktor</div>
+    <div class="metric-value">{{ "{:.2f}".format(metrics.profit_factor) }}</div>
+    <div class="metric-delta {{ 'positive' if metrics.profit_factor > 1.5 else ('negative' if metrics.profit_factor < 1.0 else 'neutral') }}">{{ 'Exzellent' if metrics.profit_factor > 2.0 else ('Gut' if metrics.profit_factor > 1.2 else 'Schwach') }}</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-label">Max Drawdown</div>
+    <div class="metric-value" style="color:#ef4444;">{{ "{:.1f}".format(metrics.max_drawdown_pct) }} %</div>
+  </div>
+</div>
+
+<!-- Row 2: Risk-Adjusted -->
+<div class="grid-5" style="margin-bottom:var(--gap);">
+  <div class="metric-card">
+    <div class="metric-label">Sharpe Ratio</div>
+    <div class="metric-value">{{ "{:.2f}".format(metrics.sharpe_ratio) if metrics.sharpe_ratio is not none else "—" }}</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-label">Sortino Ratio</div>
+    <div class="metric-value">{{ "{:.2f}".format(metrics.sortino_ratio) if metrics.sortino_ratio is not none else "—" }}</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-label">Ann. Rendite</div>
+    <div class="metric-value">{{ "{:+.1f}".format(metrics.annualized_return_pct) }} %</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-label">Volatilität</div>
+    <div class="metric-value">{{ "{:.1f}".format(metrics.volatility_pct) }} %</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-label">Calmar Ratio</div>
+    <div class="metric-value">{{ "{:.2f}".format(metrics.calmar_ratio) if metrics.calmar_ratio is not none else "—" }}</div>
+  </div>
+</div>
+
+<!-- Row 3: Trade Details -->
+<div class="grid-4" style="margin-bottom:var(--gap);">
+  <div class="metric-card">
+    <div class="metric-label">Bester Trade</div>
+    <div class="metric-value" style="color:#22c55e;">{{ "{:+.1f}".format(metrics.best_trade_pct) }} %</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-label">Schlechtester</div>
+    <div class="metric-value" style="color:#ef4444;">{{ "{:+.1f}".format(metrics.worst_trade_pct) }} %</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-label">∅ Haltedauer</div>
+    <div class="metric-value">{{ "{:.0f}".format(metrics.avg_holding_days) }} Tage</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-label">⌀ Win / ⌀ Loss</div>
+    <div class="metric-value">{{ "{:+.1f}".format(metrics.avg_win_pct) }}% / {{ "{:+.1f}".format(metrics.avg_loss_pct) }}%</div>
+  </div>
+</div>
+
+<p class="caption">🛡️ Gebühren: <strong>€ {{ "{:,.2f}".format(metrics.commission_paid) }}</strong> · Slippage: <strong>{{ slippage }}%</strong> · Zeitraum: {{ period }}</p>
+
+<!-- Tabs: Charts + Trade Log -->
+<div class="tabs" style="margin-top:var(--gap);">
+  <button class="tab active" data-tab="bt-tab-equity">📉 Equity-Kurve</button>
+  <button class="tab" data-tab="bt-tab-dd">📊 Drawdown</button>
+  <button class="tab" data-tab="bt-tab-trades">📓 Trade Log</button>
+</div>
+
+<div class="tab-content active" id="bt-tab-equity">
+  <div class="chart-container" id="bt-equity-chart" style="height:400px;"></div>
+  <script>renderPlotly('bt-equity-chart', '{{ equity_json | safe }}');</script>
+</div>
+
+<div class="tab-content" id="bt-tab-dd">
+  {% if dd_json != "null" %}
+  <div class="chart-container" id="bt-dd-chart" style="height:300px;"></div>
+  <script>renderPlotly('bt-dd-chart', '{{ dd_json | safe }}');</script>
+  {% else %}
+  <div class="alert alert-info">Keine Drawdown-Daten verfügbar.</div>
+  {% endif %}
+</div>
+
+<div class="tab-content" id="bt-tab-trades">
+  {% if trades %}
+  <div class="table-container">
+    <table class="data-table">
+      <thead><tr><th>#</th><th>Entry</th><th>Exit</th><th>Entry €</th><th>Exit €</th><th>P&amp;L €</th><th>P&amp;L %</th></tr></thead>
+      <tbody>
+        {% for t in trades %}
+        <tr>
+          <td>{{ loop.index }}</td>
+          <td>{{ t.entry_date }}</td>
+          <td>{{ t.exit_date }}</td>
+          <td>{{ "{:.2f}".format(t.entry_price) }}</td>
+          <td>{{ "{:.2f}".format(t.exit_price) }}</td>
+          <td style="color:{{ '#22c55e' if t.pnl_eur > 0 else '#ef4444' }}">{{ "{:+.2f}".format(t.pnl_eur) }}</td>
+          <td style="color:{{ '#22c55e' if t.pnl_pct > 0 else '#ef4444' }}">{{ "{:+.2f}".format(t.pnl_pct) }}%</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="alert alert-info">Keine Trades ausgelöst.</div>
+  {% endif %}
+</div>

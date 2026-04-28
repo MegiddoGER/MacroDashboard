@@ -1,0 +1,176 @@
+{% extends "base.html" %}
+{% block title %}Watchlist — Macro Dashboard{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h2>📋 Watchlist</h2>
+  <p class="caption">Portfolio-Verwaltung: Marktdaten, Positionen, P&amp;L und Risiko.</p>
+</div>
+
+<!-- ═══ Marktdaten-Gruppen ═══ -->
+{% for g in groups %}
+<div class="card" style="margin-bottom:var(--gap);">
+  <h4><span style="color:{{ g.color }}">●</span> {{ g.title }} ({{ g.count }})</h4>
+  <p class="caption">{{ g.names }}</p>
+  {% if g.rows %}
+  <div class="table-container" style="margin-top:12px;">
+    <table class="data-table">
+      <thead><tr><th>Ticker</th><th>Kurs (€)</th><th>Veränderung %</th><th>RSI (14)</th></tr></thead>
+      <tbody>
+        {% for r in g.rows %}
+        <tr>
+          <td><strong>{{ r.ticker }}</strong></td>
+          <td>{{ r.price }} €</td>
+          <td style="color:{{ '#22c55e' if r.change >= 0 else '#ef4444' }}; font-weight:600;">{{ "%.2f"|format(r.change) }}%</td>
+          <td>{% if r.rsi %}<span style="color:{{ '#22c55e' if r.rsi < 30 else ('#ef4444' if r.rsi > 70 else 'var(--text-secondary)') }}">{{ "%.1f"|format(r.rsi) }}</span>{% else %}—{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+</div>
+{% endfor %}
+
+{% if not groups %}
+<div class="alert alert-info">👈 Füge Ticker über die Sidebar hinzu.</div>
+{% endif %}
+
+<!-- ═══ Portfolio-Übersicht ═══ -->
+{% if summary %}
+<hr>
+<h4>💼 Portfolio-Übersicht</h4>
+<div class="grid-4" style="margin-bottom:var(--gap);">
+  <div class="metric-card">
+    <div class="metric-label">Investiert</div>
+    <div class="metric-value">{{ "{:,.2f}".format(summary.total_invested) }} €</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-label">Aktueller Wert</div>
+    <div class="metric-value">{{ "{:,.2f}".format(summary.total_value) }} €</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-label">Unrealisiert</div>
+    <div class="metric-value" style="color:{{ '#22c55e' if summary.unrealized_pnl >= 0 else '#ef4444' }}">{{ "{:+,.2f}".format(summary.unrealized_pnl) }} €</div>
+    <div class="metric-delta {{ 'positive' if summary.total_pnl_pct >= 0 else 'negative' }}">{{ "{:+.1f}".format(summary.total_pnl_pct) }}%</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-label">Realisiert</div>
+    <div class="metric-value" style="color:{{ '#22c55e' if summary.realized_pnl >= 0 else '#ef4444' }}">{{ "{:+,.2f}".format(summary.realized_pnl) }} €</div>
+    <div class="metric-delta neutral">{{ summary.open_positions_count }} offen / {{ summary.closed_positions_count }} geschlossen</div>
+  </div>
+</div>
+{% endif %}
+
+<!-- ═══ Aktive Positionen ═══ -->
+{% if pos_rows %}
+<hr>
+<h4>📊 Aktive Positionen</h4>
+<div class="table-container" style="margin-bottom:var(--gap);">
+  <table class="data-table">
+    <thead><tr><th>Ticker</th><th>Kaufdatum</th><th>Kaufkurs</th><th>Stück</th><th>Aktuell</th><th>P&amp;L €</th><th>P&amp;L %</th><th>SL</th><th>TP</th></tr></thead>
+    <tbody>
+      {% for p in pos_rows %}
+      <tr>
+        <td><strong>{{ p.ticker }}</strong></td>
+        <td>{{ p.buy_date }}</td>
+        <td>{{ "{:,.2f}".format(p.buy_price) }} €</td>
+        <td>{{ "{:,.2f}".format(p.quantity) }}</td>
+        <td>{{ "{:,.2f}".format(p.current) }} €</td>
+        <td style="color:{{ '#22c55e' if p.pnl_eur >= 0 else '#ef4444' }}; font-weight:600;">{{ "{:+,.2f}".format(p.pnl_eur) }} €</td>
+        <td style="color:{{ '#22c55e' if p.pnl_pct >= 0 else '#ef4444' }}; font-weight:600;">{{ "{:+.1f}".format(p.pnl_pct) }}%</td>
+        <td>{{ "{:,.2f}".format(p.sl) if p.sl else "—" }}</td>
+        <td>{{ "{:,.2f}".format(p.tp) if p.tp else "—" }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+<!-- ═══ Position kaufen ═══ -->
+<hr>
+<h4>➕ Position kaufen</h4>
+{% if buy_options %}
+<form hx-post="/watchlist/buy" hx-target="#buy-result" hx-swap="innerHTML">
+  <div class="card" style="margin-bottom:var(--gap);">
+    <div class="form-group">
+      <label>Aktie auswählen</label>
+      <select name="ticker" class="form-input">
+        {% for o in buy_options %}
+        <option value="{{ o.ticker }}">{{ o.display }} · {{ o.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="grid-3" style="gap:12px; margin-bottom:12px;">
+      <div class="form-group"><label>Kaufkurs (€)</label><input type="number" name="buy_price" step="0.01" min="0.01" value="100" class="form-input" required></div>
+      <div class="form-group"><label>Stückzahl</label><input type="number" name="quantity" step="0.0001" min="0.0001" value="1" class="form-input" required></div>
+      <div class="form-group"><label>Kaufdatum</label><input type="date" name="buy_date" class="form-input" required></div>
+    </div>
+    <div class="grid-3" style="gap:12px; margin-bottom:12px;">
+      <div class="form-group"><label>Stop-Loss (€, optional)</label><input type="number" name="stop_loss" step="0.01" min="0" value="0" class="form-input"></div>
+      <div class="form-group"><label>Take-Profit (€, optional)</label><input type="number" name="take_profit" step="0.01" min="0" value="0" class="form-input"></div>
+      <div class="form-group"><label>Gebühren (€)</label><input type="number" name="fees" step="0.01" min="0" value="0" class="form-input"></div>
+    </div>
+    <div class="form-group"><label>Notizen</label><input type="text" name="notes" class="form-input" placeholder="z.B. RSI überverkauft, FVG Entry"></div>
+    <button type="submit" class="btn btn-primary btn-block" style="margin-top:12px;">🛒 Position eröffnen</button>
+  </div>
+</form>
+<div id="buy-result"></div>
+{% else %}
+<div class="alert alert-info">Füge zuerst Ticker zur Watchlist hinzu.</div>
+{% endif %}
+
+<!-- ═══ Position schließen ═══ -->
+{% if sell_options %}
+<hr>
+<h4>💰 Position schließen (Verkauf)</h4>
+<form hx-post="/watchlist/sell" hx-target="#sell-result" hx-swap="innerHTML">
+  <div class="card" style="margin-bottom:var(--gap);">
+    <div class="form-group">
+      <label>Position zum Verkauf</label>
+      <select name="ticker" class="form-input" id="sell-ticker-select"
+              onchange="document.getElementById('sell-pos-id').value=this.options[this.selectedIndex].dataset.posid;">
+        {% for s in sell_options %}
+        <option value="{{ s.ticker }}" data-posid="{{ s.position_id }}">{{ s.display }} — {{ s.quantity }}x @ {{ "{:.2f}".format(s.buy_price) }} € ({{ s.buy_date }})</option>
+        {% endfor %}
+      </select>
+      <input type="hidden" name="position_id" id="sell-pos-id" value="{{ sell_options[0].position_id if sell_options else '' }}">
+    </div>
+    <div class="grid-3" style="gap:12px; margin-bottom:12px;">
+      <div class="form-group"><label>Verkaufskurs (€)</label><input type="number" name="sell_price" step="0.01" min="0.01" class="form-input" required></div>
+      <div class="form-group"><label>Verkaufsdatum</label><input type="date" name="sell_date" class="form-input" required></div>
+      <div class="form-group"><label>Verkaufsgebühren (€)</label><input type="number" name="sell_fees" step="0.01" min="0" value="0" class="form-input"></div>
+    </div>
+    <h5 style="margin-top:16px;">📓 Trade-Review (Auto-Journal)</h5>
+    <div class="grid-2" style="gap:12px; margin-bottom:12px;">
+      <div class="form-group">
+        <label>Setup-Kategorie</label>
+        <select name="sell_setup" class="form-input">
+          <option>SMC (Fair Value Gap)</option>
+          <option>Trendfolge (Pullback)</option>
+          <option>Breakout</option>
+          <option>Mean Reversion (Oversold)</option>
+          <option>Earnings Play</option>
+          <option selected>Sonstiges</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Conviction (1-5)</label>
+        <input type="range" name="sell_conviction" min="1" max="5" value="3" class="form-range"
+               oninput="document.getElementById('conv-val').textContent=this.value">
+        <span class="caption">Conviction: <strong id="conv-val">3</strong></span>
+      </div>
+    </div>
+    <div class="form-group"><label>Lessons Learned / Review</label><textarea name="sell_review" class="form-input" rows="3" placeholder="Was hast du gelernt?"></textarea></div>
+    <button type="submit" class="btn btn-primary btn-block" style="margin-top:12px;">📤 Position schließen + Journal speichern</button>
+  </div>
+</form>
+<div id="sell-result"></div>
+{% endif %}
+
+<style>
+.form-range { width:100%; height:6px; border-radius:3px; background:var(--border); outline:none; appearance:none; cursor:pointer; }
+.form-range::-webkit-slider-thumb { appearance:none; width:18px; height:18px; border-radius:50%; background:var(--accent); cursor:pointer; }
+textarea.form-input { resize: vertical; min-height: 60px; }
+</style>
+{% endblock %}

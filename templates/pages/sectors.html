@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Sektoren — Macro Dashboard{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h2>📊 Sektoren</h2>
+  <p class="caption">Sektor-Performance — welche Branchen führen den Markt?</p>
+</div>
+
+<div class="card" style="margin-bottom:var(--gap);">
+  <form method="get" action="/sectors" style="display:flex;gap:12px;align-items:end;flex-wrap:wrap;">
+    <div>
+      <label class="form-label">Markt</label>
+      <select name="region" class="form-input" style="width:200px;">
+        <option value="us" {{ 'selected' if region=='us' }}>🇺🇸 S&P 500</option>
+        <option value="eu" {{ 'selected' if region=='eu' }}>🇪🇺 STOXX Europe 600</option>
+      </select>
+    </div>
+    <div style="display:flex;gap:4px;">
+      {% for k, v in period_labels.items() %}
+      <a href="/sectors?region={{ region }}&period={{ k }}" class="btn btn-sm {{ 'btn-primary' if k==period else 'btn-secondary' }}">{{ v }}</a>
+      {% endfor %}
+    </div>
+  </form>
+</div>
+
+{% if heatmap_json != "null" %}
+<div id="chart-heatmap" class="chart-container" style="height:450px;margin-bottom:var(--gap);"></div>
+{% endif %}
+
+{% if best and worst %}
+<div class="grid-2" style="gap:12px;margin-bottom:var(--gap);">
+  <div class="metric-card"><div class="metric-label">🏆 Bester Sektor: {{ best.name }}</div><div class="metric-value positive">{{ "%+.2f %%"|format(best.pct) }}</div></div>
+  <div class="metric-card"><div class="metric-label">📉 Schwächster: {{ worst.name }}</div><div class="metric-value negative">{{ "%+.2f %%"|format(worst.pct) }}</div></div>
+</div>
+{% endif %}
+
+{% if rows %}
+<div class="table-container">
+  <table class="data-table">
+    <thead><tr><th>Sektor</th><th>Ticker</th><th>Kurs</th><th>Veränderung %</th></tr></thead>
+    <tbody>
+    {% for r in rows %}
+    <tr>
+      <td>{{ r.sector }}</td>
+      <td>{{ r.ticker }}</td>
+      <td>{{ r.price }}</td>
+      <td style="color:{{ '#22c55e' if r.change > 0 else ('#ef4444' if r.change < 0 else 'var(--text-muted)') }};">{{ "%+.2f %%"|format(r.change) }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="alert alert-info">Sektor-Daten nicht verfügbar.</div>
+{% endif %}
+
+<script>
+(function(){
+  const fig = {{ heatmap_json|safe }};
+  const el = document.getElementById('chart-heatmap');
+  if (el && fig) {
+    Plotly.newPlot(el, fig.data, Object.assign({}, PLOTLY_LAYOUT, fig.layout || {}), {displayModeBar:true, responsive:true});
+  }
+})();
+</script>
+{% endblock %}

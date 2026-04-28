@@ -1,0 +1,217 @@
+{% extends "base.html" %}
+{% block title %}Analyse-Lexikon — Macro Dashboard{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h2>📖 Analyse-Lexikon</h2>
+  <p class="caption">Das essenzielle Nachschlagewerk für technische, strategische und fundamentale Bewertungsmodelle.</p>
+</div>
+
+<!-- Tabs -->
+<div class="tabs">
+  <button class="tab active" data-tab="tab-guide">📖 Handbuch</button>
+  <button class="tab" data-tab="tab-fund">📊 Fundamentale Analyse</button>
+  <button class="tab" data-tab="tab-quant">🏦 Quant-Modelle</button>
+  <button class="tab" data-tab="tab-tech">📈 Technische Indikatoren</button>
+  <button class="tab" data-tab="tab-strat">🎯 Strategische Taktiken</button>
+  <button class="tab" data-tab="tab-risk">🛡️ Risiko &amp; Backtesting</button>
+  <button class="tab" data-tab="tab-sent">💬 Sentiment &amp; Flow</button>
+  <button class="tab" data-tab="tab-arch">🧠 System-Architektur</button>
+</div>
+
+<!-- ═══ Tab: Benutzerhandbuch ═══ -->
+<div class="tab-content active" id="tab-guide">
+  <div class="card">
+    {% if manual_html %}
+    <div class="lexicon-prose">{{ manual_html | safe }}</div>
+    {% else %}
+    <div class="alert alert-info">Das Benutzerhandbuch (Benutzerhandbuch.md) wurde nicht gefunden.</div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- ═══ Tab: Fundamentale Analyse ═══ -->
+<div class="tab-content" id="tab-fund">
+  <div class="card" style="margin-bottom:var(--gap);">
+    <h4>Fundamentale Analyse — Das Fundament jeder Investitionsentscheidung</h4>
+    <p class="caption">Während die technische Analyse zeigt, <strong>wann</strong> man kaufen oder verkaufen sollte, beantwortet die fundamentale Analyse die Frage: <strong>Was ist ein Unternehmen wirklich wert?</strong></p>
+  </div>
+
+  {% set fund_topics = [
+    ("💰 Discounted Cash Flow (DCF)", "Berechnet den inneren Wert eines Unternehmens durch Diskontierung zukünftiger Free Cashflows. FCF = Operativer Cashflow − CapEx. WACC bestimmt den Abzinsungsfaktor. Terminal Value deckt den ewigen Restwert ab. Margin of Safety > 20% = Sicherheitspuffer."),
+    ("🏦 Bilanzqualität & Verschuldung", "Debt/Equity < 50% = gut, > 150% = kritisch. Current Ratio > 1.5 = liquide. Net Debt/EBITDA < 2x = solide. Branchen wie Banken haben strukturell höhere Verschuldung."),
+    ("📈 Margen & Cashflow-Trends", "Bruttomarge zeigt Preissetzungsmacht. EBITDA-Marge = operative Effizienz. Nettomarge = was wirklich übrig bleibt. Steigende Margen = Skalierung. Sinkende Margen bei steigendem Umsatz = Warnsignal."),
+    ("🏭 Peer-Vergleich", "KGV, EV/EBITDA, Profitmarge und Umsatzwachstum immer innerhalb der gleichen Branche vergleichen. Bessere Fundamentals bei günstigerer Bewertung → potenzielle Unterbewertung."),
+    ("💎 Dividendenanalyse", "Rendite = Dividende / Kurs. Payout Ratio < 60% = nachhaltig, > 80% = gefährlich. CAGR 7-10% = exzellent. ≥ 25 Jahre = Aristokrat, ≥ 50 Jahre = König. Sehr hohe Rendite (>8%) oft Warnsignal."),
+    ("👔 Insider-Transaktionen", "Insider-Käufe = starkes bullisches Signal. Cluster-Käufe (mehrere gleichzeitig) = stärkstes Signal. Verkäufe weniger eindeutig. Net Sentiment beachten."),
+    ("🏛️ Institutionelle Investoren", "Hoher institutioneller Anteil (>70%) = professionelles Vertrauen. Aufstockungen = subtiles Akkumulationssignal. Passive ETFs ≠ aktives Kaufsignal."),
+    ("🎯 Analysten-Konsens", "Score < 2.0 = starker Kaufkonsens. 2.0-3.0 = gemischt. > 3.0 = Halte-/Verkaufszone. Achtung: Interessenkonflikte und pro-zyklische Anpassungen.")
+  ] %}
+  {% for title, desc in fund_topics %}
+  <div class="expander">
+    <div class="expander-header">{{ title }} <span class="expander-chevron">▼</span></div>
+    <div class="expander-body"><p>{{ desc }}</p></div>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- ═══ Tab: Quant-Modelle ═══ -->
+<div class="tab-content" id="tab-quant">
+  <div class="card" style="margin-bottom:var(--gap);">
+    <h4>Sektorspezifische Bewertungsmodelle</h4>
+    <p class="caption">Jede Industrie hat eine eigene strukturelle DNA. Universelle Metriken reichen nicht aus.</p>
+  </div>
+  {% set quant_topics = [
+    ("🏦 Finanzen & Versicherungen", "Excess Returns Modell — ROE minus Cost of Equity. Positiver Spread = Alpha-Generierung."),
+    ("💻 Technologie & SaaS", "Rule of 40 (Wachstum + Marge > 40) + LTV/CAC > 3.0. Enttarnt erkauftes Wachstum."),
+    ("🔌 Halbleiter & Hardware", "EV/EBITDA + Price-to-Book. Am zyklischen Hoch ist das KGV trügerisch niedrig."),
+    ("🧬 Biotechnologie & Pharma", "Risk-Adjusted NPV (rNPV). Entkoppelt Marktrisiko vom Studien-Versagensrisiko (PTRS)."),
+    ("🛢️ Energie / Öl & Gas", "EV/DACF — bereinigt um Explorations-CapEx und unterschiedliche Kapitalstrukturen."),
+    ("📡 Telekommunikation", "ARPU-adjustiertes EV/EBITDA + Churn-Rate. FTTH-Glasfaser = ökonomischer Burggraben."),
+    ("🚢 Logistik & Transport", "EV/EBITDAR — integriert Miet-/Leasingkosten für fairen Vergleich."),
+    ("🇩🇪 Deutsche Aktien", "HGB-basierte Asset-Bewertung. Stille Reserven + ROA-Prämie (+1,7% historisch)."),
+    ("🇨🇳 Chinesische A-Aktien", "CSVS — P/B-Abschlag bei SOEs + staatlich regulierte Dividendenerhöhung.")
+  ] %}
+  {% for title, desc in quant_topics %}
+  <div class="expander">
+    <div class="expander-header">{{ title }} <span class="expander-chevron">▼</span></div>
+    <div class="expander-body"><p>{{ desc }}</p></div>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- ═══ Tab: Technische Indikatoren ═══ -->
+<div class="tab-content" id="tab-tech">
+  <div class="card" style="margin-bottom:var(--gap);">
+    <h4>Klassische Chart-Indikatoren</h4>
+    <p class="caption">Fundamentaldaten zeigen <strong>welche</strong> Aktie attraktiv ist. Die Technische Analyse hilft beim <strong>Timing</strong>.</p>
+  </div>
+  {% set tech_topics = [
+    ("RSI (Relative Strength Index)", "Momentum-Oszillator 0-100. < 30 = überverkauft. > 70 = überkauft. Divergenzen = frühes Warnsignal für Trendumkehr."),
+    ("SMA (Simple Moving Average)", "SMA 20 = kurzfristig, SMA 50 = mittelfristig, SMA 200 = langfristig. Golden Cross (50 > 200) = Kaufsignal. Death Cross = Warnsignal."),
+    ("MACD", "MACD über Signal = bullisch. Histogram zeigt Spread-Stärke. Nulllinien-Kreuzung = mittelfristiger Trendwechsel."),
+    ("Bollinger Bänder", "Squeeze = niedrige Volatilität, explosive Bewegung folgt. Anstoßen ans Band = überdehnt."),
+    ("Stochastic Oscillator", "Ähnlich RSI, aber schneller. %K kreuzt %D über 80 nach unten = kurzfristige Umkehr."),
+    ("ATR (Average True Range)", "Misst Volatilität in €. Stop-Loss = Einstieg − 1.5 × ATR. Höherer ATR → kleinere Position."),
+    ("ADX (Average Directional Index)", "Misst Trendstärke, nicht Richtung. < 20 = kein Trend. 25-50 = stark. > 50 = extrem stark.")
+  ] %}
+  {% for title, desc in tech_topics %}
+  <div class="expander">
+    <div class="expander-header">{{ title }} <span class="expander-chevron">▼</span></div>
+    <div class="expander-body"><p>{{ desc }}</p></div>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- ═══ Tab: Strategische Taktiken ═══ -->
+<div class="tab-content" id="tab-strat">
+  <div class="card" style="margin-bottom:var(--gap);">
+    <h4>Fortgeschrittene Analyse-Instrumente</h4>
+    <p class="caption">Werkzeuge von Day-Tradern und algorithmischen Händlern an der Wall Street.</p>
+  </div>
+  {% set strat_topics = [
+    ("🔄 Liquidity Sweeps (Stop-Hunting)", "Institutionelle drücken Preis gezielt unter Tiefs, um Stop-Loss-Liquidität zu ernten. Danach oft scharfe Umkehr."),
+    ("📊 Order Flow & VWAP", "VWAP = volumengewichteter Durchschnitt. OBV = kumuliertes Volumen. Divergenz OBV vs Kurs = Warnsignal. POC = Preis mit meistem Volumen."),
+    ("📈 Pivot-Punkte", "Statische Tages-/Monatslevel. Über Pivot = bullisch. S1/S2 = Support. R1/R2 = Resistance. R:R mindestens 1:2."),
+    ("🧲 Fair Value Gap (FVG)", "Preislücke zwischen 3 Kerzen. Markt tendiert dazu, FVGs zu füllen. Bullische FVGs = Support, bearische = Resistance."),
+    ("⚖️ Equal Highs & Lows (EQH/EQL)", "Liquiditäts-Pools über EQHs und unter EQLs. Smart Money treibt Kurs gezielt dorthin. Nach Sweep oft scharfe Umkehr."),
+    ("📝 Scoring-System", "Jeder Indikator gibt +1/0/-1. Score ≥ 3 = Bullisch. 0 = Neutral. ≤ -3 = Bearisch. 3 Interpretationsebenen: Makro, Mikro, Actionable.")
+  ] %}
+  {% for title, desc in strat_topics %}
+  <div class="expander">
+    <div class="expander-header">{{ title }} <span class="expander-chevron">▼</span></div>
+    <div class="expander-body"><p>{{ desc }}</p></div>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- ═══ Tab: Risiko & Backtesting ═══ -->
+<div class="tab-content" id="tab-risk">
+  <div class="card" style="margin-bottom:var(--gap);">
+    <h4>Risiko-Management & Strategie-Validierung</h4>
+    <p class="caption">Der Unterschied zwischen einem Zocker und einem Investor ist die mathematische Kontrolle über sein Risiko.</p>
+  </div>
+  {% set risk_topics = [
+    ("💸 Value at Risk (VaR) & Monte Carlo", "Beantwortet: Wie viel kann ich an einem schlechten Tag verlieren? 95% VaR = nur an 5 von 100 Tagen wird dieser Verlust überschritten."),
+    ("📉 Max Drawdown (MDD)", "Schlimmster Sturzflug Peak→Trough. -50% erfordert +100% Erholung. Profis: MDD < -20% als Grenzwert."),
+    ("⚖️ Sharpe Ratio & Profit Factor", "Profit Factor > 1.5 = überragend. Sharpe > 1.0 = gut, > 2.0 = grandios. Misst risikoadjustierte Rendite."),
+    ("🛒 Slippage", "Differenz zwischen Signal-Preis und tatsächlichem Ausführungspreis. Backtesting Engine kalkuliert reale Gebühren + Slippage ein.")
+  ] %}
+  {% for title, desc in risk_topics %}
+  <div class="expander">
+    <div class="expander-header">{{ title }} <span class="expander-chevron">▼</span></div>
+    <div class="expander-body"><p>{{ desc }}</p></div>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- ═══ Tab: Sentiment & Flow ═══ -->
+<div class="tab-content" id="tab-sent">
+  <div class="card" style="margin-bottom:var(--gap);">
+    <h4>Qualitative Stimmung & News-Algorithmen</h4>
+    <p class="caption">Märkte werden nicht primär von Zahlen bewegt, sondern von Gier, Angst und narrativer Stimmung.</p>
+  </div>
+  {% set sent_topics = [
+    ("🧠 VADER NLP (Sentiment-Analysis)", "NLP-Algorithmus analysiert News-Texte. Compound-Score von -1.0 (Apokalypse) bis +1.0 (Euphorie). Wall-Street-Erweiterung kalibriert."),
+    ("🧨 Die Euphorie-Falle", "Wenn NLP > 0.15 UND RSI > 70: automatischer -15% Confidence-Penalty. Verhindert Kauf am Retail-Top."),
+    ("🔁 Options Flow: Put/Call-Ratio & Max Pain", "Put/Call > 1.2 = Panik (Contrarian Kaufsignal). Max Pain = magnetischer Strike am Verfallstag.")
+  ] %}
+  {% for title, desc in sent_topics %}
+  <div class="expander">
+    <div class="expander-header">{{ title }} <span class="expander-chevron">▼</span></div>
+    <div class="expander-body"><p>{{ desc }}</p></div>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- ═══ Tab: System-Architektur ═══ -->
+<div class="tab-content" id="tab-arch">
+  <div class="card" style="margin-bottom:var(--gap);">
+    <h4>🧠 System-Architektur — Warum jedes Tool existiert</h4>
+    <p class="caption">80–90% aller privaten Trader verlieren Geld. Jedes Feature verhindert einen spezifischen Fehler.</p>
+  </div>
+
+  <div class="card" style="margin-bottom:var(--gap);">
+    <h5>Die 7 häufigsten Trading-Fehler</h5>
+    <div class="table-container">
+      <table class="data-table">
+        <thead><tr><th>#</th><th>Fehlertyp</th><th>Häufigkeit</th><th>Schutzmechanismus</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td>Ohne Analyse kaufen (FOMO)</td><td>Sehr häufig</td><td>Scoring Engine + Analyse</td></tr>
+          <tr><td>2</td><td>Kein Stop-Loss setzen</td><td>Häufig</td><td>Position Sizing + SL-Pflichtfeld</td></tr>
+          <tr><td>3</td><td>Zu viel in einen Sektor</td><td>Häufig</td><td>Risiko-Analyse (Herfindahl)</td></tr>
+          <tr><td>4</td><td>Gegen den Markttrend</td><td>Häufig</td><td>Home (Fear &amp; Greed) + Makro</td></tr>
+          <tr><td>5</td><td>Aus Fehlern nicht lernen</td><td>Sehr häufig</td><td>Trade-Journal (Auto-Review)</td></tr>
+          <tr><td>6</td><td>Strategie nie getestet</td><td>Häufig</td><td>Backtesting Engine</td></tr>
+          <tr><td>7</td><td>Euphorie-Falle (Retail-Top)</td><td>Häufig</td><td>Contrarian-Warnung (-15%)</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <h5>🎯 Optimaler täglicher Workflow (~25 Min.)</h5>
+    <div class="table-container">
+      <table class="data-table">
+        <thead><tr><th>Zeit</th><th>Aktion</th><th>Tool</th><th>Dauer</th></tr></thead>
+        <tbody>
+          <tr><td>08:00</td><td>Marktcheck: Fear &amp; Greed, Termine</td><td>Home + Gesamtwirtschaft</td><td>5 Min</td></tr>
+          <tr><td>08:05</td><td>Screener laufen lassen</td><td>Screener</td><td>3 Min</td></tr>
+          <tr><td>08:08</td><td>Top-Kandidaten analysieren</td><td>Analyse + Scoring</td><td>10 Min</td></tr>
+          <tr><td>08:18</td><td>Strategie per Backtest validieren</td><td>Backtesting</td><td>5 Min</td></tr>
+          <tr><td>08:23</td><td>Position eröffnen mit SL/TP</td><td>Watchlist</td><td>2 Min</td></tr>
+          <tr><td>Laufend</td><td>Portfolio + Risiko überwachen</td><td>Watchlist → Risiko</td><td>—</td></tr>
+          <tr><td>Bei Exit</td><td>Position schließen + Journal</td><td>Journal</td><td>5 Min</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<style>
+.lexicon-prose { line-height: 1.7; color: var(--text-secondary); }
+.lexicon-prose h1, .lexicon-prose h2, .lexicon-prose h3 { color: var(--text); margin-top: 24px; }
+.lexicon-prose table { width: 100%; border-collapse: collapse; margin: 12px 0; }
+.lexicon-prose th, .lexicon-prose td { padding: 8px 12px; border: 1px solid var(--border); font-size: 0.85rem; }
+.lexicon-prose th { background: var(--bg-app-mid); color: var(--text-dim); text-align: left; }
+</style>
+{% endblock %}
