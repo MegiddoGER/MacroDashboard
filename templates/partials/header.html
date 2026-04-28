@@ -1,7 +1,7 @@
 <!-- partials/header.html — Top-3-Metriken (S&P 500 Futures, Gold, Dollar Index) -->
 
 <div class="grid-3">
-    {% for m in header_metrics %}
+    {% for m in header_metrics|default([]) %}
     <div class="metric-card">
         <div class="metric-label">{{ m.label }}</div>
         <div class="metric-value">{{ m.value }}</div>

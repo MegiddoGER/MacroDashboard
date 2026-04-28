@@ -37,7 +37,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Macro Dashboard",
-    description="Trading Macro Dashboard — FastAPI + Jinja2 + HTMX",
+    description="Trading Macro Dashboard -- FastAPI + Jinja2 + HTMX",
     version="2.0.0",
     lifespan=lifespan,
 )
@@ -52,24 +52,11 @@ app.state.templates = templates
 
 
 # ---------------------------------------------------------------------------
-# Middleware: Inject common template context
+# Helper: Header-Metriken (fuer Jinja2 globals und API)
 # ---------------------------------------------------------------------------
 
-@app.middleware("http")
-async def inject_common_context(request: Request, call_next):
-    """Injects header_metrics and current_path into every template render."""
-    # Store current path for sidebar highlighting
-    request.state.current_path = request.url.path
-    response = await call_next(request)
-    return response
-
-
-# ---------------------------------------------------------------------------
-# Template Context Processor
-# ---------------------------------------------------------------------------
-
-def _get_header_metrics() -> list[dict]:
-    """Berechnet die Top-3-Header-Metriken."""
+def get_header_metrics() -> list[dict]:
+    """Berechnet die Top-3-Header-Metriken (S&P 500 Futures, Gold, DXY)."""
     from services.cache_core import cached_quote
     metrics = []
     for label, ticker in [
@@ -77,21 +64,38 @@ def _get_header_metrics() -> list[dict]:
         ("Gold", "GC=F"),
         ("US Dollar Index", "DX-Y.NYB"),
     ]:
-        q = cached_quote(ticker)
-        if q:
-            metrics.append({
-                "label": label,
-                "value": f"{q['price']:,.2f} €",
-                "change_pct": q.get("change_pct"),
-            })
-        else:
-            metrics.append({"label": label, "value": "—", "change_pct": None})
+        try:
+            q = cached_quote(ticker)
+            if q:
+                metrics.append({
+                    "label": label,
+                    "value": f"{q['price']:,.2f}",
+                    "change_pct": q.get("change_pct"),
+                })
+            else:
+                metrics.append({"label": label, "value": "---", "change_pct": None})
+        except Exception:
+            metrics.append({"label": label, "value": "---", "change_pct": None})
     return metrics
 
 
-# No monkeypatching needed — header_metrics are fetched explicitly
-# in each route via the _get_header_metrics() function, or passed
-# directly in the template context.
+# ---------------------------------------------------------------------------
+# Jinja2 Globals — verfuegbar in JEDEM Template automatisch
+# ---------------------------------------------------------------------------
+
+templates.env.globals["header_metrics_fn"] = get_header_metrics
+
+
+# ---------------------------------------------------------------------------
+# Middleware: Inject request-spezifischen Context
+# ---------------------------------------------------------------------------
+
+@app.middleware("http")
+async def inject_common_context(request: Request, call_next):
+    """Speichert current_path fuer Sidebar-Highlighting."""
+    request.state.current_path = request.url.path
+    response = await call_next(request)
+    return response
 
 
 # ---------------------------------------------------------------------------
@@ -121,15 +125,19 @@ _PLACEHOLDER_PAGES = {
     "/directory": "Aktien-Verzeichnis",
 }
 
-for path, title in _PLACEHOLDER_PAGES.items():
-    def _make_handler(page_title, page_path):
+for _path, _title in _PLACEHOLDER_PAGES.items():
+    def _make_handler(page_title: str, page_path: str):
         async def handler(request: Request):
-            return templates.TemplateResponse("pages/placeholder.html", {
-                "request": request,
-                "current_path": page_path,
-                "page_title": page_title,
-            })
+            return templates.TemplateResponse(
+                request=request,
+                name="pages/placeholder.html",
+                context={
+                    "current_path": page_path,
+                    "page_title": page_title,
+                    "header_metrics": get_header_metrics(),
+                },
+            )
         handler.__name__ = f"placeholder_{page_title.replace('-', '_').lower()}"
         return handler
 
-    app.add_api_route(path, _make_handler(title, path), response_class=HTMLResponse)
+    app.add_api_route(_path, _make_handler(_title, _path), response_class=HTMLResponse)

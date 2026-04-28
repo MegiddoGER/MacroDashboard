@@ -34,7 +34,7 @@
     <div class="nav-section">
         {% set has_active = false %}
         {% for pg in cat.pages %}
-            {% if pg.url == current_path %}{% set has_active = true %}{% endif %}
+            {% if pg.url == current_path|default('/') %}{% set has_active = true %}{% endif %}
         {% endfor %}
 
         <button class="nav-category-btn {{ 'expanded' if has_active else '' }}"
@@ -45,7 +45,7 @@
         <div class="nav-pages {{ 'expanded' if has_active else '' }}">
             {% for pg in cat.pages %}
             <a href="{{ pg.url }}"
-               class="nav-link {{ 'active' if pg.url == current_path else '' }}">
+               class="nav-link {{ 'active' if pg.url == current_path|default('/') else '' }}">
                 {{ pg.name }}
             </a>
             {% endfor %}

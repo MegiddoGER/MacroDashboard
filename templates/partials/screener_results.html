@@ -1,0 +1,121 @@
+<!-- partials/screener_results.html — Screener-Ergebnisse (HTMX Partial) -->
+
+{% if not results %}
+<div class="card" style="text-align: center; padding: 32px;">
+    <div style="font-size: 2rem; margin-bottom: 8px;">⚠️</div>
+    <p>Keine Aktien gefunden, die den Filterkriterien entsprechen.</p>
+</div>
+{% else %}
+
+<!-- Statistik-Header -->
+<h4>📊 Ergebnisse ({{ stats.total }} Aktien)</h4>
+
+<div class="grid-4" style="margin-bottom: var(--gap);">
+    <div class="metric-card">
+        <div class="metric-label">Gefunden</div>
+        <div class="metric-value">{{ stats.total }}</div>
+    </div>
+    <div class="metric-card">
+        <div class="metric-label">Ø Score</div>
+        <div class="metric-value">{{ "%.1f"|format(stats.avg_score) }}</div>
+    </div>
+    <div class="metric-card">
+        <div class="metric-label">Buy-Signale</div>
+        <div class="metric-value" style="color: var(--green);">{{ stats.buy_count }}</div>
+    </div>
+    <div class="metric-card">
+        <div class="metric-label">Sell-Signale</div>
+        <div class="metric-value" style="color: var(--red);">{{ stats.sell_count }}</div>
+    </div>
+</div>
+
+<hr>
+
+<!-- Ergebnis-Tabelle -->
+<div class="table-container" style="max-height: 600px; overflow-y: auto;">
+    <table class="data-table" id="screener-table">
+        <thead>
+            <tr>
+                <th style="width: 30px;"></th>
+                <th>Ticker</th>
+                <th>Unternehmen</th>
+                <th>Sektor</th>
+                <th>Score</th>
+                <th>Signal</th>
+                <th>RSI</th>
+                <th>Kurs ({{ currency }})</th>
+                <th>Trend</th>
+                <th>MACD</th>
+                <th>OBV</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for r in results %}
+            <tr>
+                <td>{{ r.emoji }}</td>
+                <td><strong>{{ r.ticker }}</strong></td>
+                <td>{{ r.name }}</td>
+                <td><span class="caption">{{ r.sector }}</span></td>
+                <td style="color: {{ r.confidence_color }}; font-weight: 600;">
+                    {{ "%.1f"|format(r.confidence) }}
+                </td>
+                <td><span class="badge {{ r.signal_badge }}">{{ r.signal }}</span></td>
+                <td>{{ r.rsi_display }}</td>
+                <td>{{ r.price_display }}</td>
+                <td>{{ "✅" if r.trend_bullish else "❌" }}</td>
+                <td>{{ "✅" if r.macd_bullish else "❌" }}</td>
+                <td>{{ "✅" if r.obv_bullish else "❌" }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Top / Flop Highlights -->
+{% if top5 %}
+<hr>
+<div class="grid-2" style="margin-top: var(--gap);">
+    <div class="card">
+        <h5>🏆 Top 5 (hoechster Score)</h5>
+        {% for r in top5 %}
+        <div style="padding: 8px 0; border-bottom: 1px solid var(--border);">
+            <strong>{{ loop.index }}. {{ r.emoji }} {{ r.ticker }}</strong> — {{ r.name }}<br>
+            <span class="caption">
+                Score: <strong style="color: {{ r.confidence_color }};">{{ "%.1f"|format(r.confidence) }}</strong>
+                | RSI: {{ r.rsi_display }}
+                | {{ currency }}{{ r.price_display }}
+            </span>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="card">
+        <h5>📉 Bottom 5 (niedrigster Score)</h5>
+        {% for r in bottom5 %}
+        <div style="padding: 8px 0; border-bottom: 1px solid var(--border);">
+            <strong>{{ loop.index }}. {{ r.emoji }} {{ r.ticker }}</strong> — {{ r.name }}<br>
+            <span class="caption">
+                Score: <strong style="color: {{ r.confidence_color }};">{{ "%.1f"|format(r.confidence) }}</strong>
+                | RSI: {{ r.rsi_display }}
+                | {{ currency }}{{ r.price_display }}
+            </span>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Footer -->
+<hr>
+<p class="caption">
+    💡 <strong>Tipp:</strong> Fuer eine vollstaendige Analyse mit Fundamentaldaten,
+    SMC-Signalen und Handlungsempfehlung → wechsle zur <a href="/analysis">Analyse-Seite</a>
+    und gib den gewuenschten Ticker ein.
+</p>
+<p class="caption">
+    ⚠️ Quick-Score basiert nur auf technischen Indikatoren (Trend,
+    Volumen, Oszillatoren). Fundamentaldaten werden nicht beruecksichtigt.
+    Ergebnisse sind keine Anlageberatung.
+</p>
+
+{% endif %}

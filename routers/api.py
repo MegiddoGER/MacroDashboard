@@ -1,7 +1,7 @@
 """
-routers/api.py — JSON-Endpunkte für HTMX-Partials und Daten-APIs.
+routers/api.py — JSON-Endpunkte fuer HTMX-Partials und Daten-APIs.
 
-Enthält:
+Enthaelt:
 - Header-Metriken (S&P 500, Gold, DXY)
 - Watchlist CRUD
 - Cache-Management
@@ -24,27 +24,15 @@ router = APIRouter(prefix="/api", tags=["api"])
 
 @router.get("/header", response_class=HTMLResponse)
 async def header_metrics(request: Request):
-    """Liefert die Top-3-Metriken als HTML-Partial (für HTMX-Refresh)."""
-    metrics = []
-    for label, ticker in [
-        ("S&P 500 Futures", "ES=F"),
-        ("Gold", "GC=F"),
-        ("US Dollar Index", "DX-Y.NYB"),
-    ]:
-        q = cached_quote(ticker)
-        if q:
-            metrics.append({
-                "label": label,
-                "value": f"{q['price']:,.2f} €",
-                "change_pct": q.get("change_pct"),
-            })
-        else:
-            metrics.append({"label": label, "value": "—", "change_pct": None})
+    """Liefert die Top-3-Metriken als HTML-Partial (fuer HTMX-Refresh)."""
+    from main import get_header_metrics
+    metrics = get_header_metrics()
 
     templates = request.app.state.templates
     return templates.TemplateResponse(
-        "partials/header.html",
-        {"request": request, "header_metrics": metrics},
+        request=request,
+        name="partials/header.html",
+        context={"header_metrics": metrics},
     )
 
 
@@ -61,14 +49,15 @@ async def watchlist_items(request: Request):
 
     templates = request.app.state.templates
     return templates.TemplateResponse(
-        "partials/watchlist_items.html",
-        {"request": request, "invested": invested, "watching": watching},
+        request=request,
+        name="partials/watchlist_items.html",
+        context={"invested": invested, "watching": watching},
     )
 
 
 @router.post("/watchlist/add", response_class=HTMLResponse)
 async def watchlist_add(request: Request, query: str = Form("")):
-    """Fügt einen Ticker zur Watchlist hinzu."""
+    """Fuegt einen Ticker zur Watchlist hinzu."""
     if not query.strip():
         return HTMLResponse("<div class='alert alert-warning'>Bitte einen Ticker eingeben.</div>")
 
@@ -78,7 +67,7 @@ async def watchlist_add(request: Request, query: str = Form("")):
         # Re-render the whole watchlist
         return await watchlist_items(request)
     else:
-        return HTMLResponse(f"<div class='alert alert-danger'>❌ '{query}' nicht gefunden.</div>")
+        return HTMLResponse(f"<div class='alert alert-danger'>'{query}' nicht gefunden.</div>")
 
 
 @router.delete("/watchlist/{ticker}", response_class=HTMLResponse)
