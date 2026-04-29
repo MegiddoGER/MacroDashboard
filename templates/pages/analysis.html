@@ -17,6 +17,7 @@
           hx-target="#analysis-content"
           hx-swap="innerHTML"
           hx-indicator="#analysis-spinner"
+          hx-disabled-elt="#analysis-form button[type=submit]"
           style="margin-top: 12px;">
 
         <div style="display: grid; grid-template-columns: auto 1fr 1fr; gap: 12px; margin-bottom: 12px; align-items: end;">
@@ -75,9 +76,9 @@
 
         <!-- Spinner -->
         <div id="analysis-spinner" class="htmx-indicator"
-             style="text-align: center; padding: 24px; display: none;">
+             style="text-align: center; padding: 24px;">
             <div class="spinner"></div>
-            <p class="caption" style="margin-top: 12px;">Lade Analyse... Daten werden von mehreren Quellen aggregiert.</p>
+            <p class="caption" style="margin-top: 12px;">Lade Analyse... Daten werden von mehreren Quellen aggregiert (ca. 15-30 Sek.).</p>
         </div>
     </form>
 </div>
@@ -106,8 +107,9 @@
         background: var(--accent); color: var(--bg-primary); border-color: var(--accent);
     }
     .btn-group input[type="radio"] { display: none; }
-    .htmx-indicator { display: none; }
-    .htmx-request .htmx-indicator, .htmx-request.htmx-indicator { display: block; }
+    /* HTMX 2.x: indicator is the element itself, not a child */
+    .htmx-indicator { opacity: 0; transition: opacity 200ms ease-in; }
+    .htmx-indicator.htmx-request { opacity: 1; }
     .spinner {
         width: 32px; height: 32px; border: 3px solid var(--border);
         border-top-color: var(--accent); border-radius: 50%;

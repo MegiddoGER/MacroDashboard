@@ -107,6 +107,8 @@ async def analysis_load(
     ticker_input: str = Form(""),
     time_filter: str = Form("1 Jahr"),
 ):
+    import asyncio
+
     templates = request.app.state.templates
 
     raw_input = ticker_input.strip()
@@ -116,6 +118,25 @@ async def analysis_load(
             "<p>Bitte einen Ticker oder Firmennamen eingeben.</p></div>"
         )
 
+    # Run all blocking work in a thread so we don't block the event loop
+    ctx = await asyncio.to_thread(_build_analysis_context, raw_input, time_filter)
+
+    if isinstance(ctx, str):
+        # Error message returned
+        return HTMLResponse(ctx)
+
+    return templates.TemplateResponse(
+        request=request,
+        name="partials/analysis_content.html",
+        context=ctx,
+    )
+
+
+def _build_analysis_context(raw_input: str, time_filter: str) -> dict | str:
+    """Synchronous function that builds the full analysis context.
+    
+    Returns a dict for the template context, or a str with an HTML error message.
+    """
     # Resolve ticker
     resolved = resolve_ticker(raw_input)
     if resolved:
@@ -129,14 +150,10 @@ async def analysis_load(
     try:
         details = cached_stock_details(ticker)
     except Exception as e:
-        return HTMLResponse(
-            f"<div class='alert alert-danger'>Fehler beim Laden: {e}</div>"
-        )
+        return f"<div class='alert alert-danger'>Fehler beim Laden: {e}</div>"
 
     if details is None:
-        return HTMLResponse(
-            f"<div class='alert alert-danger'>Keine Daten fuer <b>{ticker}</b> gefunden.</div>"
-        )
+        return f"<div class='alert alert-danger'>Keine Daten fuer <b>{ticker}</b> gefunden.</div>"
 
     stats = details["stats"]
     hist = details["hist_1y"]
@@ -504,21 +521,10 @@ async def analysis_load(
     except Exception:
         pass
 
-    # === Correlation (default: vs S&P 500 + DAX) ===
+    # === Correlation ===
+    # Skip on initial load (adds 8-12s for 4 extra yfinance calls).
+    # Users can view correlation data in the dedicated tab.
     corr_chart = "null"
-    try:
-        from charts import plot_correlation_matrix
-        corr_df = cached_correlation(
-            f"{ticker},^GSPC,^GDAXI,GC=F",
-            f"{display_ticker},S&P 500,DAX,Gold",
-            "1y",
-        )
-        if corr_df is not None and not corr_df.empty:
-            corr_chart = _fig_to_json(plot_correlation_matrix(
-                corr_df, f"Korrelationsmatrix — {display_ticker} (1 Jahr)"
-            ))
-    except Exception:
-        pass
 
     # Position Sizing defaults
     ps_defaults = None
@@ -573,9 +579,5 @@ async def analysis_load(
         "fmt_price": _fmt_price,
         "fmt_big": _fmt_big,
     }
-    return templates.TemplateResponse(
-        request=request,
-        name="partials/analysis_content.html",
-        context=ctx,
-    )
+    return ctx
 
