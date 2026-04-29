@@ -19,10 +19,21 @@
           hx-indicator="#analysis-spinner"
           style="margin-top: 12px;">
 
-        <div class="grid-2" style="gap: 12px; margin-bottom: 12px;">
+        <div style="display: grid; grid-template-columns: auto 1fr 1fr; gap: 12px; margin-bottom: 12px; align-items: end;">
+            <!-- Reset Button -->
+            <div>
+                <label class="form-label">&nbsp;</label>
+                <button type="button" class="btn btn-secondary" id="reset-analysis-btn"
+                        onclick="document.getElementById('ticker-input').value='';document.getElementById('wl-select').selectedIndex=0;"
+                        title="Auswahl zurücksetzen"
+                        style="padding: 8px 12px; font-size: 1rem;">
+                    ❌
+                </button>
+            </div>
+
             <!-- Watchlist Dropdown -->
             <div>
-                <label class="form-label">Watchlist</label>
+                <label class="form-label">⚡ Watchlist</label>
                 <select class="form-input" id="wl-select"
                         onchange="if(this.value){document.getElementById('ticker-input').value=this.value;}">
                     <option value="">— Manuell eingeben —</option>

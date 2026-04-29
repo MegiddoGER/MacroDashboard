@@ -504,6 +504,35 @@ async def analysis_load(
     except Exception:
         pass
 
+    # === Correlation (default: vs S&P 500 + DAX) ===
+    corr_chart = "null"
+    try:
+        from charts import plot_correlation_matrix
+        corr_df = cached_correlation(
+            f"{ticker},^GSPC,^GDAXI,GC=F",
+            f"{display_ticker},S&P 500,DAX,Gold",
+            "1y",
+        )
+        if corr_df is not None and not corr_df.empty:
+            corr_chart = _fig_to_json(plot_correlation_matrix(
+                corr_df, f"Korrelationsmatrix — {display_ticker} (1 Jahr)"
+            ))
+    except Exception:
+        pass
+
+    # Position Sizing defaults
+    ps_defaults = None
+    try:
+        if atr_val and stats.get("current_price"):
+            ps_defaults = calc_position_sizing(
+                current_price=stats["current_price"],
+                atr_val=atr_val,
+                portfolio_value=10000,
+                max_risk_pct=0.02,
+            )
+    except Exception:
+        pass
+
     # === Build context ===
     ctx = {
         "ticker": ticker,
@@ -538,6 +567,9 @@ async def analysis_load(
         "company_news": company_news,
         "quant_data": quant_data,
         "signal_history": signal_history,
+        "corr_chart": corr_chart,
+        "ps_defaults": ps_defaults,
+        "info_data": info_data,
         "fmt_price": _fmt_price,
         "fmt_big": _fmt_big,
     }
@@ -546,3 +578,4 @@ async def analysis_load(
         name="partials/analysis_content.html",
         context=ctx,
     )
+
