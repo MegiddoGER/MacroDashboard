@@ -350,4 +350,48 @@
 <div class="alert alert-info">Deine Watchlist ist leer. Gehe zu 'Analyse' um Ticker hinzuzufügen.</div>
 {% endif %}
 
+<hr>
+
+<!-- ═══════════════════════════════════════════════════════════
+     4. Alert Archiv (History)
+     ═══════════════════════════════════════════════════════════ -->
+<details style="margin-top: var(--gap); background: var(--bg-card); border-radius: var(--radius); border: 1px solid var(--border);">
+    <summary style="padding: 16px; font-weight: 600; cursor: pointer; user-select: none;">
+        🗄️ Alert-Archiv (Historie)
+    </summary>
+    <div style="padding: 16px; border-top: 1px solid var(--border);">
+        {% if ach_alerts %}
+        <div class="table-container">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Ausgelöst am</th>
+                        <th>Ticker</th>
+                        <th>Bedingung</th>
+                        <th>Kurs bei Trigger</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for a in ach_alerts %}
+                    <tr>
+                        <td>{{ a.triggered_at if a.triggered_at else a.created_at }}</td>
+                        <td><strong>{{ a.ticker }}</strong></td>
+                        <td>{{ a.alert_type }} ({{ "%.2f"|format(a.threshold) }})</td>
+                        <td>{{ "%.2f"|format(a.trigger_value) if a.trigger_value else 'Unbekannt' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <form hx-post="/home/clear_archive" hx-swap="none" style="margin-top: 16px;">
+            <button type="submit" class="btn btn-outline" style="color: var(--red); border-color: var(--red);">
+                🗑️ Archiv leeren
+            </button>
+        </form>
+        {% else %}
+        <div class="alert alert-info">Keine alten Alerts im Archiv.</div>
+        {% endif %}
+    </div>
+</details>
+
 {% endblock %}

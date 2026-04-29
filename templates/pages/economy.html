@@ -115,6 +115,18 @@
 
 <script>
 (function(){
+  function deepMerge(base, override) {
+    var result = {};
+    for (var k in base) { result[k] = base[k]; }
+    for (var k in override) {
+      if (override[k] && typeof override[k] === 'object' && !Array.isArray(override[k]) && base[k] && typeof base[k] === 'object') {
+        result[k] = deepMerge(base[k], override[k]);
+      } else {
+        result[k] = override[k];
+      }
+    }
+    return result;
+  }
   const charts = {
     'chart-gold': {{ charts.gold|safe }},
     'chart-oil': {{ charts.oil|safe }},
@@ -124,7 +136,8 @@
   for (const [id, fig] of Object.entries(charts)) {
     const el = document.getElementById(id);
     if (el && fig) {
-      Plotly.newPlot(el, fig.data, Object.assign({}, PLOTLY_LAYOUT, fig.layout || {}), {displayModeBar:true, scrollZoom:true, responsive:true});
+      var layout = deepMerge(PLOTLY_LAYOUT, fig.layout || {});
+      Plotly.newPlot(el, fig.data, layout, {displayModeBar:true, scrollZoom:true, responsive:true});
     }
   }
 })();

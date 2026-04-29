@@ -51,7 +51,8 @@
                 <label class="form-label">Ticker oder Firmenname</label>
                 <input type="text" name="ticker_input" id="ticker-input"
                        class="form-input" placeholder="z.B. AAPL, SAP, NVIDIA"
-                       autocomplete="off">
+                       autocomplete="off"
+                       oninput="document.getElementById('wl-select').selectedIndex = 0;">
             </div>
         </div>
 
@@ -63,9 +64,10 @@
                 <label class="btn btn-outline {{ 'active' if tf == '1 Jahr' else '' }}">
                     <input type="radio" name="time_filter" value="{{ tf }}"
                            {{ 'checked' if tf == '1 Jahr' else '' }}
-                           onchange="this.closest('.btn-group').querySelectorAll('label').forEach(l=>l.classList.remove('active'));this.parentElement.classList.add('active');">
+                           onchange="this.closest('.btn-group').querySelectorAll('label').forEach(l=>l.classList.remove('active'));this.parentElement.classList.add('active');if(document.getElementById('ticker-input').value){htmx.trigger(this.closest('form'), 'submit');}">
                     {{ tf }}
                 </label>
+
                 {% endfor %}
             </div>
         </div>

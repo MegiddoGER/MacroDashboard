@@ -97,6 +97,9 @@ async def home_page(request: Request):
                 df["Display"] = df["Ticker"].map(lambda t: display_map.get(t, t))
             watchlist_df = df
 
+    # 8. Alert Archiv (History)
+    ach_alerts = AlertStore.get_acknowledged()
+
     ctx = {
         "request": request,
         "current_path": "/",
@@ -104,6 +107,7 @@ async def home_page(request: Request):
         "portfolio": portfolio,
         "unack_alerts": unack_alerts,
         "active_alerts": active_alerts,
+        "ach_alerts": ach_alerts,
         "upcoming_macro": upcoming_macro,
         "j_stats": j_stats,
         "fg_value": fg_value,
@@ -113,4 +117,13 @@ async def home_page(request: Request):
         "display_map": display_map,
     }
     return templates.TemplateResponse(request=request, name="pages/home.html", context=ctx)
+
+
+@router.post("/home/clear_archive", response_class=HTMLResponse)
+async def clear_archive(request: Request):
+    """Löscht alle archivierten Alerts."""
+    ach_alerts = AlertStore.get_acknowledged()
+    for a in ach_alerts:
+        AlertStore.delete_alert(a.id)
+    return HTMLResponse("<script>showToast('Archiv geleert!');setTimeout(()=>location.reload(),500);</script>")
 
