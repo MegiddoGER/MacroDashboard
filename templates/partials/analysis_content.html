@@ -4,6 +4,16 @@
   <p class="caption">{{ stats.get('name','') }} · {{ stats.get('sector','') }} · {{ stats.get('industry','') }}</p>
 </div>
 
+<!-- ═══ Macro Event Warnings ═══ -->
+{% if macro_events %}
+{% for ev in macro_events %}
+<div style="background:linear-gradient(90deg, rgba(234,179,8,0.13) 0%, rgba(15,23,42,0) 100%);border-left:4px solid #eab308;border-radius:6px;padding:10px 16px;margin-bottom:8px;">
+  <span style="font-size:0.9rem;">⚠️ <b>{{ ev.name }}</b> — {{ ev.countdown_label }}{% if ev.date %} ({{ ev.date.strftime('%d.%m.%Y') if ev.date is not string else ev.date }}){% endif %}</span>
+  {% if ev.description %}<br><span style="color:var(--text-dim);font-size:0.78rem;">{{ ev.description }}</span>{% endif %}
+</div>
+{% endfor %}
+{% endif %}
+
 <!-- ═══ Overview Metrics ═══ -->
 <div class="grid-4" style="gap:12px;margin-bottom:var(--gap);">
   <div class="metric-card"><div class="metric-label">Aktueller Kurs</div><div class="metric-value">{{ fmt_price(stats.current_price) }}</div></div>
@@ -32,7 +42,7 @@
 
 <!-- ═══ TABS: Charts ═══ -->
 <div>
-  <div class="tabs">
+  <div class="tabs" style="flex-wrap:wrap;">
     <button class="tab active" data-tab="tab-candle">📊 Kurs</button>
     <button class="tab" data-tab="tab-rsi">📉 RSI</button>
     <button class="tab" data-tab="tab-macd">📀 MACD</button>
@@ -40,6 +50,7 @@
     <button class="tab" data-tab="tab-stoch">📈 Stochastic</button>
     <button class="tab" data-tab="tab-returns">🎲 Renditen</button>
     <button class="tab" data-tab="tab-5y">🗓️ 5 Jahre</button>
+    <button class="tab" data-tab="tab-corr">🔗 Korrelation</button>
   </div>
 
   <div id="tab-candle" class="tab-content active">
@@ -108,6 +119,14 @@
     {% if charts.hist5y != "null" %}
     <div id="chart-5y" class="chart-container" style="height:400px;"></div>
     {% else %}<div class="alert alert-info">5-Jahres-Daten nicht verfügbar.</div>{% endif %}
+  </div>
+
+  <div id="tab-corr" class="tab-content">
+    <h5>Korrelation mit anderen Assets</h5>
+    <p class="caption">Wie stark bewegt sich diese Aktie im Gleichschritt mit anderen Assets? Werte nahe +1 = starker Gleichlauf, nahe -1 = gegenläufig, nahe 0 = unabhängig.</p>
+    {% if corr_chart != "null" %}
+    <div id="chart-corr" class="chart-container" style="height:450px;"></div>
+    {% else %}<div class="alert alert-info">Korrelationsdaten nicht verfügbar.</div>{% endif %}
   </div>
 </div>
 
@@ -285,8 +304,50 @@
 <hr>
 {% endif %}
 
+<!-- ═══ Options Analysis ═══ -->
+{% if opts %}
+<hr>
+<h4>📋 Options-Analyse</h4>
+<div class="grid-4" style="gap:12px;margin-bottom:12px;">
+  <div class="metric-card"><div class="metric-label">Put/Call Ratio</div><div class="metric-value">{{ "%.2f"|format(opts.put_call_ratio) if opts.put_call_ratio else "—" }}</div>
+    <div class="metric-delta {{ 'positive' if opts.put_call_ratio and opts.put_call_ratio < 0.7 else ('negative' if opts.put_call_ratio and opts.put_call_ratio > 1.2 else 'neutral') }}">
+      {{ "Bullish" if opts.put_call_ratio and opts.put_call_ratio < 0.7 else ("Bearish" if opts.put_call_ratio and opts.put_call_ratio > 1.2 else "Neutral") }}
+    </div>
+  </div>
+  <div class="metric-card"><div class="metric-label">IV (30T)</div><div class="metric-value">{{ "%.0f %%"|format(opts.iv_30d) if opts.iv_30d else "—" }}</div></div>
+  <div class="metric-card"><div class="metric-label">Max Pain</div><div class="metric-value">{{ fmt_price(opts.max_pain) if opts.max_pain else "—" }}</div></div>
+  <div class="metric-card"><div class="metric-label">Nächster Verfall</div><div class="metric-value">{{ opts.next_expiry if opts.next_expiry else "—" }}</div></div>
+</div>
+{% if opts.top_call_strikes or opts.top_put_strikes %}
+<div class="grid-2" style="gap:12px;margin-top:12px;">
+  <div>
+    <h5>🟢 Top Calls (Resistance)</h5>
+    {% if opts.top_call_strikes %}
+    {% for s in opts.top_call_strikes %}
+    <div style="background:var(--bg-card);padding:6px 12px;border-radius:6px;border-left:3px solid #22c55e;margin-bottom:4px;font-size:0.85rem;">
+      <b>${{ "{:,.0f}".format(s.strike) }}</b> · OI: {{ "{:,}".format(s.open_interest) }} · Vol: {{ "{:,}".format(s.volume) }} · IV: {{ "%.0f"|format(s.iv) }}%
+    </div>
+    {% endfor %}
+    {% else %}<p class="caption">Keine Call-OI-Daten.</p>{% endif %}
+  </div>
+  <div>
+    <h5>🔴 Top Puts (Support)</h5>
+    {% if opts.top_put_strikes %}
+    {% for s in opts.top_put_strikes %}
+    <div style="background:var(--bg-card);padding:6px 12px;border-radius:6px;border-left:3px solid #ef4444;margin-bottom:4px;font-size:0.85rem;">
+      <b>${{ "{:,.0f}".format(s.strike) }}</b> · OI: {{ "{:,}".format(s.open_interest) }} · Vol: {{ "{:,}".format(s.volume) }} · IV: {{ "%.0f"|format(s.iv) }}%
+    </div>
+    {% endfor %}
+    {% else %}<p class="caption">Keine Put-OI-Daten.</p>{% endif %}
+  </div>
+</div>
+{% endif %}
+<p class="caption" style="margin-top:8px;">Put/Call Ratio: &lt;0.7 = bullish, 0.7-1.2 = neutral, &gt;1.2 = bearish. Max Pain: Preislevel bei dem am meisten Optionen wertlos verfallen.</p>
+{% endif %}
+
 <!-- ═══ Summary / Scoring ═══ -->
 {% if sum_data %}
+<hr>
 <h4>📝 Zusammenfassung</h4>
 {% set confidence = sum_data.get('confidence', 50) %}
 {% if confidence >= 60 %}{% set conf_color = "#22c55e" %}
@@ -321,6 +382,81 @@
   </ul>
 </div>
 {% endif %}
+
+<!-- ═══ Indikatoren-Checkliste ═══ -->
+{% if sum_data.get('checklist') %}
+<h5 style="margin-top:16px;">🔍 Indikatoren-Checkliste</h5>
+<div class="table-container">
+  <table class="data-table">
+    <thead><tr><th>Indikator</th><th>Wert</th><th>Signal</th><th>Beitrag</th></tr></thead>
+    <tbody>
+    {% for item in sum_data.checklist %}
+    <tr>
+      <td><b>{{ item.get('Indikator','') }}</b></td>
+      <td>{{ item.get('Wert','—') }}</td>
+      <td>{{ item.get('Signal','—') }}</td>
+      <td>{{ item.get('Beitrag','—') }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+{% endif %}
+
+<!-- ═══ Signal-Historie ═══ -->
+{% if signal_history %}
+<hr>
+<h4>📡 Signal-Historie (Letzte 5)</h4>
+<p class="caption">Das Dashboard speichert automatisch Bewertungssignale, um die eigene Trefferquote zu messen.</p>
+<div class="table-container">
+  <table class="data-table">
+    <thead><tr><th>Datum</th><th>Signal</th><th>Score</th><th>Kurs (damals)</th><th>Ergebnis (1M)</th></tr></thead>
+    <tbody>
+    {% for s in signal_history %}
+    <tr>
+      <td>{{ s.timestamp[:16] if s.timestamp else '—' }}</td>
+      <td>{% if s.signal_type == 'buy' %}KAUFEN 🟢{% elif s.signal_type == 'sell' %}VERKAUFEN 🔴{% else %}NEUTRAL 🟡{% endif %}</td>
+      <td>{{ "%.0f"|format(s.confidence) if s.confidence else '—' }}</td>
+      <td>{{ "{:,.2f} €".format(s.price_at_signal) if s.price_at_signal else '—' }}</td>
+      <td>{% if s.was_successful is true %}✅ Gewonnen{% elif s.was_successful is false %}❌ Verloren{% else %}⏳ Ausstehend{% endif %}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+<!-- ═══ Position Sizing (Kelly + ATR) ═══ -->
+{% if atr_val and stats.get('current_price') %}
+<hr>
+<h4>📐 Position Sizing (Kelly + ATR)</h4>
+<p class="caption">Bestimmt, wie viele Aktien du kaufen solltest — basierend auf deinem Gesamtkapital, dem aktuellen Kurs und der Volatilität (ATR).</p>
+
+{% if ps_defaults %}
+<div class="grid-4" style="gap:12px;margin-bottom:12px;">
+  <div class="metric-card"><div class="metric-label">Entry (Aktueller Kurs)</div><div class="metric-value">{{ fmt_price(stats.current_price) }}</div></div>
+  <div class="metric-card"><div class="metric-label">Empfohlene Stückzahl</div><div class="metric-value">{{ ps_defaults.shares }} Stück</div></div>
+  <div class="metric-card"><div class="metric-label">Positionswert</div><div class="metric-value">{{ "{:,.2f}".format(ps_defaults.position_value) }} €</div><div class="metric-delta neutral">{{ "%.1f"|format(ps_defaults.position_pct) }}% des Portfolios</div></div>
+  <div class="metric-card"><div class="metric-label">Max. Verlust bei Stop</div><div class="metric-value">{{ "{:,.2f}".format(ps_defaults.risk_eur) }} €</div><div class="metric-delta neutral">2.0% vom Portfolio</div></div>
+</div>
+<div class="grid-4" style="gap:12px;margin-bottom:12px;">
+  <div class="metric-card"><div class="metric-label">Stop-Loss</div><div class="metric-value">{{ "{:,.2f}".format(ps_defaults.stop_loss) }} €</div><div class="metric-delta neutral">-{{ "{:,.2f}".format(ps_defaults.stop_distance) }} (1.5× ATR)</div></div>
+  <div class="metric-card"><div class="metric-label">Take-Profit</div><div class="metric-value">{{ "{:,.2f}".format(ps_defaults.take_profit) }} €</div><div class="metric-delta neutral">+{{ "{:,.2f}".format(2.5 * atr_val) }} (2.5× ATR)</div></div>
+  <div class="metric-card"><div class="metric-label">Kelly-Anteil</div><div class="metric-value">{{ "%.1f"|format(ps_defaults.kelly_fraction_pct) }}%</div></div>
+  <div class="metric-card"><div class="metric-label">Kelly-Stückzahl</div><div class="metric-value">{{ ps_defaults.kelly_shares }} Stück</div></div>
+</div>
+<div class="alert alert-info" style="font-size:0.85rem;">
+  <b>So liest du das:</b><br>
+  • <b>Entry</b> = Aktueller Kurs (dein Einstiegspunkt)<br>
+  • <b>Stop-Loss</b> = 1,5× ATR unter dem Entry — automatischer Verkauf bei diesem Kurs<br>
+  • <b>Take-Profit</b> = 2,5× ATR über dem Entry — Gewinnmitnahme (R:R ≈ 1:1,67)<br>
+  • <b>Kelly-Anteil</b> = Mathematisch optimale Positionsgröße (gekappt bei 25%)
+</div>
+{% else %}
+<div class="alert alert-info">Nicht genügend Daten für Position-Sizing-Berechnung.</div>
+{% endif %}
+<p class="caption" style="margin-top:8px;">⚠️ Dies ist eine algorithmische Momentaufnahme. Sie dient als Entscheidungshilfe, nicht als Anlageberatung.</p>
 {% endif %}
 
 <!-- ═══ News ═══ -->
@@ -338,6 +474,18 @@
 <!-- ═══ Plotly Rendering ═══ -->
 <script>
 (function(){
+  function deepMerge(base, override) {
+    var result = {};
+    for (var k in base) { result[k] = base[k]; }
+    for (var k in override) {
+      if (override[k] && typeof override[k] === 'object' && !Array.isArray(override[k]) && base[k] && typeof base[k] === 'object') {
+        result[k] = deepMerge(base[k], override[k]);
+      } else {
+        result[k] = override[k];
+      }
+    }
+    return result;
+  }
   const charts = {
     'chart-candle': {{ charts.candlestick|safe }},
     'chart-rsi': {{ charts.rsi|safe }},
@@ -353,12 +501,25 @@
     'chart-fin': {{ charts.financials|safe }},
     'chart-margins': {{ margins_chart|safe }},
     'chart-div': {{ div_chart|safe }},
+    'chart-corr': {{ corr_chart|safe }},
   };
   for (const [id, fig] of Object.entries(charts)) {
     const el = document.getElementById(id);
     if (el && fig) {
-      Plotly.newPlot(el, fig.data, Object.assign({}, PLOTLY_LAYOUT, fig.layout || {}), {displayModeBar:true, scrollZoom:true, responsive:true});
+      var layout = deepMerge(PLOTLY_LAYOUT, fig.layout || {});
+      Plotly.newPlot(el, fig.data, layout, {displayModeBar:true, scrollZoom:true, responsive:true});
     }
   }
+  // Re-render visible charts on tab switch (Plotly needs visible container to size correctly)
+  document.querySelectorAll('.tab').forEach(function(tab) {
+    tab.addEventListener('click', function() {
+      setTimeout(function() {
+        document.querySelectorAll('.tab-content.active .chart-container').forEach(function(c) {
+          if (c.data) { Plotly.Plots.resize(c); }
+        });
+      }, 50);
+    });
+  });
 })();
 </script>
+
