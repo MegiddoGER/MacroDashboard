@@ -1,8 +1,8 @@
-"""
-routers/analysis.py — Analyse-Seite (Herzstueck des Dashboards).
+﻿"""
+routers/analysis.py â€” Analyse-Seite (Herzstueck des Dashboards).
 
-GET  /analysis            → Ticker-Eingabe
-POST /analysis/load       → Laedt vollstaendige Analyse als HTMX-Partial
+GET  /analysis            â†’ Ticker-Eingabe
+POST /analysis/load       â†’ Laedt vollstaendige Analyse als HTMX-Partial
 """
 
 import json
@@ -60,13 +60,13 @@ def _safe_float(val, default=None):
 
 def _fmt_price(val, suffix=" EUR"):
     if val is None or (isinstance(val, float) and math.isnan(val)):
-        return "—"
+        return "â€”"
     return f"{val:,.2f}{suffix}"
 
 
 def _fmt_big(val):
     if val is None:
-        return "—"
+        return "â€”"
     abs_val = abs(val)
     if abs_val >= 1e12:
         return f"{val/1e12:.2f} Bio. EUR"
@@ -137,6 +137,8 @@ def _build_analysis_context(raw_input: str, time_filter: str) -> dict | str:
     
     Returns a dict for the template context, or a str with an HTML error message.
     """
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
     # Resolve ticker
     resolved = resolve_ticker(raw_input)
     if resolved:
@@ -146,7 +148,7 @@ def _build_analysis_context(raw_input: str, time_filter: str) -> dict | str:
         ticker = raw_input.upper()
         display_ticker = ticker
 
-    # Load stock details
+    # Load stock details (must be sequential â€” everything depends on it)
     try:
         details = cached_stock_details(ticker)
     except Exception as e:
@@ -175,7 +177,6 @@ def _build_analysis_context(raw_input: str, time_filter: str) -> dict | str:
     # === Build all chart JSONs ===
     charts = {}
 
-    # 1. Candlestick
     from charts import (
         plot_candlestick, plot_rsi, plot_macd as plot_macd_chart,
         plot_bollinger as plot_boll_chart, plot_stochastic as plot_stoch_chart,
@@ -186,44 +187,43 @@ def _build_analysis_context(raw_input: str, time_filter: str) -> dict | str:
         plot_financials_chart,
     )
 
+    # --- Charts (CPU-bound, fast) ---
     try:
         charts["candlestick"] = _fig_to_json(plot_candlestick(
-            selected_hist, f"{ticker} — Candlestick ({time_filter})",
+            selected_hist, f"{ticker} â€” Candlestick ({time_filter})",
             sma_20=details.get("sma_20"), sma_50=details.get("sma_50"),
             sma_200=details.get("sma_200"),
         ))
     except Exception:
         charts["candlestick"] = "null"
 
-    # RSI
     rsi_series = details.get("rsi_series")
     rsi_val = _safe_float(stats.get("rsi"))
     try:
         if rsi_series is not None:
-            charts["rsi"] = _fig_to_json(plot_rsi(rsi_series, f"RSI (14) — {ticker}"))
+            charts["rsi"] = _fig_to_json(plot_rsi(rsi_series, f"RSI (14) â€” {ticker}"))
         else:
             charts["rsi"] = "null"
     except Exception:
         charts["rsi"] = "null"
 
-    # MACD
+    macd_bullish = None
     try:
         macd_line, signal_line, histogram = calc_macd(close)
         charts["macd"] = _fig_to_json(plot_macd_chart(
-            macd_line, signal_line, histogram, f"MACD — {ticker}"
+            macd_line, signal_line, histogram, f"MACD â€” {ticker}"
         ))
         last_macd = float(macd_line.dropna().iloc[-1]) if not macd_line.dropna().empty else 0
         last_signal = float(signal_line.dropna().iloc[-1]) if not signal_line.dropna().empty else 0
         macd_bullish = last_macd > last_signal
     except Exception:
         charts["macd"] = "null"
-        macd_bullish = None
 
-    # Bollinger
+    boll_signal = None
     try:
         upper, middle, lower = calc_bollinger(close)
         charts["bollinger"] = _fig_to_json(plot_boll_chart(
-            close, upper, middle, lower, f"Bollinger Baender — {ticker}"
+            close, upper, middle, lower, f"Bollinger Baender â€” {ticker}"
         ))
         last_close = float(close.iloc[-1])
         last_upper = float(upper.dropna().iloc[-1]) if not upper.dropna().empty else 0
@@ -236,51 +236,46 @@ def _build_analysis_context(raw_input: str, time_filter: str) -> dict | str:
             boll_signal = "normal"
     except Exception:
         charts["bollinger"] = "null"
-        boll_signal = None
 
-    # Stochastic
+    last_k = None
     try:
         k_line, d_line = calc_stochastic(hist["High"], hist["Low"], hist["Close"])
         charts["stochastic"] = _fig_to_json(plot_stoch_chart(
-            k_line, d_line, f"Stochastic — {ticker}"
+            k_line, d_line, f"Stochastic â€” {ticker}"
         ))
         last_k = float(k_line.dropna().iloc[-1]) if not k_line.dropna().empty else 50
     except Exception:
         charts["stochastic"] = "null"
-        last_k = None
 
-    # Returns
     returns = details.get("returns")
     returns_stats = {}
     try:
         if returns is not None and not returns.empty:
             charts["returns"] = _fig_to_json(plot_returns_distribution(
-                returns, f"Taegliche Renditen — {ticker}"
+                returns, f"Taegliche Renditen â€” {ticker}"
             ))
             returns_stats = {
                 "avg": f"{returns.mean()*100:.3f}",
                 "max_gain": f"{returns.max()*100:+.2f}",
                 "max_loss": f"{returns.min()*100:+.2f}",
-                "sharpe": f"{(returns.mean()/returns.std()*np.sqrt(252)):.2f}" if returns.std() > 0 else "—",
+                "sharpe": f"{(returns.mean()/returns.std()*np.sqrt(252)):.2f}" if returns.std() > 0 else "â€”",
             }
         else:
             charts["returns"] = "null"
     except Exception:
         charts["returns"] = "null"
 
-    # 5Y
     hist_5y = details.get("hist_5y")
     try:
         if hist_5y is not None and not hist_5y.empty:
             charts["hist5y"] = _fig_to_json(plot_timeseries(
-                hist_5y, f"{ticker} — 5-Jahres-Uebersicht", color="#a855f7", height=400
+                hist_5y, f"{ticker} â€” 5-Jahres-Uebersicht", color="#a855f7", height=400
             ))
         else:
             charts["hist5y"] = "null"
     except Exception:
         charts["hist5y"] = "null"
 
-    # Financials chart
     fin_data = details.get("financials", [])
     try:
         if fin_data:
@@ -290,21 +285,19 @@ def _build_analysis_context(raw_input: str, time_filter: str) -> dict | str:
     except Exception:
         charts["financials"] = "null"
 
-    # === SMC / Swing / Order Flow ===
-    # Liquidity Sweeps
+    # --- SMC / Swing / Order Flow (CPU-bound from hist, fast) ---
     sweeps = []
     try:
         sweeps = detect_liquidity_sweeps(hist["High"], hist["Low"], close) or []
         if sweeps:
             charts["liquidity"] = _fig_to_json(plot_liq_chart(
-                hist, sweeps, f"Liquidity Sweeps — {display_ticker}"
+                hist, sweeps, f"Liquidity Sweeps â€” {display_ticker}"
             ))
         else:
             charts["liquidity"] = "null"
     except Exception:
         charts["liquidity"] = "null"
 
-    # SMC
     smc_data = None
     try:
         from smc.indicators import analyze_smc
@@ -314,59 +307,166 @@ def _build_analysis_context(raw_input: str, time_filter: str) -> dict | str:
         smc_data = analyze_smc(hist, htf_df=htf_weekly, monthly_df=htf_monthly)
         if smc_data and "fvgs" in smc_data:
             charts["smc"] = _fig_to_json(plot_smc(
-                hist, smc_data, f"SMC & Liquiditaetszonen — {display_ticker}"
+                hist, smc_data, f"SMC & Liquiditaetszonen â€” {display_ticker}"
             ))
         else:
             charts["smc"] = "null"
     except Exception:
         charts["smc"] = "null"
 
-    # Swing
     swing = None
     try:
         swing = calc_swing_signals(hist["High"], hist["Low"], close, hist["Volume"])
         if swing:
             charts["swing"] = _fig_to_json(plot_swing_chart(
-                hist, swing, f"Swing Trading — {display_ticker}"
+                hist, swing, f"Swing Trading â€” {display_ticker}"
             ))
         else:
             charts["swing"] = "null"
     except Exception:
         charts["swing"] = "null"
 
-    # Order Flow
     flow = None
     try:
         flow = calc_order_flow(hist["High"], hist["Low"], close, hist["Volume"])
         if flow:
             charts["orderflow"] = _fig_to_json(plot_flow_chart(
-                hist, flow, f"Order Flow — {display_ticker}"
+                hist, flow, f"Order Flow â€” {display_ticker}"
             ))
         else:
             charts["orderflow"] = "null"
     except Exception:
         charts["orderflow"] = "null"
 
-    # === Fundamental Data ===
-    # DCF
+    # === PARALLEL: Independent service calls (I/O-bound) ===
+    # Each of these makes independent API/DB calls, so run them all concurrently
     dcf = None
-    try:
-        dcf = calc_dcf_valuation(info_data)
-    except Exception:
-        pass
-
-    # Balance Sheet
     balance = None
-    try:
-        balance = calc_balance_sheet_quality(info_data)
-    except Exception:
-        pass
-
-    # Margins
     margins = None
     margins_chart = "null"
+    peers_html = ""
+    div_data = None
+    div_chart = "null"
+    insider = None
+    analyst = None
+    earnings_profile = None
+    eps_chart = "null"
+    drift_chart = "null"
+    opts = None
+    company_news = []
+    macro_events = []
+    quant_data = {}
+    signal_history = []
+    sum_data = {}
+
+    def _fetch_dcf():
+        return calc_dcf_valuation(info_data)
+
+    def _fetch_balance():
+        return calc_balance_sheet_quality(info_data)
+
+    def _fetch_margins():
+        return get_margin_trends(ticker)
+
+    def _fetch_peers():
+        yfin_sector_raw = info_data.get("sector", "")
+        yfin_industry_raw = info_data.get("industry", "")
+        return get_sector_peers(ticker, yfin_sector_raw, yfin_industry_raw)
+
+    def _fetch_dividend():
+        return calc_dividend_analysis(ticker)
+
+    def _fetch_insider():
+        return get_insider_institutional(ticker)
+
+    def _fetch_analyst():
+        return get_analyst_consensus(ticker)
+
+    def _fetch_earnings():
+        from services.earnings import get_earnings_history
+        return get_earnings_history(ticker)
+
+    def _fetch_options():
+        return cached_options_overview(ticker)
+
+    def _fetch_news():
+        return cached_company_news(ticker) or []
+
+    def _fetch_events():
+        return cached_events_for_ticker(ticker, days=7) or []
+
+    def _fetch_summary():
+        return calc_technical_summary(stats, hist, info=info_data, ticker=ticker)
+
+    def _fetch_quant():
+        from services.valuation import determine_sector_category
+        sector_cat, tab_name = determine_sector_category(stats, details)
+        result_data = {"sector_cat": sector_cat, "tab_name": tab_name}
+        if sector_cat == "finanzen":
+            from services.valuation import calc_excess_returns
+            result_data["result"] = calc_excess_returns(info_data)
+        elif sector_cat == "tech":
+            from services.valuation import calc_rule_of_40
+            result_data["result"] = calc_rule_of_40(info_data)
+        elif sector_cat == "hardware":
+            from services.valuation import calc_hardware_cycle
+            result_data["result"] = calc_hardware_cycle(info_data)
+        return result_data
+
+    def _fetch_signals():
+        from models.signal import SignalStore
+        from services.signal_history import update_stale_signals
+        try:
+            update_stale_signals()
+        except Exception:
+            pass
+        return SignalStore.get_all(ticker=ticker, limit=5)
+
+    # Run all independent service calls in parallel
+    task_map = {
+        "dcf": _fetch_dcf,
+        "balance": _fetch_balance,
+        "margins": _fetch_margins,
+        "peers": _fetch_peers,
+        "dividend": _fetch_dividend,
+        "insider": _fetch_insider,
+        "analyst": _fetch_analyst,
+        "earnings": _fetch_earnings,
+        "options": _fetch_options,
+        "news": _fetch_news,
+        "events": _fetch_events,
+        "summary": _fetch_summary,
+        "quant": _fetch_quant,
+        "signals": _fetch_signals,
+    }
+
+    results_map = {}
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        future_to_key = {pool.submit(fn): key for key, fn in task_map.items()}
+        for future in as_completed(future_to_key):
+            key = future_to_key[future]
+            try:
+                results_map[key] = future.result()
+            except Exception:
+                results_map[key] = None
+
+    # Unpack parallel results
+    dcf = results_map.get("dcf")
+    balance = results_map.get("balance")
+    margins = results_map.get("margins")
+    insider = results_map.get("insider")
+    analyst = results_map.get("analyst")
+    earnings_profile = results_map.get("earnings")
+    opts = results_map.get("options")
+    company_news = results_map.get("news") or []
+    macro_events = results_map.get("events") or []
+    sum_data = results_map.get("summary") or {}
+    quant_data = results_map.get("quant") or {}
+    signal_history = results_map.get("signals") or []
+    div_data = results_map.get("dividend")
+
+    # Post-process: margins chart
     try:
-        margins = get_margin_trends(ticker)
         if margins and len(margins) >= 2:
             import plotly.graph_objects as go
             fig_m = go.Figure()
@@ -393,25 +493,19 @@ def _build_analysis_context(raw_input: str, time_filter: str) -> dict | str:
     except Exception:
         pass
 
-    # Peers
-    peers_html = ""
+    # Post-process: peers HTML
     try:
-        yfin_sector_raw = info_data.get("sector", "")
-        yfin_industry_raw = info_data.get("industry", "")
-        peers = get_sector_peers(ticker, yfin_sector_raw, yfin_industry_raw)
-        if peers is not None and not peers.empty:
-            peers_html = peers.to_html(
+        peers_raw = results_map.get("peers")
+        if peers_raw is not None and not peers_raw.empty:
+            peers_html = peers_raw.to_html(
                 classes="data-table", index=False,
                 float_format=lambda x: f"{x:.2f}" if isinstance(x, float) else str(x)
             )
     except Exception:
         pass
 
-    # Dividend
-    div_data = None
-    div_chart = "null"
+    # Post-process: dividend chart
     try:
-        div_data = calc_dividend_analysis(ticker)
         if div_data and div_data.get("has_dividends") and div_data.get("annual_dividends"):
             import plotly.graph_objects as go
             div_years = [str(d['year']) for d in div_data['annual_dividends']]
@@ -427,26 +521,71 @@ def _build_analysis_context(raw_input: str, time_filter: str) -> dict | str:
     except Exception:
         pass
 
-    # Insider
-    insider = None
+    # Post-process: EPS chart + drift chart for Earnings section
     try:
-        insider = get_insider_institutional(ticker)
-    except Exception:
-        pass
+        if earnings_profile and earnings_profile.events:
+            import plotly.graph_objects as go
 
-    # Analyst
-    analyst = None
-    try:
-        analyst = get_analyst_consensus(ticker)
-    except Exception:
-        pass
+            # EPS chart: last 12 quarters, sorted chronologically
+            chart_events = sorted(earnings_profile.events, key=lambda e: e.date)[-12:]
+            quarters = [e.quarter for e in chart_events]
+            actuals = [e.eps_actual for e in chart_events]
+            estimates = [e.eps_estimate for e in chart_events]
 
-    # Earnings
-    earnings_profile = None
-    eps_chart = "null"
-    try:
-        from services.earnings import get_earnings_history
-        earnings_profile = get_earnings_history(ticker)
+            fig_eps = go.Figure()
+            fig_eps.add_trace(go.Bar(
+                x=quarters, y=estimates, name="EPS Estimate",
+                marker_color="rgba(100, 200, 255, 0.4)",
+                marker_line_color="#64C8FF", marker_line_width=1,
+            ))
+            bar_colors = []
+            for e in chart_events:
+                if e.result == "Beat": bar_colors.append("#22c55e")
+                elif e.result == "Miss": bar_colors.append("#ef4444")
+                else: bar_colors.append("#eab308")
+            fig_eps.add_trace(go.Bar(
+                x=quarters, y=actuals, name="EPS Actual",
+                marker_color=bar_colors, marker_line_width=0,
+            ))
+            fig_eps.update_layout(
+                template="plotly_dark", height=380, barmode="group",
+                paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+                yaxis_title="EPS ($)", xaxis_title="Quartal",
+                legend=dict(orientation="h", yanchor="bottom", y=1.02),
+                margin=dict(l=50, r=20, t=30, b=50), xaxis_tickangle=-45,
+                font=dict(family="Inter, sans-serif", size=12, color="#cbd5e1"),
+            )
+            eps_chart = _fig_to_json(fig_eps)
+
+            # Drift chart
+            drift_events = sorted(
+                [e for e in earnings_profile.events if e.drift_1d is not None],
+                key=lambda e: e.date
+            )[-12:]
+            if drift_events:
+                fig_drift = go.Figure()
+                d_quarters = [e.quarter for e in drift_events]
+                for days_label, get_val, color in [
+                    ("1 Tag", lambda e: e.drift_1d, "#64C8FF"),
+                    ("5 Tage", lambda e: e.drift_5d, "#a855f7"),
+                    ("20 Tage", lambda e: e.drift_20d, "#f97316"),
+                ]:
+                    vals = [get_val(e) for e in drift_events]
+                    fig_drift.add_trace(go.Scatter(
+                        x=d_quarters, y=vals, name=days_label,
+                        mode="lines+markers", line=dict(color=color, width=2),
+                        marker=dict(size=8),
+                    ))
+                fig_drift.add_hline(y=0, line_dash="dash", line_color="rgba(255,255,255,0.3)")
+                fig_drift.update_layout(
+                    template="plotly_dark", height=350,
+                    paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+                    yaxis_title="Kursaenderung (%)", xaxis_title="Quartal",
+                    legend=dict(orientation="h", yanchor="bottom", y=1.02),
+                    margin=dict(l=50, r=20, t=30, b=50), xaxis_tickangle=-45,
+                    font=dict(family="Inter, sans-serif", size=12, color="#cbd5e1"),
+                )
+                drift_chart = _fig_to_json(fig_drift)
     except Exception:
         pass
 
@@ -458,75 +597,8 @@ def _build_analysis_context(raw_input: str, time_filter: str) -> dict | str:
     except Exception:
         pass
 
-    # Summary / Scoring
-    sum_data = {}
-    try:
-        sum_data = calc_technical_summary(stats, hist, info=info_data, ticker=ticker)
-    except Exception:
-        pass
-
-    # Macro Events
-    macro_events = []
-    try:
-        macro_events = cached_events_for_ticker(ticker, days=7) or []
-    except Exception:
-        pass
-
-    # Options
-    opts = None
-    try:
-        opts = cached_options_overview(ticker)
-    except Exception:
-        pass
-
-    # News
-    company_news = []
-    try:
-        company_news = cached_company_news(ticker) or []
-    except Exception:
-        pass
-
-    # === Quant (sector-specific) ===
-    quant_data = {}
-    try:
-        from services.valuation import determine_sector_category
-        sector_cat, tab_name = determine_sector_category(stats, details)
-        quant_data["sector_cat"] = sector_cat
-        quant_data["tab_name"] = tab_name
-
-        # Call the appropriate valuation function
-        if sector_cat == "finanzen":
-            from services.valuation import calc_excess_returns
-            quant_data["result"] = calc_excess_returns(info_data)
-        elif sector_cat == "tech":
-            from services.valuation import calc_rule_of_40
-            quant_data["result"] = calc_rule_of_40(info_data)
-        elif sector_cat == "hardware":
-            from services.valuation import calc_hardware_cycle
-            quant_data["result"] = calc_hardware_cycle(info_data)
-        # Add more sectors as needed — for now fallback
-    except Exception:
-        quant_data = {}
-
-    # Signal history
-    signal_history = []
-    try:
-        from models.signal import SignalStore
-        from services.signal_history import update_stale_signals
-        try:
-            update_stale_signals()
-        except Exception:
-            pass
-        signal_history = SignalStore.get_all(ticker=ticker, limit=5)
-    except Exception:
-        pass
-
-    # === Correlation ===
-    # Skip on initial load (adds 8-12s for 4 extra yfinance calls).
-    # Users can view correlation data in the dedicated tab.
     corr_chart = "null"
 
-    # Position Sizing defaults
     ps_defaults = None
     try:
         if atr_val and stats.get("current_price"):
@@ -566,6 +638,8 @@ def _build_analysis_context(raw_input: str, time_filter: str) -> dict | str:
         "insider": insider,
         "analyst": analyst,
         "earnings_profile": earnings_profile,
+        "eps_chart": eps_chart,
+        "drift_chart": drift_chart,
         "atr_val": atr_val,
         "sum_data": sum_data,
         "macro_events": macro_events,
@@ -580,4 +654,3 @@ def _build_analysis_context(raw_input: str, time_filter: str) -> dict | str:
         "fmt_big": _fmt_big,
     }
     return ctx
-

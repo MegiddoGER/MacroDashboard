@@ -348,6 +348,87 @@
 <p class="caption" style="margin-top:8px;">Put/Call Ratio: &lt;0.7 = bullish, 0.7-1.2 = neutral, &gt;1.2 = bearish. Max Pain: Preislevel bei dem am meisten Optionen wertlos verfallen.</p>
 {% endif %}
 
+<!-- ═══ Earnings Profile ═══ -->
+{% if earnings_profile and earnings_profile.events %}
+<hr>
+<h4>📊 Earnings Profile</h4>
+<p class="caption">EPS Surprise Tracking — Beat/Miss/Inline + Post-Earnings-Drift über die letzten Quartale.</p>
+
+{% if earnings_profile.next_earnings_date %}
+<div class="alert alert-info">📅 Nächste Quartalszahlen: <b>{{ earnings_profile.next_earnings_date.strftime('%d.%m.%Y') if earnings_profile.next_earnings_date.strftime is defined else earnings_profile.next_earnings_date }}</b></div>
+{% endif %}
+
+<div class="grid-5" style="gap:8px;margin-bottom:var(--gap);">
+  <div class="metric-card"><div class="metric-label">Quartale</div><div class="metric-value">{{ earnings_profile.total_quarters }}</div></div>
+  <div class="metric-card"><div class="metric-label">Beats 🟢</div><div class="metric-value">{{ earnings_profile.beats }}</div><div class="metric-delta neutral">{{ "%.0f"|format(earnings_profile.beat_rate) }}%</div></div>
+  <div class="metric-card"><div class="metric-label">Misses 🔴</div><div class="metric-value">{{ earnings_profile.misses }}</div></div>
+  <div class="metric-card"><div class="metric-label">Ø Surprise</div><div class="metric-value">{{ "%+.1f"|format(earnings_profile.avg_surprise_pct) }}%</div></div>
+  <div class="metric-card"><div class="metric-label">Ø Drift (1T)</div><div class="metric-value">{{ "%+.2f"|format(earnings_profile.avg_drift_1d) }}%</div></div>
+</div>
+
+<div>
+  <div class="tabs">
+    <button class="tab active" data-tab="tab-eps-chart">📊 EPS Chart</button>
+    <button class="tab" data-tab="tab-drift">📈 Post-Earnings Drift</button>
+    <button class="tab" data-tab="tab-earnings-history">📋 Historie</button>
+  </div>
+
+  <div id="tab-eps-chart" class="tab-content active">
+    {% if eps_chart != "null" %}
+    <div id="chart-eps" class="chart-container" style="height:380px;"></div>
+    {% else %}<div class="alert alert-info">EPS-Chart nicht verfügbar.</div>{% endif %}
+    {% if earnings_profile.beat_rate >= 75 %}
+    <div class="alert alert-success">✅ Starker Track-Record: {{ "%.0f"|format(earnings_profile.beat_rate) }}% Beat-Rate</div>
+    {% elif earnings_profile.beat_rate >= 50 %}
+    <div class="alert alert-info">ℹ️ Solider Track-Record: {{ "%.0f"|format(earnings_profile.beat_rate) }}% Beat-Rate</div>
+    {% else %}
+    <div class="alert alert-warning">⚠️ Schwacher Track-Record: {{ "%.0f"|format(earnings_profile.beat_rate) }}% Beat-Rate</div>
+    {% endif %}
+  </div>
+
+  <div id="tab-drift" class="tab-content">
+    <h5>Kursreaktion nach Earnings</h5>
+    <p class="caption">Zeigt, wie sich der Kurs 1, 5 und 20 Handelstage nach der Earnings-Veröffentlichung entwickelt hat.</p>
+    <div class="grid-3" style="gap:12px;margin-bottom:12px;">
+      <div class="metric-card"><div class="metric-label">Ø Drift nach Beat</div><div class="metric-value" style="color:{{ '#22c55e' if earnings_profile.avg_beat_drift_1d is not none and earnings_profile.avg_beat_drift_1d >= 0 else '#ef4444' }}">{{ "%+.2f"|format(earnings_profile.avg_beat_drift_1d) }}%</div><div class="metric-delta neutral">1 Tag</div></div>
+      <div class="metric-card"><div class="metric-label">Ø Drift nach Miss</div><div class="metric-value" style="color:{{ '#22c55e' if earnings_profile.avg_miss_drift_1d is not none and earnings_profile.avg_miss_drift_1d >= 0 else '#ef4444' }}">{{ "%+.2f"|format(earnings_profile.avg_miss_drift_1d) if earnings_profile.avg_miss_drift_1d is not none else '—' }}%</div><div class="metric-delta neutral">1 Tag</div></div>
+      <div class="metric-card"><div class="metric-label">Ø Drift (gesamt)</div><div class="metric-value">1T: {{ "%+.2f"|format(earnings_profile.avg_drift_1d) if earnings_profile.avg_drift_1d is not none else '—' }}%</div><div class="metric-delta neutral">{{ "%+.2f"|format(earnings_profile.avg_drift_5d) if earnings_profile.avg_drift_5d is not none else '—' }}% (5T)</div></div>
+    </div>
+    {% if drift_chart != "null" %}
+    <div id="chart-drift" class="chart-container" style="height:350px;"></div>
+    {% else %}<div class="alert alert-info">Nicht genügend Drift-Daten verfügbar.</div>{% endif %}
+  </div>
+
+  <div id="tab-earnings-history" class="tab-content">
+    <h5>Vollständige Earnings-Historie</h5>
+    <div class="table-container" style="max-height:400px;overflow-y:auto;">
+      <table class="data-table">
+        <thead><tr><th></th><th>Quartal</th><th>Datum</th><th>EPS Actual</th><th>EPS Estimate</th><th>Surprise</th><th>Ergebnis</th><th>Drift 1T</th><th>Drift 5T</th><th>Drift 20T</th></tr></thead>
+        <tbody>
+        {% for e in earnings_profile.events %}
+        <tr>
+          <td>{% if e.result == 'Beat' %}🟢{% elif e.result == 'Miss' %}🔴{% else %}🟡{% endif %}</td>
+          <td>{{ e.quarter }}</td>
+          <td>{{ e.date.strftime('%d.%m.%Y') if e.date.strftime is defined else e.date }}</td>
+          <td>{{ "$%.2f"|format(e.eps_actual) if e.eps_actual is not none else '—' }}</td>
+          <td>{{ "$%.2f"|format(e.eps_estimate) if e.eps_estimate is not none else '—' }}</td>
+          <td>{{ "%+.1f%%"|format(e.surprise_pct) if e.surprise_pct is not none else '—' }}</td>
+          <td>{{ e.result }}</td>
+          <td>{{ "%+.2f%%"|format(e.drift_1d) if e.drift_1d is not none else '—' }}</td>
+          <td>{{ "%+.2f%%"|format(e.drift_5d) if e.drift_5d is not none else '—' }}</td>
+          <td>{{ "%+.2f%%"|format(e.drift_20d) if e.drift_20d is not none else '—' }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+<p class="caption" style="margin-top:8px;">⚠️ Post-Earnings Drift basiert auf historischen Schlusskursen.</p>
+{% endif %}
+
+
+
 <!-- ═══ Summary / Scoring ═══ -->
 {% if sum_data %}
 <hr>
@@ -430,24 +511,36 @@
 </div>
 {% endif %}
 
-<!-- ═══ Position Sizing (Kelly + ATR) ═══ -->
+<!-- ═══ Position Sizing (Kelly + ATR) — Interactive ═══ -->
 {% if atr_val and stats.get('current_price') %}
 <hr>
 <h4>📐 Position Sizing (Kelly + ATR)</h4>
 <p class="caption">Bestimmt, wie viele Aktien du kaufen solltest — basierend auf deinem Gesamtkapital, dem aktuellen Kurs und der Volatilität (ATR).</p>
 
-{% if ps_defaults %}
-<div class="grid-4" style="gap:12px;margin-bottom:12px;">
-  <div class="metric-card"><div class="metric-label">Entry (Aktueller Kurs)</div><div class="metric-value">{{ fmt_price(stats.current_price) }}</div></div>
-  <div class="metric-card"><div class="metric-label">Empfohlene Stückzahl</div><div class="metric-value">{{ ps_defaults.shares }} Stück</div></div>
-  <div class="metric-card"><div class="metric-label">Positionswert</div><div class="metric-value">{{ "{:,.2f}".format(ps_defaults.position_value) }} €</div><div class="metric-delta neutral">{{ "%.1f"|format(ps_defaults.position_pct) }}% des Portfolios</div></div>
-  <div class="metric-card"><div class="metric-label">Max. Verlust bei Stop</div><div class="metric-value">{{ "{:,.2f}".format(ps_defaults.risk_eur) }} €</div><div class="metric-delta neutral">2.0% vom Portfolio</div></div>
+<div class="grid-2" style="gap:12px;margin-bottom:16px;">
+  <div class="card" style="padding:16px;">
+    <label class="form-label" style="font-weight:600;">💰 Portfoliowert (€)</label>
+    <input type="number" id="ps-portfolio" value="10000" min="100" max="100000000" step="1000"
+           class="form-input" oninput="recalcPositionSizing()">
+  </div>
+  <div class="card" style="padding:16px;">
+    <label class="form-label" style="font-weight:600;">⚠️ Max. Verlust pro Trade (% vom Portfolio): <span id="ps-risk-label">2.0</span>%</label>
+    <input type="range" id="ps-risk" min="0.5" max="5.0" step="0.5" value="2.0"
+           class="form-range" oninput="document.getElementById('ps-risk-label').textContent=this.value; recalcPositionSizing()">
+  </div>
 </div>
-<div class="grid-4" style="gap:12px;margin-bottom:12px;">
-  <div class="metric-card"><div class="metric-label">Stop-Loss</div><div class="metric-value">{{ "{:,.2f}".format(ps_defaults.stop_loss) }} €</div><div class="metric-delta neutral">-{{ "{:,.2f}".format(ps_defaults.stop_distance) }} (1.5× ATR)</div></div>
-  <div class="metric-card"><div class="metric-label">Take-Profit</div><div class="metric-value">{{ "{:,.2f}".format(ps_defaults.take_profit) }} €</div><div class="metric-delta neutral">+{{ "{:,.2f}".format(2.5 * atr_val) }} (2.5× ATR)</div></div>
-  <div class="metric-card"><div class="metric-label">Kelly-Anteil</div><div class="metric-value">{{ "%.1f"|format(ps_defaults.kelly_fraction_pct) }}%</div></div>
-  <div class="metric-card"><div class="metric-label">Kelly-Stückzahl</div><div class="metric-value">{{ ps_defaults.kelly_shares }} Stück</div></div>
+
+<div class="grid-4" style="gap:12px;margin-bottom:12px;" id="ps-results-top">
+  <div class="metric-card"><div class="metric-label">Entry</div><div class="metric-value" id="ps-entry">{{ fmt_price(stats.current_price) }}</div></div>
+  <div class="metric-card"><div class="metric-label">Empfohlene Stückzahl</div><div class="metric-value" id="ps-shares">—</div></div>
+  <div class="metric-card"><div class="metric-label">Positionswert</div><div class="metric-value" id="ps-posval">—</div><div class="metric-delta neutral" id="ps-pospct">—</div></div>
+  <div class="metric-card"><div class="metric-label">Max. Verlust bei Stop</div><div class="metric-value" id="ps-riskcur">—</div><div class="metric-delta neutral" id="ps-riskpct">—</div></div>
+</div>
+<div class="grid-4" style="gap:12px;margin-bottom:12px;" id="ps-results-bottom">
+  <div class="metric-card"><div class="metric-label">Stop-Loss</div><div class="metric-value" id="ps-sl">—</div><div class="metric-delta neutral" id="ps-sldist">—</div></div>
+  <div class="metric-card"><div class="metric-label">Take-Profit</div><div class="metric-value" id="ps-tp">—</div><div class="metric-delta neutral" id="ps-tpdist">—</div></div>
+  <div class="metric-card"><div class="metric-label">Kelly-Anteil</div><div class="metric-value" id="ps-kelly">{% if ps_defaults %}{{ "%.1f"|format(ps_defaults.kelly_fraction_pct) }}%{% else %}—{% endif %}</div></div>
+  <div class="metric-card"><div class="metric-label">Kelly-Stückzahl</div><div class="metric-value" id="ps-kellyshares">{% if ps_defaults %}{{ ps_defaults.kelly_shares }}{% else %}—{% endif %}</div></div>
 </div>
 <div class="alert alert-info" style="font-size:0.85rem;">
   <b>So liest du das:</b><br>
@@ -456,9 +549,34 @@
   • <b>Take-Profit</b> = 2,5× ATR über dem Entry — Gewinnmitnahme (R:R ≈ 1:1,67)<br>
   • <b>Kelly-Anteil</b> = Mathematisch optimale Positionsgröße (gekappt bei 25%)
 </div>
-{% else %}
-<div class="alert alert-info">Nicht genügend Daten für Position-Sizing-Berechnung.</div>
-{% endif %}
+<script>
+(function(){
+  var price = {{ stats.current_price if stats.current_price else 0 }};
+  var atr = {{ atr_val }};
+  function recalc() {
+    var pv = parseFloat(document.getElementById('ps-portfolio').value) || 10000;
+    var riskPct = parseFloat(document.getElementById('ps-risk').value) / 100;
+    var stopDist = 1.5 * atr;
+    var sl = price - stopDist;
+    var tp = price + 2.5 * atr;
+    var riskEur = pv * riskPct;
+    var shares = stopDist > 0 ? Math.floor(riskEur / stopDist) : 0;
+    var posVal = shares * price;
+    var posPct = pv > 0 ? (posVal / pv * 100) : 0;
+    document.getElementById('ps-shares').textContent = shares + ' Stück';
+    document.getElementById('ps-posval').textContent = posVal.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' €';
+    document.getElementById('ps-pospct').textContent = posPct.toFixed(1) + '% des Portfolios';
+    document.getElementById('ps-riskcur').textContent = riskEur.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' €';
+    document.getElementById('ps-riskpct').textContent = (riskPct * 100).toFixed(1) + '% vom Portfolio';
+    document.getElementById('ps-sl').textContent = sl.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' €';
+    document.getElementById('ps-sldist').textContent = '-' + stopDist.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' (1.5× ATR)';
+    document.getElementById('ps-tp').textContent = tp.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' €';
+    document.getElementById('ps-tpdist').textContent = '+' + (2.5*atr).toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' (2.5× ATR)';
+  }
+  window.recalcPositionSizing = recalc;
+  recalc();
+})();
+</script>
 <p class="caption" style="margin-top:8px;">⚠️ Dies ist eine algorithmische Momentaufnahme. Sie dient als Entscheidungshilfe, nicht als Anlageberatung.</p>
 {% endif %}
 
@@ -505,6 +623,8 @@
     'chart-margins': {{ margins_chart|safe }},
     'chart-div': {{ div_chart|safe }},
     'chart-corr': {{ corr_chart|safe }},
+    'chart-eps': {{ eps_chart|safe }},
+    'chart-drift': {{ drift_chart|safe }},
   };
   for (const [id, fig] of Object.entries(charts)) {
     const el = document.getElementById(id);

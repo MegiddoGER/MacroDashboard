@@ -7,6 +7,7 @@ POST /screener/scan   → fuehrt den Scan aus, liefert Ergebnisse als HTML-Parti
 
 from fastapi import APIRouter, Request, Form
 from fastapi.responses import HTMLResponse
+import asyncio
 
 from services.screener import PRESETS, scan_sp500, scan_dax_mdax
 
@@ -109,19 +110,22 @@ async def screener_scan(
     is_dax = index == "dax"
     currency_symbol = "EUR" if is_dax else "$"
 
-    # Custom-Filter bauen
+    # Custom-Filter bauen — only add non-default values to avoid
+    # overwriting preset filters (e.g. momentum's score_min=65)
     custom_filters = {}
     if score_min > 0:
         custom_filters["score_min"] = score_min
-    if rsi_min > 0 or rsi_max < 100:
+    if rsi_min > 0:
         custom_filters["rsi_min"] = rsi_min
+    if rsi_max < 100:
         custom_filters["rsi_max"] = rsi_max
     if sector:
         custom_filters["sector"] = sector
 
-    # Scan ausfuehren
+    # Scan ausfuehren — offload blocking I/O to thread
     scan_fn = scan_dax_mdax if is_dax else scan_sp500
-    results = scan_fn(
+    results = await asyncio.to_thread(
+        scan_fn,
         preset=preset,
         custom_filters=custom_filters if custom_filters else None,
     )
