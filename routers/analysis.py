@@ -1,4 +1,4 @@
-﻿"""
+"""
 routers/analysis.py â€” Analyse-Seite (Herzstueck des Dashboards).
 
 GET  /analysis            â†’ Ticker-Eingabe
@@ -45,7 +45,7 @@ def _fig_to_json(fig) -> str:
     """Serialisiert eine Plotly Figure zu JSON fuer clientseitiges Rendering."""
     if fig is None:
         return "null"
-    return json.dumps(fig.to_dict(), default=str)
+    return fig.to_json()
 
 
 def _safe_float(val, default=None):
@@ -411,6 +411,33 @@ def _build_analysis_context(raw_input: str, time_filter: str) -> dict | str:
         elif sector_cat == "hardware":
             from services.valuation import calc_hardware_cycle
             result_data["result"] = calc_hardware_cycle(info_data)
+        elif sector_cat == "pharma":
+            from services.valuation import calc_rnpv_proxy
+            result_data["result"] = calc_rnpv_proxy(info_data)
+        elif sector_cat == "energie":
+            from services.valuation import calc_ev_dacf
+            result_data["result"] = calc_ev_dacf(info_data)
+        elif sector_cat == "telekom":
+            from services.valuation import calc_telecom_metrics
+            result_data["result"] = calc_telecom_metrics(info_data)
+        elif sector_cat == "logistik":
+            from services.valuation import calc_logistics_metrics
+            result_data["result"] = calc_logistics_metrics(info_data)
+        elif sector_cat == "defense":
+            from services.valuation import calc_defense_metrics
+            result_data["result"] = calc_defense_metrics(info_data)
+        elif sector_cat == "auto":
+            from services.valuation import calc_auto_metrics
+            result_data["result"] = calc_auto_metrics(info_data)
+        elif sector_cat == "maschinenbau":
+            from services.valuation import calc_machinery_metrics
+            result_data["result"] = calc_machinery_metrics(info_data)
+        elif sector_cat == "industrie":
+            from services.valuation import calc_hgb_proxy
+            result_data["result"] = calc_hgb_proxy(info_data)
+        elif sector_cat == "csvs":
+            from services.valuation import calc_csvs
+            result_data["result"] = calc_csvs(info_data)
         return result_data
 
     def _fetch_signals():
@@ -421,6 +448,13 @@ def _build_analysis_context(raw_input: str, time_filter: str) -> dict | str:
         except Exception:
             pass
         return SignalStore.get_all(ticker=ticker, limit=5)
+
+    def _fetch_correlation():
+        benchmarks = ["SPY", "QQQ", "GLD"]
+        all_tickers = [ticker] + [b for b in benchmarks if b.upper() != ticker.upper()]
+        tickers_str = ",".join(all_tickers)
+        labels_str = tickers_str
+        return cached_correlation(tickers_str, labels_str, "1y")
 
     # Run all independent service calls in parallel
     task_map = {
@@ -438,6 +472,7 @@ def _build_analysis_context(raw_input: str, time_filter: str) -> dict | str:
         "summary": _fetch_summary,
         "quant": _fetch_quant,
         "signals": _fetch_signals,
+        "correlation": _fetch_correlation,
     }
 
     results_map = {}
@@ -464,6 +499,26 @@ def _build_analysis_context(raw_input: str, time_filter: str) -> dict | str:
     quant_data = results_map.get("quant") or {}
     signal_history = results_map.get("signals") or []
     div_data = results_map.get("dividend")
+
+    # Save quick-score signal for tracking (like Streamlit version)
+    try:
+        if sum_data and sum_data.get("confidence") and stats.get("current_price"):
+            from models.signal import SignalStore
+            confidence = sum_data["confidence"]
+            if confidence >= 70:
+                sig_type = "buy"
+            elif confidence <= 40:
+                sig_type = "sell"
+            else:
+                sig_type = "hold"
+            SignalStore.create(
+                ticker=ticker,
+                signal_type=sig_type,
+                confidence=confidence,
+                price_at_signal=stats["current_price"],
+            )
+    except Exception:
+        pass
 
     # Post-process: margins chart
     try:
@@ -598,6 +653,15 @@ def _build_analysis_context(raw_input: str, time_filter: str) -> dict | str:
         pass
 
     corr_chart = "null"
+    try:
+        corr_df = results_map.get("correlation")
+        if corr_df is not None and not corr_df.empty:
+            from charts import plot_correlation_matrix
+            corr_chart = _fig_to_json(plot_correlation_matrix(
+                corr_df, f"Korrelation — {display_ticker} vs. Benchmarks"
+            ))
+    except Exception:
+        pass
 
     ps_defaults = None
     try:

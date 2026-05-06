@@ -51,9 +51,6 @@
     <button class="tab" data-tab="tab-returns">🎲 Renditen</button>
     <button class="tab" data-tab="tab-5y">🗓️ 5 Jahre</button>
     <button class="tab" data-tab="tab-corr">🔗 Korrelation</button>
-    <button class="tab" data-tab="tab-smc">🏛️ SMC</button>
-    <button class="tab" data-tab="tab-swing">🏄 Swing</button>
-    <button class="tab" data-tab="tab-flow">🌊 Order Flow</button>
   </div>
 
   <div id="tab-candle" class="tab-content active">
@@ -304,6 +301,125 @@
   <div class="metric-card"><div class="metric-label">Empfehlung</div><div class="metric-value">{{ analyst.recommendation }}</div></div>
 </div>
 {% if analyst.num_analysts %}<p class="caption">Basierend auf {{ analyst.num_analysts }} Analysten.</p>{% endif %}
+<hr>
+{% endif %}
+<!-- ═══ Quant-Analyse (Sektorspezifisch) ═══ -->
+{% if quant_data and quant_data.get('result') %}
+<hr>
+<h4>{{ quant_data.tab_name }}</h4>
+<p class="caption">Sektorspezifische quantitative Bewertung basierend auf dem erkannten Sektor.</p>
+
+{% set qr = quant_data.result %}
+{% set sc = quant_data.sector_cat %}
+
+{% if sc == "finanzen" %}
+<div class="grid-4" style="gap:12px;margin-bottom:12px;">
+  <div class="metric-card"><div class="metric-label">ROE</div><div class="metric-value">{{ "%.1f %%"|format(qr.roe * 100) }}</div></div>
+  <div class="metric-card"><div class="metric-label">Cost of Equity</div><div class="metric-value">{{ "%.1f %%"|format(qr.cost_of_equity * 100) }}</div></div>
+  <div class="metric-card"><div class="metric-label">Excess Return Marge</div><div class="metric-value {% if qr.excess_return_margin > 0 %}positive{% else %}negative{% endif %}">{{ "%+.1f %%"|format(qr.excess_return_margin * 100) }}</div></div>
+  <div class="metric-card"><div class="metric-label">Buchwert / Aktie</div><div class="metric-value">{{ "%.2f €"|format(qr.book_value) }}</div></div>
+</div>
+{% if qr.is_undervalued %}
+<div class="alert alert-success">✅ ROE > Eigenkapitalkosten → Wertschöpfend (Excess Return: {{ "%+.1f"|format(qr.excess_return_margin * 100) }}%)</div>
+{% else %}
+<div class="alert alert-warning">⚠️ ROE < Eigenkapitalkosten → Wertvernichtend</div>
+{% endif %}
+
+{% elif sc == "tech" %}
+<div class="grid-3" style="gap:12px;margin-bottom:12px;">
+  <div class="metric-card"><div class="metric-label">Revenue Growth</div><div class="metric-value">{{ "%.1f %%"|format(qr.revenue_growth * 100) }}</div></div>
+  <div class="metric-card"><div class="metric-label">FCF Margin</div><div class="metric-value">{{ "%.1f %%"|format(qr.fcf_margin * 100) }}</div></div>
+  <div class="metric-card"><div class="metric-label">Rule of 40 Score</div><div class="metric-value {% if qr.rule_of_40_score >= 40 %}positive{% else %}negative{% endif %}">{{ "%.0f"|format(qr.rule_of_40_score) }}</div></div>
+</div>
+{% if qr.is_healthy %}
+<div class="alert alert-success">✅ Rule of 40 erfüllt ({{ "%.0f"|format(qr.rule_of_40_score) }} ≥ 40) — gesunde Balance aus Wachstum und Profitabilität</div>
+{% else %}
+<div class="alert alert-warning">⚠️ Rule of 40 nicht erfüllt ({{ "%.0f"|format(qr.rule_of_40_score) }} < 40)</div>
+{% endif %}
+
+{% elif sc == "hardware" %}
+<div class="grid-3" style="gap:12px;margin-bottom:12px;">
+  <div class="metric-card"><div class="metric-label">EV/EBITDA</div><div class="metric-value">{{ "%.1f"|format(qr.ev_ebitda) }}</div></div>
+  <div class="metric-card"><div class="metric-label">Price/Book</div><div class="metric-value">{{ "%.1f"|format(qr.price_to_book) }}</div></div>
+  <div class="metric-card"><div class="metric-label">Inventory Turnover</div><div class="metric-value">{{ "%.1f"|format(qr.inventory_turnover) }}</div></div>
+</div>
+{% if qr.is_value_trap_warning %}
+<div class="alert alert-warning">⚠️ Mögliche Value Trap: Niedriges EV/EBITDA ({{ "%.1f"|format(qr.ev_ebitda) }}) + hohes P/B ({{ "%.1f"|format(qr.price_to_book) }}) — Earnings möglicherweise am Zyklus-Peak</div>
+{% else %}
+<div class="alert alert-info">ℹ️ Zyklik-Check: EV/EBITDA {{ "%.1f"|format(qr.ev_ebitda) }}, P/B {{ "%.1f"|format(qr.price_to_book) }}</div>
+{% endif %}
+
+{% elif sc == "pharma" %}
+<div class="grid-3" style="gap:12px;margin-bottom:12px;">
+  <div class="metric-card"><div class="metric-label">Enterprise Value</div><div class="metric-value">{{ fmt_big(qr.ev) }}</div></div>
+  <div class="metric-card"><div class="metric-label">EV/Sales</div><div class="metric-value">{{ "%.1f"|format(qr.ev_to_sales) }}</div></div>
+  <div class="metric-card"><div class="metric-label">Revenue</div><div class="metric-value">{{ fmt_big(qr.revenue) }}</div></div>
+</div>
+<div class="alert alert-info">ℹ️ rNPV-Modell benötigt Pipeline-Daten (Phase I/II/III Erfolgsraten) — Proxy: EV/Sales {{ "%.1f"|format(qr.ev_to_sales) }}</div>
+
+{% elif sc == "energie" %}
+<div class="grid-3" style="gap:12px;margin-bottom:12px;">
+  <div class="metric-card"><div class="metric-label">Enterprise Value</div><div class="metric-value">{{ fmt_big(qr.ev) }}</div></div>
+  <div class="metric-card"><div class="metric-label">Operating Cashflow</div><div class="metric-value">{{ fmt_big(qr.operating_cashflow) }}</div></div>
+  <div class="metric-card"><div class="metric-label">EV/OCF</div><div class="metric-value">{{ "%.1f"|format(qr.ev_to_ocf) }}</div></div>
+</div>
+{% if qr.is_attractive %}
+<div class="alert alert-success">✅ EV/OCF < 8 → Attraktive Cashflow-Bewertung</div>
+{% else %}
+<div class="alert alert-info">ℹ️ EV/OCF {{ "%.1f"|format(qr.ev_to_ocf) }} — Reserven-Daten für vollständige DACF-Analyse nicht verfügbar</div>
+{% endif %}
+
+{% elif sc == "telekom" %}
+<div class="grid-3" style="gap:12px;margin-bottom:12px;">
+  <div class="metric-card"><div class="metric-label">EV/EBITDA</div><div class="metric-value">{{ "%.1f"|format(qr.ev_ebitda) }}</div></div>
+  <div class="metric-card"><div class="metric-label">Dividendenrendite</div><div class="metric-value">{{ "%.1f %%"|format(qr.dividend_yield * 100) }}</div></div>
+  <div class="metric-card"><div class="metric-label">Cash Cow?</div><div class="metric-value">{{ "✅ Ja" if qr.is_cash_cow else "❌ Nein" }}</div></div>
+</div>
+
+{% elif sc == "defense" %}
+<div class="grid-3" style="gap:12px;margin-bottom:12px;">
+  <div class="metric-card"><div class="metric-label">EV/EBITDA</div><div class="metric-value">{{ "%.1f"|format(qr.ev_ebitda) }}</div></div>
+  <div class="metric-card"><div class="metric-label">Operating Margin</div><div class="metric-value">{{ "%.1f %%"|format(qr.operating_margin * 100) }}</div></div>
+  <div class="metric-card"><div class="metric-label">Hochprofitabel?</div><div class="metric-value">{{ "✅ Ja" if qr.is_highly_profitable else "❌ Nein" }}</div></div>
+</div>
+
+{% elif sc == "auto" %}
+<div class="grid-3" style="gap:12px;margin-bottom:12px;">
+  <div class="metric-card"><div class="metric-label">P/E Ratio</div><div class="metric-value">{{ "%.1f"|format(qr.pe_ratio) }}</div></div>
+  <div class="metric-card"><div class="metric-label">Asset Turnover</div><div class="metric-value">{{ "%.2f"|format(qr.asset_turnover) }}</div></div>
+  <div class="metric-card"><div class="metric-label">ROIC (Proxy)</div><div class="metric-value">{{ "%.1f %%"|format(qr.roa_proxy_roic * 100) }}</div></div>
+</div>
+{% if qr.is_efficient_allocator %}
+<div class="alert alert-success">✅ Effizienter Kapitalallokator</div>
+{% endif %}
+
+{% elif sc == "maschinenbau" %}
+<div class="grid-3" style="gap:12px;margin-bottom:12px;">
+  <div class="metric-card"><div class="metric-label">EV/EBITDA</div><div class="metric-value">{{ "%.1f"|format(qr.ev_ebitda) }}</div></div>
+  <div class="metric-card"><div class="metric-label">Price/Book</div><div class="metric-value">{{ "%.1f"|format(qr.price_to_book) }}</div></div>
+  <div class="metric-card"><div class="metric-label">ROA</div><div class="metric-value">{{ "%.1f %%"|format(qr.roa * 100) }}</div></div>
+</div>
+{% if qr.is_value_trap_warning %}
+<div class="alert alert-warning">⚠️ Mögliche Value Trap: Niedrige Bewertung, aber hohes P/B</div>
+{% endif %}
+
+{% elif sc == "logistik" %}
+<div class="grid-3" style="gap:12px;margin-bottom:12px;">
+  <div class="metric-card"><div class="metric-label">EV/EBITDA</div><div class="metric-value">{{ "%.1f"|format(qr.ev_ebitda) }}</div></div>
+  <div class="metric-card"><div class="metric-label">EBITDA-Marge</div><div class="metric-value">{{ "%.1f %%"|format(qr.ebitda_margin * 100) }}</div></div>
+  <div class="metric-card"><div class="metric-label">EBITDAR Proxy</div><div class="metric-value">{{ qr.ebitdar_proxy }}</div></div>
+</div>
+
+{% elif sc == "csvs" %}
+<div class="grid-3" style="gap:12px;margin-bottom:12px;">
+  <div class="metric-card"><div class="metric-label">Dividendenrendite</div><div class="metric-value">{{ "%.1f %%"|format(qr.dividend_yield * 100) }}</div></div>
+  <div class="metric-card"><div class="metric-label">Price/Book</div><div class="metric-value">{{ "%.1f"|format(qr.price_to_book) }}</div></div>
+  <div class="metric-card"><div class="metric-label">Unterbewertet?</div><div class="metric-value">{{ "✅ Ja" if qr.is_undervalued_soe else "❌ Nein" }}</div></div>
+</div>
+
+{% else %}
+<div class="alert alert-info">ℹ️ Sektorspezifische Quant-Daten verfügbar (Kategorie: {{ sc }}).</div>
+{% endif %}
 <hr>
 {% endif %}
 
