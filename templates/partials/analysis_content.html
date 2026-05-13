@@ -891,6 +891,106 @@
     }
     return result;
   }
+
+  // ── Fullscreen handler (global scope for Plotly modebar access) ──
+  window.openFullscreen = function(gd) {
+    try {
+      document.title = 'FS:1-start';
+      if (!gd) return;
+      if (!gd.data || !gd.data.length) return;
+
+      document.title = 'FS:2-creating-overlay';
+      var overlay = document.createElement('div');
+      overlay.className = 'chart-fullscreen-overlay';
+      var wrap = document.createElement('div');
+      wrap.className = 'chart-fullscreen-wrap';
+      var closeBtn = document.createElement('button');
+      closeBtn.className = 'chart-fullscreen-close';
+      closeBtn.innerHTML = '✕ Schließen';
+      var chartDiv = document.createElement('div');
+      chartDiv.style.width = '100%';
+      chartDiv.style.height = '100%';
+      wrap.appendChild(closeBtn);
+      wrap.appendChild(chartDiv);
+      overlay.appendChild(wrap);
+      document.body.appendChild(overlay);
+
+      document.title = 'FS:3-cloning-data';
+      // Clone data safely — use trace-by-trace copy
+      var clonedData = [];
+      for (var i = 0; i < gd.data.length; i++) {
+        var trace = {};
+        var src = gd.data[i];
+        for (var key in src) {
+          if (src.hasOwnProperty(key)) {
+            try { trace[key] = JSON.parse(JSON.stringify(src[key])); }
+            catch(e2) { /* skip unserializable props */ }
+          }
+        }
+        clonedData.push(trace);
+      }
+
+      document.title = 'FS:4-building-layout';
+      var clonedLayout = {};
+      for (var key in gd.layout) {
+        if (gd.layout.hasOwnProperty(key)) {
+          try { clonedLayout[key] = JSON.parse(JSON.stringify(gd.layout[key])); }
+          catch(e3) { /* skip */ }
+        }
+      }
+      var fsLayout = deepMerge(PLOTLY_LAYOUT, clonedLayout);
+      delete fsLayout.height;
+      delete fsLayout.width;
+      fsLayout.autosize = true;
+
+      document.title = 'FS:5-plotting';
+      Plotly.newPlot(chartDiv, clonedData, fsLayout, {
+        displayModeBar: true, scrollZoom: true, responsive: true
+      });
+
+      document.title = 'FS:6-bindings';
+      function closeOverlay() {
+        Plotly.purge(chartDiv);
+        overlay.remove();
+        document.removeEventListener('keydown', escHandler);
+      }
+      function escHandler(ev) { if (ev.key === 'Escape') closeOverlay(); }
+      closeBtn.onclick = closeOverlay;
+      overlay.addEventListener('click', function(ev) { if (ev.target === overlay) closeOverlay(); });
+      document.addEventListener('keydown', escHandler);
+      requestAnimationFrame(function() { overlay.classList.add('active'); });
+      document.title = 'FS:7-done';
+    } catch(err) {
+      document.title = 'FS:ERR:' + err.message;
+      console.error('Fullscreen error:', err);
+    }
+  };
+
+  // ── Fullscreen modebar button definition ──
+  var fullscreenButton = {
+    name: 'fullscreen',
+    title: 'Vollbild',
+    icon: Plotly.Icons.autoscale,
+    click: function(gd) {
+      console.error('FULLSCREEN CLICK FIRED', gd ? 'gd exists' : 'no gd', 'data:', gd && gd.data ? gd.data.length : 'none');
+      console.error('openFullscreen type:', typeof window.openFullscreen);
+      try {
+        window.openFullscreen(gd);
+      } catch(e) {
+        console.error('CLICK HANDLER ERROR:', e);
+        document.title = 'ERR:' + e.message;
+      }
+    }
+  };
+
+  // ── Plotly config with fullscreen button ──
+  var plotlyConfig = {
+    displayModeBar: true,
+    scrollZoom: true,
+    responsive: true,
+    modeBarButtonsToAdd: [fullscreenButton]
+  };
+
   const charts = {
     'chart-candle': {{ charts.candlestick|safe }},
     'chart-rsi': {{ charts.rsi|safe }},
@@ -908,16 +1008,17 @@
     'chart-div': {{ div_chart|safe }},
     'chart-corr': {{ corr_chart|safe }},
     'chart-eps': {{ eps_chart|safe }},
-    'chart-drift': {{ drift_chart|safe }},
+    'chart-drift': {{ drift_chart|safe }}
   };
   for (const [id, fig] of Object.entries(charts)) {
     const el = document.getElementById(id);
     if (el && fig) {
       var layout = deepMerge(PLOTLY_LAYOUT, fig.layout || {});
-      Plotly.newPlot(el, fig.data, layout, {displayModeBar:true, scrollZoom:true, responsive:true});
+      Plotly.newPlot(el, fig.data, layout, plotlyConfig);
     }
   }
-  // Re-render visible charts on tab switch (Plotly needs visible container to size correctly)
+
+  // Re-render visible charts on tab switch
   document.querySelectorAll('.tab').forEach(function(tab) {
     tab.addEventListener('click', function() {
       setTimeout(function() {
@@ -926,56 +1027,6 @@
         });
       }, 50);
     });
-  });
-
-  // ── Fullscreen toggle for every chart ──
-  document.querySelectorAll('.chart-container').forEach(function(container) {
-    if (!container.id || !container.data) return; // only plotly-rendered charts
-    // Wrap container in a relative parent so button survives Plotly re-renders
-    var wrapper = document.createElement('div');
-    wrapper.style.position = 'relative';
-    container.parentNode.insertBefore(wrapper, container);
-    wrapper.appendChild(container);
-
-    var btn = document.createElement('button');
-    btn.className = 'chart-fullscreen-btn';
-    btn.innerHTML = '⛶';
-    btn.title = 'Vollbild';
-    btn.onclick = function(e) {
-      e.stopPropagation();
-      var overlay = document.createElement('div');
-      overlay.className = 'chart-fullscreen-overlay';
-      var wrap = document.createElement('div');
-      wrap.className = 'chart-fullscreen-wrap';
-      var closeBtn = document.createElement('button');
-      closeBtn.className = 'chart-fullscreen-close';
-      closeBtn.innerHTML = '✕ Schließen';
-      var chartDiv = document.createElement('div');
-      chartDiv.style.width = '100%';
-      chartDiv.style.height = '100%';
-      wrap.appendChild(closeBtn);
-      wrap.appendChild(chartDiv);
-      overlay.appendChild(wrap);
-      document.body.appendChild(overlay);
-      // Re-plot in fullscreen container
-      if (container.data) {
-        var fsLayout = deepMerge(PLOTLY_LAYOUT, container.layout || {});
-        fsLayout.height = undefined;
-        fsLayout.width = undefined;
-        Plotly.newPlot(chartDiv, container.data, fsLayout, {displayModeBar:true, scrollZoom:true, responsive:true});
-      }
-      function closeOverlay() {
-        Plotly.purge(chartDiv);
-        overlay.remove();
-        document.removeEventListener('keydown', escHandler);
-      }
-      function escHandler(ev) { if (ev.key === 'Escape') closeOverlay(); }
-      closeBtn.onclick = closeOverlay;
-      overlay.addEventListener('click', function(ev) { if (ev.target === overlay) closeOverlay(); });
-      document.addEventListener('keydown', escHandler);
-      requestAnimationFrame(function() { overlay.classList.add('active'); });
-    };
-    wrapper.appendChild(btn);
   });
 })();
 </script>

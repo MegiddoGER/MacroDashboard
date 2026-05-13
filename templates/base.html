@@ -79,7 +79,7 @@
         // ── Nav Category Toggle ──
         document.addEventListener('click', function(e) {
             const btn = e.target.closest('.nav-category-btn');
-            if (!btn) return;
+            if (!btn || btn.classList.contains('wl-toggle-btn')) return;
             btn.classList.toggle('expanded');
             const pages = btn.nextElementSibling;
             if (pages && pages.classList.contains('nav-pages')) {

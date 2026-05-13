@@ -70,13 +70,13 @@
     </form>
     <span class="wl-spinner spinner" style="display:none;"></span>
 
-    <button class="nav-category-btn"
-            aria-expanded="false">
+    <button class="wl-toggle-btn nav-category-btn"
+            onclick="var b=document.getElementById('wl-body');b.style.display=b.style.display==='none'?'block':'none';this.classList.toggle('expanded');">
         ⚡  Watchlist
         <span class="chevron">▾</span>
     </button>
-    <div class="nav-pages">
-        <div style="padding:4px;" id="watchlist-items"
+    <div id="wl-body" style="display:none;padding:4px 0;">
+        <div id="watchlist-items"
              hx-get="/api/watchlist/items"
              hx-trigger="load"
              hx-swap="innerHTML">
