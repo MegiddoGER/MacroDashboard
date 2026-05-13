@@ -930,7 +930,13 @@
 
   // ── Fullscreen toggle for every chart ──
   document.querySelectorAll('.chart-container').forEach(function(container) {
-    if (!container.id) return;
+    if (!container.id || !container.data) return; // only plotly-rendered charts
+    // Wrap container in a relative parent so button survives Plotly re-renders
+    var wrapper = document.createElement('div');
+    wrapper.style.position = 'relative';
+    container.parentNode.insertBefore(wrapper, container);
+    wrapper.appendChild(container);
+
     var btn = document.createElement('button');
     btn.className = 'chart-fullscreen-btn';
     btn.innerHTML = '⛶';
@@ -952,12 +958,11 @@
       overlay.appendChild(wrap);
       document.body.appendChild(overlay);
       // Re-plot in fullscreen container
-      var origEl = document.getElementById(container.id);
-      if (origEl && origEl.data) {
-        var fsLayout = deepMerge(PLOTLY_LAYOUT, origEl.layout || {});
+      if (container.data) {
+        var fsLayout = deepMerge(PLOTLY_LAYOUT, container.layout || {});
         fsLayout.height = undefined;
         fsLayout.width = undefined;
-        Plotly.newPlot(chartDiv, origEl.data, fsLayout, {displayModeBar:true, scrollZoom:true, responsive:true});
+        Plotly.newPlot(chartDiv, container.data, fsLayout, {displayModeBar:true, scrollZoom:true, responsive:true});
       }
       function closeOverlay() {
         Plotly.purge(chartDiv);
@@ -970,8 +975,7 @@
       document.addEventListener('keydown', escHandler);
       requestAnimationFrame(function() { overlay.classList.add('active'); });
     };
-    container.style.position = 'relative';
-    container.appendChild(btn);
+    wrapper.appendChild(btn);
   });
 })();
 </script>

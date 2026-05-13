@@ -331,39 +331,38 @@
    ═══════════════════════════════════════════════════════════ */
 .chart-container {
     border-radius: var(--radius-md);
-    overflow: hidden;
+    overflow: visible;
     margin: 8px 0;
+    position: relative;
 }
 
 /* ── Chart Fullscreen ── */
 .chart-fullscreen-btn {
     position: absolute;
-    top: 8px;
-    right: 8px;
-    z-index: 10;
-    width: 30px;
-    height: 30px;
+    top: 6px;
+    left: 6px;
+    z-index: 20;
+    width: 28px;
+    height: 28px;
     border-radius: 6px;
-    border: 1px solid rgba(148, 163, 184, 0.2);
-    background: rgba(15, 23, 42, 0.85);
-    color: var(--text-dim);
-    font-size: 1rem;
+    border: 1px solid rgba(148, 163, 184, 0.25);
+    background: rgba(15, 23, 42, 0.9);
+    color: var(--text-muted);
+    font-size: 0.9rem;
     cursor: pointer;
     transition: var(--transition-fast);
     display: flex;
     align-items: center;
     justify-content: center;
     backdrop-filter: blur(4px);
-    opacity: 0;
-}
-.chart-container:hover .chart-fullscreen-btn {
-    opacity: 1;
+    opacity: 0.5;
 }
 .chart-fullscreen-btn:hover {
-    background: rgba(0, 212, 170, 0.15);
+    opacity: 1;
+    background: rgba(0, 212, 170, 0.2);
     border-color: var(--accent);
     color: var(--accent);
-    transform: scale(1.1);
+    transform: scale(1.15);
 }
 .chart-fullscreen-overlay {
     position: fixed;
