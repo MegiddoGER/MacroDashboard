@@ -851,12 +851,29 @@
 {% if company_news %}
 <hr>
 <h4>📰 Nachrichten</h4>
+<div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(340px, 1fr));gap:12px;">
 {% for news in company_news[:8] %}
-<div class="card" style="margin-bottom:8px;padding:10px 14px;">
-  <a href="{{ news.get('link','#') }}" target="_blank" rel="noopener" style="color:var(--accent);font-weight:500;font-size:0.9rem;">{{ news.get('title','') }}</a>
-  <p class="caption" style="margin-top:4px;">{{ news.get('publisher','') }} · {{ news.get('date','') }}</p>
-</div>
+<a href="{{ news.get('link','#') }}" target="_blank" rel="noopener"
+   style="display:block;background:linear-gradient(135deg, rgba(30,41,59,0.9) 0%, rgba(15,23,42,0.95) 100%);
+          border:1px solid rgba(148,163,184,0.1);border-radius:10px;padding:16px 18px;
+          text-decoration:none;transition:all 0.25s ease;position:relative;overflow:hidden;"
+   onmouseover="this.style.borderColor='rgba(0,212,170,0.3)';this.style.transform='translateY(-2px)';this.style.boxShadow='0 8px 24px rgba(0,0,0,0.3)'"
+   onmouseout="this.style.borderColor='rgba(148,163,184,0.1)';this.style.transform='none';this.style.boxShadow='none'">
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">
+    <div style="flex:1;min-width:0;">
+      <div style="color:var(--text);font-weight:600;font-size:0.88rem;line-height:1.45;margin-bottom:8px;
+                  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">{{ news.get('title','') }}</div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="background:rgba(0,212,170,0.12);color:var(--accent);font-size:0.7rem;font-weight:600;
+                     padding:2px 8px;border-radius:4px;letter-spacing:0.03em;">{{ news.get('publisher','') }}</span>
+        <span style="color:var(--text-muted);font-size:0.72rem;">{{ news.get('date','') }}</span>
+      </div>
+    </div>
+    <span style="color:var(--text-muted);font-size:0.8rem;flex-shrink:0;margin-top:2px;">↗</span>
+  </div>
+</a>
 {% endfor %}
+</div>
 {% endif %}
 
 <!-- ═══ Plotly Rendering ═══ -->
@@ -909,6 +926,52 @@
         });
       }, 50);
     });
+  });
+
+  // ── Fullscreen toggle for every chart ──
+  document.querySelectorAll('.chart-container').forEach(function(container) {
+    if (!container.id) return;
+    var btn = document.createElement('button');
+    btn.className = 'chart-fullscreen-btn';
+    btn.innerHTML = '⛶';
+    btn.title = 'Vollbild';
+    btn.onclick = function(e) {
+      e.stopPropagation();
+      var overlay = document.createElement('div');
+      overlay.className = 'chart-fullscreen-overlay';
+      var wrap = document.createElement('div');
+      wrap.className = 'chart-fullscreen-wrap';
+      var closeBtn = document.createElement('button');
+      closeBtn.className = 'chart-fullscreen-close';
+      closeBtn.innerHTML = '✕ Schließen';
+      var chartDiv = document.createElement('div');
+      chartDiv.style.width = '100%';
+      chartDiv.style.height = '100%';
+      wrap.appendChild(closeBtn);
+      wrap.appendChild(chartDiv);
+      overlay.appendChild(wrap);
+      document.body.appendChild(overlay);
+      // Re-plot in fullscreen container
+      var origEl = document.getElementById(container.id);
+      if (origEl && origEl.data) {
+        var fsLayout = deepMerge(PLOTLY_LAYOUT, origEl.layout || {});
+        fsLayout.height = undefined;
+        fsLayout.width = undefined;
+        Plotly.newPlot(chartDiv, origEl.data, fsLayout, {displayModeBar:true, scrollZoom:true, responsive:true});
+      }
+      function closeOverlay() {
+        Plotly.purge(chartDiv);
+        overlay.remove();
+        document.removeEventListener('keydown', escHandler);
+      }
+      function escHandler(ev) { if (ev.key === 'Escape') closeOverlay(); }
+      closeBtn.onclick = closeOverlay;
+      overlay.addEventListener('click', function(ev) { if (ev.target === overlay) closeOverlay(); });
+      document.addEventListener('keydown', escHandler);
+      requestAnimationFrame(function() { overlay.classList.add('active'); });
+    };
+    container.style.position = 'relative';
+    container.appendChild(btn);
   });
 })();
 </script>

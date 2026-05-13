@@ -56,26 +56,34 @@
 
 <hr>
 
-<!-- Watchlist -->
-<div>
-    <h5 class="sidebar-section-title">⚡ Watchlist</h5>
+<!-- Watchlist (collapsible) -->
+<div class="nav-section">
+    <button class="nav-category-btn" id="wl-toggle"
+            aria-expanded="false"
+            onclick="this.classList.toggle('expanded'); document.getElementById('wl-body').classList.toggle('expanded');">
+        ⚡  Watchlist
+        <span class="chevron">▾</span>
+    </button>
+    <div class="nav-pages" id="wl-body">
+        <div style="padding:8px 4px 4px;">
+            <form class="wl-add-form"
+                  hx-post="/api/watchlist/add"
+                  hx-target="#watchlist-items"
+                  hx-swap="innerHTML"
+                  hx-indicator=".wl-spinner">
+                <input type="text" name="query" class="form-input"
+                       placeholder="Ticker oder Name" autocomplete="off">
+                <button type="submit" class="btn btn-success btn-sm">➕</button>
+            </form>
+            <span class="wl-spinner spinner" style="display:none;"></span>
 
-    <form class="wl-add-form"
-          hx-post="/api/watchlist/add"
-          hx-target="#watchlist-items"
-          hx-swap="innerHTML"
-          hx-indicator=".wl-spinner">
-        <input type="text" name="query" class="form-input"
-               placeholder="Ticker oder Name" autocomplete="off">
-        <button type="submit" class="btn btn-success btn-sm">➕</button>
-    </form>
-    <span class="wl-spinner spinner" style="display:none;"></span>
-
-    <div id="watchlist-items"
-         hx-get="/api/watchlist/items"
-         hx-trigger="load"
-         hx-swap="innerHTML">
-        <!-- Watchlist items loaded via HTMX -->
+            <div id="watchlist-items"
+                 hx-get="/api/watchlist/items"
+                 hx-trigger="load"
+                 hx-swap="innerHTML">
+                <!-- Watchlist items loaded via HTMX -->
+            </div>
+        </div>
     </div>
 </div>
 

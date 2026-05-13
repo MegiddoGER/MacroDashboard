@@ -335,6 +335,76 @@
     margin: 8px 0;
 }
 
+/* ── Chart Fullscreen ── */
+.chart-fullscreen-btn {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    z-index: 10;
+    width: 30px;
+    height: 30px;
+    border-radius: 6px;
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    background: rgba(15, 23, 42, 0.85);
+    color: var(--text-dim);
+    font-size: 1rem;
+    cursor: pointer;
+    transition: var(--transition-fast);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(4px);
+    opacity: 0;
+}
+.chart-container:hover .chart-fullscreen-btn {
+    opacity: 1;
+}
+.chart-fullscreen-btn:hover {
+    background: rgba(0, 212, 170, 0.15);
+    border-color: var(--accent);
+    color: var(--accent);
+    transform: scale(1.1);
+}
+.chart-fullscreen-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background: rgba(2, 6, 23, 0.92);
+    backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.25s ease;
+}
+.chart-fullscreen-overlay.active {
+    opacity: 1;
+}
+.chart-fullscreen-wrap {
+    width: 92vw;
+    height: 88vh;
+    display: flex;
+    flex-direction: column;
+}
+.chart-fullscreen-close {
+    align-self: flex-end;
+    background: rgba(148, 163, 184, 0.12);
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    border-radius: 8px;
+    color: var(--text-dim);
+    font-size: 0.82rem;
+    font-weight: 500;
+    padding: 6px 16px;
+    cursor: pointer;
+    margin-bottom: 8px;
+    transition: var(--transition-fast);
+}
+.chart-fullscreen-close:hover {
+    background: rgba(239, 68, 68, 0.15);
+    border-color: var(--red);
+    color: var(--red);
+}
+
 /* ═══════════════════════════════════════════════════════════
    Expander / Collapsible
    ═══════════════════════════════════════════════════════════ */
