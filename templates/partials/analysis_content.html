@@ -251,6 +251,26 @@
 <div id="chart-margins" class="chart-container" style="height:350px;"></div>
 {% endif %}
 
+{% if margins %}
+{% set fcf_entries = margins|selectattr('fcf')|list %}
+{% if fcf_entries %}
+<h5 style="margin-top:16px;">💵 Free Cashflow pro Jahr</h5>
+<div class="table-container">
+  <table class="data-table">
+    <thead><tr><th>Jahr</th><th>Free Cashflow</th></tr></thead>
+    <tbody>
+    {% for m in margins if m.fcf %}
+    <tr>
+      <td><b>{{ m.year }}</b></td>
+      <td style="color:{{ '#22c55e' if m.fcf > 0 else '#ef4444' }}">{{ fmt_big(m.fcf) }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+{% endif %}
+
 <hr>
 
 <!-- ═══ Fundamentals: Peers, Dividende, Insider, Analyst ═══ -->
@@ -276,19 +296,57 @@
 
 {% if insider %}
 <h4>👔 Insider & Institutionelle</h4>
-{% if insider.has_summary %}
-<div class="grid-4" style="gap:12px;margin-bottom:12px;">
-  <div class="metric-card"><div class="metric-label">Käufe</div><div class="metric-value">{{ insider.purchases_count }}</div></div>
-  <div class="metric-card"><div class="metric-label">Verkäufe</div><div class="metric-value">{{ insider.sales_count }}</div></div>
-  <div class="metric-card"><div class="metric-label">Netto-Aktien</div><div class="metric-value">{{ "{:,}".format(insider.net_shares) }}</div></div>
-  <div class="metric-card"><div class="metric-label">Insider-Anteil</div><div class="metric-value">{{ "%.2f %%"|format(insider.insider_pct) if insider.insider_pct else "—" }}</div></div>
+<div>
+  <div class="tabs">
+    <button class="tab active" data-tab="tab-insider-summary">📊 Übersicht</button>
+    {% if insider.has_insider_data %}<button class="tab" data-tab="tab-insider-detail">📋 Transaktionen</button>{% endif %}
+    {% if insider.has_institutional_data %}<button class="tab" data-tab="tab-institutional">🏦 Institutionelle</button>{% endif %}
+  </div>
+
+  <div id="tab-insider-summary" class="tab-content active">
+    {% if insider.has_summary %}
+    <div class="grid-4" style="gap:12px;margin-bottom:12px;">
+      <div class="metric-card"><div class="metric-label">Käufe</div><div class="metric-value">{{ insider.purchases_count }}</div></div>
+      <div class="metric-card"><div class="metric-label">Verkäufe</div><div class="metric-value">{{ insider.sales_count }}</div></div>
+      <div class="metric-card"><div class="metric-label">Netto-Aktien</div><div class="metric-value">{{ "{:,}".format(insider.net_shares) }}</div></div>
+      <div class="metric-card"><div class="metric-label">Insider-Anteil</div><div class="metric-value">{{ "%.2f %%"|format(insider.insider_pct) if insider.insider_pct else "—" }}</div></div>
+    </div>
+    {% if insider.purchases_count > insider.sales_count and insider.net_shares > 0 %}
+    <div class="alert alert-success">✅ Netto-Käufe: Insider kaufen mehr als sie verkaufen.</div>
+    {% elif insider.sales_count > insider.purchases_count and insider.net_shares < 0 %}
+    <div class="alert alert-warning">⚠️ Netto-Verkäufe durch Insider.</div>
+    {% endif %}
+    {% if insider.institutional_pct %}
+    <div style="margin-top:8px;">
+      <span class="caption">Institutioneller Anteil: <b>{{ "%.2f %%"|format(insider.institutional_pct) }}</b></span>
+    </div>
+    {% endif %}
+    {% else %}
+    <div class="alert alert-info">Keine aggregierten Insider-Daten verfügbar.</div>
+    {% endif %}
+  </div>
+
+  {% if insider.has_insider_data %}
+  <div id="tab-insider-detail" class="tab-content">
+    <h5>Letzte Insider-Transaktionen</h5>
+    <div class="table-container" style="max-height:400px;overflow-y:auto;">
+      {{ insider.insider_df.to_html(classes='data-table', index=False)|safe }}
+    </div>
+  </div>
+  {% endif %}
+
+  {% if insider.has_institutional_data %}
+  <div id="tab-institutional" class="tab-content">
+    <h5>Top Institutionelle Investoren</h5>
+    {% if insider.institutional_pct %}
+    <p class="caption">Institutioneller Anteil gesamt: <b>{{ "%.2f %%"|format(insider.institutional_pct) }}</b></p>
+    {% endif %}
+    <div class="table-container" style="max-height:400px;overflow-y:auto;">
+      {{ insider.institutional_df.to_html(classes='data-table', index=False)|safe }}
+    </div>
+  </div>
+  {% endif %}
 </div>
-{% if insider.purchases_count > insider.sales_count and insider.net_shares > 0 %}
-<div class="alert alert-success">✅ Netto-Käufe: Insider kaufen mehr als sie verkaufen.</div>
-{% elif insider.sales_count > insider.purchases_count and insider.net_shares < 0 %}
-<div class="alert alert-warning">⚠️ Netto-Verkäufe durch Insider.</div>
-{% endif %}
-{% endif %}
 <hr>
 {% endif %}
 
@@ -461,6 +519,44 @@
   </div>
 </div>
 {% endif %}
+
+{% if opts.unusual_calls or opts.unusual_puts %}
+<h5 style="margin-top:16px;">🔥 Ungewöhnliche Options-Aktivität</h5>
+<p class="caption">Strikes mit Volume > 5× Open Interest — mögliche Block-Trades oder institutionelle Positionierung.</p>
+<div class="grid-2" style="gap:12px;margin-top:8px;">
+  <div>
+    {% if opts.unusual_calls %}
+    <h6 style="color:#22c55e;margin-bottom:6px;">🟢 Unusual Calls</h6>
+    {% for u in opts.unusual_calls %}
+    <div style="background:var(--bg-card);padding:8px 12px;border-radius:6px;border-left:3px solid #22c55e;margin-bottom:4px;font-size:0.82rem;">
+      <b>${{ "{:,.0f}".format(u.strike) }}</b>
+      · Vol: <b>{{ "{:,}".format(u.volume) }}</b>
+      · OI: {{ "{:,}".format(u.open_interest) }}
+      · <span style="color:#eab308;font-weight:600;">{{ u.vol_oi_ratio }}× OI</span>
+      {% if u.iv %} · IV: {{ "%.0f"|format(u.iv) }}%{% endif %}
+      {% if u.distance_pct is not none %} · {{ "%+.1f"|format(u.distance_pct) }}% vom Kurs{% endif %}
+    </div>
+    {% endfor %}
+    {% else %}<p class="caption">Keine ungewöhnlichen Call-Trades.</p>{% endif %}
+  </div>
+  <div>
+    {% if opts.unusual_puts %}
+    <h6 style="color:#ef4444;margin-bottom:6px;">🔴 Unusual Puts</h6>
+    {% for u in opts.unusual_puts %}
+    <div style="background:var(--bg-card);padding:8px 12px;border-radius:6px;border-left:3px solid #ef4444;margin-bottom:4px;font-size:0.82rem;">
+      <b>${{ "{:,.0f}".format(u.strike) }}</b>
+      · Vol: <b>{{ "{:,}".format(u.volume) }}</b>
+      · OI: {{ "{:,}".format(u.open_interest) }}
+      · <span style="color:#eab308;font-weight:600;">{{ u.vol_oi_ratio }}× OI</span>
+      {% if u.iv %} · IV: {{ "%.0f"|format(u.iv) }}%{% endif %}
+      {% if u.distance_pct is not none %} · {{ "%+.1f"|format(u.distance_pct) }}% vom Kurs{% endif %}
+    </div>
+    {% endfor %}
+    {% else %}<p class="caption">Keine ungewöhnlichen Put-Trades.</p>{% endif %}
+  </div>
+</div>
+{% endif %}
+
 <p class="caption" style="margin-top:8px;">Put/Call Ratio: &lt;0.7 = bullish, 0.7-1.2 = neutral, &gt;1.2 = bearish. Max Pain: Preislevel bei dem am meisten Optionen wertlos verfallen.</p>
 {% endif %}
 
@@ -583,24 +679,79 @@
 </div>
 {% endif %}
 
-<!-- ═══ Indikatoren-Checkliste ═══ -->
+<!-- ═══ Indikatoren-Checkliste (gruppiert) ═══ -->
 {% if sum_data.get('checklist') %}
 <h5 style="margin-top:16px;">🔍 Indikatoren-Checkliste</h5>
-<div class="table-container">
-  <table class="data-table">
-    <thead><tr><th>Indikator</th><th>Wert</th><th>Signal</th><th>Beitrag</th></tr></thead>
-    <tbody>
-    {% for item in sum_data.checklist %}
-    <tr>
-      <td><b>{{ item.get('Indikator','') }}</b></td>
-      <td>{{ item.get('Wert','—') }}</td>
-      <td>{{ item.get('Signal','—') }}</td>
-      <td>{{ item.get('Beitrag','—') }}</td>
-    </tr>
-    {% endfor %}
-    </tbody>
-  </table>
+
+{% set tech_indicators = ['ADX', 'Trend (SMAs)', 'MACD'] %}
+{% set osc_indicators = ['RSI (14)', 'Bollinger Bänder', 'Stochastic'] %}
+{% set vol_indicators = ['OBV Trend', 'VWAP (Wochen/Monats)', 'Volumen-Cluster (POC)', 'FVG (Fair Value Gap)', 'Equal Highs (EQH)', 'Equal Lows (EQL)'] %}
+{% set fund_indicators = ['DCF Fair Value', 'Bilanzqualität', 'Insider-Sentiment', 'Analysten-Konsens', 'Dividende'] %}
+{% set sent_indicators = ['News Sentiment', 'Earnings Surprise', 'Contrarian-Warnung 🧨'] %}
+
+{% macro render_category(title, icon, indicator_names, items) %}
+{% set cat_items = [] %}
+{% for item in items %}
+  {% if item.get('Indikator','') in indicator_names %}
+    {% if cat_items.append(item) %}{% endif %}
+  {% endif %}
+{% endfor %}
+{% if cat_items %}
+<div style="margin-bottom:16px;">
+  <h6 style="margin-bottom:6px;color:var(--text-dim);">{{ icon }} {{ title }}</h6>
+  <div class="table-container">
+    <table class="data-table">
+      <thead><tr><th>Indikator</th><th>Wert</th><th>Signal</th><th>Beitrag</th></tr></thead>
+      <tbody>
+      {% for item in cat_items %}
+      <tr>
+        <td><b>{{ item.get('Indikator','') }}</b></td>
+        <td>{{ item.get('Wert','—') }}</td>
+        <td>{{ item.get('Signal','—') }}</td>
+        <td>{{ item.get('Beitrag','—') }}</td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
 </div>
+{% endif %}
+{% endmacro %}
+
+{{ render_category('Technisch', '🔬', tech_indicators, sum_data.checklist) }}
+{{ render_category('Oszillatoren', '📉', osc_indicators, sum_data.checklist) }}
+{{ render_category('Volumen & Struktur', '📊', vol_indicators, sum_data.checklist) }}
+{{ render_category('Fundamental', '🏦', fund_indicators, sum_data.checklist) }}
+{{ render_category('Sentiment', '📰', sent_indicators, sum_data.checklist) }}
+
+{# Catch-all for any uncategorized indicators #}
+{% set all_known = tech_indicators + osc_indicators + vol_indicators + fund_indicators + sent_indicators %}
+{% set other_items = [] %}
+{% for item in sum_data.checklist %}
+  {% if item.get('Indikator','') not in all_known %}
+    {% if other_items.append(item) %}{% endif %}
+  {% endif %}
+{% endfor %}
+{% if other_items %}
+<div style="margin-bottom:16px;">
+  <h6 style="margin-bottom:6px;color:var(--text-dim);">🔧 Sonstige</h6>
+  <div class="table-container">
+    <table class="data-table">
+      <thead><tr><th>Indikator</th><th>Wert</th><th>Signal</th><th>Beitrag</th></tr></thead>
+      <tbody>
+      {% for item in other_items %}
+      <tr>
+        <td><b>{{ item.get('Indikator','') }}</b></td>
+        <td>{{ item.get('Wert','—') }}</td>
+        <td>{{ item.get('Signal','—') }}</td>
+        <td>{{ item.get('Beitrag','—') }}</td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
 {% endif %}
 {% endif %}
 
