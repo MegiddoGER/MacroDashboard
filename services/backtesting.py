@@ -75,15 +75,18 @@ class BacktestEngine:
         # aber markiere den sauberen Bereich statt Rows destruktiv zu löschen
         self.df.dropna(subset=["SMA_200"], inplace=True)
 
-    def run_strategy(self, strategy_name: str) -> tuple[pd.DataFrame, list[dict], dict]:
-        """Führt eine benannte Strategie aus.
+    def run_strategy(self, strategy_name: str, oos_split: float = 0.3) -> tuple[pd.DataFrame, list[dict], dict]:
+        """Führt eine benannte Strategie aus mit optionalem Walk-Forward-Split.
+        
+        Args:
+            strategy_name: Name der Strategie
+            oos_split: Anteil der Daten für Out-of-Sample Test (0.0 = kein Split)
         
         Returns:
             equity_df: DataFrame mit Portfolio-Entwicklung über Zeit
             trades_log: Liste aller durchgeführten Trades
-            metrics: Z.B. Win-Rate, Net Profit, Sharpe, Sortino.
+            metrics: Metriken inkl. 'oos_metrics' dict wenn oos_split > 0
         """
-        # Alle Signal-Logiken geben eine Series von 1 (Buy), -1 (Sell) oder 0 (Hold) zurück
         if strategy_name == "SMA_Cross_Trend":
             signals = self._strat_sma_cross()
         elif strategy_name == "RSI_Mean_Reversion":
@@ -96,8 +99,31 @@ class BacktestEngine:
             signals = self._strat_smc_proxy()
         else:
             raise ValueError(f"Unbekannte Strategie: {strategy_name}")
-            
-        return self._simulate_portfolio(signals)
+
+        # Full-period backtest (wie bisher)
+        equity_df, trades, metrics = self._simulate_portfolio(signals)
+
+        # Walk-Forward: OOS-Metriken separat berechnen
+        if oos_split > 0 and len(self.df) > 100:
+            split_idx = int(len(self.df) * (1 - oos_split))
+            oos_df = self.df.iloc[split_idx:].copy()
+            if len(oos_df) > 20:
+                try:
+                    oos_engine = BacktestEngine(
+                        oos_df,
+                        initial_capital=self.initial_capital,
+                        commission=self.commission,
+                        slippage_pct=self.slippage * 100,
+                    )
+                    if len(oos_engine.df) > 10:  # Genug Daten nach Indikator-Berechnung
+                        _, oos_trades, oos_metrics = oos_engine.run_strategy(strategy_name, oos_split=0.0)
+                        metrics["oos_metrics"] = oos_metrics
+                        metrics["oos_period_start"] = str(oos_df.index[0].date())
+                        metrics["oos_period_end"] = str(oos_df.index[-1].date())
+                except Exception:
+                    pass  # OOS nicht möglich (zu wenig Daten) — Full-Period Ergebnis bleibt
+
+        return equity_df, trades, metrics
 
     # -----------------------------------------------------------------------
     # Strategie-Definitionen (Vectorized Signal Generation)

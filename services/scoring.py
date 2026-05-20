@@ -383,7 +383,7 @@ def _score_fundamental(info, ticker, result: ScoreResult):
                     "Signal": "Unterbewertet ↑", "Beitrag": "+1"})
                 result.fundamental_text_parts.append(
                     f"Das DCF-Modell sieht die Aktie {dcf['upside_pct']:.0f}% unter ihrem inneren Wert — eine klare fundamentale Unterbewertung.")
-            elif dcf['upside_pct'] < -15:
+            elif dcf['upside_pct'] < -20:
                 result.cat_scores["fundamental"] -= 1
                 result.checklist.append({"Indikator": "DCF Fair Value",
                     "Wert": f"{dcf['fair_value']:,.2f} (Downside {dcf['upside_pct']:+.1f}%)",
@@ -429,7 +429,7 @@ def _score_fundamental(info, ticker, result: ScoreResult):
                     "Signal": "Netto-Käufe ↑", "Beitrag": "+1"})
                 result.fundamental_text_parts.append(
                     "Insider kaufen aktiv eigene Aktien — ein starkes Vertrauenssignal des Managements.")
-            elif sells > buys + 2 and net_s < 0:
+            elif sells > buys and net_s < 0 and sells >= 2:
                 result.cat_scores["fundamental"] -= 1
                 result.checklist.append({"Indikator": "Insider-Sentiment",
                     "Wert": f"{buys} Käufe / {sells} Verkäufe (Netto: {net_s:+,} Aktien)".replace(",", "."),
@@ -447,14 +447,14 @@ def _score_fundamental(info, ticker, result: ScoreResult):
             rec_mean = analyst['recommendation_mean']
             rec_label = analyst.get('recommendation', '—')
             result.cat_max["fundamental"] += 1
-            if rec_mean <= 2.0:
+            if rec_mean <= 1.8:
                 result.cat_scores["fundamental"] += 1
                 result.checklist.append({"Indikator": "Analysten-Konsens",
                     "Wert": f"{rec_label} ({rec_mean}/5)",
                     "Signal": "Strong Buy ↑", "Beitrag": "+1"})
                 result.fundamental_text_parts.append(
                     f"Die Wall Street ist klar bullisch (Konsens: {rec_label}, {analyst.get('num_analysts', '?')} Analysten).")
-            elif rec_mean >= 3.5:
+            elif rec_mean >= 3.2:
                 result.cat_scores["fundamental"] -= 1
                 result.checklist.append({"Indikator": "Analysten-Konsens",
                     "Wert": f"{rec_label} ({rec_mean}/5)",
@@ -478,9 +478,10 @@ def _score_fundamental(info, ticker, result: ScoreResult):
                 result.fundamental_text_parts.append(
                     f"Die Dividende ist nachhaltig (Payout {div_data['payout_ratio']:.0f}%) und wächst seit {div_data['streak']} Jahren.")
             elif div_data['payout_ratio'] > 85:
+                result.cat_scores["fundamental"] -= 1
                 result.checklist.append({"Indikator": "Dividende",
                     "Wert": f"Payout {div_data['payout_ratio']:.0f}% (hoch!)",
-                    "Signal": "Risiko ⚠️", "Beitrag": "0"})
+                    "Signal": "Nicht nachhaltig ↓", "Beitrag": "-1"})
                 result.fundamental_text_parts.append(
                     f"Achtung: Die Ausschüttungsquote ({div_data['payout_ratio']:.0f}%) ist sehr hoch — die Dividende könnte unter Druck geraten.")
     except Exception as exc:

@@ -126,8 +126,31 @@ def calc_dcf_valuation(info: dict) -> dict | None:
         upside_pct = ((fair_value_per_share - current_price) / current_price) * 100 if current_price and current_price > 0 else 0.0
         margin_of_safety = fair_value_per_share > current_price * 1.2 if current_price else False
 
+        # --- Sensitivitätsanalyse: WACC ±1%, Terminal Growth ±0.5% ---
+        def _dcf_point(w, tg):
+            """Schnelle DCF-Neuberechnung für Sensitivität."""
+            if tg >= w:
+                tg = w * 0.5
+            cf = float(fcf)
+            pv_sum = 0.0
+            for yr in range(1, 6):
+                yg = growth * (1 - (yr - 1) * 0.15)
+                cf *= (1 + yg)
+                pv_sum += cf / ((1 + w) ** yr)
+            tv = cf * (1 + tg) / (w - tg) / ((1 + w) ** 5)
+            eq = (pv_sum + tv) - total_debt + total_cash
+            return eq / shares if shares > 0 else 0
+
+        fv_base = fair_value_per_share
+        fv_bull = _dcf_point(wacc - 0.01, terminal_growth + 0.005)
+        fv_bear = _dcf_point(wacc + 0.01, terminal_growth - 0.005)
+        fv_low = min(fv_base, fv_bull, fv_bear)
+        fv_high = max(fv_base, fv_bull, fv_bear)
+
         return {
             "fair_value": round(fair_value_per_share, 2),
+            "fair_value_low": round(fv_low, 2),
+            "fair_value_high": round(fv_high, 2),
             "current_price": round(current_price, 2) if current_price else 0,
             "upside_pct": round(upside_pct, 1),
             "margin_of_safety": margin_of_safety,

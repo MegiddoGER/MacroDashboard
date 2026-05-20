@@ -454,13 +454,16 @@ def calc_order_flow(high: pd.Series, low: pd.Series,
     # OBV-Trend (20-Tage-Slope)
     if len(obv.dropna()) >= 20:
         obv_recent = obv.dropna().iloc[-20:]
-        obv_slope = (float(obv_recent.iloc[-1]) - float(obv_recent.iloc[0]))
+        obv_slope_raw = (float(obv_recent.iloc[-1]) - float(obv_recent.iloc[0]))
+        # Normalisierung: Slope relativ zum Ø Tagesvolumen (cross-stock vergleichbar)
+        avg_daily_vol = float(volume.iloc[-20:].mean()) if len(volume) >= 20 else 1.0
+        obv_slope = obv_slope_raw / avg_daily_vol if avg_daily_vol > 0 else 0.0
         if obv_slope > 0:
             obv_signal = "bullish"
-            obv_desc = "OBV steigt — Akkumulation (Kaufdruck)"
+            obv_desc = f"OBV steigt — Akkumulation (norm. Slope: {obv_slope:+.2f})"
         else:
             obv_signal = "bearish"
-            obv_desc = "OBV fällt — Distribution (Verkaufsdruck)"
+            obv_desc = f"OBV fällt — Distribution (norm. Slope: {obv_slope:+.2f})"
     else:
         obv_signal = "neutral"
         obv_desc = "—"
@@ -518,8 +521,8 @@ def calc_order_flow(high: pd.Series, low: pd.Series,
 
 def calc_position_sizing(current_price: float, atr_val: float,
                          portfolio_value: float, max_risk_pct: float = 0.02,
-                         win_rate: float = 0.55,
-                         avg_win_loss_ratio: float = 1.67) -> dict | None:
+                         win_rate: float | None = None,
+                         avg_win_loss_ratio: float | None = None) -> dict | None:
     """Berechnet die optimale Positionsgröße.
     
     Args:
@@ -527,8 +530,8 @@ def calc_position_sizing(current_price: float, atr_val: float,
         atr_val: Average True Range (14 Tage)
         portfolio_value: Gesamtkapital des Portfolios in EUR
         max_risk_pct: Max. Risiko pro Trade (Standard: 2%)
-        win_rate: Historische Gewinnquote (Standard: 55%)
-        avg_win_loss_ratio: Durchschnittliches Gewinn/Verlust-Verhältnis (Standard: 1.67)
+        win_rate: Historische Gewinnquote. None = automatisch aus Signal-DB.
+        avg_win_loss_ratio: Gewinn/Verlust-Verhältnis. None = automatisch aus Signal-DB.
         
     Rückgabe: dict mit Positionsgröße, Kelly-Anteil, Stop-Level etc. oder None.
     """
@@ -536,7 +539,32 @@ def calc_position_sizing(current_price: float, atr_val: float,
         return None
     if not portfolio_value or portfolio_value <= 0:
         return None
-        
+
+    # --- Kelly-Parameter aus Signal-Historie laden (wenn nicht explizit übergeben) ---
+    kelly_source = "default"
+    if win_rate is None or avg_win_loss_ratio is None:
+        try:
+            from services.signal_history import calc_hit_rate, get_signal_statistics
+            hr = calc_hit_rate(days=365)
+            if hr["evaluated"] >= 10 and hr["overall_hit_rate"] is not None:
+                win_rate = hr["overall_hit_rate"] / 100.0
+                # Avg Win/Loss Ratio aus Top/Flop-Signalen
+                sig_stats = get_signal_statistics()
+                tops = sig_stats.get("top_signals", [])
+                flops = sig_stats.get("flop_signals", [])
+                avg_win = abs(sum(t["return_pct"] for t in tops) / len(tops)) if tops else 5.0
+                avg_loss = abs(sum(t["return_pct"] for t in flops) / len(flops)) if flops else 3.0
+                avg_win_loss_ratio = avg_win / avg_loss if avg_loss > 0 else 1.67
+                kelly_source = "signal_history"
+        except Exception:
+            pass
+
+    # Fallback-Defaults wenn DB leer oder Fehler
+    if win_rate is None:
+        win_rate = 0.55
+    if avg_win_loss_ratio is None:
+        avg_win_loss_ratio = 1.67
+
     # ATR-basierter Stop-Loss (1.5x ATR unter aktuellem Kurs)
     stop_distance = 1.5 * atr_val
     risk_per_share = stop_distance
@@ -555,9 +583,8 @@ def calc_position_sizing(current_price: float, atr_val: float,
     position_pct = (position_value / portfolio_value) * 100 if portfolio_value > 0 else 0
     
     # Kelly Criterion: f* = (W × R - L) / R
-    # W = Win Rate, R = Avg Win/Loss Ratio, L = 1 - W
     kelly_fraction = (win_rate * avg_win_loss_ratio - (1 - win_rate)) / avg_win_loss_ratio
-    kelly_fraction = max(0.0, min(kelly_fraction, 0.25))  # Cap bei 25% (Half-Kelly Sicherheit)
+    kelly_fraction = max(0.0, min(kelly_fraction, 0.25))  # Cap bei 25% (Half-Kelly)
     kelly_position = portfolio_value * kelly_fraction
     kelly_shares = int(kelly_position / current_price) if current_price > 0 else 0
     
@@ -576,6 +603,9 @@ def calc_position_sizing(current_price: float, atr_val: float,
         "kelly_fraction_pct": round(kelly_fraction * 100, 1),
         "kelly_position": round(kelly_position, 2),
         "kelly_shares": kelly_shares,
+        "kelly_source": kelly_source,
+        "kelly_win_rate": round(win_rate * 100, 1),
+        "kelly_rr_ratio": round(avg_win_loss_ratio, 2),
     }
 
 # ---------------------------------------------------------------------------

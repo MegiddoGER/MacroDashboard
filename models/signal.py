@@ -208,13 +208,18 @@ class SignalStore:
             if price_3m is not None:
                 row.price_3m_later = round(price_3m, 2)
 
-            # Erfolgsberechnung
+            # Erfolgsberechnung mit Mindest-Bewegungsfilter
+            # 0.3% Minimum deckt Transaktionskosten + Slippage ab
             entry_price = row.price_at_signal or 0
             signal_type = row.signal_type or "hold"
             check_price = price_1m or price_1w
+            MIN_MOVE_PCT = 0.3
 
             if entry_price > 0 and check_price and signal_type != "hold":
-                if signal_type == "buy":
+                pct_change = abs((check_price - entry_price) / entry_price) * 100
+                if pct_change < MIN_MOVE_PCT:
+                    pass  # Zu geringe Bewegung — nicht bewertbar
+                elif signal_type == "buy":
                     row.was_successful = check_price > entry_price
                 elif signal_type == "sell":
                     row.was_successful = check_price < entry_price
