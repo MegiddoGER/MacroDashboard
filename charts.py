@@ -786,23 +786,25 @@ def plot_financials_chart(fin_data: list[dict], title: str = "Umsatz & Nettogewi
     ))
 
     fig.update_layout(
-        title=dict(text=title, font=dict(size=14)),
         barmode='group',
         height=350,
-        margin=dict(t=70, b=30, l=10, r=10),  # t=70: Platz für Titel + Legende
+        margin=dict(t=20, b=30, l=10, r=10),  # t=20: kein Plotly-Titel nötig (HTML h4 ist Überschrift)
         **{k: v for k, v in LAYOUT_DEFAULTS.items() if k != 'margin'}
     )
     # X und Y Achsen Styling
     fig.update_xaxes(gridcolor="rgba(148,163,184,0.06)", tickfont=dict(size=12, color="#94a3b8"))
     fig.update_yaxes(gridcolor="rgba(148,163,184,0.06)", showticklabels=False) # Werte im Hover
     
-    # Legende oben links, genug Abstand zum Titel
+    # Legende: innerhalb der Plot-Area oben links (kein Overlap mit HTML-Heading)
     fig.update_layout(legend=dict(
         orientation="h",
-        yanchor="bottom",
-        y=1.08,
+        yanchor="top",
+        y=0.98,
         xanchor="left",
-        x=0
+        x=0.01,
+        bgcolor="rgba(15,23,42,0.7)",
+        bordercolor="rgba(148,163,184,0.15)",
+        borderwidth=1,
     ))
 
     return fig
