@@ -818,9 +818,17 @@
 </div>
 <script>
 (function(){
-  var price = {{ stats.current_price if stats.current_price else 0 }};
+  var price = {{ stats.current_price if stats.current_price and stats.current_price > 0 else 'null' }};
   var atr = {{ atr_val }};
   function recalc() {
+    if (!price || price <= 0) {
+      // Kein gültiger Kurs — Position Sizing nicht möglich
+      ['ps-shares','ps-posval','ps-riskcur','ps-sl','ps-tp'].forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el) el.textContent = '—';
+      });
+      return;
+    }
     var pv = parseFloat(document.getElementById('ps-portfolio').value) || 10000;
     var riskPct = parseFloat(document.getElementById('ps-risk').value) / 100;
     var stopDist = 1.5 * atr;

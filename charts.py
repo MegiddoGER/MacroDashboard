@@ -759,8 +759,8 @@ def plot_order_flow(df: pd.DataFrame, flow_data: dict,
 def plot_financials_chart(fin_data: list[dict], title: str = "Umsatz & Nettogewinn") -> go.Figure:
     """Grouped Bar Chart für Umsatz und Nettogewinn pro Jahr."""
     years = [str(d["year"]) for d in fin_data]
-    revenues = [d["revenue"] if d["revenue"] is not None else 0 for d in fin_data]
-    net_incomes = [d["net_income"] if d["net_income"] is not None else 0 for d in fin_data]
+    revenues = [d["revenue"] for d in fin_data]          # None bleibt None (Plotly überspringt)
+    net_incomes = [d["net_income"] for d in fin_data]    # None bleibt None
 
     # Wir kehren die Liste um, um chronologisch (alt -> neu) von links nach rechts anzuzeigen
     years.reverse()
@@ -789,17 +789,18 @@ def plot_financials_chart(fin_data: list[dict], title: str = "Umsatz & Nettogewi
         title=dict(text=title, font=dict(size=14)),
         barmode='group',
         height=350,
-        **LAYOUT_DEFAULTS
+        margin=dict(t=70, b=30, l=10, r=10),  # t=70: Platz für Titel + Legende
+        **{k: v for k, v in LAYOUT_DEFAULTS.items() if k != 'margin'}
     )
     # X und Y Achsen Styling
     fig.update_xaxes(gridcolor="rgba(148,163,184,0.06)", tickfont=dict(size=12, color="#94a3b8"))
     fig.update_yaxes(gridcolor="rgba(148,163,184,0.06)", showticklabels=False) # Werte im Hover
     
-    # Legende oben links
+    # Legende oben links, genug Abstand zum Titel
     fig.update_layout(legend=dict(
         orientation="h",
         yanchor="bottom",
-        y=1.02,
+        y=1.08,
         xanchor="left",
         x=0
     ))

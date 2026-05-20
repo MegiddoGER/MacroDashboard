@@ -198,7 +198,14 @@ def get_stock_details(ticker: str) -> dict | None:
         # 52-Wochen-Range (in Originalwährung)
         high_52w = float(close.max())
         low_52w = float(close.min())
-        current_price = float(close.iloc[-1]) if not close.empty and not np.isnan(close.iloc[-1]) else 0.0
+        # Fallback-Kaskade: letzten gültigen Kurs finden (nicht 0!)
+        # Außerhalb der Handelszeiten kann close.iloc[-1] NaN sein.
+        current_price = 0.0
+        for _i in range(len(close) - 1, -1, -1):
+            _val = close.iloc[_i]
+            if not np.isnan(_val) and _val > 0:
+                current_price = float(_val)
+                break
 
         # SMA-Werte (Originalwährung)
         sma_20_val = float(sma_20.dropna().iloc[-1]) if not sma_20.dropna().empty else None
@@ -211,7 +218,8 @@ def get_stock_details(ticker: str) -> dict | None:
 
         stats = {
             # Preise — bereits in EUR konvertiert
-            "current_price": _to_eur(current_price),
+            # Guard: kein 0-Preis durchlassen (→ None → Template zeigt "—")
+            "current_price": _to_eur(current_price) if current_price > 0 else None,
             "high_52w": _to_eur(high_52w),
             "low_52w": _to_eur(low_52w),
             "sma_20": _to_eur(sma_20_val),

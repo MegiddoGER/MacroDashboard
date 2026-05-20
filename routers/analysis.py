@@ -59,7 +59,7 @@ def _safe_float(val, default=None):
 
 
 def _fmt_price(val, suffix=" EUR"):
-    if val is None or (isinstance(val, float) and math.isnan(val)):
+    if val is None or val == 0 or (isinstance(val, float) and math.isnan(val)):
         return "â€”"
     return f"{val:,.2f}{suffix}"
 
