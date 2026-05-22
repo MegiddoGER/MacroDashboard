@@ -390,140 +390,282 @@ def calc_dividend_analysis(ticker: str) -> dict | None:
 # ---------------------------------------------------------------------------
 
 def get_insider_institutional(ticker: str) -> dict | None:
-    """Lädt Insider-Transaktionen und Top institutionelle Halter.
+    """Lädt Insider-Transaktionen, Kongress-Trades und institutionelle Halter.
 
-    Nutzt drei yfinance-Quellen:
-    1. insider_purchases  → Aggregierte Kauf/Verkauf-Statistik (6 Monate)
-    2. insider_transactions → Detail-Tabelle der letzten Transaktionen
-    3. institutional_holders → Top institutionelle Halter mit Positionsänderungen
-    Plus: heldPercentInsiders/Institutions aus info für Holdings-Überblick.
+    Primärquelle: Quiver Quantitative API (wenn QUIVER_API_TOKEN gesetzt).
+    Fallback: yfinance (eingeschränkte Daten, keine Kongress-Trades).
+
+    Rückgabe-Dict enthält:
+    === Scoring-kompatible Felder (unverändert für services/scoring.py) ===
+    - purchases_count, sales_count, net_shares, has_summary
+    - insider_pct, institutional_pct
+
+    === Erweiterte Daten (Quiver) ===
+    - quiver_institutional: list[dict]   — Alle 13F-Holdings
+    - congress_trades: list[dict]        — Kongress-Trades
+    - quiver_insider_trades: list[dict]  — Corporate Insider Detail
+    - net_sentiment_90d: dict            — 90-Tage Netto-Sentiment
+    - insider_df / institutional_df      — DataFrames für Legacy-Kompatibilität
+
+    === Flags ===
+    - has_insider_data, has_institutional_data, has_congress_data
+    - has_quiver_insider, has_quiver_institutional
+    - data_source: "quiver" oder "yfinance"
     """
     try:
         tk = yf.Ticker(ticker)
         info = tk.info or {}
 
-        # ── 1. Aggregierte Insider-Statistik (Primärquelle für Scoring) ──
-        purchases_count, sales_count = 0, 0
-        purchases_shares, sales_shares, net_shares = 0, 0, 0
-        has_summary = False
-        try:
-            ip = tk.insider_purchases
-            if ip is not None and not ip.empty:
-                has_summary = True
-                # Zeile 0 = Purchases, Zeile 1 = Sales, Zeile 2 = Net
-                for _, row in ip.iterrows():
-                    label = str(row.iloc[0]).strip().lower()
-                    shares_val = row.get("Shares", 0)
-                    trans_val = row.get("Trans", 0)
-                    if pd.isna(shares_val):
-                        shares_val = 0
-                    if pd.isna(trans_val):
-                        trans_val = 0
-                    if label == "purchases":
-                        purchases_count = int(trans_val)
-                        purchases_shares = int(shares_val)
-                    elif label == "sales":
-                        sales_count = int(trans_val)
-                        sales_shares = int(shares_val)
-                    elif label.startswith("net") and "purchased" in label:
-                        net_shares = int(shares_val)
-        except Exception:
-            pass
-
-        # ── 2. Insider-Transaktionen Detail-Tabelle (Display) ──
-        insider_df = None
-        try:
-            ins = tk.insider_transactions
-            if ins is not None and not ins.empty:
-                # Relevante Spalten auswählen und übersetzen
-                display_cols = {}
-                if "Insider" in ins.columns:
-                    display_cols["Insider"] = "Name"
-                if "Position" in ins.columns:
-                    display_cols["Position"] = "Position"
-                if "Text" in ins.columns:
-                    display_cols["Text"] = "Transaktion"
-                if "Shares" in ins.columns:
-                    display_cols["Shares"] = "Aktien"
-                if "Value" in ins.columns:
-                    display_cols["Value"] = "Wert ($)"
-                if "Start Date" in ins.columns:
-                    display_cols["Start Date"] = "Datum"
-
-                available = [c for c in display_cols.keys() if c in ins.columns]
-                insider_df = ins[available].head(10).rename(columns=display_cols)
-
-                # Datum formatieren falls vorhanden
-                if "Datum" in insider_df.columns:
-                    insider_df["Datum"] = pd.to_datetime(
-                        insider_df["Datum"], errors="coerce"
-                    ).dt.strftime("%d.%m.%Y")
-        except Exception:
-            pass
-
-        # ── 3. Institutionelle Halter ──
-        institutional_df = None
-        try:
-            inst = tk.institutional_holders
-            if inst is not None and not inst.empty:
-                inst_display = inst.head(10).copy()
-                col_map = {
-                    "Holder": "Halter",
-                    "Shares": "Aktien",
-                    "Value": "Wert ($)",
-                    "pctHeld": "Anteil (%)",
-                    "pctChange": "Änderung (%)",
-                    "Date Reported": "Berichtsdatum",
-                }
-                inst_display = inst_display.rename(
-                    columns={k: v for k, v in col_map.items() if k in inst_display.columns}
-                )
-                # Prozente formatieren
-                if "Anteil (%)" in inst_display.columns:
-                    inst_display["Anteil (%)"] = (
-                        inst_display["Anteil (%)"].apply(
-                            lambda x: f"{x * 100:.2f}%" if pd.notna(x) else "—"
-                        )
-                    )
-                if "Änderung (%)" in inst_display.columns:
-                    inst_display["Änderung (%)"] = (
-                        inst_display["Änderung (%)"].apply(
-                            lambda x: f"{x * 100:+.2f}%" if pd.notna(x) else "—"
-                        )
-                    )
-                if "Berichtsdatum" in inst_display.columns:
-                    inst_display["Berichtsdatum"] = pd.to_datetime(
-                        inst_display["Berichtsdatum"], errors="coerce"
-                    ).dt.strftime("%d.%m.%Y")
-
-                institutional_df = inst_display
-        except Exception:
-            pass
-
-        # ── 4. Holdings-Anteile aus info ──
+        # ── Holdings-Anteile aus yfinance info (immer verfügbar) ──
         insider_pct = info.get("heldPercentInsiders")
         institutional_pct = info.get("heldPercentInstitutions")
 
-        return {
-            "insider_df": insider_df,
-            "institutional_df": institutional_df,
-            # Aggregierte Kauf/Verkauf-Statistik (aus insider_purchases)
-            "purchases_count": purchases_count,
-            "sales_count": sales_count,
-            "purchases_shares": purchases_shares,
-            "sales_shares": sales_shares,
-            "net_shares": net_shares,
-            # Holdings-Überblick
-            "insider_pct": round(insider_pct * 100, 2) if insider_pct else None,
-            "institutional_pct": round(institutional_pct * 100, 2) if institutional_pct else None,
-            # Flags
-            "has_summary": has_summary,
-            "has_insider_data": insider_df is not None and not insider_df.empty,
-            "has_institutional_data": institutional_df is not None and not institutional_df.empty,
-        }
+        # ── Versuch: Quiver Quantitative als Primärquelle ──
+        quiver_available = False
+        try:
+            from services.quiver import _is_available
+            quiver_available = _is_available()
+        except ImportError:
+            pass
+
+        if quiver_available:
+            return _fetch_via_quiver(ticker, tk, info, insider_pct, institutional_pct)
+        else:
+            return _fetch_via_yfinance(ticker, tk, info, insider_pct, institutional_pct)
+
     except Exception as exc:
         warnings.warn(f"get_insider_institutional({ticker}): {exc}")
         return None
+
+
+def _fetch_via_quiver(ticker: str, tk, info: dict,
+                      insider_pct, institutional_pct) -> dict:
+    """Lädt Daten über die Quiver Quantitative API (primär)."""
+    from services.quiver import (
+        get_quiver_institutional, get_quiver_congress_trades,
+        get_quiver_insider_trades, _empty_sentiment,
+    )
+
+    # Sequenziell abrufen (Rate Limiting beachten)
+    quiver_institutional = get_quiver_institutional(ticker)
+    congress_trades = get_quiver_congress_trades(ticker)
+    insider_result = get_quiver_insider_trades(ticker)
+
+    # get_quiver_insider_trades gibt (trades, sentiment) zurück
+    if isinstance(insider_result, tuple) and len(insider_result) == 2:
+        quiver_insider_trades, net_sentiment_90d = insider_result
+    else:
+        quiver_insider_trades = insider_result if isinstance(insider_result, list) else []
+        net_sentiment_90d = _empty_sentiment()
+
+    # ── Scoring-kompatible Felder aus Quiver-Insider-Daten ableiten ──
+    purchases_count = net_sentiment_90d.get("buys_count", 0)
+    sales_count = net_sentiment_90d.get("sells_count", 0)
+    net_shares = net_sentiment_90d.get("net_shares", 0)
+    has_summary = purchases_count > 0 or sales_count > 0
+
+    # ── Legacy DataFrames für Template-Kompatibilität ──
+    # (werden vom neuen Template nicht mehr direkt genutzt, aber
+    #  falls andere Teile des Codes darauf zugreifen)
+    insider_df = _build_insider_df_from_quiver(quiver_insider_trades)
+    institutional_df = _build_institutional_df_from_quiver(quiver_institutional)
+
+    return {
+        # Scoring-kompatibel
+        "purchases_count": purchases_count,
+        "sales_count": sales_count,
+        "purchases_shares": net_sentiment_90d.get("buy_value", 0),
+        "sales_shares": net_sentiment_90d.get("sell_value", 0),
+        "net_shares": net_shares,
+        "insider_pct": round(insider_pct * 100, 2) if insider_pct else None,
+        "institutional_pct": round(institutional_pct * 100, 2) if institutional_pct else None,
+        "has_summary": has_summary,
+        "has_insider_data": len(quiver_insider_trades) > 0 or (insider_df is not None and not insider_df.empty),
+        "has_institutional_data": len(quiver_institutional) > 0 or (institutional_df is not None and not institutional_df.empty),
+        # Legacy DataFrames
+        "insider_df": insider_df,
+        "institutional_df": institutional_df,
+        # Quiver-erweiterte Daten
+        "quiver_institutional": quiver_institutional,
+        "congress_trades": congress_trades,
+        "quiver_insider_trades": quiver_insider_trades,
+        "net_sentiment_90d": net_sentiment_90d,
+        "has_congress_data": len(congress_trades) > 0,
+        "has_quiver_insider": len(quiver_insider_trades) > 0,
+        "has_quiver_institutional": len(quiver_institutional) > 0,
+        "data_source": "quiver",
+    }
+
+
+def _fetch_via_yfinance(ticker: str, tk, info: dict,
+                        insider_pct, institutional_pct) -> dict:
+    """Fallback: Lädt Daten über yfinance (bestehende Logik)."""
+
+    # ── 1. Aggregierte Insider-Statistik ──
+    purchases_count, sales_count = 0, 0
+    purchases_shares, sales_shares, net_shares = 0, 0, 0
+    has_summary = False
+    try:
+        ip = tk.insider_purchases
+        if ip is not None and not ip.empty:
+            has_summary = True
+            for _, row in ip.iterrows():
+                label = str(row.iloc[0]).strip().lower()
+                shares_val = row.get("Shares", 0)
+                trans_val = row.get("Trans", 0)
+                if pd.isna(shares_val):
+                    shares_val = 0
+                if pd.isna(trans_val):
+                    trans_val = 0
+                if label == "purchases":
+                    purchases_count = int(trans_val)
+                    purchases_shares = int(shares_val)
+                elif label == "sales":
+                    sales_count = int(trans_val)
+                    sales_shares = int(shares_val)
+                elif label.startswith("net") and "purchased" in label:
+                    net_shares = int(shares_val)
+    except Exception:
+        pass
+
+    # ── 2. Insider-Transaktionen Detail-Tabelle ──
+    insider_df = None
+    try:
+        ins = tk.insider_transactions
+        if ins is not None and not ins.empty:
+            display_cols = {}
+            if "Insider" in ins.columns:
+                display_cols["Insider"] = "Name"
+            if "Position" in ins.columns:
+                display_cols["Position"] = "Position"
+            if "Text" in ins.columns:
+                display_cols["Text"] = "Transaktion"
+            if "Shares" in ins.columns:
+                display_cols["Shares"] = "Aktien"
+            if "Value" in ins.columns:
+                display_cols["Value"] = "Wert ($)"
+            if "Start Date" in ins.columns:
+                display_cols["Start Date"] = "Datum"
+
+            available = [c for c in display_cols.keys() if c in ins.columns]
+            insider_df = ins[available].head(10).rename(columns=display_cols)
+
+            if "Datum" in insider_df.columns:
+                insider_df["Datum"] = pd.to_datetime(
+                    insider_df["Datum"], errors="coerce"
+                ).dt.strftime("%d.%m.%Y")
+    except Exception:
+        pass
+
+    # ── 3. Institutionelle Halter ──
+    institutional_df = None
+    try:
+        inst = tk.institutional_holders
+        if inst is not None and not inst.empty:
+            inst_display = inst.head(15).copy()  # Erhöht von 10 auf 15
+            col_map = {
+                "Holder": "Halter",
+                "Shares": "Aktien",
+                "Value": "Wert ($)",
+                "pctHeld": "Anteil (%)",
+                "pctChange": "Änderung (%)",
+                "Date Reported": "Berichtsdatum",
+            }
+            inst_display = inst_display.rename(
+                columns={k: v for k, v in col_map.items() if k in inst_display.columns}
+            )
+            if "Anteil (%)" in inst_display.columns:
+                inst_display["Anteil (%)"] = (
+                    inst_display["Anteil (%)"].apply(
+                        lambda x: f"{x * 100:.2f}%" if pd.notna(x) else "—"
+                    )
+                )
+            if "Änderung (%)" in inst_display.columns:
+                inst_display["Änderung (%)"] = (
+                    inst_display["Änderung (%)"].apply(
+                        lambda x: f"{x * 100:+.2f}%" if pd.notna(x) else "—"
+                    )
+                )
+            if "Berichtsdatum" in inst_display.columns:
+                inst_display["Berichtsdatum"] = pd.to_datetime(
+                    inst_display["Berichtsdatum"], errors="coerce"
+                ).dt.strftime("%d.%m.%Y")
+
+            institutional_df = inst_display
+    except Exception:
+        pass
+
+    return {
+        "insider_df": insider_df,
+        "institutional_df": institutional_df,
+        "purchases_count": purchases_count,
+        "sales_count": sales_count,
+        "purchases_shares": purchases_shares,
+        "sales_shares": sales_shares,
+        "net_shares": net_shares,
+        "insider_pct": round(insider_pct * 100, 2) if insider_pct else None,
+        "institutional_pct": round(institutional_pct * 100, 2) if institutional_pct else None,
+        "has_summary": has_summary,
+        "has_insider_data": insider_df is not None and not insider_df.empty,
+        "has_institutional_data": institutional_df is not None and not institutional_df.empty,
+        # Leere Quiver-Felder für Template-Kompatibilität
+        "quiver_institutional": [],
+        "congress_trades": [],
+        "quiver_insider_trades": [],
+        "net_sentiment_90d": {"buys_count": 0, "sells_count": 0,
+                              "buy_value": 0, "sell_value": 0,
+                              "net_value": 0, "net_shares": 0},
+        "has_congress_data": False,
+        "has_quiver_insider": False,
+        "has_quiver_institutional": False,
+        "data_source": "yfinance",
+    }
+
+
+def _build_insider_df_from_quiver(trades: list[dict]):
+    """Baut ein pandas DataFrame aus Quiver-Insider-Trades (Legacy-Kompatibilität)."""
+    if not trades:
+        return None
+    try:
+        df = pd.DataFrame(trades[:15])
+        rename_map = {
+            "name": "Name",
+            "role": "Position",
+            "trade_type": "Transaktion",
+            "shares": "Aktien",
+            "value": "Wert ($)",
+            "date": "Datum",
+        }
+        available = {k: v for k, v in rename_map.items() if k in df.columns}
+        df = df[list(available.keys())].rename(columns=available)
+        return df
+    except Exception:
+        return None
+
+
+def _build_institutional_df_from_quiver(holdings: list[dict]):
+    """Baut ein pandas DataFrame aus Quiver-Institutional-Holdings (Legacy-Kompatibilität)."""
+    if not holdings:
+        return None
+    try:
+        df = pd.DataFrame(holdings[:15])
+        rename_map = {
+            "institution": "Halter",
+            "shares": "Aktien",
+            "value": "Wert ($)",
+            "shares_change_pct": "Änderung (%)",
+            "date": "Berichtsdatum",
+        }
+        available = {k: v for k, v in rename_map.items() if k in df.columns}
+        df = df[list(available.keys())].rename(columns=available)
+        if "Änderung (%)" in df.columns:
+            df["Änderung (%)"] = df["Änderung (%)"].apply(
+                lambda x: f"{x:+.2f}%" if x is not None else "—"
+            )
+        return df
+    except Exception:
+        return None
+
 
 
 # ---------------------------------------------------------------------------

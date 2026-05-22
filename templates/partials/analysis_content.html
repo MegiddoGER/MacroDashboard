@@ -295,60 +295,318 @@
 {% endif %}
 
 {% if insider %}
-<h4>👔 Insider & Institutionelle</h4>
+<h4>👔 Insider & Institutionelle
+  {% if insider.get('data_source') == 'quiver' %}
+  <span class="source-badge source-badge-quiver">⚡ Quiver</span>
+  {% elif insider.get('data_source') == 'yfinance' %}
+  <span class="source-badge source-badge-yfinance">📊 yfinance</span>
+  {% endif %}
+</h4>
 <div>
-  <div class="tabs">
-    <button class="tab active" data-tab="tab-insider-summary">📊 Übersicht</button>
-    {% if insider.has_insider_data %}<button class="tab" data-tab="tab-insider-detail">📋 Transaktionen</button>{% endif %}
-    {% if insider.has_institutional_data %}<button class="tab" data-tab="tab-institutional">🏦 Institutionelle</button>{% endif %}
+  <div class="tabs" style="flex-wrap:wrap;">
+    <button class="tab active" data-tab="tab-insider-overview">📊 Übersicht</button>
+    {% if insider.has_institutional_data or insider.get('has_quiver_institutional') %}<button class="tab" data-tab="tab-institutional-v2">🏦 Institutionen</button>{% endif %}
+    {% if insider.get('has_congress_data') %}<button class="tab" data-tab="tab-congress">🏛️ Kongress</button>{% endif %}
+    {% if insider.has_insider_data or insider.get('has_quiver_insider') %}<button class="tab" data-tab="tab-corp-insider">👔 Corporate Insider</button>{% endif %}
   </div>
 
-  <div id="tab-insider-summary" class="tab-content active">
-    {% if insider.has_summary %}
+  <!-- ═══ Tab: Übersicht ═══ -->
+  <div id="tab-insider-overview" class="tab-content active">
+
+    <!-- Netto-Sentiment Balken -->
+    {% set sentiment = insider.get('net_sentiment_90d', {}) %}
+    {% set total_trades = (sentiment.get('buys_count', 0) + sentiment.get('sells_count', 0)) or (insider.purchases_count + insider.sales_count) %}
+    {% set buy_count = sentiment.get('buys_count', 0) or insider.purchases_count %}
+    {% set sell_count = sentiment.get('sells_count', 0) or insider.sales_count %}
+    {% if total_trades > 0 %}
+    {% set buy_pct = (buy_count / total_trades * 100)|int %}
+    {% set sell_pct = 100 - buy_pct %}
+    <h5 style="margin-bottom:8px;">Netto-Sentiment (90 Tage)</h5>
+    <div class="sentiment-bar-container">
+      <span class="sentiment-label" style="color:var(--green);">🟢 {{ buy_count }} Käufe</span>
+      <div class="sentiment-bar">
+        {% if buy_pct > 0 %}<div class="sentiment-bar-buy" style="width:{{ buy_pct }}%;">{{ buy_pct }}%</div>{% endif %}
+        {% if sell_pct > 0 %}<div class="sentiment-bar-sell" style="width:{{ sell_pct }}%;">{{ sell_pct }}%</div>{% endif %}
+      </div>
+      <span class="sentiment-label" style="color:var(--red);">{{ sell_count }} Verkäufe 🔴</span>
+    </div>
+    {% endif %}
+
+    <!-- Metric Cards -->
+    {% if insider.has_summary or total_trades > 0 %}
     <div class="grid-4" style="gap:12px;margin-bottom:12px;">
-      <div class="metric-card"><div class="metric-label">Käufe</div><div class="metric-value">{{ insider.purchases_count }}</div></div>
-      <div class="metric-card"><div class="metric-label">Verkäufe</div><div class="metric-value">{{ insider.sales_count }}</div></div>
-      <div class="metric-card"><div class="metric-label">Netto-Aktien</div><div class="metric-value">{{ "{:,}".format(insider.net_shares) }}</div></div>
+      <div class="metric-card"><div class="metric-label">Käufe</div><div class="metric-value" style="color:var(--green);">{{ buy_count }}</div></div>
+      <div class="metric-card"><div class="metric-label">Verkäufe</div><div class="metric-value" style="color:var(--red);">{{ sell_count }}</div></div>
+      <div class="metric-card"><div class="metric-label">Netto-Aktien</div><div class="metric-value">{{ "{:,}".format(insider.net_shares).replace(",", ".") }}</div></div>
       <div class="metric-card"><div class="metric-label">Insider-Anteil</div><div class="metric-value">{{ "%.2f %%"|format(insider.insider_pct) if insider.insider_pct else "—" }}</div></div>
     </div>
-    {% if insider.purchases_count > insider.sales_count and insider.net_shares > 0 %}
+
+    {% if buy_count > sell_count and insider.net_shares > 0 %}
     <div class="alert alert-success">✅ Netto-Käufe: Insider kaufen mehr als sie verkaufen.</div>
-    {% elif insider.sales_count > insider.purchases_count and insider.net_shares < 0 %}
+    {% elif sell_count > buy_count and insider.net_shares < 0 %}
     <div class="alert alert-warning">⚠️ Netto-Verkäufe durch Insider.</div>
     {% endif %}
+    {% else %}
+    <div class="alert alert-info">Keine aggregierten Insider-Daten verfügbar.</div>
+    {% endif %}
+
     {% if insider.institutional_pct %}
     <div style="margin-top:8px;">
       <span class="caption">Institutioneller Anteil: <b>{{ "%.2f %%"|format(insider.institutional_pct) }}</b></span>
     </div>
     {% endif %}
-    {% else %}
-    <div class="alert alert-info">Keine aggregierten Insider-Daten verfügbar.</div>
+
+    <!-- Netto-Sentiment Wertdetails (Quiver) -->
+    {% if sentiment.get('buy_value', 0) > 0 or sentiment.get('sell_value', 0) > 0 %}
+    <div class="grid-3" style="gap:12px;margin-top:12px;">
+      <div class="metric-card"><div class="metric-label">Käufe (Wert)</div><div class="metric-value" style="color:var(--green);font-size:1.1rem;">{{ "${:,.0f}".format(sentiment.buy_value) }}</div></div>
+      <div class="metric-card"><div class="metric-label">Verkäufe (Wert)</div><div class="metric-value" style="color:var(--red);font-size:1.1rem;">{{ "${:,.0f}".format(sentiment.sell_value) }}</div></div>
+      <div class="metric-card"><div class="metric-label">Netto (Wert)</div><div class="metric-value" style="color:{{ '#22c55e' if sentiment.net_value >= 0 else '#ef4444' }};font-size:1.1rem;">{{ "${:+,.0f}".format(sentiment.net_value) }}</div></div>
+    </div>
     {% endif %}
   </div>
 
-  {% if insider.has_insider_data %}
-  <div id="tab-insider-detail" class="tab-content">
-    <h5>Letzte Insider-Transaktionen</h5>
-    <div class="table-container" style="max-height:400px;overflow-y:auto;">
-      {{ insider.insider_df.to_html(classes='data-table', index=False)|safe }}
-    </div>
-  </div>
-  {% endif %}
-
-  {% if insider.has_institutional_data %}
-  <div id="tab-institutional" class="tab-content">
+  <!-- ═══ Tab: Institutionen ═══ -->
+  {% if insider.has_institutional_data or insider.get('has_quiver_institutional') %}
+  <div id="tab-institutional-v2" class="tab-content">
     <h5>Top Institutionelle Investoren</h5>
     {% if insider.institutional_pct %}
     <p class="caption">Institutioneller Anteil gesamt: <b>{{ "%.2f %%"|format(insider.institutional_pct) }}</b></p>
     {% endif %}
+
+    {% if insider.get('has_quiver_institutional') and insider.quiver_institutional %}
+    <!-- Quiver: Vollständige institutionelle Tabelle mit Suche + Sortierung -->
+    <input type="text" class="table-search" id="inst-search" placeholder="🔍 Institution suchen..." oninput="filterInstTable()">
+    <div class="table-container" style="max-height:500px;overflow-y:auto;">
+      <table class="data-table" id="inst-table">
+        <thead>
+          <tr>
+            <th class="sortable" onclick="sortInstTable(0)">Institution</th>
+            <th class="sortable" onclick="sortInstTable(1)">Aktien</th>
+            <th class="sortable" onclick="sortInstTable(2)">Wert ($)</th>
+            <th class="sortable" onclick="sortInstTable(3)">∆ Shares</th>
+            <th class="sortable" onclick="sortInstTable(4)">∆ %</th>
+            <th class="sortable" onclick="sortInstTable(5)">Filing</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for h in insider.quiver_institutional[:50] %}
+          <tr>
+            <td><b>{{ h.institution }}</b></td>
+            <td>{{ "{:,}".format(h.shares).replace(",", ".") }}</td>
+            <td>{{ "${:,.0f}".format(h.value) if h.value else "—" }}</td>
+            <td style="color:{{ '#22c55e' if h.shares_change > 0 else ('#ef4444' if h.shares_change < 0 else 'var(--text-muted)') }}">{{ "{:+,}".format(h.shares_change).replace(",", ".") if h.shares_change else "—" }}</td>
+            <td style="color:{{ '#22c55e' if h.shares_change_pct and h.shares_change_pct > 0 else ('#ef4444' if h.shares_change_pct and h.shares_change_pct < 0 else 'var(--text-muted)') }}">{{ "%.2f%%"|format(h.shares_change_pct) if h.shares_change_pct is not none else "—" }}</td>
+            <td>{{ h.date }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if insider.quiver_institutional|length > 50 %}
+    <p class="caption" style="margin-top:6px;">Zeige 50 von {{ insider.quiver_institutional|length }} Institutionen.</p>
+    {% endif %}
+
+    {% elif insider.has_institutional_data %}
+    <!-- yfinance Fallback: einfache DataFrame-Tabelle -->
     <div class="table-container" style="max-height:400px;overflow-y:auto;">
       {{ insider.institutional_df.to_html(classes='data-table', index=False)|safe }}
     </div>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  <!-- ═══ Tab: Kongress ═══ -->
+  {% if insider.get('has_congress_data') %}
+  <div id="tab-congress" class="tab-content">
+    <h5>🏛️ Kongress-Trades</h5>
+    <p class="caption">Aktienhandel durch Mitglieder des US-Kongresses. Disclosure-Lag: Zeitspanne zwischen Handelsdatum und Veröffentlichung.</p>
+
+    <!-- Filter -->
+    <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;">
+      <button class="btn btn-sm btn-secondary congress-filter active" data-filter="all" onclick="filterCongress('all',this)">Alle</button>
+      <button class="btn btn-sm btn-secondary congress-filter" data-filter="purchase" onclick="filterCongress('purchase',this)">🟢 Käufe</button>
+      <button class="btn btn-sm btn-secondary congress-filter" data-filter="sale" onclick="filterCongress('sale',this)">🔴 Verkäufe</button>
+    </div>
+
+    <div class="table-container" style="max-height:500px;overflow-y:auto;">
+      <table class="data-table" id="congress-table">
+        <thead>
+          <tr>
+            <th>Politiker</th>
+            <th>Kammer</th>
+            <th>Partei</th>
+            <th>Typ</th>
+            <th>Betrag</th>
+            <th>Handel</th>
+            <th>Disclosure</th>
+            <th>Lag</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for t in insider.congress_trades[:30] %}
+          <tr class="congress-row {% if t.disclosure_lag is not none and t.disclosure_lag < 15 %}highlight-row{% endif %}" data-type="{{ t.trade_type|lower }}">
+            <td><b>{{ t.name }}</b></td>
+            <td>{{ t.chamber }}</td>
+            <td>
+              {% if 'democrat' in t.party|lower %}<span class="party-tag-democrat">{{ t.party }}</span>
+              {% elif 'republican' in t.party|lower %}<span class="party-tag-republican">{{ t.party }}</span>
+              {% else %}{{ t.party }}{% endif %}
+            </td>
+            <td>
+              {% if 'purchase' in t.trade_type|lower or 'buy' in t.trade_type|lower %}
+                <span class="trade-tag trade-tag-buy">{{ t.trade_type }}</span>
+              {% elif 'sale' in t.trade_type|lower or 'sell' in t.trade_type|lower %}
+                <span class="trade-tag trade-tag-sell">{{ t.trade_type }}</span>
+              {% else %}
+                <span class="trade-tag trade-tag-exchange">{{ t.trade_type }}</span>
+              {% endif %}
+            </td>
+            <td>{{ t.amount }}</td>
+            <td>{{ t.trade_date }}</td>
+            <td>{{ t.disclosure_date }}</td>
+            <td>
+              {% if t.disclosure_lag is not none %}
+                {% if t.disclosure_lag < 15 %}
+                <span class="lag-badge lag-badge-fast">{{ t.disclosure_lag }}T ⚡</span>
+                {% else %}
+                <span class="lag-badge lag-badge-normal">{{ t.disclosure_lag }}T</span>
+                {% endif %}
+              {% else %}—{% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <p class="caption" style="margin-top:6px;">⚠️ Kongress-Trades haben einen gesetzlichen Disclosure-Lag von bis zu 45 Tagen.</p>
+  </div>
+  {% endif %}
+
+  <!-- ═══ Tab: Corporate Insider ═══ -->
+  {% if insider.has_insider_data or insider.get('has_quiver_insider') %}
+  <div id="tab-corp-insider" class="tab-content">
+
+    {% if insider.get('has_quiver_insider') and insider.quiver_insider_trades %}
+    <!-- Quiver: Detaillierte Insider-Trades -->
+    <h5>Corporate Insider Transaktionen</h5>
+
+    <!-- Netto-Sentiment Mini-Balken -->
+    {% set s90 = insider.get('net_sentiment_90d', {}) %}
+    {% set total90 = s90.get('buys_count', 0) + s90.get('sells_count', 0) %}
+    {% if total90 > 0 %}
+    {% set bp = (s90.buys_count / total90 * 100)|int %}
+    <div class="sentiment-bar-container" style="max-width:400px;">
+      <span style="font-size:0.75rem;color:var(--text-dim);">90T:</span>
+      <div class="sentiment-bar" style="height:20px;">
+        {% if bp > 0 %}<div class="sentiment-bar-buy" style="width:{{ bp }}%;font-size:0.65rem;">{{ s90.buys_count }}K</div>{% endif %}
+        {% if 100 - bp > 0 %}<div class="sentiment-bar-sell" style="width:{{ 100 - bp }}%;font-size:0.65rem;">{{ s90.sells_count }}V</div>{% endif %}
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="table-container" style="max-height:500px;overflow-y:auto;">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Rolle</th>
+            <th>Typ</th>
+            <th>Aktien</th>
+            <th>Wert ($)</th>
+            <th>Datum</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for t in insider.quiver_insider_trades[:30] %}
+          <tr>
+            <td><b>{{ t.name }}</b></td>
+            <td style="font-size:0.8rem;color:var(--text-dim);">{{ t.role }}</td>
+            <td>
+              {% if 'purchase' in t.trade_type|lower and '10b5' not in t.trade_type|lower %}
+                <span class="trade-tag trade-tag-buy">{{ t.trade_type }}</span>
+              {% elif '10b5' in t.trade_type|lower %}
+                <span class="trade-tag trade-tag-plan">{{ t.trade_type }}</span>
+              {% elif 'sale' in t.trade_type|lower %}
+                <span class="trade-tag trade-tag-sell">{{ t.trade_type }}</span>
+              {% elif 'option' in t.trade_type|lower or 'exercise' in t.trade_type|lower %}
+                <span class="trade-tag trade-tag-exchange">{{ t.trade_type }}</span>
+              {% else %}
+                {{ t.trade_type }}
+              {% endif %}
+            </td>
+            <td>{{ "{:,}".format(t.shares).replace(",", ".") if t.shares else "—" }}</td>
+            <td>{{ "${:,.0f}".format(t.value) if t.value else "—" }}</td>
+            <td>{{ t.date }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {% else %}
+    <!-- yfinance Fallback -->
+    <h5>Letzte Insider-Transaktionen</h5>
+    <div class="table-container" style="max-height:400px;overflow-y:auto;">
+      {{ insider.insider_df.to_html(classes='data-table', index=False)|safe }}
+    </div>
+    {% endif %}
   </div>
   {% endif %}
 </div>
+
+<!-- ═══ Inline JS: Tabellen-Sortierung, Suche, Filter ═══ -->
+<script>
+// --- Institutionen: Suchfilter ---
+function filterInstTable() {
+  const query = (document.getElementById('inst-search')?.value || '').toLowerCase();
+  const rows = document.querySelectorAll('#inst-table tbody tr');
+  rows.forEach(row => {
+    const name = (row.cells[0]?.textContent || '').toLowerCase();
+    row.style.display = name.includes(query) ? '' : 'none';
+  });
+}
+
+// --- Institutionen: Spaltensortierung ---
+let instSortCol = -1, instSortAsc = true;
+function sortInstTable(colIdx) {
+  const table = document.getElementById('inst-table');
+  if (!table) return;
+  const headers = table.querySelectorAll('th.sortable');
+  if (instSortCol === colIdx) { instSortAsc = !instSortAsc; }
+  else { instSortCol = colIdx; instSortAsc = true; }
+  headers.forEach((h, i) => { h.classList.remove('sort-asc', 'sort-desc'); if (i === colIdx) h.classList.add(instSortAsc ? 'sort-asc' : 'sort-desc'); });
+  const tbody = table.querySelector('tbody');
+  const rows = Array.from(tbody.querySelectorAll('tr'));
+  rows.sort((a, b) => {
+    let aVal = a.cells[colIdx]?.textContent?.trim() || '';
+    let bVal = b.cells[colIdx]?.textContent?.trim() || '';
+    // Versuche numerisch zu sortieren
+    let aNum = parseFloat(aVal.replace(/[^0-9.\-+]/g, ''));
+    let bNum = parseFloat(bVal.replace(/[^0-9.\-+]/g, ''));
+    if (!isNaN(aNum) && !isNaN(bNum)) {
+      return instSortAsc ? aNum - bNum : bNum - aNum;
+    }
+    return instSortAsc ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+  });
+  rows.forEach(r => tbody.appendChild(r));
+}
+
+// --- Kongress: Buy/Sell Filter ---
+function filterCongress(type, btn) {
+  document.querySelectorAll('.congress-filter').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  document.querySelectorAll('#congress-table .congress-row').forEach(row => {
+    if (type === 'all') { row.style.display = ''; return; }
+    const rowType = row.getAttribute('data-type') || '';
+    row.style.display = rowType.includes(type) ? '' : 'none';
+  });
+}
+</script>
+
 <hr>
 {% endif %}
+
 
 {% if analyst and analyst.get('target_mean') %}
 <h4>🎯 Analysten-Konsens</h4>
