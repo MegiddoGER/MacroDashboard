@@ -296,7 +296,9 @@
 
 {% if insider %}
 <h4>👔 Insider & Institutionelle
-  {% if insider.get('data_source') == 'quiver' %}
+  {% if insider.get('data_source') == 'yfinance+kadoa' %}
+  <span class="source-badge source-badge-quiver">⚡ yfinance + Kadoa</span>
+  {% elif insider.get('data_source') == 'quiver' %}
   <span class="source-badge source-badge-quiver">⚡ Quiver</span>
   {% elif insider.get('data_source') == 'yfinance' %}
   <span class="source-badge source-badge-yfinance">📊 yfinance</span>
@@ -447,11 +449,12 @@
           {% for t in insider.congress_trades[:30] %}
           <tr class="congress-row {% if t.disclosure_lag is not none and t.disclosure_lag < 15 %}highlight-row{% endif %}" data-type="{{ t.trade_type|lower }}">
             <td><b>{{ t.name }}</b></td>
-            <td>{{ t.chamber }}</td>
+            <td>{{ t.chamber|default('—') }}</td>
             <td>
-              {% if 'democrat' in t.party|lower %}<span class="party-tag-democrat">{{ t.party }}</span>
-              {% elif 'republican' in t.party|lower %}<span class="party-tag-republican">{{ t.party }}</span>
-              {% else %}{{ t.party }}{% endif %}
+              {% set p = t.party|default('')|lower %}
+              {% if p == 'd' or 'democrat' in p %}<span class="party-tag-democrat">{{ t.party }}</span>
+              {% elif p == 'r' or 'republican' in p %}<span class="party-tag-republican">{{ t.party }}</span>
+              {% else %}{{ t.party|default('—') }}{% endif %}
             </td>
             <td>
               {% if 'purchase' in t.trade_type|lower or 'buy' in t.trade_type|lower %}
@@ -462,9 +465,9 @@
                 <span class="trade-tag trade-tag-exchange">{{ t.trade_type }}</span>
               {% endif %}
             </td>
-            <td>{{ t.amount }}</td>
-            <td>{{ t.trade_date }}</td>
-            <td>{{ t.disclosure_date }}</td>
+            <td>{{ t.amount_label|default(t.amount|default('—')) }}</td>
+            <td>{{ t.transaction_date|default(t.trade_date|default('—')) }}</td>
+            <td>{{ t.filing_date|default(t.disclosure_date|default('—')) }}</td>
             <td>
               {% if t.disclosure_lag is not none %}
                 {% if t.disclosure_lag < 15 %}

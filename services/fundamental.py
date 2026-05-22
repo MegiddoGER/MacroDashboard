@@ -392,25 +392,21 @@ def calc_dividend_analysis(ticker: str) -> dict | None:
 def get_insider_institutional(ticker: str) -> dict | None:
     """Lädt Insider-Transaktionen, Kongress-Trades und institutionelle Halter.
 
-    Primärquelle: Quiver Quantitative API (wenn QUIVER_API_TOKEN gesetzt).
-    Fallback: yfinance (eingeschränkte Daten, keine Kongress-Trades).
+    Quellen:
+    - Corporate Insider + Institutionen: yfinance (kostenlos, immer verfügbar)
+    - Kongress-Trades: Kadoa Congress Trading Monitor (kostenlos, kein Token)
 
     Rückgabe-Dict enthält:
-    === Scoring-kompatible Felder (unverändert für services/scoring.py) ===
+    === Scoring-kompatible Felder (für services/scoring.py) ===
     - purchases_count, sales_count, net_shares, has_summary
     - insider_pct, institutional_pct
 
-    === Erweiterte Daten (Quiver) ===
-    - quiver_institutional: list[dict]   — Alle 13F-Holdings
-    - congress_trades: list[dict]        — Kongress-Trades
-    - quiver_insider_trades: list[dict]  — Corporate Insider Detail
-    - net_sentiment_90d: dict            — 90-Tage Netto-Sentiment
-    - insider_df / institutional_df      — DataFrames für Legacy-Kompatibilität
+    === Kongress-Daten (Kadoa) ===
+    - congress_trades: list[dict] — Normalisierte Kongress-Trades
+    - has_congress_data: bool
 
-    === Flags ===
-    - has_insider_data, has_institutional_data, has_congress_data
-    - has_quiver_insider, has_quiver_institutional
-    - data_source: "quiver" oder "yfinance"
+    === DataFrames (für Templates) ===
+    - insider_df, institutional_df
     """
     try:
         tk = yf.Ticker(ticker)
@@ -420,86 +416,31 @@ def get_insider_institutional(ticker: str) -> dict | None:
         insider_pct = info.get("heldPercentInsiders")
         institutional_pct = info.get("heldPercentInstitutions")
 
-        # ── Versuch: Quiver Quantitative als Primärquelle ──
-        quiver_available = False
-        try:
-            from services.quiver import _is_available
-            quiver_available = _is_available()
-        except ImportError:
-            pass
+        # ── yfinance-Daten laden (Insider + Institutionen) ──
+        result = _fetch_via_yfinance(ticker, tk, info, insider_pct, institutional_pct)
 
-        if quiver_available:
-            return _fetch_via_quiver(ticker, tk, info, insider_pct, institutional_pct)
-        else:
-            return _fetch_via_yfinance(ticker, tk, info, insider_pct, institutional_pct)
+        # ── Kongress-Trades über Kadoa hinzufügen (kostenlos, kein Token) ──
+        try:
+            from services.congress_data import fetch_congress_trades
+            congress_trades = fetch_congress_trades(ticker)
+            if congress_trades:
+                result["congress_trades"] = congress_trades
+                result["has_congress_data"] = True
+                # Datenquelle aktualisieren
+                result["data_source"] = "yfinance+kadoa"
+        except Exception as exc:
+            warnings.warn(f"get_insider_institutional({ticker}): Kadoa-Daten fehlgeschlagen: {exc}")
+
+        return result
 
     except Exception as exc:
         warnings.warn(f"get_insider_institutional({ticker}): {exc}")
         return None
 
 
-def _fetch_via_quiver(ticker: str, tk, info: dict,
-                      insider_pct, institutional_pct) -> dict:
-    """Lädt Daten über die Quiver Quantitative API (primär)."""
-    from services.quiver import (
-        get_quiver_institutional, get_quiver_congress_trades,
-        get_quiver_insider_trades, _empty_sentiment,
-    )
-
-    # Sequenziell abrufen (Rate Limiting beachten)
-    quiver_institutional = get_quiver_institutional(ticker)
-    congress_trades = get_quiver_congress_trades(ticker)
-    insider_result = get_quiver_insider_trades(ticker)
-
-    # get_quiver_insider_trades gibt (trades, sentiment) zurück
-    if isinstance(insider_result, tuple) and len(insider_result) == 2:
-        quiver_insider_trades, net_sentiment_90d = insider_result
-    else:
-        quiver_insider_trades = insider_result if isinstance(insider_result, list) else []
-        net_sentiment_90d = _empty_sentiment()
-
-    # ── Scoring-kompatible Felder aus Quiver-Insider-Daten ableiten ──
-    purchases_count = net_sentiment_90d.get("buys_count", 0)
-    sales_count = net_sentiment_90d.get("sells_count", 0)
-    net_shares = net_sentiment_90d.get("net_shares", 0)
-    has_summary = purchases_count > 0 or sales_count > 0
-
-    # ── Legacy DataFrames für Template-Kompatibilität ──
-    # (werden vom neuen Template nicht mehr direkt genutzt, aber
-    #  falls andere Teile des Codes darauf zugreifen)
-    insider_df = _build_insider_df_from_quiver(quiver_insider_trades)
-    institutional_df = _build_institutional_df_from_quiver(quiver_institutional)
-
-    return {
-        # Scoring-kompatibel
-        "purchases_count": purchases_count,
-        "sales_count": sales_count,
-        "purchases_shares": net_sentiment_90d.get("buy_value", 0),
-        "sales_shares": net_sentiment_90d.get("sell_value", 0),
-        "net_shares": net_shares,
-        "insider_pct": round(insider_pct * 100, 2) if insider_pct else None,
-        "institutional_pct": round(institutional_pct * 100, 2) if institutional_pct else None,
-        "has_summary": has_summary,
-        "has_insider_data": len(quiver_insider_trades) > 0 or (insider_df is not None and not insider_df.empty),
-        "has_institutional_data": len(quiver_institutional) > 0 or (institutional_df is not None and not institutional_df.empty),
-        # Legacy DataFrames
-        "insider_df": insider_df,
-        "institutional_df": institutional_df,
-        # Quiver-erweiterte Daten
-        "quiver_institutional": quiver_institutional,
-        "congress_trades": congress_trades,
-        "quiver_insider_trades": quiver_insider_trades,
-        "net_sentiment_90d": net_sentiment_90d,
-        "has_congress_data": len(congress_trades) > 0,
-        "has_quiver_insider": len(quiver_insider_trades) > 0,
-        "has_quiver_institutional": len(quiver_institutional) > 0,
-        "data_source": "quiver",
-    }
-
-
 def _fetch_via_yfinance(ticker: str, tk, info: dict,
                         insider_pct, institutional_pct) -> dict:
-    """Fallback: Lädt Daten über yfinance (bestehende Logik)."""
+    """Lädt Insider- und Institutionelle Daten über yfinance."""
 
     # ── 1. Aggregierte Insider-Statistik ──
     purchases_count, sales_count = 0, 0
