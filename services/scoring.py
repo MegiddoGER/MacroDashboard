@@ -415,7 +415,7 @@ def _score_fundamental(info, ticker, result: ScoreResult):
                 result.checklist.append({"Indikator": "Bilanzqualität", "Wert": balance['label'],
                     "Signal": "Akzeptabel ≈", "Beitrag": "0"})
 
-        # Insider-Sentiment
+        # Insider-Sentiment (Corporate Insider — stärkster Einfluss)
         insider = get_insider_institutional(ticker)
         if insider and insider.get('has_summary'):
             buys = insider['purchases_count']
@@ -440,6 +440,109 @@ def _score_fundamental(info, ticker, result: ScoreResult):
                 result.checklist.append({"Indikator": "Insider-Sentiment",
                     "Wert": f"{buys} K / {sells} V",
                     "Signal": "Neutral ≈", "Beitrag": "0"})
+
+        # ── Kongress-Trades — leichter Einfluss (±0.5) ──
+        # Nur Trades mit extrem schneller Meldung (<15 Tage) fließen ins Scoring ein.
+        # Rationale: Schnelle Disclosure = Dringlichkeit, hat laut Forschung leichtes Alpha.
+        if insider and insider.get('has_congress_data') and insider.get('congress_trades'):
+            try:
+                from services.quiver import _parse_amount_numeric
+                from services.congress_mapping import check_conflict_of_interest
+
+                congress_trades = insider['congress_trades']
+                ticker_sector = info.get('sector', '') if info else ''
+
+                fast_buys = 0
+                fast_sells = 0
+                coi_detected = False
+                coi_committee = None
+                coi_politician = None
+
+                for t in congress_trades:
+                    lag = t.get('disclosure_lag')
+                    trade_type = (t.get('trade_type') or '').lower()
+                    is_buy = 'purchase' in trade_type or 'buy' in trade_type
+                    is_sell = 'sale' in trade_type or 'sell' in trade_type
+
+                    # Urgency-Signal: Lag < 15 Tage
+                    if lag is not None and lag < 15:
+                        if is_buy:
+                            fast_buys += 1
+                        elif is_sell:
+                            fast_sells += 1
+
+                    # Committee Conflict of Interest (jeder Trade wird geprüft)
+                    if not coi_detected and ticker_sector:
+                        is_coi, matched = check_conflict_of_interest(
+                            t.get('name', ''), ticker_sector
+                        )
+                        if is_coi:
+                            coi_detected = True
+                            coi_committee = matched
+                            coi_politician = t.get('name', '')
+
+                # Scoring: Kongress Urgency (±0.5)
+                if fast_buys > 0 or fast_sells > 0:
+                    result.cat_max["fundamental"] += 1
+                    if fast_buys > fast_sells:
+                        result.cat_scores["fundamental"] += 0.5
+                        result.checklist.append({"Indikator": "🏛️ Kongress (Urgency)",
+                            "Wert": f"{fast_buys} schnelle Käufe / {fast_sells} schnelle Verkäufe (<15T Lag)",
+                            "Signal": "Leicht bullisch ↑", "Beitrag": "+0.5"})
+                    elif fast_sells > fast_buys:
+                        result.cat_scores["fundamental"] -= 0.5
+                        result.checklist.append({"Indikator": "🏛️ Kongress (Urgency)",
+                            "Wert": f"{fast_buys} schnelle Käufe / {fast_sells} schnelle Verkäufe (<15T Lag)",
+                            "Signal": "Leicht bearisch ↓", "Beitrag": "-0.5"})
+                    else:
+                        result.checklist.append({"Indikator": "🏛️ Kongress (Urgency)",
+                            "Wert": f"{fast_buys} K / {fast_sells} V (<15T Lag)",
+                            "Signal": "Neutral ≈", "Beitrag": "0"})
+                else:
+                    result.checklist.append({"Indikator": "🏛️ Kongress",
+                        "Wert": f"{len(congress_trades)} Trades (keine <15T)",
+                        "Signal": "Kein Urgency-Signal", "Beitrag": "Info"})
+
+                # Scoring: Committee Conflict of Interest (±0.5)
+                if coi_detected:
+                    result.cat_max["fundamental"] += 1
+                    # Richtung basierend auf der Netto-Richtung der Kongress-Trades
+                    net_congress = fast_buys - fast_sells
+                    if net_congress > 0:
+                        result.cat_scores["fundamental"] += 0.5
+                        result.checklist.append({"Indikator": "🔴 Interessenkonflikt",
+                            "Wert": f"{coi_politician} sitzt im {coi_committee}-Ausschuss",
+                            "Signal": f"Kauf trotz Aufsicht über {ticker_sector} ↑", "Beitrag": "+0.5"})
+                    elif net_congress < 0:
+                        result.cat_scores["fundamental"] -= 0.5
+                        result.checklist.append({"Indikator": "🔴 Interessenkonflikt",
+                            "Wert": f"{coi_politician} sitzt im {coi_committee}-Ausschuss",
+                            "Signal": f"Verkauf trotz Aufsicht über {ticker_sector} ↓", "Beitrag": "-0.5"})
+                    else:
+                        result.checklist.append({"Indikator": "🔴 Interessenkonflikt",
+                            "Wert": f"{coi_politician} ({coi_committee})",
+                            "Signal": "Erkannt — Netto neutral", "Beitrag": "Info"})
+            except Exception as exc:
+                warnings.warn(f"_score_fundamental: Kongress-Scoring fehlgeschlagen: {exc}")
+
+        # ── Institutioneller Anteil — sehr leichter Einfluss (+0.5) ──
+        # Hoher Inst. Anteil (>70%) = Smart-Money-Qualitätsstempel, kein Timing-Signal.
+        if insider and insider.get('institutional_pct'):
+            inst_pct = insider['institutional_pct']
+            result.cat_max["fundamental"] += 1
+            if inst_pct > 70:
+                result.cat_scores["fundamental"] += 0.5
+                result.checklist.append({"Indikator": "🏦 Institutioneller Anteil",
+                    "Wert": f"{inst_pct:.1f}%",
+                    "Signal": "Hoher Smart-Money-Anteil ↑", "Beitrag": "+0.5"})
+            elif inst_pct < 20:
+                result.checklist.append({"Indikator": "🏦 Institutioneller Anteil",
+                    "Wert": f"{inst_pct:.1f}%",
+                    "Signal": "Niedrig (Micro-/Small-Cap typisch)", "Beitrag": "0"})
+            else:
+                result.checklist.append({"Indikator": "🏦 Institutioneller Anteil",
+                    "Wert": f"{inst_pct:.1f}%",
+                    "Signal": "Normal ≈", "Beitrag": "0"})
 
         # Analysten-Konsens
         analyst = get_analyst_consensus(ticker)

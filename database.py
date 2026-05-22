@@ -188,6 +188,50 @@ class AlertRecord(Base):
     trigger_value = Column(Float)
 
 
+class Setting(Base):
+    """Key-Value-Store für Dashboard-Einstellungen (z.B. API-Keys)."""
+    __tablename__ = "settings"
+
+    key = Column(Text, primary_key=True)
+    value = Column(Text)
+
+
+# ---------------------------------------------------------------------------
+# Settings-API (Key-Value)
+# ---------------------------------------------------------------------------
+
+def get_setting(key: str, default: str = None) -> str | None:
+    """Lädt eine Einstellung aus der Datenbank."""
+    session = get_session()
+    try:
+        setting = session.query(Setting).filter(Setting.key == key).first()
+        if setting:
+            return setting.value
+        return default
+    except Exception:
+        return default
+    finally:
+        session.close()
+
+
+def set_setting(key: str, value: str):
+    """Speichert eine Einstellung in der Datenbank (upsert)."""
+    session = get_session()
+    try:
+        setting = session.query(Setting).filter(Setting.key == key).first()
+        if setting:
+            setting.value = value
+        else:
+            setting = Setting(key=key, value=value)
+            session.add(setting)
+        session.commit()
+    except Exception as e:
+        session.rollback()
+        print(f"⚠️ Setting '{key}' konnte nicht gespeichert werden: {e}")
+    finally:
+        session.close()
+
+
 # ---------------------------------------------------------------------------
 # Initialisierung & Migration
 # ---------------------------------------------------------------------------

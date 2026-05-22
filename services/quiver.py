@@ -33,13 +33,67 @@ _last_request_time = 0.0
 
 
 def _get_token() -> str | None:
-    """Liest den Quiver API Token aus der Umgebungsvariable."""
+    """Liest den Quiver API Token: zuerst aus der DB (Settings-Seite), dann aus Umgebungsvariable."""
+    try:
+        from database import get_setting
+        db_token = get_setting("QUIVER_API_TOKEN")
+        if db_token:
+            return db_token
+    except Exception:
+        pass
     return os.environ.get("QUIVER_API_TOKEN")
 
 
 def _is_available() -> bool:
     """Prüft ob die Quiver API verfügbar ist (Token vorhanden)."""
     return bool(_get_token())
+
+
+def _parse_amount_numeric(amount_str) -> float | None:
+    """Parst den Betrag aus Kongress-Trades zu einem numerischen Wert.
+
+    Unterstützt:
+    - Exakte Werte: "150000", "$150,000", "150000.0"
+    - Spannen: "$1,001 - $15,000" → Mittelwert (8000.5)
+    - Textuelle Formen: "$1,001-$15,000"
+
+    Returns:
+        Float-Wert oder None bei Fehler.
+    """
+    if amount_str is None:
+        return None
+    if isinstance(amount_str, (int, float)):
+        return float(amount_str)
+
+    s = str(amount_str).strip()
+    if not s or s == "—":
+        return None
+
+    import re
+
+    # Entferne Dollarzeichen für sauberes Parsing
+    s = s.replace("$", "").strip()
+
+    # Finde Zahlen-Tokens: Erst Komma-Tausender (150,000), dann bare (150000)
+    tokens = re.findall(r'(\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?)', s)
+
+    if len(tokens) >= 2:
+        # Spanne erkannt: "$X - $Y" → Mittelwert
+        try:
+            low = float(tokens[0].replace(",", ""))
+            high = float(tokens[1].replace(",", ""))
+            return (low + high) / 2.0
+        except (ValueError, TypeError):
+            pass
+
+    if tokens:
+        # Einzelner Wert
+        try:
+            return float(tokens[0].replace(",", ""))
+        except (ValueError, TypeError):
+            pass
+
+    return None
 
 
 # ---------------------------------------------------------------------------

@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}Einstellungen — Macro Dashboard{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h2>⚙️ Einstellungen</h2>
+  <p class="caption">API-Schlüssel und Dashboard-Konfiguration</p>
+</div>
+
+<!-- API Keys -->
+<div class="card" style="margin-bottom:var(--gap);">
+  <h3 style="margin-bottom:16px;">🔑 API-Schlüssel</h3>
+
+  <div id="settings-feedback"></div>
+
+  <form hx-post="/settings/api-keys"
+        hx-target="#settings-feedback"
+        hx-swap="innerHTML"
+        style="max-width:600px;">
+
+    <!-- Quiver Quantitative -->
+    <div style="margin-bottom:20px;">
+      <label class="form-label" for="quiver_token">
+        Quiver Quantitative API-Token
+        {% if quiver_token_set %}
+        <span style="color:var(--green);font-size:0.8rem;margin-left:8px;">✅ Aktiv</span>
+        {% else %}
+        <span style="color:var(--text-dim);font-size:0.8rem;margin-left:8px;">❌ Nicht konfiguriert</span>
+        {% endif %}
+      </label>
+
+      <p class="caption" style="margin-bottom:8px;">
+        Wird benötigt für: Kongress-Trades, erweiterte Institutionelle Daten, Corporate Insider.
+        <br>
+        <a href="https://www.quiverquant.com/" target="_blank" rel="noopener" style="color:var(--accent);">
+          → Token hier registrieren (quiverquant.com)
+        </a>
+      </p>
+
+      {% if quiver_token_set %}
+      <div style="margin-bottom:8px;padding:8px 12px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;font-family:monospace;font-size:0.85rem;color:var(--text-dim);">
+        {{ quiver_token_masked }}
+      </div>
+      {% endif %}
+
+      <input type="text"
+             name="quiver_token"
+             id="quiver_token"
+             class="form-input"
+             placeholder="{{ 'Neuen Token eingeben zum Überschreiben...' if quiver_token_set else 'Bearer-Token hier einfügen...' }}"
+             autocomplete="off"
+             style="font-family:monospace;">
+    </div>
+
+    <div style="display:flex;gap:12px;align-items:center;">
+      <button type="submit" class="btn btn-primary">💾 Speichern</button>
+      {% if quiver_token_set %}
+      <button type="button" class="btn btn-danger btn-sm"
+              hx-post="/settings/api-keys"
+              hx-target="#settings-feedback"
+              hx-swap="innerHTML"
+              hx-vals='{"quiver_token": ""}'
+              onclick="return confirm('Token wirklich löschen?');">
+        🗑️ Token löschen
+      </button>
+      {% endif %}
+    </div>
+  </form>
+</div>
+
+<!-- Info Box -->
+<div class="card">
+  <h3 style="margin-bottom:12px;">ℹ️ Hinweise</h3>
+  <ul style="list-style:disc;padding-left:20px;color:var(--text-dim);line-height:1.8;">
+    <li><b>Sicherheit:</b> Dein Token wird ausschließlich lokal in der SQLite-Datenbank gespeichert und niemals an Dritte übermittelt.</li>
+    <li><b>Ohne Token:</b> Das Dashboard funktioniert weiterhin — allerdings ohne Kongress-Trades und mit eingeschränkten Insider-Daten (yfinance Fallback).</li>
+    <li><b>Cache:</b> Nach dem Speichern eines neuen Tokens wird der interne Cache automatisch geleert. Neue Daten werden beim nächsten Analyse-Aufruf geladen.</li>
+    <li><b>Rate Limits:</b> Quiver erlaubt ca. 100 Requests/Tag im Free-Plan. Das Dashboard cached Daten 30 Minuten, um die API-Last zu minimieren.</li>
+  </ul>
+</div>
+{% endblock %}
