@@ -12,7 +12,6 @@ import warnings
 import time
 import httpx
 from datetime import datetime, timedelta
-from cachetools import TTLCache
 from threading import Lock
 
 # ---------------------------------------------------------------------------
@@ -115,9 +114,9 @@ def fetch_congress_trades(ticker: str, days: int = 365) -> list[dict]:
         if t_ticker != ticker_upper:
             continue
 
-        # Nur Aktien-Trades (asset_type "ST" = Stock), oder wenn kein Typ gesetzt
+        # Nur Aktien-Trades: House="ST", Senate="Stock", manche=None
         asset_type = t.get("asset_type")
-        if asset_type and asset_type != "ST":
+        if asset_type and asset_type not in ("ST", "Stock"):
             continue
 
         # Datums-Filter
