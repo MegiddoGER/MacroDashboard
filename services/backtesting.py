@@ -300,8 +300,13 @@ class BacktestEngine:
         ann_return = (1 + total_return_dec) ** (252 / max(n_days, 1)) - 1
         ann_volatility = np.std(daily_returns) * np.sqrt(252) if len(daily_returns) > 1 else 0.0
 
-        # Sharpe Ratio (Risk-free ≈ 4% p.a. aktuelle Phase)
-        rf_daily = 0.04 / 252
+        # Sharpe Ratio (dynamische Risk-Free Rate)
+        try:
+            from services.fundamental import _get_live_risk_free_rate
+            rf_annual = _get_live_risk_free_rate(fallback=0.04)
+        except Exception:
+            rf_annual = 0.04
+        rf_daily = rf_annual / 252
         sharpe = None
         if len(daily_returns) > 5:
             excess = daily_returns - rf_daily

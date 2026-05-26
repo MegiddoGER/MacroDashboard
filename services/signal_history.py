@@ -12,6 +12,7 @@ Nutzt das bestehende models/signal.py (Signal + SignalStore) und erweitert es um
 import warnings
 from datetime import datetime, timedelta
 
+import math
 import numpy as np
 import yfinance as yf
 
@@ -27,6 +28,7 @@ def record_signal(ticker: str, score_result, current_price: float = 0.0) -> Sign
 
     Prüft vorher, ob für den gleichen Ticker innerhalb der letzten 4 Stunden
     bereits ein Signal gespeichert wurde (Deduplizierung).
+    Validiert, dass der Signalpreis ein gültiger numerischer Wert ist.
 
     Args:
         ticker: Aktien-Ticker
@@ -34,9 +36,16 @@ def record_signal(ticker: str, score_result, current_price: float = 0.0) -> Sign
         current_price: Aktueller Kurs
 
     Returns:
-        Das gespeicherte Signal, oder None wenn dedupliziert.
+        Das gespeicherte Signal, oder None wenn dedupliziert oder ungültig.
     """
     if score_result is None:
+        return None
+
+    # NaN-/Inf-Schutz: Ungültige Preise ablehnen
+    if current_price is None or not isinstance(current_price, (int, float)):
+        return None
+    if math.isnan(current_price) or math.isinf(current_price) or current_price <= 0:
+        warnings.warn(f"record_signal({ticker}): Ungültiger Preis {current_price} — Signal verworfen.")
         return None
 
     # Deduplizierung: Kein neues Signal wenn innerhalb von 4h schon eines existiert
@@ -76,7 +85,15 @@ def update_stale_signals(max_signals: int = 50) -> dict:
     checked = 0
 
     for signal in all_signals:
-        if not signal.timestamp or not signal.ticker or signal.price_at_signal <= 0:
+        if not signal.timestamp or not signal.ticker:
+            continue
+        if signal.price_at_signal is None or signal.price_at_signal <= 0:
+            continue
+        # Explizite NaN-Prüfung (NaN <= 0 evaluiert zu False in Python)
+        try:
+            if math.isnan(signal.price_at_signal):
+                continue
+        except (TypeError, ValueError):
             continue
 
         try:

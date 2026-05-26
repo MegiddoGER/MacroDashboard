@@ -21,8 +21,8 @@ from dataclasses import dataclass, field
 WEIGHTS_FULL = {
     "trend": 0.30,        # SMC, Trend & Marktstruktur
     "volume": 0.25,       # OBV, Order Flow
-    "fundamental": 0.20,  # DCF, Value, Margins
-    "sentiment": 0.15,    # News NLP Sentiment
+    "fundamental": 0.30,  # DCF, Value, Margins, Insider, Analysten
+    "sentiment": 0.05,    # News NLP Sentiment (reduziert — VADER hat begrenzte Prognosekraft)
     "oscillator": 0.10,   # RSI, Timing
 }
 
@@ -107,14 +107,14 @@ def _score_trend(close, high, low, volume, result: ScoreResult):
     if not macd_line.dropna().empty and not signal_line.dropna().empty:
         last_macd = float(macd_line.dropna().iloc[-1])
         last_signal = float(signal_line.dropna().iloc[-1])
-        result.cat_max["trend"] += 1
+        # MACD wird als Info-Indikator geführt, NICHT im Score gezählt
+        # (vermeidet Redundanz mit SMA 20/50 Cross — beide messen kurzfristiges Momentum)
         if last_macd > last_signal:
-            result.cat_scores["trend"] += 1
             macd_bullish = True
         else:
-            result.cat_scores["trend"] -= 1
             macd_bearish = True
 
+    # ... (Rest der Trend-Logik bleibt)
     swing = calc_swing_signals(high, low, close, volume)
     adx_val = swing.get("adx") if swing else None
     adx_strong = False
@@ -151,10 +151,10 @@ def _score_trend(close, high, low, volume, result: ScoreResult):
 
     if macd_bullish:
         result.checklist.append({"Indikator": "MACD", "Wert": "MACD > Signal",
-            "Signal": "🟢 Bullishes kurzfristiges Momentum"})
+            "Signal": "🟢 Bullishes kurzfristiges Momentum", "Beitrag": "Info"})
     else:
         result.checklist.append({"Indikator": "MACD", "Wert": "MACD < Signal",
-            "Signal": "🔴 Bearishes kurzfristiges Momentum"})
+            "Signal": "🔴 Bearishes kurzfristiges Momentum", "Beitrag": "Info"})
 
     # Signale speichern
     result.signals.update({

@@ -85,13 +85,14 @@ def calc_stochastic(high: pd.Series, low: pd.Series, close: pd.Series,
 
 def calc_atr(high: pd.Series, low: pd.Series, close: pd.Series,
              period: int = 14) -> pd.Series:
-    """Berechnet den Average True Range."""
+    """Berechnet den Average True Range mit Wilder-Smoothing."""
     prev_close = close.shift(1)
     tr1 = high - low
     tr2 = (high - prev_close).abs()
     tr3 = (low - prev_close).abs()
     tr = pd.concat([tr1, tr2, tr3], axis=1).max(axis=1)
-    return tr.rolling(period).mean()
+    # Wilder-Smoothing (konsistent mit RSI-Implementierung)
+    return tr.ewm(alpha=1 / period, min_periods=period, adjust=False).mean()
 
 
 # ---------------------------------------------------------------------------
@@ -546,7 +547,8 @@ def calc_position_sizing(current_price: float, atr_val: float,
         try:
             from services.signal_history import calc_hit_rate, get_signal_statistics
             hr = calc_hit_rate(days=365)
-            if hr["evaluated"] >= 10 and hr["overall_hit_rate"] is not None:
+            # Mindestens 30 evaluierte Signale für statistische Relevanz
+            if hr["evaluated"] >= 30 and hr["overall_hit_rate"] is not None:
                 win_rate = hr["overall_hit_rate"] / 100.0
                 # Avg Win/Loss Ratio aus Top/Flop-Signalen
                 sig_stats = get_signal_statistics()
@@ -554,16 +556,17 @@ def calc_position_sizing(current_price: float, atr_val: float,
                 flops = sig_stats.get("flop_signals", [])
                 avg_win = abs(sum(t["return_pct"] for t in tops) / len(tops)) if tops else 5.0
                 avg_loss = abs(sum(t["return_pct"] for t in flops) / len(flops)) if flops else 3.0
-                avg_win_loss_ratio = avg_win / avg_loss if avg_loss > 0 else 1.67
+                avg_win_loss_ratio = avg_win / avg_loss if avg_loss > 0 else 1.0
                 kelly_source = "signal_history"
         except Exception:
             pass
 
-    # Fallback-Defaults wenn DB leer oder Fehler
+    # Konservative Fallback-Defaults: Kelly = 0% bei unsicherer Datenlage
+    # (win_rate=0.50, ratio=1.0 → f* = (0.5*1.0 - 0.5)/1.0 = 0.0)
     if win_rate is None:
-        win_rate = 0.55
+        win_rate = 0.50
     if avg_win_loss_ratio is None:
-        avg_win_loss_ratio = 1.67
+        avg_win_loss_ratio = 1.0
 
     # ATR-basierter Stop-Loss (1.5x ATR unter aktuellem Kurs)
     stop_distance = 1.5 * atr_val
@@ -583,8 +586,11 @@ def calc_position_sizing(current_price: float, atr_val: float,
     position_pct = (position_value / portfolio_value) * 100 if portfolio_value > 0 else 0
     
     # Kelly Criterion: f* = (W × R - L) / R
-    kelly_fraction = (win_rate * avg_win_loss_ratio - (1 - win_rate)) / avg_win_loss_ratio
-    kelly_fraction = max(0.0, min(kelly_fraction, 0.25))  # Cap bei 25% (Half-Kelly)
+    kelly_full = (win_rate * avg_win_loss_ratio - (1 - win_rate)) / avg_win_loss_ratio
+    kelly_full = max(0.0, kelly_full)
+    # Half-Kelly für konservativeres Sizing (Standardpraxis bei institutionellen Tradern)
+    kelly_fraction = kelly_full * 0.5
+    kelly_fraction = min(kelly_fraction, 0.25)  # Absolutes Maximum: 25% des Portfolios
     kelly_position = portfolio_value * kelly_fraction
     kelly_shares = int(kelly_position / current_price) if current_price > 0 else 0
     

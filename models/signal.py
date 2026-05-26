@@ -85,13 +85,25 @@ class Signal:
 
     @classmethod
     def from_score_result(cls, ticker: str, score_result, price: float = 0.0) -> "Signal":
-        """Erstellt ein Signal aus einem ScoreResult (von scoring.py)."""
-        if score_result.confidence >= 65:
+        """Erstellt ein Signal aus einem ScoreResult (von scoring.py).
+
+        Signal-Typ-Mapping (konsistent mit UI-Labels in scoring.py):
+        - buy:   Confidence >= 75  ("Starkes Kaufsignal")
+        - watch: Confidence >= 60  ("Kauftendenz" — beobachten, Pullback abwarten)
+        - hold:  Confidence >= 45  ("Neutral")
+        - avoid: Confidence >= 30  ("Verkaufstendenz" — Finger weg)
+        - sell:  Confidence < 30   ("Starkes Verkaufssignal")
+        """
+        if score_result.confidence >= 75:
             signal_type = "buy"
-        elif score_result.confidence <= 35:
-            signal_type = "sell"
-        else:
+        elif score_result.confidence >= 60:
+            signal_type = "watch"
+        elif score_result.confidence >= 45:
             signal_type = "hold"
+        elif score_result.confidence >= 30:
+            signal_type = "avoid"
+        else:
+            signal_type = "sell"
 
         factors = []
         for entry in score_result.checklist:
@@ -215,13 +227,17 @@ class SignalStore:
             check_price = price_1m or price_1w
             MIN_MOVE_PCT = 0.3
 
-            if entry_price > 0 and check_price and signal_type != "hold":
+            # buy/watch = bullische Erwartung, sell/avoid = bearische Erwartung
+            bullish_types = ("buy", "watch")
+            bearish_types = ("sell", "avoid")
+
+            if entry_price > 0 and check_price and signal_type not in ("hold",):
                 pct_change = abs((check_price - entry_price) / entry_price) * 100
                 if pct_change < MIN_MOVE_PCT:
                     pass  # Zu geringe Bewegung — nicht bewertbar
-                elif signal_type == "buy":
+                elif signal_type in bullish_types:
                     row.was_successful = check_price > entry_price
-                elif signal_type == "sell":
+                elif signal_type in bearish_types:
                     row.was_successful = check_price < entry_price
 
             session.commit()
