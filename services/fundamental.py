@@ -54,7 +54,16 @@ def calc_dcf_valuation(info: dict) -> dict | None:
         total_debt = info.get("totalDebt", 0) or 0
         total_cash = info.get("totalCash", 0) or 0
 
-        if not fcf or not shares or fcf <= 0 or shares <= 0:
+        is_proxy_fcf = False
+        if not fcf or fcf <= 0:
+            total_rev = info.get("totalRevenue")
+            if total_rev and total_rev > 0:
+                fcf = total_rev * 0.10  # Proxy: 10% FCF Marge für Growth-Aktien
+                is_proxy_fcf = True
+            else:
+                return None
+
+        if not shares or shares <= 0:
             return None
 
         # --- Dynamische Kapitalstruktur ---
@@ -159,6 +168,7 @@ def calc_dcf_valuation(info: dict) -> dict | None:
             "terminal_growth_used": round(terminal_growth * 100, 1),
             "equity_weight": round(equity_weight * 100, 1),
             "fcf": fcf,
+            "is_proxy_fcf": is_proxy_fcf,
             "dcf_ev": round(dcf_ev, 0),
         }
     except Exception as exc:

@@ -438,10 +438,10 @@ def calc_order_flow(high: pd.Series, low: pd.Series,
     if vwap_val:
         if current > vwap_val:
             vwap_signal = "bullish"
-            vwap_desc = "Kurs über VWAP (20T) — Käufer dominieren"
+            vwap_desc = "Kurs über VWMA (20T) — Käufer dominieren"
         else:
             vwap_signal = "bearish"
-            vwap_desc = "Kurs unter VWAP (20T) — Verkäufer dominieren"
+            vwap_desc = "Kurs unter VWMA (20T) — Verkäufer dominieren"
     else:
         vwap_signal = "neutral"
         vwap_desc = "—"
@@ -471,17 +471,23 @@ def calc_order_flow(high: pd.Series, low: pd.Series,
         obv_slope = 0
 
     # ── Volume-Profil (Preis-Bins mit Volumenverteilung) ──
-    # Vektorisiert statt Python for-Loop für ~10x Speedup
+    # Beschränkt auf die letzten 252 Handelstage (~1 Jahr) für relevante POCs
+    lookback_poc = min(252, len(close))
+    close_recent = close.iloc[-lookback_poc:]
+    low_recent = low.iloc[-lookback_poc:]
+    high_recent = high.iloc[-lookback_poc:]
+    volume_recent = volume.iloc[-lookback_poc:]
+
     n_bins = 30
-    price_min = float(low.min())
-    price_max = float(high.max())
+    price_min = float(low_recent.min())
+    price_max = float(high_recent.max())
     if price_max <= price_min:
         price_max = price_min + 1
 
     bin_edges = np.linspace(price_min, price_max, n_bins + 1)
     bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
-    close_arr = close.values.astype(float)
-    volume_arr = volume.values.astype(float)
+    close_arr = close_recent.values.astype(float)
+    volume_arr = volume_recent.values.astype(float)
     bin_indices = np.clip(np.searchsorted(bin_edges, close_arr) - 1, 0, n_bins - 1)
     vol_profile = np.bincount(bin_indices, weights=volume_arr, minlength=n_bins)[:n_bins]
 

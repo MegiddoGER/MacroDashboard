@@ -206,14 +206,15 @@ def analyze_ticker_news(ticker: str) -> dict:
         }
     
     # Text pro News-Eintrag auswerten (Headline + Summary)
-    total_compound = 0.0
+    total_weight = 0.0
+    total_compound_weighted = 0.0
     bullish = 0
     bearish = 0
     neutral = 0
     
     headlines_analyzed = []
     
-    for item in news_items:
+    for i, item in enumerate(news_items):
         title = item.get("title", "")
         summary = item.get("summary", "")
         # Titel und Summary als einzelnen zusammenhängenden Text analysieren
@@ -226,7 +227,10 @@ def analyze_ticker_news(ticker: str) -> dict:
         # Original Title Score fürs Display
         title_scores = analyze_text_sentiment(title)
         
-        total_compound += c
+        # Recency Decay: Neueste News = 1.0, dann exponentieller Abfall (0.8^i)
+        weight = 0.8 ** i
+        total_compound_weighted += c * weight
+        total_weight += weight
         
         if c >= 0.05:
             bullish += 1
@@ -245,7 +249,7 @@ def analyze_ticker_news(ticker: str) -> dict:
         })
         
     n = len(news_items)
-    avg_compound = total_compound / n
+    avg_compound = total_compound_weighted / total_weight if total_weight > 0 else 0.0
     
     # Gesamt-Label
     if avg_compound >= 0.15:

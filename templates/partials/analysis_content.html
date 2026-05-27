@@ -187,7 +187,7 @@
     {% if charts.orderflow != "null" and flow %}
     <div id="chart-flow" class="chart-container" style="height:450px;"></div>
     <div class="grid-3" style="gap:12px;margin-top:12px;">
-      <div class="metric-card"><div class="metric-label">VWAP</div><div class="metric-value">{{ flow.vwap_signal|upper }}</div><div class="metric-delta neutral">{{ flow.vwap_desc }}</div></div>
+      <div class="metric-card"><div class="metric-label">VWMA (20T)</div><div class="metric-value">{{ flow.vwap_signal|upper }}</div><div class="metric-delta neutral">{{ flow.vwap_desc }}</div></div>
       <div class="metric-card"><div class="metric-label">OBV Trend</div><div class="metric-value">{{ flow.obv_signal|upper }}</div><div class="metric-delta neutral">{{ flow.obv_desc }}</div></div>
       <div class="metric-card"><div class="metric-label">Point of Control</div><div class="metric-value">{{ fmt_price(flow.poc_price) }}</div></div>
     </div>
@@ -228,8 +228,9 @@
   <div class="metric-card"><div class="metric-label">Fair Value</div><div class="metric-value">{{ fmt_price(dcf.fair_value) }}</div></div>
   <div class="metric-card"><div class="metric-label">Aktueller Kurs</div><div class="metric-value">{{ fmt_price(dcf.current_price) }}</div></div>
   <div class="metric-card"><div class="metric-label">Upside</div><div class="metric-value {% if dcf.upside_pct > 0 %}positive{% else %}negative{% endif %}">{{ "%+.1f %%"|format(dcf.upside_pct) }}</div></div>
-  <div class="metric-card"><div class="metric-label">WACC</div><div class="metric-value">{{ "%.1f %%"|format(dcf.wacc) }}</div></div>
+  <div class="metric-card"><div class="metric-label">WACC</div><div class="metric-value">{{ "%.1f %%"|format(dcf.wacc) }} <span style="font-size:0.75rem;font-weight:normal;color:var(--text-dim);">EK {{ "%.0f"|format(dcf.equity_weight) }}%</span></div></div>
 </div>
+{% if dcf.is_proxy_fcf %}<div class="alert alert-warning" style="margin-bottom:12px;">⚠️ <b>Growth-Modell:</b> FCF ist negativ. Fair Value wurde mit proxyhafter 10% FCF-Marge (basierend auf Umsatz) modelliert.</div>{% endif %}
 {% if dcf.margin_of_safety %}<div class="alert alert-success">✅ Margin of Safety vorhanden ({{ "%+.1f"|format(dcf.upside_pct) }}%)</div>
 {% elif dcf.upside_pct > 0 %}<div class="alert alert-info">Leichtes Upside ({{ "%+.1f"|format(dcf.upside_pct) }}%)</div>
 {% else %}<div class="alert alert-warning">⚠️ Überbewertet ({{ "%+.1f"|format(dcf.upside_pct) }}% vs. DCF)</div>{% endif %}
@@ -946,7 +947,7 @@ function filterCongress(type, btn) {
 
 {% set tech_indicators = ['ADX', 'Trend (SMAs)', 'MACD'] %}
 {% set osc_indicators = ['RSI (14)', 'Bollinger Bänder', 'Stochastic'] %}
-{% set vol_indicators = ['OBV Trend', 'VWAP (Wochen/Monats)', 'Volumen-Cluster (POC)', 'FVG (Fair Value Gap)', 'Equal Highs (EQH)', 'Equal Lows (EQL)'] %}
+{% set vol_indicators = ['OBV Trend', 'VWMA (20T)', 'Volumen-Cluster (POC)', 'FVG (Fair Value Gap)', 'Equal Highs (EQH)', 'Equal Lows (EQL)'] %}
 {% set fund_indicators = ['DCF Fair Value', 'Bilanzqualität', 'Insider-Sentiment', 'Analysten-Konsens', 'Dividende'] %}
 {% set sent_indicators = ['News Sentiment', 'Earnings Surprise', 'Contrarian-Warnung 🧨'] %}
 

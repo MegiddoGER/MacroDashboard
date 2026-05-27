@@ -27,11 +27,11 @@ WEIGHTS_FULL = {
 }
 
 WEIGHTS_QUICK = {
-    "trend": 0.40,        # Stärker gewichtet ohne Fundamental/Sentiment
-    "volume": 0.35,
+    "trend": 0.15,        # Reduziert: Trendfolger reagieren spät
+    "volume": 0.20,       # Optimiert: Order Flow behält Relevanz
     "fundamental": 0.0,
     "sentiment": 0.0,     # Zuviel API-Last für Screener
-    "oscillator": 0.25,
+    "oscillator": 0.65,   # Dominant für Quick-Score Forward Returns (Mean Reversion)
 }
 
 
@@ -272,11 +272,11 @@ def _score_volume(high, low, close, volume, result: ScoreResult):
         if flow.get("vwap_signal") == "bullish":
             result.cat_scores["volume"] += 1
             vwap_bullish = True
-            result.checklist.append({"Indikator": "VWAP (Wochen/Monats)", "Wert": "Kurs > VWAP",
+            result.checklist.append({"Indikator": "VWMA (20T)", "Wert": "Kurs > VWMA",
                 "Signal": "🟢 Käufer dominieren den Durchschnitt"})
         else:
             result.cat_scores["volume"] -= 1
-            result.checklist.append({"Indikator": "VWAP (Wochen/Monats)", "Wert": "Kurs < VWAP",
+            result.checklist.append({"Indikator": "VWMA (20T)", "Wert": "Kurs < VWMA",
                 "Signal": "🔴 Verkäufer dominieren den Durchschnitt"})
 
         poc = flow.get("poc_price")
@@ -485,12 +485,12 @@ def _score_fundamental(info, ticker, result: ScoreResult):
                         result.cat_scores["fundamental"] += 0.5
                         result.checklist.append({"Indikator": "🏛️ Kongress (Urgency)",
                             "Wert": f"{fast_buys} schnelle Käufe / {fast_sells} schnelle Verkäufe (<15T Lag)",
-                            "Signal": "Leicht bullisch ↑", "Beitrag": "+0.5"})
+                            "Signal": "Leicht bullisch ↑ (⚠️ Look-Ahead Bias Risiko bei Backtests)", "Beitrag": "+0.5"})
                     elif fast_sells > fast_buys:
                         result.cat_scores["fundamental"] -= 0.5
                         result.checklist.append({"Indikator": "🏛️ Kongress (Urgency)",
                             "Wert": f"{fast_buys} schnelle Käufe / {fast_sells} schnelle Verkäufe (<15T Lag)",
-                            "Signal": "Leicht bearisch ↓", "Beitrag": "-0.5"})
+                            "Signal": "Leicht bearisch ↓ (⚠️ Look-Ahead Bias Risiko bei Backtests)", "Beitrag": "-0.5"})
                     else:
                         result.checklist.append({"Indikator": "🏛️ Kongress (Urgency)",
                             "Wert": f"{fast_buys} K / {fast_sells} V (<15T Lag)",
@@ -500,23 +500,19 @@ def _score_fundamental(info, ticker, result: ScoreResult):
                         "Wert": f"{len(congress_trades)} Trades (keine <15T)",
                         "Signal": "Kein Urgency-Signal", "Beitrag": "Info"})
 
-                # Scoring: Committee Conflict of Interest (±0.5)
+                # Scoring: Committee Conflict of Interest (Ausschließlich Info, kein Score wg. Ethik/Bias)
                 if coi_detected:
-                    result.cat_max["fundamental"] += 1
-                    # Richtung basierend auf der Netto-Richtung der Kongress-Trades
                     net_congress = fast_buys - fast_sells
                     if net_congress > 0:
-                        result.cat_scores["fundamental"] += 0.5
-                        result.checklist.append({"Indikator": "🔴 Interessenkonflikt",
+                        result.checklist.append({"Indikator": "🔴 Interessenkonflikt (COI)",
                             "Wert": f"{coi_politician} sitzt im {coi_committee}-Ausschuss",
-                            "Signal": f"Kauf trotz Aufsicht über {ticker_sector} ↑", "Beitrag": "+0.5"})
+                            "Signal": f"Kauf trotz Aufsicht über {ticker_sector} ↑", "Beitrag": "Info"})
                     elif net_congress < 0:
-                        result.cat_scores["fundamental"] -= 0.5
-                        result.checklist.append({"Indikator": "🔴 Interessenkonflikt",
+                        result.checklist.append({"Indikator": "🔴 Interessenkonflikt (COI)",
                             "Wert": f"{coi_politician} sitzt im {coi_committee}-Ausschuss",
-                            "Signal": f"Verkauf trotz Aufsicht über {ticker_sector} ↓", "Beitrag": "-0.5"})
+                            "Signal": f"Verkauf trotz Aufsicht über {ticker_sector} ↓", "Beitrag": "Info"})
                     else:
-                        result.checklist.append({"Indikator": "🔴 Interessenkonflikt",
+                        result.checklist.append({"Indikator": "🔴 Interessenkonflikt (COI)",
                             "Wert": f"{coi_politician} ({coi_committee})",
                             "Signal": "Erkannt — Netto neutral", "Beitrag": "Info"})
             except Exception as exc:
