@@ -125,12 +125,9 @@ def _score_trend(close, high, low, volume, result: ScoreResult):
         result.checklist.append({"Indikator": "ADX", "Wert": f"{adx_val:.0f}",
             "Signal": "🟢 Starker Trend bestätigt", "Beitrag": "Info"})
     elif adx_val and adx_val < 20:
-        # NEU: Seitwärtsmarkt-Penalty — ADX < 20 bedeutet kein Trend,
-        # Trend-Signale sollten abgeschwächt werden
-        result.cat_max["trend"] += 1
-        result.cat_scores["trend"] -= 1
+        # Seitwärtsmarkt: Info-Indikator (kein Score-Impact — symmetrisch mit ADX > 25)
         result.checklist.append({"Indikator": "ADX", "Wert": f"{adx_val:.0f}",
-            "Signal": "🟡 Schwacher Trend / Seitwärts", "Beitrag": "-1"})
+            "Signal": "🟡 Schwacher Trend / Seitwärts — Trend-Signale weniger verlässlich", "Beitrag": "Info"})
     elif adx_val:
         result.checklist.append({"Indikator": "ADX", "Wert": f"{adx_val:.0f}",
             "Signal": "➖ Moderater Trend", "Beitrag": "0"})

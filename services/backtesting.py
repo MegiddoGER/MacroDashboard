@@ -97,6 +97,8 @@ class BacktestEngine:
             signals = self._strat_bollinger_breakout()
         elif strategy_name == "SMC_FVG_Bounce":
             signals = self._strat_smc_proxy()
+        elif strategy_name == "Score_Signal":
+            signals = self._strat_score_signal()
         else:
             raise ValueError(f"Unbekannte Strategie: {strategy_name}")
 
@@ -172,6 +174,52 @@ class BacktestEngine:
         state[buy] = 1.0
         state[sell] = 0.0
         state = state.ffill().fillna(0.0)
+        return state
+
+    def _strat_score_signal(self) -> pd.Series:
+        """Scoring-Engine-Backtest: Nutzt calc_quick_score() mit Rolling Window.
+
+        Berechnet den technischen Score alle 5 Tage auf dem historischen
+        Datenfenster (min. 200 Bars). Investiert wenn Confidence ≥ 60,
+        geht raus wenn Confidence < 45.
+
+        Dies ist der erste empirische Test der Scoring-Engine — validiert,
+        ob höhere Scores tatsächlich bessere Forward Returns produzieren.
+        """
+        from services.scoring import calc_quick_score
+
+        n = len(self.df)
+        lookback = 200      # Mindest-Lookback für SMA 200
+        rebalance = 5       # Nur alle 5 Tage neu bewerten (Effizienz)
+        buy_threshold = 60  # Confidence >= 60 → investiert
+        sell_threshold = 45 # Confidence < 45 → raus
+
+        state = pd.Series(0.0, index=self.df.index)
+        current_position = 0.0
+
+        for i in range(lookback, n, rebalance):
+            # Rolling Window: die letzten 'lookback' Bars
+            window = self.df.iloc[max(0, i - lookback):i + 1].copy()
+
+            try:
+                score_result = calc_quick_score(window)
+                if score_result is None:
+                    state.iloc[i:min(i + rebalance, n)] = current_position
+                    continue
+
+                conf = score_result.confidence
+                if conf >= buy_threshold:
+                    current_position = 1.0
+                elif conf < sell_threshold:
+                    current_position = 0.0
+                # Zwischen sell_threshold und buy_threshold: Position halten
+            except Exception:
+                pass
+
+            # Füllt die nächsten 'rebalance' Tage mit der gleichen Position
+            end_idx = min(i + rebalance, n)
+            state.iloc[i:end_idx] = current_position
+
         return state
 
     # -----------------------------------------------------------------------

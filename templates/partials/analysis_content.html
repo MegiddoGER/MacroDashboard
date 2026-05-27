@@ -985,6 +985,22 @@ function filterCongress(type, btn) {
 {{ render_category('Fundamental', '🏦', fund_indicators, sum_data.checklist) }}
 {{ render_category('Sentiment', '📰', sent_indicators, sum_data.checklist) }}
 
+{# Datenabdeckungs-Transparenz (Audit S6): Zeigt welche Kategorien neutral einfließen weil keine Daten vorliegen #}
+{% if sum_data.get('cat_max') %}
+{% set missing_cats = [] %}
+{% set cat_labels = {'trend': 'Trend', 'oscillator': 'Oszillatoren', 'volume': 'Volumen', 'fundamental': 'Fundamental', 'sentiment': 'Sentiment'} %}
+{% for cat, mx in sum_data.cat_max.items() %}
+  {% if mx == 0 and sum_data.get('weights', {}).get(cat, 0) > 0 %}
+    {% if missing_cats.append(cat_labels.get(cat, cat)) %}{% endif %}
+  {% endif %}
+{% endfor %}
+{% if missing_cats %}
+<div class="alert alert-info" style="margin-top:8px;font-size:0.82rem;">
+  ℹ️ <b>Eingeschränkte Datenbasis:</b> Für {{ missing_cats|join(', ') }} lagen keine Daten vor — {{ 'diese Kategorie fließt' if missing_cats|length == 1 else 'diese Kategorien fließen' }} neutral (0) in den Score ein.
+</div>
+{% endif %}
+{% endif %}
+
 {# Catch-all for any uncategorized indicators #}
 {% set all_known = tech_indicators + osc_indicators + vol_indicators + fund_indicators + sent_indicators %}
 {% set other_items = [] %}
