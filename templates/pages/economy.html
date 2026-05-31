@@ -133,12 +133,23 @@
     'chart-yield': {{ charts.yield|safe }},
     'chart-inflation': {{ charts.inflation|safe }},
   };
+  var plotted = [];
   for (const [id, fig] of Object.entries(charts)) {
     const el = document.getElementById(id);
     if (el && fig) {
       var layout = deepMerge(PLOTLY_LAYOUT, fig.layout || {});
       Plotly.newPlot(el, fig.data, layout, {displayModeBar:true, scrollZoom:true, responsive:true});
+      plotted.push(el);
     }
+  }
+  // Deferred resize: Plotly may compute 0×0 on first paint if the layout isn't settled.
+  // A short delay ensures the browser has finished the layout pass.
+  if (plotted.length > 0) {
+    setTimeout(function() {
+      plotted.forEach(function(el) {
+        if (el && el.data) { Plotly.Plots.resize(el); }
+      });
+    }, 150);
   }
 })();
 </script>

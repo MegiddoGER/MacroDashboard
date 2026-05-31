@@ -297,7 +297,7 @@
 
 {% if insider %}
 <h4>👔 Insider & Institutionelle
-  {% if insider.get('data_source') == 'yfinance+kadoa' %}
+  {% if insider.get('data_source') == 'yfinance+kadoa' or insider.get('kadoa_queried') %}
   <span class="source-badge source-badge-quiver">⚡ yfinance + Kadoa</span>
   {% elif insider.get('data_source') == 'quiver' %}
   <span class="source-badge source-badge-quiver">⚡ Quiver</span>
@@ -309,7 +309,7 @@
   <div class="tabs" style="flex-wrap:wrap;">
     <button class="tab active" data-tab="tab-insider-overview">📊 Übersicht</button>
     {% if insider.has_institutional_data or insider.get('has_quiver_institutional') %}<button class="tab" data-tab="tab-institutional-v2">🏦 Institutionen</button>{% endif %}
-    {% if insider.get('has_congress_data') %}<button class="tab" data-tab="tab-congress">🏛️ Kongress</button>{% endif %}
+    {% if insider.get('has_congress_data') or insider.get('kadoa_queried') %}<button class="tab" data-tab="tab-congress">🏛️ Kongress</button>{% endif %}
     {% if insider.has_insider_data or insider.get('has_quiver_insider') %}<button class="tab" data-tab="tab-corp-insider">👔 Corporate Insider</button>{% endif %}
   </div>
 
@@ -484,6 +484,13 @@
       </table>
     </div>
     <p class="caption" style="margin-top:6px;">⚠️ Kongress-Trades haben einen gesetzlichen Disclosure-Lag von bis zu 45 Tagen.</p>
+  </div>
+  {% elif insider.get('kadoa_queried') %}
+  <!-- Kadoa wurde abgefragt, aber keine Trades für diesen Ticker -->
+  <div id="tab-congress" class="tab-content">
+    <h5>🏛️ Kongress-Trades</h5>
+    <div class="alert alert-info">Keine Kongress-Trades für diesen Ticker in den letzten 12 Monaten gefunden. Die Kadoa-Datenquelle wurde erfolgreich abgefragt.</div>
+    <p class="caption">Datenquelle: Kadoa Congress Trading Monitor (basierend auf STOCK Act Disclosures). Nur US-Kongressmitglieder werden erfasst.</p>
   </div>
   {% endif %}
 

@@ -433,11 +433,13 @@ def get_insider_institutional(ticker: str) -> dict | None:
         try:
             from services.congress_data import fetch_congress_trades
             congress_trades = fetch_congress_trades(ticker)
+            # Kadoa wurde erfolgreich abgefragt — Badge immer aktualisieren,
+            # auch wenn keine Trades für diesen Ticker existieren.
+            result["kadoa_queried"] = True
+            result["data_source"] = "yfinance+kadoa"
             if congress_trades:
                 result["congress_trades"] = congress_trades
                 result["has_congress_data"] = True
-                # Datenquelle aktualisieren
-                result["data_source"] = "yfinance+kadoa"
         except Exception as exc:
             warnings.warn(f"get_insider_institutional({ticker}): Kadoa-Daten fehlgeschlagen: {exc}")
 

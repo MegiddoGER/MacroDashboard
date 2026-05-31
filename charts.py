@@ -15,7 +15,7 @@ LAYOUT_DEFAULTS = dict(
     template="plotly_dark",
     paper_bgcolor="rgba(0,0,0,0)",
     plot_bgcolor="rgba(0,0,0,0)",
-    margin=dict(t=50, b=30, l=10),
+    margin=dict(t=50, b=30, l=50, r=10),
     font=dict(family="Inter, sans-serif", size=12, color="#cbd5e1"),
     hovermode="x unified",
     xaxis=dict(
@@ -157,6 +157,8 @@ def plot_candlestick(df: pd.DataFrame, title: str,
     layout = {k: v for k, v in LAYOUT_DEFAULTS.items()}
     layout["title"] = dict(text=title, font=dict(size=14))
     layout["height"] = 500
+    # Candlestick uses log-scale Y-axis → wider tick labels need more left margin
+    layout["margin"] = dict(t=50, b=30, l=60, r=10)
     
     # Rangebreaks logic (only apply if the data doesn't have weekends, i.e. stocks)
     has_weekends = (df.index.weekday >= 5).any() if not df.empty else False
