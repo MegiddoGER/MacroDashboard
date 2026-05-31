@@ -9,7 +9,7 @@ Enthaelt:
 """
 
 import os
-from fastapi import APIRouter, Request, Form
+from fastapi import APIRouter, Request, Form, Query
 from fastapi.responses import HTMLResponse, JSONResponse
 
 from services.cache_core import cached_quote, clear_all_caches
@@ -75,6 +75,27 @@ async def watchlist_delete(request: Request, ticker: str):
     """Entfernt einen Ticker von der Watchlist."""
     remove_from_watchlist(ticker)
     return await watchlist_items(request)
+
+
+@router.get("/ticker/search")
+async def ticker_search(q: str = Query("")):
+    """Sucht nach Tickern (Autocomplete-Backend) und liefert JSON."""
+    from services.watchlist import _search_xetra_csv
+    if not q.strip() or len(q.strip()) < 1:
+        return JSONResponse([])
+    results = _search_xetra_csv(q)
+    # Limitiere auf max 15 Vorschläge für UI-Performance
+    return JSONResponse(results[:15])
+
+@router.get("/ticker/quote")
+async def ticker_quote(ticker: str = Query(...)):
+    """Lädt den aktuellen Live-Kurs für einen Ticker."""
+    from services.cache_core import cached_quote
+    try:
+        price = cached_quote(ticker)
+        return JSONResponse({"ticker": ticker, "price": price})
+    except Exception:
+        return JSONResponse({"ticker": ticker, "price": None})
 
 
 # ---------------------------------------------------------------------------

@@ -91,7 +91,7 @@
 </div>
 
 <!-- Konkrete Handlungsschritte -->
-<div class="card">
+<div class="card" style="margin-bottom:12px;">
   <h5>🎯 Handlungsschritte</h5>
   <ol style="margin:8px 0;padding-left:24px;">
     {% for step in rec.steps %}
@@ -99,5 +99,53 @@
     {% endfor %}
   </ol>
 </div>
+
+<!-- Inline Nachkauf erfassen -->
+{% if rec.action == "AUFSTOCKEN" %}
+<div class="card" style="border-color: rgba(234, 179, 8, 0.4); background: rgba(234, 179, 8, 0.05); margin-bottom:12px;">
+  <h5 style="color:var(--yellow);margin-bottom:12px;">➕ Nachkauf erfassen</h5>
+  <form id="nachkauf-form" style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;">
+    <div class="form-group" style="margin:0; flex:1; min-width:120px;">
+      <label>Datum</label>
+      <input type="date" name="buy_date" class="form-input form-input-sm" required>
+    </div>
+    <div class="form-group" style="margin:0; flex:1; min-width:100px;">
+      <label>Kurs (€)</label>
+      <input type="number" name="buy_price" class="form-input form-input-sm" step="0.01" min="0.01" placeholder="150.00" required>
+    </div>
+    <div class="form-group" style="margin:0; flex:1; min-width:100px;">
+      <label>Stück</label>
+      <input type="number" name="quantity" class="form-input form-input-sm" step="0.01" min="0.01" placeholder="10" required>
+    </div>
+    <div style="margin:0;">
+      <button type="button" class="btn btn-primary btn-sm" onclick="submitNachkauf()">Speichern</button>
+    </div>
+  </form>
+  <script>
+    function submitNachkauf() {
+      const form = document.getElementById('nachkauf-form');
+      if (!form.checkValidity()) {
+        form.reportValidity();
+        return;
+      }
+      const fd = new FormData(form);
+      // Hinzufügen des aktuellen Tickers
+      fd.append('ticker', document.querySelector('input[name="rec_ticker"]').value);
+      fd.append('notes', 'Nachkauf (via Analyse)');
+      
+      fetch('/watchlist/buy', {
+          method: 'POST',
+          body: fd
+      }).then(r => r.text())
+      .then(html => {
+          showToast('Nachkauf wurde zur Watchlist hinzugefügt', 'success');
+          form.reset();
+      }).catch(err => {
+          showToast('Fehler beim Speichern', 'error');
+      });
+    }
+  </script>
+</div>
+{% endif %}
 
 <p class="caption" style="margin-top:12px;">⚠️ Dies ist eine algorithmische Momentaufnahme. Sie dient als Entscheidungshilfe, nicht als Anlageberatung.</p>

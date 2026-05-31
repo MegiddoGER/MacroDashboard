@@ -31,6 +31,35 @@
   </div>
 </div>
 
+{% if input_mode == 'manual' %}
+<div style="margin-bottom: 24px; text-align: right;">
+  <form id="save-manual-pos-form" style="display:inline-block;">
+    <input type="hidden" name="ticker" value="{{ ticker }}">
+    <input type="hidden" name="buy_date" value="{{ pos_data.buy_date }}">
+    <input type="hidden" name="buy_price" value="{{ pos_data.buy_price }}">
+    <input type="hidden" name="quantity" value="{{ pos_data.quantity }}">
+    <input type="hidden" name="stop_loss" value="{{ pos_data.stop_loss or '' }}">
+    <input type="hidden" name="take_profit" value="{{ pos_data.take_profit or '' }}">
+    <input type="hidden" name="notes" value="Manuelle Analyse">
+    <button type="button" class="btn btn-outline btn-sm" onclick="saveManualPosition()">In Watchlist speichern</button>
+  </form>
+  <script>
+    function saveManualPosition() {
+      const fd = new FormData(document.getElementById('save-manual-pos-form'));
+      fetch('/watchlist/buy', {
+          method: 'POST',
+          body: fd
+      }).then(r => r.text())
+      .then(html => {
+          showToast('Position wurde zur Watchlist hinzugefügt', 'success');
+      }).catch(err => {
+          showToast('Fehler beim Speichern', 'error');
+      });
+    }
+  </script>
+</div>
+{% endif %}
+
 <!-- ═══ Positions-Übersicht ═══ -->
 <h4>📋 Positions-Übersicht</h4>
 <div class="grid-4" style="gap:12px;margin-bottom:12px;">

@@ -3,6 +3,9 @@
 {% block title %}Positions-Analyse — MacroDashboard{% endblock %}
 
 {% block content %}
+<a href="/analysis" class="btn btn-secondary btn-sm" style="margin-bottom: 16px; display: inline-flex; align-items: center; gap: 6px;">
+    <span>←</span> Zurück zur Übersicht
+</a>
 <div class="page-header">
   <h2>📊 Positions-Analyse</h2>
   <p class="caption">Bestehende oder manuelle Position auswerten — mit Scoring, Risikoanalyse und strategischer Handlungsempfehlung.</p>
@@ -70,9 +73,10 @@
           hx-indicator="#pos-loading" hx-swap="innerHTML">
 
       <div class="grid-2" style="gap:16px;max-width:700px;">
-        <div class="form-group">
+        <div class="form-group" style="position: relative;">
           <label>Ticker / Symbol</label>
-          <input type="text" name="ticker" class="form-input" placeholder="z.B. AAPL, MSFT, SAP.DE" required>
+          <input type="text" name="ticker" class="form-input autocomplete-input" placeholder="z.B. AAPL, MSFT, SAP.DE" autocomplete="off" required>
+          <input type="hidden" name="company_name">
         </div>
         <div class="form-group">
           <label>Kaufdatum</label>
@@ -133,5 +137,40 @@ function fillFromSelect(sel) {
   document.getElementById('pos-takeprofit').value = opt.getAttribute('data-takeprofit') || '';
   document.getElementById('pos-submit-a').disabled = false;
 }
+
+// Check for calculator handoff data
+document.addEventListener('DOMContentLoaded', () => {
+  const handoffJson = sessionStorage.getItem('calcHandoff');
+  if (handoffJson) {
+    try {
+      const data = JSON.parse(handoffJson);
+      
+      // Switch to manual tab
+      const manualBtn = document.querySelector('button[data-tab="tab-mode-manual"]');
+      if (manualBtn) manualBtn.click();
+      
+      // Fill form
+      const manualTab = document.getElementById('tab-mode-manual');
+      if (manualTab) {
+        if (data.ticker) manualTab.querySelector('input[name="ticker"]').value = data.ticker;
+        if (data.buy_date) manualTab.querySelector('input[name="buy_date"]').value = data.buy_date;
+        if (data.buy_price) manualTab.querySelector('input[name="buy_price"]').value = parseFloat(data.buy_price).toFixed(2);
+        if (data.quantity) manualTab.querySelector('input[name="quantity"]').value = parseFloat(data.quantity).toFixed(4);
+      }
+      
+      // Clear storage
+      sessionStorage.removeItem('calcHandoff');
+      
+      // Show hint
+      setTimeout(() => {
+        if (typeof showToast === 'function') {
+           showToast('Daten aus Rechner übernommen. Bitte prüfen und absenden.', 'success');
+        }
+      }, 500);
+    } catch (e) {
+      console.error('Error parsing calcHandoff', e);
+    }
+  }
+});
 </script>
 {% endblock %}

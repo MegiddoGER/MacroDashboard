@@ -117,6 +117,96 @@
             const fig = JSON.parse(figJson);
             Plotly.newPlot(elementId, fig.data, fig.layout, {displayModeBar: true, scrollZoom: false});
         }
+
+        // ── Autocomplete Logic ──
+        document.addEventListener('input', function(e) {
+            if (!e.target.classList.contains('autocomplete-input')) return;
+            const input = e.target;
+            const query = input.value.trim();
+            
+            // Find or create dropdown
+            let dropdown = input.nextElementSibling;
+            if (!dropdown || !dropdown.classList.contains('autocomplete-dropdown')) {
+                dropdown = document.createElement('div');
+                dropdown.className = 'autocomplete-dropdown';
+                input.parentNode.insertBefore(dropdown, input.nextSibling);
+                // Ensure parent has relative positioning
+                input.parentNode.style.position = 'relative';
+            }
+
+            if (query.length < 1) {
+                dropdown.style.display = 'none';
+                return;
+            }
+
+            if (input._acTimeout) clearTimeout(input._acTimeout);
+            input._acTimeout = setTimeout(() => {
+                fetch(`/api/ticker/search?q=${encodeURIComponent(query)}`)
+                    .then(r => r.json())
+                    .then(data => {
+                        dropdown.innerHTML = '';
+                        if (data.length === 0) {
+                            dropdown.style.display = 'none';
+                            return;
+                        }
+                        data.forEach(item => {
+                            const div = document.createElement('div');
+                            div.className = 'autocomplete-item';
+                            div.textContent = `${item.ticker} — ${item.name}`;
+                            div.addEventListener('click', () => {
+                                input.value = item.ticker;
+                                // If there is a hidden name input in the same form, fill it
+                                const form = input.closest('form');
+                                if (form) {
+                                    const nameInput = form.querySelector('input[name="company_name"]');
+                                    if (nameInput) nameInput.value = item.name;
+                                }
+                                dropdown.style.display = 'none';
+                            });
+                            dropdown.appendChild(div);
+                        });
+                        dropdown.style.display = 'block';
+                    })
+                    .catch(console.error);
+            }, 250);
+        });
+
+        // Hide autocomplete when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!e.target.classList.contains('autocomplete-input')) {
+                document.querySelectorAll('.autocomplete-dropdown').forEach(d => d.style.display = 'none');
+            }
+        });
     </script>
+    <style>
+        .autocomplete-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            max-height: 250px;
+            overflow-y: auto;
+            z-index: 1000;
+            display: none;
+            margin-top: 4px;
+        }
+        .autocomplete-item {
+            padding: 8px 12px;
+            cursor: pointer;
+            border-bottom: 1px solid var(--border-subtle);
+            color: var(--text);
+            font-size: 0.9rem;
+        }
+        .autocomplete-item:last-child {
+            border-bottom: none;
+        }
+        .autocomplete-item:hover {
+            background: rgba(255,255,255,0.05);
+        }
+    </style>
 </body>
 </html>

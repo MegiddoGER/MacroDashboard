@@ -3,37 +3,532 @@
 {% block title %}Analyse — MacroDashboard{% endblock %}
 
 {% block content %}
-<div class="page-header">
-  <h2>📊 Analyse</h2>
-  <p class="caption">Wähle einen Analyse-Modus, um fortzufahren.</p>
+<style>
+  .modern-landing-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 24px;
+      max-width: 900px;
+      margin: 40px auto 0;
+  }
+  
+  .modern-mode-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 40px 32px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      gap: 16px;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.35s ease;
+      position: relative;
+      overflow: hidden;
+  }
+
+  .modern-mode-card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: var(--radius-lg);
+      opacity: 0;
+      transition: opacity 0.35s ease;
+      z-index: 0;
+  }
+
+  .modern-mode-card.card-calc::before {
+      background: linear-gradient(135deg, rgba(234, 179, 8, 0.08) 0%, rgba(249, 115, 22, 0.05) 100%);
+  }
+
+  /* When active, show the border highlight */
+  .modern-mode-card.active {
+      border-color: rgba(234, 179, 8, 0.4);
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+  }
+  .modern-mode-card.active::before {
+      opacity: 1;
+  }
+
+  .calc-row {
+      display: grid;
+      grid-template-columns: 2fr 2fr 2fr 2fr auto;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 12px;
+  }
+  .calc-results {
+      background: rgba(15, 23, 42, 0.4);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 24px;
+      margin-top: 24px;
+  }
+  
+  /* Animierter Tab-Content */
+  .tab-content { display: none; }
+  .tab-content.active { display: block; animation: fadeInCalc 0.4s ease forwards; }
+  @keyframes fadeInCalc {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
+  }
+</style>
+
+<div class="page-header" style="text-align: center; margin-top: 20px;">
+  <h2 style="font-size: 2.2rem; margin-bottom: 8px;">📊 Analyse Dashboard</h2>
+  <p class="caption" style="font-size: 1.05rem;">Wähle einen Analyse-Modus, um fortzufahren.</p>
 </div>
 
-<div style="margin-top:40px;">
-  <div class="landing-grid">
+<!-- Tabs Wrapper -->
+<div>
+  <div class="modern-landing-grid tabs">
 
-    <!-- Neue Aktie analysieren -->
-    <a href="/analysis/new" class="landing-card">
-      <div class="landing-icon">🔬</div>
-      <h3>Neue Aktie analysieren</h3>
-      <p>Vollständige technische + fundamentale Analyse für einen beliebigen Ticker — inkl. Charts, Scoring, SMC und Empfehlung.</p>
-      <div class="btn btn-primary">Analyse starten</div>
+    <!-- Card 1 -->
+    <a href="/analysis/new" class="modern-mode-card card-new">
+      <div class="modern-mode-content">
+          <div class="modern-mode-icon">🔬</div>
+          <h3>Neue Aktie analysieren</h3>
+          <p>Technische & fundamentale Analyse einer beliebigen Aktie — inkl. Charts, Scoring und SMC.</p>
+          <div class="btn btn-primary">Analyse starten</div>
+      </div>
     </a>
 
-    <!-- Position analysieren -->
-    <a href="/analysis/position" class="landing-card">
-      <div class="landing-icon">📊</div>
-      <h3>Position analysieren</h3>
-      <p>Bestehende Portfolio-Position auswerten — mit P&L, Risikoanalyse, positionsbezogenem Scoring und strategischer Handlungsempfehlung.</p>
-      <div class="btn btn-purple">Position prüfen</div>
+    <!-- Card 2 -->
+    <a href="/analysis/position" class="modern-mode-card card-pos">
+      <div class="modern-mode-content">
+          <div class="modern-mode-icon">📊</div>
+          <h3>Position analysieren</h3>
+          <p>Strategische Tiefenanalyse einer bereits gehaltenen Position — mit P&L und Risikobewertung.</p>
+          <div class="btn btn-purple">Position prüfen</div>
+      </div>
     </a>
 
+    <!-- Card 3 -->
+    <div class="modern-mode-card card-calc tab" data-tab="calc-content" onclick="toggleCalc(event)">
+      <div class="modern-mode-content">
+          <div class="modern-mode-icon">🧮</div>
+          <h3>Ø Durchschnittskurs-Rechner</h3>
+          <p>Mehrere Käufe zu einer gewichteten Gesamtposition zusammenführen und TWRR berechnen.</p>
+          <div class="btn btn-outline" style="color:var(--text); border-color:var(--border);">Rechner öffnen</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Calculator Section -->
+  <div id="calc-content" class="tab-content" style="max-width: 900px; margin: 32px auto 0;">
+    <div class="card" style="padding: 24px 32px;">
+      
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 24px;">
+        <h3 style="margin:0;">🧮 Durchschnittskurs-Rechner</h3>
+        <div class="form-group" style="margin:0; width: 250px; position:relative;">
+          <input type="text" id="calc-ticker" class="form-input autocomplete-input" placeholder="Ticker (z.B. AAPL) für Live-Kurs" autocomplete="off">
+          <input type="hidden" id="calc-company-name">
+        </div>
+      </div>
+
+      <!-- Rows -->
+      <div id="calc-rows-container">
+        <!-- JS fills rows here -->
+      </div>
+      
+      <button class="btn btn-secondary btn-sm" onclick="addCalcRow()" style="margin-top: 8px;">➕ Kauf hinzufügen</button>
+
+      <!-- Live Results -->
+      <div class="calc-results">
+        <div class="grid-4" style="gap: 16px;">
+          <div class="metric-card" style="padding: 12px;">
+            <div class="metric-label">Gesamtinvestiert</div>
+            <div class="metric-value" id="calc-total-invested">0,00 €</div>
+          </div>
+          <div class="metric-card" style="padding: 12px;">
+            <div class="metric-label">Gesamtanteile</div>
+            <div class="metric-value" id="calc-total-shares">0,00</div>
+          </div>
+          <div class="metric-card" style="padding: 12px; background: rgba(234, 179, 8, 0.05); border-color: rgba(234, 179, 8, 0.2);">
+            <div class="metric-label" style="color:var(--text);">Ø Kaufkurs</div>
+            <div class="metric-value" id="calc-avg-price" style="color:var(--text);">0,00 €</div>
+          </div>
+          <div class="metric-card" style="padding: 12px;">
+            <div class="metric-label">Aktueller Kurs <span id="calc-price-spinner" class="spinner" style="width:12px;height:12px;display:none;"></span></div>
+            <div class="metric-value" id="calc-current-price">—</div>
+          </div>
+        </div>
+
+        <div class="grid-3" style="gap: 16px; margin-top: 16px;">
+          <div class="metric-card" style="padding: 12px;">
+            <div class="metric-label">Positionswert</div>
+            <div class="metric-value" id="calc-position-value">—</div>
+          </div>
+          <div class="metric-card" style="padding: 12px;">
+            <div class="metric-label">Unrealisiertes P&L</div>
+            <div class="metric-value" id="calc-pnl-eur">—</div>
+            <div class="metric-delta" id="calc-pnl-pct">—</div>
+          </div>
+          <div class="metric-card" style="padding: 12px;">
+            <div class="metric-label">TWRR (annualisiert)</div>
+            <div class="metric-value" id="calc-twrr">—</div>
+            <div class="metric-delta neutral" style="cursor:pointer;" onclick="document.getElementById('twrr-details').classList.toggle('active')">Details anzeigen/ausblenden</div>
+          </div>
+        </div>
+
+        <!-- TWRR Details -->
+        <div id="twrr-details" class="tab-content" style="margin-top: 16px; padding: 12px; background: rgba(0,0,0,0.2); border-radius: 4px;">
+           <table class="data-table">
+             <thead><tr><th>Kauf</th><th>Gewicht</th><th>Haltedauer</th><th>Rendite (Tranche)</th><th>Ann. Rendite</th></tr></thead>
+             <tbody id="twrr-details-body"></tbody>
+           </table>
+        </div>
+      </div>
+
+      <div style="margin-top: 24px; display: flex; gap: 12px; justify-content: flex-end;">
+        <button class="btn btn-outline" id="btn-save-watchlist" onclick="saveToWatchlist()">In Watchlist speichern</button>
+        <button class="btn btn-primary" id="btn-use-analysis" onclick="useForAnalysis()">Als Basis für Positions-Analyse verwenden</button>
+      </div>
+
+    </div>
   </div>
 </div>
 
+<script>
+// --- Custom Tab Toggle Logic ---
+function toggleCalc(e) {
+    const card = e.currentTarget;
+    if (card.classList.contains('active')) {
+        // Stop bubbling so base.html listener doesn't trigger
+        e.stopPropagation();
+        card.classList.remove('active');
+        document.getElementById('calc-content').classList.remove('active');
+    }
+}
+
+// --- Calculator Logic ---
+let calcRows = [];
+let currentLivePrice = null;
+
+function formatDe(val, minDec=2, maxDec=2) {
+    if (isNaN(val) || val === null) return "—";
+    return val.toLocaleString('de-DE', {minimumFractionDigits: minDec, maximumFractionDigits: maxDec});
+}
+
+function parseDe(valStr) {
+    if (!valStr) return 0;
+    return parseFloat(valStr.replace(/\./g, '').replace(',', '.'));
+}
+
+function addCalcRow() {
+    const id = Date.now() + Math.random();
+    calcRows.push({ id, date: '', price: 0, amount: 0 });
+    renderCalcRows();
+}
+
+function removeCalcRow(id) {
+    if (calcRows.length <= 1) return; // min 1 row
+    calcRows = calcRows.filter(r => r.id !== id);
+    renderCalcRows();
+    updateCalculations();
+}
+
+function handleRowInput(id, field, value) {
+    const row = calcRows.find(r => r.id === id);
+    if (!row) return;
+    if (field === 'date') row.date = value;
+    if (field === 'price') row.price = parseFloat(value) || 0;
+    if (field === 'amount') row.amount = parseFloat(value) || 0;
+    
+    // Auto-compute shares if price & amount > 0
+    const sharesInput = document.getElementById(`shares-${id}`);
+    if (row.price > 0 && row.amount > 0) {
+        sharesInput.value = formatDe(row.amount / row.price, 4, 4);
+    } else {
+        sharesInput.value = '';
+    }
+    updateCalculations();
+}
+
+function renderCalcRows() {
+    const container = document.getElementById('calc-rows-container');
+    container.innerHTML = `
+      <div class="calc-row" style="margin-bottom: 8px;">
+        <label class="metric-label">Kaufdatum</label>
+        <label class="metric-label">Kurs (€)</label>
+        <label class="metric-label">Investiert (€)</label>
+        <label class="metric-label">Anteile (Auto)</label>
+        <div></div>
+      </div>
+    `;
+    
+    calcRows.forEach((row, index) => {
+        const div = document.createElement('div');
+        div.className = 'calc-row';
+        div.innerHTML = `
+            <input type="date" class="form-input" value="${row.date}" onchange="handleRowInput(${row.id}, 'date', this.value)">
+            <input type="number" class="form-input" step="0.01" min="0.01" placeholder="z.B. 150.00" value="${row.price || ''}" oninput="handleRowInput(${row.id}, 'price', this.value)">
+            <input type="number" class="form-input" step="0.01" min="0.01" placeholder="z.B. 1000.00" value="${row.amount || ''}" oninput="handleRowInput(${row.id}, 'amount', this.value)">
+            <input type="text" class="form-input" id="shares-${row.id}" readonly style="background: rgba(0,0,0,0.2); color: var(--text-dim);" value="${(row.price > 0 && row.amount > 0) ? formatDe(row.amount / row.price, 4, 4) : ''}">
+            <button class="btn btn-outline btn-sm" style="padding: 6px 10px; color: var(--red); border-color: var(--red);" onclick="removeCalcRow(${row.id})" ${calcRows.length === 1 ? 'disabled' : ''}>🗑</button>
+        `;
+        container.appendChild(div);
+    });
+}
+
+function updateCalculations() {
+    let totalInvested = 0;
+    let totalShares = 0;
+    let validRows = [];
+    
+    calcRows.forEach(r => {
+        if (r.price > 0 && r.amount > 0) {
+            totalInvested += r.amount;
+            totalShares += (r.amount / r.price);
+            validRows.push(r);
+        }
+    });
+    
+    const avgPrice = totalShares > 0 ? (totalInvested / totalShares) : 0;
+    
+    document.getElementById('calc-total-invested').textContent = formatDe(totalInvested) + ' €';
+    document.getElementById('calc-total-shares').textContent = formatDe(totalShares, 4, 4);
+    document.getElementById('calc-avg-price').textContent = formatDe(avgPrice) + ' €';
+    
+    // Position Value & PNL
+    const elPosValue = document.getElementById('calc-position-value');
+    const elPnlEur = document.getElementById('calc-pnl-eur');
+    const elPnlPct = document.getElementById('calc-pnl-pct');
+    
+    if (currentLivePrice && totalShares > 0) {
+        const posValue = totalShares * currentLivePrice;
+        const pnlEur = posValue - totalInvested;
+        const pnlPct = (pnlEur / totalInvested) * 100;
+        
+        elPosValue.textContent = formatDe(posValue) + ' €';
+        
+        elPnlEur.textContent = (pnlEur > 0 ? '+' : '') + formatDe(pnlEur) + ' €';
+        elPnlEur.style.color = pnlEur >= 0 ? 'var(--green)' : 'var(--red)';
+        
+        elPnlPct.textContent = (pnlPct > 0 ? '+' : '') + formatDe(pnlPct, 1, 1) + ' %';
+        elPnlPct.className = 'metric-delta ' + (pnlPct >= 0 ? 'positive' : 'negative');
+    } else {
+        elPosValue.textContent = '—';
+        elPnlEur.textContent = '—';
+        elPnlEur.style.color = 'inherit';
+        elPnlPct.textContent = '—';
+        elPnlPct.className = 'metric-delta neutral';
+    }
+    
+    // TWRR Calculation
+    calculateTWRR(validRows, totalInvested);
+}
+
+function calculateTWRR(validRows, totalInvested) {
+    const elTwrr = document.getElementById('calc-twrr');
+    const twrrBody = document.getElementById('twrr-details-body');
+    twrrBody.innerHTML = '';
+    
+    if (!currentLivePrice || validRows.length === 0 || totalInvested === 0) {
+        elTwrr.textContent = '—';
+        elTwrr.style.color = 'inherit';
+        return;
+    }
+    
+    let twrrSum = 0;
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    
+    validRows.forEach((r, idx) => {
+        let weight = r.amount / totalInvested;
+        let pnlTranche = (currentLivePrice - r.price) / r.price;
+        
+        let annRendite = 0;
+        let daysStr = "Unbekannt";
+        let annRenditeStr = "n/a";
+        let tr = document.createElement('tr');
+        
+        if (r.date) {
+            const buyD = new Date(r.date);
+            const diffTime = Math.abs(today - buyD);
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            
+            if (buyD > today) {
+                daysStr = "Zukunft!";
+                tr.style.color = 'var(--red)';
+            } else if (diffDays === 0) {
+                daysStr = "< 1 Tag";
+            } else {
+                daysStr = diffDays + " Tage";
+                // ann = (1 + Rendite) ^ (365 / Tage) - 1
+                annRendite = Math.pow(1 + pnlTranche, 365 / diffDays) - 1;
+                annRenditeStr = (annRendite * 100 > 0 ? '+' : '') + formatDe(annRendite * 100, 1, 1) + ' %';
+                twrrSum += (weight * annRendite);
+            }
+        }
+        
+        tr.innerHTML = `
+            <td>Kauf ${idx + 1}</td>
+            <td>${formatDe(weight * 100, 1, 1)} %</td>
+            <td>${daysStr}</td>
+            <td style="color:${pnlTranche >= 0 ? 'var(--green)' : 'var(--red)'}">${(pnlTranche > 0 ? '+' : '') + formatDe(pnlTranche * 100, 1, 1)} %</td>
+            <td>${annRenditeStr}</td>
+        `;
+        twrrBody.appendChild(tr);
+    });
+    
+    const finalTwrrPct = twrrSum * 100;
+    if (finalTwrrPct !== 0) {
+        elTwrr.textContent = (finalTwrrPct > 0 ? '+' : '') + formatDe(finalTwrrPct, 1, 1) + ' %';
+        elTwrr.style.color = finalTwrrPct >= 0 ? 'var(--green)' : 'var(--red)';
+    } else {
+        elTwrr.textContent = 'n/a';
+        elTwrr.style.color = 'var(--text-dim)';
+    }
+}
+
+// Live Price Fetching
+let priceTimeout;
+document.getElementById('calc-ticker').addEventListener('input', function(e) {
+    const ticker = e.target.value.trim();
+    if (priceTimeout) clearTimeout(priceTimeout);
+    
+    if (!ticker) {
+        currentLivePrice = null;
+        document.getElementById('calc-current-price').textContent = '—';
+        updateCalculations();
+        return;
+    }
+    
+    priceTimeout = setTimeout(() => {
+        document.getElementById('calc-price-spinner').style.display = 'inline-block';
+        fetch(`/api/ticker/search?q=${encodeURIComponent(ticker)}`)
+            .then(r => r.json())
+            .then(data => {
+                // To get actual live price, we might need a quote endpoint.
+                // Since the prompt says "Aktueller Kurs | Aus bestehendem Marktdaten-API", 
+                // we should use a quote endpoint. Wait, is there one?
+                // `cached_quote` exists in `services/cache_core`. Let's create an endpoint or just use watchlist data?
+                // I will add a small quote endpoint in api.py shortly, or assume it's there.
+                // Let's fetch from `/api/ticker/quote` which I will build.
+                fetch(`/api/ticker/quote?ticker=${encodeURIComponent(ticker)}`)
+                    .then(rq => rq.json())
+                    .then(qdata => {
+                        document.getElementById('calc-price-spinner').style.display = 'none';
+                        if (qdata && qdata.price) {
+                            currentLivePrice = qdata.price;
+                            document.getElementById('calc-current-price').textContent = formatDe(currentLivePrice) + ' €';
+                        } else {
+                            currentLivePrice = null;
+                            document.getElementById('calc-current-price').textContent = 'Kein Kurs';
+                        }
+                        updateCalculations();
+                    }).catch(err => {
+                        document.getElementById('calc-price-spinner').style.display = 'none';
+                    });
+            });
+    }, 800);
+});
+
+// Init first row
+addCalcRow();
+
+// Action Buttons
+function saveToWatchlist() {
+    const ticker = document.getElementById('calc-ticker').value.trim();
+    if (!ticker) {
+        showToast('Bitte einen Ticker eingeben', 'warning');
+        return;
+    }
+    const name = document.getElementById('calc-company-name').value.trim() || ticker;
+    
+    let totalInvested = 0;
+    let totalShares = 0;
+    let earliestDate = null;
+    calcRows.forEach(r => {
+        if (r.price > 0 && r.amount > 0) {
+            totalInvested += r.amount;
+            totalShares += (r.amount / r.price);
+            if (r.date && (!earliestDate || new Date(r.date) < new Date(earliestDate))) {
+                earliestDate = r.date;
+            }
+        }
+    });
+    
+    if (totalShares === 0) {
+        showToast('Bitte mindestens einen gültigen Kauf erfassen', 'warning');
+        return;
+    }
+    
+    const avgPrice = totalInvested / totalShares;
+    
+    // Simulate Confirmation Modal
+    if (confirm(`Position speichern?\n${ticker} — ${name}\nØ Kaufkurs: ${formatDe(avgPrice)} € | Anteile: ${formatDe(totalShares, 4, 4)}\nInvestiert: ${formatDe(totalInvested)} €`)) {
+        // Post to watchlist/buy
+        const fd = new FormData();
+        fd.append('ticker', ticker);
+        fd.append('buy_price', avgPrice);
+        fd.append('quantity', totalShares);
+        if (earliestDate) fd.append('buy_date', earliestDate);
+        fd.append('notes', 'Zusammengeführte Position (Rechner)');
+        
+        fetch('/watchlist/buy', {
+            method: 'POST',
+            body: fd
+        }).then(r => r.text())
+        .then(html => {
+            if (html.includes('Position eröffnet')) {
+                showToast('Position wurde zur Watchlist hinzugefügt', 'success');
+            } else {
+                showToast('Position gespeichert', 'success');
+            }
+        }).catch(err => {
+            showToast('Fehler beim Speichern', 'error');
+        });
+    }
+}
+
+function useForAnalysis() {
+    const ticker = document.getElementById('calc-ticker').value.trim();
+    if (!ticker) {
+        showToast('Bitte einen Ticker eingeben', 'warning');
+        return;
+    }
+    
+    let totalInvested = 0;
+    let totalShares = 0;
+    let earliestDate = null;
+    calcRows.forEach(r => {
+        if (r.price > 0 && r.amount > 0) {
+            totalInvested += r.amount;
+            totalShares += (r.amount / r.price);
+            if (r.date && (!earliestDate || new Date(r.date) < new Date(earliestDate))) {
+                earliestDate = r.date;
+            }
+        }
+    });
+    
+    if (totalShares === 0) {
+        showToast('Bitte mindestens einen gültigen Kauf erfassen', 'warning');
+        return;
+    }
+    
+    const avgPrice = totalInvested / totalShares;
+    
+    // Handoff to /analysis/position via sessionStorage
+    const handoff = {
+        ticker: ticker,
+        buy_price: avgPrice,
+        quantity: totalShares,
+        buy_date: earliestDate || ''
+    };
+    sessionStorage.setItem('calcHandoff', JSON.stringify(handoff));
+    window.location.href = '/analysis/position?mode=manual';
+}
+</script>
+
 <!-- Quick-Hinweis -->
-<div style="max-width:900px;margin:32px auto 0;text-align:center;">
-  <p class="caption" style="font-size:0.8rem;">
-    💡 <b>Tipp:</b> Die Positions-Analyse zeigt dir, ob du halten, aufstocken oder schließen solltest —
+<div style="max-width:800px; margin: 40px auto 0; text-align: center; background: rgba(15, 23, 42, 0.4); padding: 20px; border-radius: var(--radius-md); border: 1px solid var(--border);">
+  <p class="caption" style="font-size: 0.85rem; margin: 0; line-height: 1.5;">
+    <span style="font-size: 1rem; margin-right: 4px;">💡</span> <b>Tipp:</b> Die Positions-Analyse zeigt dir, ob du halten, aufstocken oder schließen solltest —
     basierend auf technischen Indikatoren, Fundamentaldaten und deinem persönlichen Einstiegspreis.
   </p>
 </div>

@@ -831,6 +831,8 @@ async def analysis_position_load(
     if isinstance(ctx, str):
         return HTMLResponse(ctx)
 
+    ctx["input_mode"] = input_mode
+
     return templates.TemplateResponse(
         request=request,
         name="partials/analysis_position_content.html",
