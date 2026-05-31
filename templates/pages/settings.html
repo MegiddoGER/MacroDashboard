@@ -42,27 +42,75 @@
       </div>
       {% endif %}
 
-      <input type="text"
-             name="quiver_token"
-             id="quiver_token"
-             class="form-input"
-             placeholder="{{ 'Neuen Token eingeben zum Überschreiben...' if quiver_token_set else 'Bearer-Token hier einfügen...' }}"
-             autocomplete="off"
-             style="font-family:monospace;">
+      <div style="display:flex;gap:12px;align-items:center;">
+        <input type="text"
+               name="quiver_token"
+               id="quiver_token"
+               class="form-input"
+               placeholder="{{ 'Neuen Token eingeben zum Überschreiben...' if quiver_token_set else 'Bearer-Token hier einfügen...' }}"
+               autocomplete="off"
+               style="font-family:monospace;">
+        {% if quiver_token_set %}
+        <button type="button" class="btn btn-danger btn-sm"
+                hx-post="/settings/api-keys"
+                hx-target="#settings-feedback"
+                hx-swap="innerHTML"
+                hx-vals='{"quiver_token": ""}'
+                onclick="return confirm('Quiver Token wirklich löschen?');">
+          🗑️ Löschen
+        </button>
+        {% endif %}
+      </div>
     </div>
 
-    <div style="display:flex;gap:12px;align-items:center;">
-      <button type="submit" class="btn btn-primary">💾 Speichern</button>
-      {% if quiver_token_set %}
-      <button type="button" class="btn btn-danger btn-sm"
-              hx-post="/settings/api-keys"
-              hx-target="#settings-feedback"
-              hx-swap="innerHTML"
-              hx-vals='{"quiver_token": ""}'
-              onclick="return confirm('Token wirklich löschen?');">
-        🗑️ Token löschen
-      </button>
+    <!-- Finnhub API -->
+    <div style="margin-bottom:20px; border-top: 1px solid var(--border); padding-top: 20px;">
+      <label class="form-label" for="finnhub_token">
+        Finnhub API-Token
+        {% if finnhub_token_set %}
+        <span style="color:var(--green);font-size:0.8rem;margin-left:8px;">✅ Aktiv</span>
+        {% else %}
+        <span style="color:var(--text-dim);font-size:0.8rem;margin-left:8px;">❌ Nicht konfiguriert</span>
+        {% endif %}
+      </label>
+
+      <p class="caption" style="margin-bottom:8px;">
+        Wird benötigt für: Original-Nachrichten-Links direkt zu Publishern (z.B. Reuters, CNBC) statt Yahoo Finance.
+        <br>
+        <a href="https://finnhub.io/" target="_blank" rel="noopener" style="color:var(--accent);">
+          → Token hier registrieren (finnhub.io, "Free API Key")
+        </a>
+      </p>
+
+      {% if finnhub_token_set %}
+      <div style="margin-bottom:8px;padding:8px 12px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;font-family:monospace;font-size:0.85rem;color:var(--text-dim);">
+        {{ finnhub_token_masked }}
+      </div>
       {% endif %}
+
+      <div style="display:flex;gap:12px;align-items:center;">
+        <input type="text"
+               name="finnhub_token"
+               id="finnhub_token"
+               class="form-input"
+               placeholder="{{ 'Neuen Token eingeben zum Überschreiben...' if finnhub_token_set else 'API-Token hier einfügen...' }}"
+               autocomplete="off"
+               style="font-family:monospace;">
+        {% if finnhub_token_set %}
+        <button type="button" class="btn btn-danger btn-sm"
+                hx-post="/settings/api-keys"
+                hx-target="#settings-feedback"
+                hx-swap="innerHTML"
+                hx-vals='{"finnhub_token": ""}'
+                onclick="return confirm('Finnhub Token wirklich löschen?');">
+          🗑️ Löschen
+        </button>
+        {% endif %}
+      </div>
+    </div>
+
+    <div style="display:flex;gap:12px;align-items:center;margin-top:10px;">
+      <button type="submit" class="btn btn-primary">💾 Alle Änderungen speichern</button>
     </div>
   </form>
 </div>

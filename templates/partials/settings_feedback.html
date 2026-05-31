@@ -1,12 +1,11 @@
 <!-- partials/settings_feedback.html — HTMX-Feedback nach dem Speichern -->
 {% if saved %}
 <div class="alert alert-success" style="margin-bottom:12px;">
-  ✅ Einstellungen gespeichert!
-  {% if quiver_token_set %}
-  Quiver API-Token ist aktiv. Neue Daten werden beim nächsten Analyse-Aufruf geladen.
-  {% else %}
-  Quiver API-Token wurde gelöscht. yfinance-Fallback ist aktiv.
-  {% endif %}
+  ✅ Einstellungen gespeichert!<br>
+  <span style="font-size: 0.9em;">
+  {% if quiver_token_set %}Quiver API aktiv.{% else %}Quiver API inaktiv (Fallback aktiv).{% endif %}<br>
+  {% if finnhub_token_set %}Finnhub API aktiv.{% else %}Finnhub API inaktiv (Fallback aktiv).{% endif %}
+  </span>
 </div>
 {% endif %}
 

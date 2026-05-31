@@ -124,11 +124,54 @@ def get_regional_news(region: str, max_items: int = 15) -> list[dict] | None:
 
 
 def get_company_news(ticker: str, max_items: int = 10) -> list[dict] | None:
-    """Lädt ticker-spezifische Nachrichten via yfinance.
+    """Lädt ticker-spezifische Nachrichten via Finnhub (oder yfinance als Fallback).
 
     Rückgabe: Liste von Dicts [{title, link, published, source}, ...],
               oder None bei Fehler.
     """
+    from database import get_setting
+    from datetime import datetime, timedelta
+    import requests
+
+    # 1. Finnhub (Primär)
+    finnhub_token = get_setting("FINNHUB_API_TOKEN")
+    if finnhub_token:
+        try:
+            today = datetime.now()
+            from_date = (today - timedelta(days=14)).strftime("%Y-%m-%d")
+            to_date = today.strftime("%Y-%m-%d")
+            
+            url = f"https://finnhub.io/api/v1/company-news?symbol={ticker}&from={from_date}&to={to_date}&token={finnhub_token}"
+            resp = requests.get(url, timeout=5)
+            if resp.status_code == 200:
+                data = resp.json()
+                if data and isinstance(data, list):
+                    articles = []
+                    for item in data[:max_items]:
+                        source = item.get("source", "Finnhub")
+                        
+                        # Clickbait filter
+                        is_clickbait = any(cs.lower() in source.lower() for cs in _CLICKBAIT_SOURCES)
+                        if is_clickbait:
+                            continue
+                            
+                        is_premium = any(ps.lower() in source.lower() for ps in _PREMIUM_SOURCES)
+                        
+                        articles.append({
+                            "title": item.get("headline", "").strip(),
+                            "link": item.get("url", ""),
+                            "published": datetime.fromtimestamp(item.get("datetime", 0)),
+                            "source": source,
+                            "summary": item.get("summary", ""),
+                            "premium": is_premium,
+                        })
+                    
+                    if articles:
+                        return articles
+        except Exception as exc:
+            warnings.warn(f"get_company_news (Finnhub) {ticker}: {exc}")
+
+    # 2. yfinance (Fallback)
     try:
         tk = yf.Ticker(ticker)
         raw_news = tk.news
@@ -163,7 +206,6 @@ def get_company_news(ticker: str, max_items: int = 10) -> list[dict] | None:
             pub_date = content.get("pubDate")
             if pub_date:
                 try:
-                    from datetime import datetime
                     # yfinance liefert ISO-Format
                     published = datetime.fromisoformat(pub_date.replace("Z", "+00:00"))
                 except Exception:
