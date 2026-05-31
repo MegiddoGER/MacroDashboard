@@ -1,0 +1,284 @@
+<!-- analysis_position_content.html — HTMX partial loaded by POST /analysis/position/load -->
+
+<!-- ═══ Zusammenfassungsleiste ═══ -->
+<div class="summary-bar">
+  <div class="summary-bar-item">
+    <span class="summary-bar-label">Ticker</span>
+    <span class="summary-bar-value">{{ display_ticker }}</span>
+  </div>
+  <div class="summary-bar-item">
+    <span class="summary-bar-label">Name</span>
+    <span class="summary-bar-value">{{ stats.get('name', '—') }}</span>
+  </div>
+  <div class="summary-bar-item">
+    <span class="summary-bar-label">Kaufkurs</span>
+    <span class="summary-bar-value">{{ fmt_price(pos_data.buy_price) }}</span>
+  </div>
+  <div class="summary-bar-item">
+    <span class="summary-bar-label">Aktuell</span>
+    <span class="summary-bar-value">{{ fmt_price(pos_data.current_price) }}</span>
+  </div>
+  <div class="summary-bar-item">
+    <span class="summary-bar-label">P&L</span>
+    <span class="summary-bar-value" style="color:{{ '#22c55e' if pos_data.pnl_pct >= 0 else '#ef4444' }};">
+      {{ "%+.1f"|format(pos_data.pnl_pct) }}%
+      ({{ "%+,.2f"|format(pos_data.pnl_eur)|replace(",","X")|replace(".","," )|replace("X",".") }} €)
+    </span>
+  </div>
+  <div class="summary-bar-item">
+    <span class="summary-bar-label">Haltedauer</span>
+    <span class="summary-bar-value">{{ pos_data.holding_days }} Tage</span>
+  </div>
+</div>
+
+<!-- ═══ Positions-Übersicht ═══ -->
+<h4>📋 Positions-Übersicht</h4>
+<div class="grid-4" style="gap:12px;margin-bottom:12px;">
+  <div class="metric-card">
+    <div class="metric-label">Kaufkurs</div>
+    <div class="metric-value">{{ fmt_price(pos_data.buy_price) }}</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-label">Aktueller Kurs</div>
+    <div class="metric-value">{{ fmt_price(pos_data.current_price) }}</div>
+    <div class="metric-delta {{ 'positive' if pos_data.pnl_pct >= 0 else 'negative' }}">{{ "%+.1f"|format(pos_data.pnl_pct) }}%</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-label">Stückzahl</div>
+    <div class="metric-value">{{ "%.2f"|format(pos_data.quantity) }}</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-label">Investiert</div>
+    <div class="metric-value">{{ "%,.2f"|format(pos_data.total_invested)|replace(",","X")|replace(".","," )|replace("X",".") }} €</div>
+  </div>
+</div>
+<div class="grid-4" style="gap:12px;margin-bottom:12px;">
+  <div class="metric-card">
+    <div class="metric-label">Aktueller Wert</div>
+    <div class="metric-value">{{ "%,.2f"|format(pos_data.current_value)|replace(",","X")|replace(".","," )|replace("X",".") }} €</div>
+    <div class="metric-delta {{ 'positive' if pos_data.pnl_eur >= 0 else 'negative' }}">{{ "%+,.2f"|format(pos_data.pnl_eur)|replace(",","X")|replace(".","," )|replace("X",".") }} €</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-label">Haltedauer</div>
+    <div class="metric-value">{{ pos_data.holding_days }} Tage</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-label">{% if pos_data.holding_days >= 30 %}Annualisierte Rendite{% else %}Rendite (roh){% endif %}</div>
+    <div class="metric-value" style="color:{{ '#22c55e' if pos_data.annualized_return >= 0 else '#ef4444' }};">
+      {% if pos_data.holding_days >= 30 %}
+        {{ "%+.1f"|format(pos_data.annualized_return) }}% p.a.
+      {% else %}
+        {{ "%+.1f"|format(pos_data.pnl_pct) }}%
+      {% endif %}
+    </div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-label">Break-Even</div>
+    <div class="metric-value">{{ fmt_price(pos_data.buy_price) }}</div>
+    <div class="metric-delta neutral">
+      {% if pos_data.current_price > pos_data.buy_price %}
+        {{ "%.1f"|format(((pos_data.current_price - pos_data.buy_price) / pos_data.buy_price) * 100) }}% darüber
+      {% elif pos_data.current_price < pos_data.buy_price %}
+        {{ "%.1f"|format(((pos_data.buy_price - pos_data.current_price) / pos_data.buy_price) * 100) }}% darunter
+      {% else %}
+        Am Break-Even
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- SMA-Distanzen + SL/TP -->
+<div class="grid-4" style="gap:12px;margin-bottom:var(--gap);">
+  {% if pos_data.sma20_dist is not none %}
+  <div class="metric-card">
+    <div class="metric-label">Distanz SMA 20</div>
+    <div class="metric-value" style="color:{{ '#22c55e' if pos_data.sma20_dist >= 0 else '#ef4444' }};">{{ "%+.1f"|format(pos_data.sma20_dist) }}%</div>
+  </div>
+  {% endif %}
+  {% if pos_data.sma50_dist is not none %}
+  <div class="metric-card">
+    <div class="metric-label">Distanz SMA 50</div>
+    <div class="metric-value" style="color:{{ '#22c55e' if pos_data.sma50_dist >= 0 else '#ef4444' }};">{{ "%+.1f"|format(pos_data.sma50_dist) }}%</div>
+  </div>
+  {% endif %}
+  {% if pos_data.sma200_dist is not none %}
+  <div class="metric-card">
+    <div class="metric-label">Distanz SMA 200</div>
+    <div class="metric-value" style="color:{{ '#22c55e' if pos_data.sma200_dist >= 0 else '#ef4444' }};">{{ "%+.1f"|format(pos_data.sma200_dist) }}%</div>
+  </div>
+  {% endif %}
+  {% if pos_data.stop_loss %}
+  <div class="metric-card">
+    <div class="metric-label">Stop-Loss</div>
+    <div class="metric-value">{{ fmt_price(pos_data.stop_loss) }}</div>
+    <div class="metric-delta neutral">
+      {{ "%.1f"|format(((pos_data.stop_loss - pos_data.current_price) / pos_data.current_price) * 100) }}% zum Kurs
+    </div>
+  </div>
+  {% endif %}
+  {% if pos_data.take_profit %}
+  <div class="metric-card">
+    <div class="metric-label">Take-Profit</div>
+    <div class="metric-value">{{ fmt_price(pos_data.take_profit) }}</div>
+    <div class="metric-delta neutral">
+      {{ "%+.1f"|format(((pos_data.take_profit - pos_data.current_price) / pos_data.current_price) * 100) }}% zum Kurs
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+{% if stats.get('currency_converted') %}
+<div class="alert alert-info">💱 Originalwährung: <b>{{ stats.get('currency','USD') }}</b> — Umrechnungskurs: 1 {{ stats.get('currency','USD') }} = {{ "%.4f"|format(stats.get('fx_rate',0)) }} EUR</div>
+{% endif %}
+
+<hr>
+
+<!-- ═══ Technische Analyse — Indikator-Checkliste ═══ -->
+{% if enriched_checklist %}
+<h4>🔍 Technische Analyse — Indikatoren-Checkliste</h4>
+<p class="caption">Alle Indikatoren mit positionsspezifischer Relevanz für deine bestehende Position.</p>
+
+{% set tech_indicators = ['ADX', 'Trend (SMAs)', 'MACD'] %}
+{% set osc_indicators = ['RSI (14)', 'Bollinger Bänder', 'Stochastic'] %}
+{% set vol_indicators = ['OBV Trend', 'VWMA (20T)', 'Volumen-Cluster (POC)', 'FVG (Fair Value Gap)', 'Equal Highs (EQH)', 'Equal Lows (EQL)'] %}
+{% set fund_indicators = ['DCF Fair Value', 'Bilanzqualität', 'Insider-Sentiment', 'Analysten-Konsens', 'Dividende'] %}
+{% set sent_indicators = ['News Sentiment', 'Earnings Surprise', 'Contrarian-Warnung 🧨'] %}
+
+{% macro render_pos_category(title, icon, indicator_names, items) %}
+{% set cat_items = [] %}
+{% for item in items %}
+  {% if item.get('Indikator','') in indicator_names %}
+    {% if cat_items.append(item) %}{% endif %}
+  {% endif %}
+{% endfor %}
+{% if cat_items %}
+<div style="margin-bottom:16px;">
+  <h6 style="margin-bottom:6px;color:var(--text-dim);">{{ icon }} {{ title }}</h6>
+  <div class="table-container">
+    <table class="data-table">
+      <thead><tr><th>Indikator</th><th>Wert</th><th>Signal</th><th>Beitrag</th><th>Positionsrelevanz</th></tr></thead>
+      <tbody>
+      {% for item in cat_items %}
+      <tr>
+        <td><b>{{ item.get('Indikator','') }}</b></td>
+        <td>{{ item.get('Wert','—') }}</td>
+        <td>{{ item.get('Signal','—') }}</td>
+        <td>{{ item.get('Beitrag','—') }}</td>
+        <td>{% if item.get('Positionsrelevanz') %}<span class="relevance-note">{{ item.Positionsrelevanz }}</span>{% else %}—{% endif %}</td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+{% endmacro %}
+
+{{ render_pos_category('Technisch', '🔬', tech_indicators, enriched_checklist) }}
+{{ render_pos_category('Oszillatoren', '📉', osc_indicators, enriched_checklist) }}
+{{ render_pos_category('Volumen & Struktur', '📊', vol_indicators, enriched_checklist) }}
+{{ render_pos_category('Fundamental', '🏦', fund_indicators, enriched_checklist) }}
+{{ render_pos_category('Sentiment', '📰', sent_indicators, enriched_checklist) }}
+
+{# Catch-all für nicht kategorisierte Indikatoren #}
+{% set all_known = tech_indicators + osc_indicators + vol_indicators + fund_indicators + sent_indicators %}
+{% set other_items = [] %}
+{% for item in enriched_checklist %}
+  {% if item.get('Indikator','') not in all_known %}
+    {% if other_items.append(item) %}{% endif %}
+  {% endif %}
+{% endfor %}
+{% if other_items %}
+<div style="margin-bottom:16px;">
+  <h6 style="margin-bottom:6px;color:var(--text-dim);">🔧 Sonstige</h6>
+  <div class="table-container">
+    <table class="data-table">
+      <thead><tr><th>Indikator</th><th>Wert</th><th>Signal</th><th>Beitrag</th><th>Positionsrelevanz</th></tr></thead>
+      <tbody>
+      {% for item in other_items %}
+      <tr>
+        <td><b>{{ item.get('Indikator','') }}</b></td>
+        <td>{{ item.get('Wert','—') }}</td>
+        <td>{{ item.get('Signal','—') }}</td>
+        <td>{{ item.get('Beitrag','—') }}</td>
+        <td>{% if item.get('Positionsrelevanz') %}<span class="relevance-note">{{ item.Positionsrelevanz }}</span>{% else %}—{% endif %}</td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+{% endif %}
+
+<hr>
+
+<!-- ═══ Fundamentale Projektion ═══ -->
+{% if dcf %}
+<h4>💰 Fundamentale Projektion vs. Position</h4>
+<div class="grid-4" style="gap:12px;margin-bottom:12px;">
+  <div class="metric-card">
+    <div class="metric-label">DCF Fair Value</div>
+    <div class="metric-value">{{ fmt_price(dcf.fair_value) }}</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-label">Kaufkurs</div>
+    <div class="metric-value">{{ fmt_price(pos_data.buy_price) }}</div>
+    <div class="metric-delta {{ 'positive' if dcf.fair_value > pos_data.buy_price else 'negative' }}">
+      {% if pos_data.buy_price > 0 %}
+        MoS: {{ "%+.1f"|format(((dcf.fair_value - pos_data.buy_price) / pos_data.buy_price) * 100) }}%
+      {% else %}—{% endif %}
+    </div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-label">Aktueller Kurs</div>
+    <div class="metric-value">{{ fmt_price(pos_data.current_price) }}</div>
+    <div class="metric-delta {{ 'positive' if dcf.upside_pct > 0 else 'negative' }}">{{ "%+.1f"|format(dcf.upside_pct) }}% zum FV</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-label">WACC</div>
+    <div class="metric-value">{{ "%.1f %%"|format(dcf.wacc) }}</div>
+  </div>
+</div>
+{% if dcf.is_proxy_fcf %}<div class="alert alert-warning" style="margin-bottom:12px;">⚠️ <b>Growth-Modell:</b> FCF ist negativ. Fair Value wurde mit proxyhafter 10% FCF-Marge (basierend auf Umsatz) modelliert.</div>{% endif %}
+{% if dcf.margin_of_safety %}<div class="alert alert-success">✅ Margin of Safety vorhanden ({{ "%+.1f"|format(dcf.upside_pct) }}%)</div>
+{% elif dcf.upside_pct > 0 %}<div class="alert alert-info">Leichtes Upside ({{ "%+.1f"|format(dcf.upside_pct) }}%)</div>
+{% else %}<div class="alert alert-warning">⚠️ Überbewertet ({{ "%+.1f"|format(dcf.upside_pct) }}% vs. DCF)</div>{% endif %}
+
+{% if balance %}
+<div class="grid-4" style="gap:12px;margin-top:12px;">
+  <div class="metric-card"><div class="metric-label">KGV (P/E)</div><div class="metric-value">{{ "%.1f"|format(stats.pe_ratio) if stats.pe_ratio else "—" }}</div></div>
+  <div class="metric-card"><div class="metric-label">Debt/Equity</div><div class="metric-value">{{ "%.1f %%"|format(balance.debt_to_equity) if balance.debt_to_equity else "—" }}</div></div>
+  <div class="metric-card"><div class="metric-label">Current Ratio</div><div class="metric-value">{{ "%.2f"|format(balance.current_ratio) if balance.current_ratio else "—" }}</div></div>
+  <div class="metric-card"><div class="metric-label">Net Debt/EBITDA</div><div class="metric-value">{{ "%.1fx"|format(balance.net_debt_ebitda) if balance.net_debt_ebitda is not none else "—" }}</div></div>
+</div>
+{% endif %}
+<hr>
+{% else %}
+<div class="alert alert-info">DCF nicht berechenbar (fehlende Daten) — fundamentale Projektion eingeschränkt.</div>
+<hr>
+{% endif %}
+
+<!-- ═══ Strategische Handlungsempfehlung ═══ -->
+<h4>🎯 Strategische Handlungsempfehlung</h4>
+
+<!-- Versteckte Felder für HTMX-Rerender der Empfehlung bei Modifier-Wechsel -->
+<input type="hidden" name="rec_ticker" value="{{ ticker }}">
+<input type="hidden" name="rec_buy_price" value="{{ pos_data.buy_price }}">
+<input type="hidden" name="rec_quantity" value="{{ pos_data.quantity }}">
+<input type="hidden" name="rec_buy_date" value="{{ pos_data.buy_date or '' }}">
+<input type="hidden" name="rec_current_price" value="{{ pos_data.current_price }}">
+<input type="hidden" name="rec_confidence" value="{{ sum_data.confidence if sum_data else 50 }}">
+<input type="hidden" name="rec_stop_loss" value="{{ pos_data.stop_loss or '' }}">
+<input type="hidden" name="rec_take_profit" value="{{ pos_data.take_profit or '' }}">
+<input type="hidden" name="rec_atr_val" value="{{ pos_data.atr_val or '' }}">
+<input type="hidden" name="rec_sma200_dist" value="{{ pos_data.sma200_dist or '' }}">
+<input type="hidden" name="rec_pnl_pct" value="{{ pos_data.pnl_pct }}">
+<input type="hidden" name="rec_pnl_eur" value="{{ pos_data.pnl_eur }}">
+<input type="hidden" name="rec_holding_days" value="{{ pos_data.holding_days }}">
+<input type="hidden" name="rec_total_invested" value="{{ pos_data.total_invested }}">
+<input type="hidden" name="rec_current_value" value="{{ pos_data.current_value }}">
+
+<div id="position-recommendation-section">
+  {% include "partials/position_recommendation.html" %}
+</div>

@@ -1,8 +1,12 @@
 """
 routers/analysis.py — Analyse-Seite (Herzstueck des Dashboards).
 
-GET  /analysis            â†’ Ticker-Eingabe
-POST /analysis/load       â†’ Laedt vollstaendige Analyse als HTMX-Partial
+GET  /analysis            → Landing-Page (Analyse-Modus wählen)
+GET  /analysis/new        → Ticker-Eingabe (neue Aktie analysieren)
+POST /analysis/load       → Laedt vollstaendige Analyse als HTMX-Partial
+GET  /analysis/position   → Positions-Analyse (Input-Seite)
+POST /analysis/position/load → Laedt Positions-Analyse als HTMX-Partial
+GET  /api/analysis/position/recommendation → HTMX-Partial: Empfehlung re-rendern
 """
 
 import json
@@ -31,7 +35,7 @@ from services.fundamental import (
     get_sector_peers, calc_dividend_analysis, get_insider_institutional,
     get_analyst_consensus,
 )
-from services.scoring import calc_quick_score
+from services.scoring import calc_quick_score, calc_position_score, generate_position_relevance
 
 router = APIRouter(tags=["pages"])
 
@@ -78,11 +82,29 @@ def _fmt_big(val):
 
 
 # ---------------------------------------------------------------------------
-# Page: Analyse (Ticker-Eingabe)
+# Page: Analyse Landing (Modus wählen)
 # ---------------------------------------------------------------------------
 
 @router.get("/analysis", response_class=HTMLResponse)
-async def analysis_page(request: Request):
+async def analysis_landing(request: Request):
+    templates = request.app.state.templates
+    ctx = {
+        "current_path": "/analysis",
+        "header_metrics": _get_header_metrics(),
+    }
+    return templates.TemplateResponse(
+        request=request,
+        name="pages/analysis_landing.html",
+        context=ctx,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Page: Neue Aktie analysieren (alter /analysis)
+# ---------------------------------------------------------------------------
+
+@router.get("/analysis/new", response_class=HTMLResponse)
+async def analysis_new_page(request: Request):
     templates = request.app.state.templates
     wl_items = load_watchlist()
     ctx = {
@@ -718,3 +740,390 @@ def _build_analysis_context(raw_input: str, time_filter: str) -> dict | str:
         "fmt_big": _fmt_big,
     }
     return ctx
+
+
+# ---------------------------------------------------------------------------
+# Page: Positions-Analyse (Input-Seite)
+# ---------------------------------------------------------------------------
+
+@router.get("/analysis/position", response_class=HTMLResponse)
+async def analysis_position_page(request: Request):
+    import asyncio
+    templates = request.app.state.templates
+
+    def _load_positions():
+        from services.watchlist import get_open_positions
+        positions = get_open_positions()
+        # Aktuelle Kurse laden für P&L-Anzeige im Dropdown
+        enriched = []
+        for p in positions:
+            ticker = p["ticker"]
+            try:
+                details = cached_stock_details(ticker)
+                if details and details.get("stats"):
+                    current_price = _safe_float(details["stats"].get("current_price"), 0)
+                    buy_price = p["position"].get("buy_price", 0) or 0
+                    quantity = p["position"].get("quantity", 0) or 0
+                    if buy_price > 0 and current_price > 0:
+                        pnl_pct = ((current_price - buy_price) / buy_price) * 100
+                    else:
+                        pnl_pct = None
+                    p["pnl_pct"] = pnl_pct
+                    p["current_price"] = current_price
+                else:
+                    p["pnl_pct"] = None
+                    p["current_price"] = None
+            except Exception:
+                p["pnl_pct"] = None
+                p["current_price"] = None
+            enriched.append(p)
+        return enriched
+
+    open_positions = await asyncio.to_thread(_load_positions)
+
+    ctx = {
+        "current_path": "/analysis",
+        "header_metrics": _get_header_metrics(),
+        "open_positions": open_positions,
+    }
+    return templates.TemplateResponse(
+        request=request,
+        name="pages/analysis_position.html",
+        context=ctx,
+    )
+
+
+# ---------------------------------------------------------------------------
+# HTMX Partial: Positions-Analyse laden
+# ---------------------------------------------------------------------------
+
+@router.post("/analysis/position/load", response_class=HTMLResponse)
+async def analysis_position_load(
+    request: Request,
+    ticker: str = Form(""),
+    buy_date: str = Form(""),
+    buy_price: float = Form(0),
+    quantity: float = Form(0),
+    stop_loss: float = Form(None),
+    take_profit: float = Form(None),
+    volume_modifier: str = Form("mittel"),
+    input_mode: str = Form("manual"),
+):
+    import asyncio
+    templates = request.app.state.templates
+
+    ticker = ticker.strip()
+    if not ticker:
+        return HTMLResponse(
+            "<div class='alert alert-danger'>Bitte einen Ticker angeben.</div>"
+        )
+    if buy_price <= 0 or quantity <= 0:
+        return HTMLResponse(
+            "<div class='alert alert-danger'>Kaufkurs und Stückzahl müssen > 0 sein.</div>"
+        )
+
+    ctx = await asyncio.to_thread(
+        _build_position_analysis_context,
+        ticker, buy_date, buy_price, quantity,
+        stop_loss, take_profit, volume_modifier,
+    )
+
+    if isinstance(ctx, str):
+        return HTMLResponse(ctx)
+
+    return templates.TemplateResponse(
+        request=request,
+        name="partials/analysis_position_content.html",
+        context=ctx,
+    )
+
+
+def _build_position_analysis_context(
+    raw_ticker: str,
+    buy_date: str,
+    buy_price: float,
+    quantity: float,
+    stop_loss: float | None,
+    take_profit: float | None,
+    volume_modifier: str,
+) -> dict | str:
+    """Baut den vollständigen Kontext für die Positions-Analyse."""
+    from datetime import datetime, date
+
+    # Resolve ticker
+    resolved = resolve_ticker(raw_ticker)
+    if resolved:
+        ticker = resolved["ticker"]
+        display_ticker = resolved.get("display", ticker)
+    else:
+        ticker = raw_ticker.upper()
+        display_ticker = ticker
+
+    # Lade Aktiendetails
+    try:
+        details = cached_stock_details(ticker)
+    except Exception as e:
+        return f"<div class='alert alert-danger'>Fehler beim Laden: {e}</div>"
+
+    if details is None:
+        return f"<div class='alert alert-danger'>Keine Daten für <b>{ticker}</b> gefunden.</div>"
+
+    stats = details["stats"]
+    hist = details["hist_1y"]
+    info_data = details.get("info", {})
+    current_price = _safe_float(stats.get("current_price"), 0)
+
+    if current_price <= 0:
+        return "<div class='alert alert-danger'>Kein aktueller Kurs verfügbar.</div>"
+
+    # ── Positionsdaten berechnen ────────────────────────────────
+    total_invested = buy_price * quantity
+    current_value = current_price * quantity
+    pnl_eur = current_value - total_invested
+    pnl_pct = ((current_price - buy_price) / buy_price) * 100 if buy_price > 0 else 0
+
+    # Haltedauer
+    holding_days = 0
+    if buy_date:
+        try:
+            buy_dt = datetime.strptime(buy_date, "%Y-%m-%d").date()
+            holding_days = (date.today() - buy_dt).days
+        except ValueError:
+            pass
+
+    # Annualisierte Rendite (nur für Positionen >= 30 Tage)
+    annualized_return = 0.0
+    if holding_days >= 30 and buy_price > 0:
+        total_return = current_price / buy_price
+        if total_return > 0:
+            annualized_return = (total_return ** (365.0 / holding_days) - 1) * 100
+    else:
+        annualized_return = pnl_pct
+
+    # SMA-Distanzen
+    sma20_dist = None
+    sma50_dist = None
+    sma200_dist = None
+    try:
+        close = hist["Close"]
+        if len(close) >= 20:
+            sma20 = float(close.rolling(20).mean().iloc[-1])
+            sma20_dist = ((current_price - sma20) / sma20) * 100 if sma20 > 0 else None
+        if len(close) >= 50:
+            sma50 = float(close.rolling(50).mean().iloc[-1])
+            sma50_dist = ((current_price - sma50) / sma50) * 100 if sma50 > 0 else None
+        if len(close) >= 200:
+            sma200 = float(close.rolling(200).mean().iloc[-1])
+            sma200_dist = ((current_price - sma200) / sma200) * 100 if sma200 > 0 else None
+    except Exception:
+        pass
+
+    # ATR
+    atr_val = None
+    try:
+        atr_series = calc_atr(hist["High"], hist["Low"], hist["Close"], 14)
+        atr_val = float(atr_series.dropna().iloc[-1]) if not atr_series.dropna().empty else None
+    except Exception:
+        pass
+
+    pos_data = {
+        "buy_price": buy_price,
+        "buy_date": buy_date,
+        "quantity": quantity,
+        "current_price": current_price,
+        "total_invested": total_invested,
+        "current_value": current_value,
+        "pnl_eur": pnl_eur,
+        "pnl_pct": pnl_pct,
+        "holding_days": holding_days,
+        "annualized_return": annualized_return,
+        "stop_loss": stop_loss,
+        "take_profit": take_profit,
+        "sma20_dist": sma20_dist,
+        "sma50_dist": sma50_dist,
+        "sma200_dist": sma200_dist,
+        "atr_val": atr_val,
+    }
+
+    # ── Scoring (bestehende Engine wiederverwenden) ─────────────
+    sum_data = {}
+    try:
+        sum_data = calc_technical_summary(stats, hist, info=info_data, ticker=ticker)
+    except Exception:
+        pass
+
+    # ── Fundamentaldaten ───────────────────────────────────────
+    dcf = None
+    balance = None
+    try:
+        dcf = calc_dcf_valuation(info_data)
+    except Exception:
+        pass
+    try:
+        balance = calc_balance_sheet_quality(info_data)
+    except Exception:
+        pass
+
+    # ── Enriched Checklist (Positionsrelevanz) ─────────────────
+    enriched_checklist = []
+    if sum_data and sum_data.get("checklist"):
+        enriched_checklist = generate_position_relevance(
+            sum_data["checklist"], pos_data
+        )
+
+    # ── Position Score + Recommendation ────────────────────────
+    rec = {}
+    cat_scores = {}
+    cat_max = {}
+    try:
+        from services.scoring import calc_full_score
+        score_result = calc_full_score(hist, info_data, ticker)
+        if score_result:
+            rec = calc_position_score(
+                score_result, pos_data, dcf_data=dcf,
+                volume_modifier=volume_modifier,
+            )
+            cat_scores = dict(score_result.cat_scores)
+            cat_max = dict(score_result.cat_max)
+    except Exception:
+        rec = {
+            "position_score": 50,
+            "action": "HALTEN",
+            "action_css": "halten",
+            "action_detail": "Position beibehalten — Scoring-Fehler.",
+            "rc_color": "rc-blue",
+            "reasoning": {
+                "technisch": "Scoring-Engine nicht verfügbar.",
+                "fundamental": "—",
+                "positionsspezifisch": "—",
+                "risikofaktoren": ["Scoring-Engine-Fehler — manuelle Prüfung empfohlen."],
+            },
+            "steps": ["Manuelle Analyse empfohlen."],
+            "modifier_badge": "Mittlere Position (5–15% Portfolio)",
+            "volume_modifier": volume_modifier,
+        }
+
+    ctx = {
+        "ticker": ticker,
+        "display_ticker": display_ticker,
+        "stats": stats,
+        "pos_data": pos_data,
+        "dcf": dcf,
+        "balance": balance,
+        "sum_data": sum_data,
+        "enriched_checklist": enriched_checklist,
+        "rec": rec,
+        "cat_scores": cat_scores,
+        "cat_max": cat_max,
+        "fmt_price": _fmt_price,
+        "fmt_big": _fmt_big,
+    }
+    return ctx
+
+
+# ---------------------------------------------------------------------------
+# HTMX Partial: Empfehlung re-rendern (Volume-Modifier-Wechsel)
+# ---------------------------------------------------------------------------
+
+@router.get("/api/analysis/position/recommendation", response_class=HTMLResponse)
+async def position_recommendation_rerender(
+    request: Request,
+    volume_modifier: str = Query("mittel"),
+    rec_ticker: str = Query(""),
+    rec_buy_price: float = Query(0),
+    rec_quantity: float = Query(0),
+    rec_buy_date: str = Query(""),
+    rec_current_price: float = Query(0),
+    rec_confidence: float = Query(50),
+    rec_stop_loss: str = Query(""),
+    rec_take_profit: str = Query(""),
+    rec_atr_val: str = Query(""),
+    rec_sma200_dist: str = Query(""),
+    rec_pnl_pct: float = Query(0),
+    rec_pnl_eur: float = Query(0),
+    rec_holding_days: int = Query(0),
+    rec_total_invested: float = Query(0),
+    rec_current_value: float = Query(0),
+):
+    import asyncio
+    templates = request.app.state.templates
+
+    def _rerender():
+        ticker = rec_ticker.strip()
+        if not ticker:
+            return "<div class='alert alert-danger'>Kein Ticker angegeben.</div>"
+
+        pos_data = {
+            "buy_price": rec_buy_price,
+            "buy_date": rec_buy_date,
+            "quantity": rec_quantity,
+            "current_price": rec_current_price,
+            "stop_loss": _safe_float(rec_stop_loss),
+            "take_profit": _safe_float(rec_take_profit),
+            "atr_val": _safe_float(rec_atr_val),
+            "sma200_dist": _safe_float(rec_sma200_dist),
+            "pnl_pct": rec_pnl_pct,
+            "pnl_eur": rec_pnl_eur,
+            "holding_days": rec_holding_days,
+            "total_invested": rec_total_invested,
+            "current_value": rec_current_value,
+        }
+
+        # Re-score mit neuem Volume Modifier
+        try:
+            details = cached_stock_details(ticker)
+            if not details:
+                return "<div class='alert alert-danger'>Keine Daten verfügbar.</div>"
+
+            hist = details["hist_1y"]
+            info_data = details.get("info", {})
+
+            from services.scoring import calc_full_score
+            score_result = calc_full_score(hist, info_data, ticker)
+            if score_result:
+                dcf = None
+                try:
+                    dcf = calc_dcf_valuation(info_data)
+                except Exception:
+                    pass
+
+                rec = calc_position_score(
+                    score_result, pos_data, dcf_data=dcf,
+                    volume_modifier=volume_modifier,
+                )
+                cat_scores = dict(score_result.cat_scores)
+                cat_max = dict(score_result.cat_max)
+                return {"rec": rec, "cat_scores": cat_scores, "cat_max": cat_max}
+        except Exception:
+            pass
+
+        return {
+            "rec": {
+                "position_score": 50,
+                "action": "HALTEN",
+                "action_css": "halten",
+                "action_detail": "Position beibehalten — Scoring-Fehler.",
+                "rc_color": "rc-blue",
+                "reasoning": {
+                    "technisch": "—", "fundamental": "—",
+                    "positionsspezifisch": "—",
+                    "risikofaktoren": ["Scoring nicht verfügbar."],
+                },
+                "steps": ["Manuelle Analyse empfohlen."],
+                "modifier_badge": "—",
+                "volume_modifier": volume_modifier,
+            },
+            "cat_scores": {},
+            "cat_max": {},
+        }
+
+    result = await asyncio.to_thread(_rerender)
+
+    if isinstance(result, str):
+        return HTMLResponse(result)
+
+    return templates.TemplateResponse(
+        request=request,
+        name="partials/position_recommendation.html",
+        context=result,
+    )

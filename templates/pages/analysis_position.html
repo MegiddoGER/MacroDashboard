@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+
+{% block title %}Positions-Analyse — MacroDashboard{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h2>📊 Positions-Analyse</h2>
+  <p class="caption">Bestehende oder manuelle Position auswerten — mit Scoring, Risikoanalyse und strategischer Handlungsempfehlung.</p>
+</div>
+
+<!-- ═══ Input Mode Tabs ═══ -->
+<div class="card" style="padding:20px 24px;margin-bottom:20px;">
+  <div class="tabs">
+    <button class="tab active" data-tab="tab-mode-portfolio">📁 Aus Portfolio wählen</button>
+    <button class="tab" data-tab="tab-mode-manual">✏️ Manuell eingeben</button>
+  </div>
+
+  <!-- ═══ Mode A: Portfolio-Auswahl ═══ -->
+  <div id="tab-mode-portfolio" class="tab-content active">
+    {% if open_positions and open_positions|length > 0 %}
+    <form hx-post="/analysis/position/load" hx-target="#position-analysis-content"
+          hx-indicator="#pos-loading" hx-swap="innerHTML">
+      <div class="form-group" style="max-width:600px;">
+        <label>Position auswählen</label>
+        <select name="position_select" class="form-select" id="pos-select"
+                onchange="fillFromSelect(this)">
+          <option value="">— Position wählen —</option>
+          {% for p in open_positions %}
+          <option value="{{ p.position.id }}"
+                  data-ticker="{{ p.ticker }}"
+                  data-buydate="{{ p.position.buy_date or '' }}"
+                  data-buyprice="{{ p.position.buy_price or '' }}"
+                  data-quantity="{{ p.position.quantity or '' }}"
+                  data-stoploss="{{ p.position.stop_loss or '' }}"
+                  data-takeprofit="{{ p.position.take_profit or '' }}"
+                  data-name="{{ p.name or '' }}"
+                  data-display="{{ p.display or p.ticker }}">
+            {{ p.display or p.ticker }} · {{ p.name or '' }}
+            {% if p.position.buy_date %} | Kauf: {{ p.position.buy_date }}{% endif %}
+            {% if p.pnl_pct is defined and p.pnl_pct is not none %} | P&L: {{ "%.1f"|format(p.pnl_pct) }}%{% endif %}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <!-- Versteckte Felder (werden per JS befüllt) -->
+      <input type="hidden" name="ticker" id="pos-ticker">
+      <input type="hidden" name="buy_date" id="pos-buydate">
+      <input type="hidden" name="buy_price" id="pos-buyprice">
+      <input type="hidden" name="quantity" id="pos-quantity">
+      <input type="hidden" name="stop_loss" id="pos-stoploss">
+      <input type="hidden" name="take_profit" id="pos-takeprofit">
+      <input type="hidden" name="volume_modifier" value="mittel">
+      <input type="hidden" name="input_mode" value="portfolio">
+
+      <div style="margin-top:12px;">
+        <button type="submit" class="btn btn-primary btn-lg" id="pos-submit-a" disabled>
+          📊 Position analysieren
+        </button>
+      </div>
+    </form>
+    {% else %}
+    <div class="alert alert-info">Keine offenen Positionen in der Watchlist gefunden. Verwende den manuellen Modus.</div>
+    {% endif %}
+  </div>
+
+  <!-- ═══ Mode B: Manuelle Eingabe ═══ -->
+  <div id="tab-mode-manual" class="tab-content">
+    <form hx-post="/analysis/position/load" hx-target="#position-analysis-content"
+          hx-indicator="#pos-loading" hx-swap="innerHTML">
+
+      <div class="grid-2" style="gap:16px;max-width:700px;">
+        <div class="form-group">
+          <label>Ticker / Symbol</label>
+          <input type="text" name="ticker" class="form-input" placeholder="z.B. AAPL, MSFT, SAP.DE" required>
+        </div>
+        <div class="form-group">
+          <label>Kaufdatum</label>
+          <input type="date" name="buy_date" class="form-input" required>
+        </div>
+        <div class="form-group">
+          <label>Kaufkurs (€ / $)</label>
+          <input type="number" name="buy_price" class="form-input" step="0.01" min="0.01" placeholder="150.00" required>
+        </div>
+        <div class="form-group">
+          <label>Stückzahl</label>
+          <input type="number" name="quantity" class="form-input" step="0.01" min="0.01" placeholder="10" required>
+        </div>
+        <div class="form-group">
+          <label>Stop-Loss (optional)</label>
+          <input type="number" name="stop_loss" class="form-input" step="0.01" min="0" placeholder="z.B. 140.00">
+        </div>
+        <div class="form-group">
+          <label>Take-Profit (optional)</label>
+          <input type="number" name="take_profit" class="form-input" step="0.01" min="0" placeholder="z.B. 180.00">
+        </div>
+      </div>
+
+      <input type="hidden" name="volume_modifier" value="mittel">
+      <input type="hidden" name="input_mode" value="manual">
+
+      <div style="margin-top:16px;">
+        <button type="submit" class="btn btn-primary btn-lg">
+          📊 Position analysieren
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ═══ Loading Indicator ═══ -->
+<div id="pos-loading" class="loading-overlay htmx-indicator" style="display:none;">
+  <div class="spinner"></div>
+  <span>Analyse wird geladen…</span>
+</div>
+
+<!-- ═══ Results Container (HTMX target) ═══ -->
+<div id="position-analysis-content"></div>
+
+<!-- ═══ JS: Portfolio-Dropdown → versteckte Felder befüllen ═══ -->
+<script>
+function fillFromSelect(sel) {
+  var opt = sel.options[sel.selectedIndex];
+  if (!opt || !opt.value) {
+    document.getElementById('pos-submit-a').disabled = true;
+    return;
+  }
+  document.getElementById('pos-ticker').value = opt.getAttribute('data-ticker') || '';
+  document.getElementById('pos-buydate').value = opt.getAttribute('data-buydate') || '';
+  document.getElementById('pos-buyprice').value = opt.getAttribute('data-buyprice') || '';
+  document.getElementById('pos-quantity').value = opt.getAttribute('data-quantity') || '';
+  document.getElementById('pos-stoploss').value = opt.getAttribute('data-stoploss') || '';
+  document.getElementById('pos-takeprofit').value = opt.getAttribute('data-takeprofit') || '';
+  document.getElementById('pos-submit-a').disabled = false;
+}
+</script>
+{% endblock %}

@@ -819,3 +819,490 @@ def calc_full_score(hist: pd.DataFrame, info: dict = None,
             print(f"Warning: Failed to record signal for {ticker} - {e}")
 
     return result
+
+
+# ---------------------------------------------------------------------------
+# Positions-Analyse: Positionsbezogener Score + Handlungsempfehlung
+# ---------------------------------------------------------------------------
+
+def generate_position_relevance(checklist: list, position_data: dict) -> list:
+    """Generiert positionsspezifische Relevanznotizen pro Indikator.
+
+    Args:
+        checklist: Bestehende Indikatoren-Checkliste aus ScoreResult
+        position_data: Dict mit buy_price, current_price, pnl_pct, holding_days
+
+    Returns:
+        Erweiterte Checkliste mit 'Positionsrelevanz'-Schlüssel pro Eintrag
+    """
+    pnl_pct = position_data.get("pnl_pct", 0)
+    holding_days = position_data.get("holding_days", 0)
+    buy_price = position_data.get("buy_price", 0)
+    current_price = position_data.get("current_price", 0)
+
+    in_profit = pnl_pct > 0
+    deep_profit = pnl_pct > 20
+    in_loss = pnl_pct < 0
+    deep_loss = pnl_pct < -15
+
+    enriched = []
+    for item in checklist:
+        entry = dict(item)  # Kopie
+        indicator = entry.get("Indikator", "")
+
+        # Positionsrelevanz je nach Indikator generieren
+        if "RSI" in indicator:
+            wert = entry.get("Wert", "")
+            if "Überkauft" in entry.get("Signal", ""):
+                if in_profit:
+                    entry["Positionsrelevanz"] = "Gewinne absichern — RSI-Signal deutet auf Rücksetzer hin."
+                else:
+                    entry["Positionsrelevanz"] = "Trotz Verlust kurzfristig überkauft — Erholung könnte auslaufen."
+            elif "Überverkauft" in entry.get("Signal", ""):
+                if in_loss:
+                    entry["Positionsrelevanz"] = "Position im Verlust, aber überverkauft — Rebound-Chance."
+                else:
+                    entry["Positionsrelevanz"] = "Position im Gewinn, überverkauft — möglicher Nachkauf-Moment."
+            else:
+                entry["Positionsrelevanz"] = "Position im neutralen Bereich — kein unmittelbarer Handlungsdruck."
+
+        elif "MACD" in indicator:
+            if "Bullish" in entry.get("Signal", "") or "🟢" in entry.get("Signal", ""):
+                if in_profit:
+                    entry["Positionsrelevanz"] = "Momentum unterstützt die Position — Gewinne laufen lassen."
+                else:
+                    entry["Positionsrelevanz"] = "Momentum dreht positiv — Erholung der Position möglich."
+            else:
+                if in_profit:
+                    entry["Positionsrelevanz"] = "Momentum dreht gegen die Position — Stop-Loss überprüfen."
+                else:
+                    entry["Positionsrelevanz"] = "Momentum weiter negativ — engmaschige Überwachung empfohlen."
+
+        elif "Trend" in indicator and "SMA" in indicator:
+            if "Aufwärts" in entry.get("Wert", ""):
+                entry["Positionsrelevanz"] = "Position steht auf solidem Trendunterbau seit Einstieg."
+            elif "Abwärts" in entry.get("Wert", ""):
+                if in_loss:
+                    entry["Positionsrelevanz"] = "Abwärtstrend bestätigt Verluste — Exit-Strategie prüfen."
+                else:
+                    entry["Positionsrelevanz"] = "Trotz Gewinn: Übergeordneter Trend negativ — Absicherung sinnvoll."
+            elif "Korrektur" in entry.get("Wert", ""):
+                entry["Positionsrelevanz"] = "Kurzfristige Schwäche — ggf. Nachkauf-Gelegenheit im Aufwärtstrend."
+            else:
+                entry["Positionsrelevanz"] = "Erholungsversuch — Bestätigung abwarten vor Aufstockung."
+
+        elif "OBV" in indicator:
+            if "Akkumulation" in entry.get("Signal", "") or "🟢" in entry.get("Signal", ""):
+                entry["Positionsrelevanz"] = "Institutionelle Käufe stützen die Position."
+            elif "Distribution" in entry.get("Signal", "") or "🔴" in entry.get("Signal", ""):
+                entry["Positionsrelevanz"] = "Abfluss erkennbar — Smart Money verkauft. Position im Auge behalten."
+            else:
+                entry["Positionsrelevanz"] = "Volumentrend neutral — kein Handlungssignal."
+
+        elif "Bollinger" in indicator:
+            if "oberen" in entry.get("Signal", "").lower():
+                entry["Positionsrelevanz"] = "Kurs technisch überdehnt — Teilverkauf zur Gewinnsicherung erwägen."
+            elif "unteren" in entry.get("Signal", "").lower():
+                entry["Positionsrelevanz"] = "Kurs stark abgestraft — möglicher Einstiegspunkt für Aufstockung."
+            else:
+                entry["Positionsrelevanz"] = "Normale Volatilität — kein Handlungsbedarf."
+
+        elif "DCF" in indicator:
+            if "Unterbewertet" in entry.get("Signal", ""):
+                if buy_price > 0 and current_price < buy_price:
+                    entry["Positionsrelevanz"] = "Fundamentales Upside trotz Kursverlust — langfristiges Halten gerechtfertigt."
+                else:
+                    entry["Positionsrelevanz"] = "Einstieg zum fairen Wert bestätigt — Position fundamental gut positioniert."
+            elif "Überbewertet" in entry.get("Signal", ""):
+                if in_profit:
+                    entry["Positionsrelevanz"] = "Gewinnmitnahme fundamental gestützt — Kurs über Fair Value."
+                else:
+                    entry["Positionsrelevanz"] = "Position sowohl im Verlust als auch überbewertet — kritische Lage."
+            else:
+                entry["Positionsrelevanz"] = "Fair bewertet — kein fundamentaler Handlungsdruck."
+
+        elif "Bilanz" in indicator:
+            if "Solide" in entry.get("Signal", "") or "↑" in entry.get("Signal", ""):
+                entry["Positionsrelevanz"] = "Starke Bilanz reduziert das Downside-Risiko der Position."
+            elif "Kritisch" in entry.get("Signal", "") or "↓" in entry.get("Signal", ""):
+                entry["Positionsrelevanz"] = "Schwache Bilanz erhöht das Risiko — Position engmaschig überwachen."
+            else:
+                entry["Positionsrelevanz"] = "Bilanz akzeptabel — kein zusätzliches Risiko für die Position."
+
+        elif "Insider" in indicator and "Kongress" not in indicator and "Institutionell" not in indicator:
+            if "Netto-Käufe" in entry.get("Signal", ""):
+                entry["Positionsrelevanz"] = "Insider kaufen — unterstützt die Halteentscheidung."
+            elif "Netto-Verkäufe" in entry.get("Signal", ""):
+                entry["Positionsrelevanz"] = "Insider verkaufen — Warnsignal für bestehende Positionen."
+            else:
+                entry["Positionsrelevanz"] = "Insider-Aktivität neutral — kein zusätzliches Signal."
+
+        elif "Analysten" in indicator:
+            if "Strong Buy" in entry.get("Signal", ""):
+                entry["Positionsrelevanz"] = "Analyst:innen bestätigen Halteentscheidung."
+            elif "Hold/Sell" in entry.get("Signal", ""):
+                if in_profit:
+                    entry["Positionsrelevanz"] = "Analysten zurückhaltend — Teilverkauf zum Sichern von Gewinnen erwägen."
+                else:
+                    entry["Positionsrelevanz"] = "Analysten negativ — Exit-Strategie definieren."
+            else:
+                entry["Positionsrelevanz"] = "Analysten-Konsens neutral — kein Handlungsdruck."
+
+        elif "FVG" in indicator:
+            if "Bullisch" in entry.get("Signal", ""):
+                entry["Positionsrelevanz"] = "Offene FVGs als Support — Position hat strukturelle Absicherung."
+            elif "Bearisch" in entry.get("Signal", ""):
+                entry["Positionsrelevanz"] = "Bearische FVGs als Widerstand — Kursrückgang möglich."
+            else:
+                entry["Positionsrelevanz"] = "FVG-Balance ausgeglichen — neutral für die Position."
+
+        else:
+            # Default: keine spezifische Relevanz
+            entry["Positionsrelevanz"] = ""
+
+        enriched.append(entry)
+    return enriched
+
+
+def calc_position_score(
+    score_result,
+    position_data: dict,
+    dcf_data: dict | None = None,
+    volume_modifier: str = "mittel",
+) -> dict:
+    """Generiert positionsbezogene strategische Handlungsempfehlung.
+
+    NEU: Kernlogik der Positions-Analyse.
+
+    Args:
+        score_result: Bestehender ScoreResult von calc_full_score()
+        position_data: Dict mit:
+            buy_price, quantity, buy_date, current_price,
+            stop_loss, take_profit, pnl_eur, pnl_pct, holding_days,
+            annualized_return, total_invested, current_value,
+            sma20_dist, sma50_dist, sma200_dist, atr_val
+        dcf_data: DCF-Bewertungsdaten (optional)
+        volume_modifier: "klein", "mittel", "gross"
+
+    Returns:
+        Dict mit score, action, reasoning, steps, modifier_badge
+    """
+    confidence = score_result.confidence
+    signals = score_result.signals
+    pnl_pct = position_data.get("pnl_pct", 0)
+    pnl_eur = position_data.get("pnl_eur", 0)
+    holding_days = position_data.get("holding_days", 0)
+    buy_price = position_data.get("buy_price", 0)
+    current_price = position_data.get("current_price", 0)
+    stop_loss = position_data.get("stop_loss")
+    take_profit = position_data.get("take_profit")
+    atr_val = position_data.get("atr_val")
+    quantity = position_data.get("quantity", 0)
+    total_invested = position_data.get("total_invested", 0)
+    current_value = position_data.get("current_value", 0)
+    sma200_dist = position_data.get("sma200_dist")
+
+    # DCF-Daten extrahieren
+    dcf_upside = dcf_data.get("upside_pct", 0) if dcf_data else 0
+    dcf_fair_value = dcf_data.get("fair_value", 0) if dcf_data else 0
+    dcf_mos_entry = 0
+    if dcf_fair_value and buy_price > 0:
+        dcf_mos_entry = ((dcf_fair_value - buy_price) / buy_price) * 100
+
+    # ── Volume-Modifier Schwellenwerte ──────────────────────────
+    thresholds = {
+        "klein": {
+            "sell_pnl_loss": -12, "sell_confidence": 30,
+            "teilverkauf_pnl": 15, "teilverkauf_pct": 40,
+            "aufstocken_confidence": 62, "aufstocken_pnl_max": 8,
+            "stop_dist_mult": 1.2,
+            "language": "aggressive",
+        },
+        "mittel": {
+            "sell_pnl_loss": -15, "sell_confidence": 25,
+            "teilverkauf_pnl": 20, "teilverkauf_pct": 30,
+            "aufstocken_confidence": 65, "aufstocken_pnl_max": 5,
+            "stop_dist_mult": 1.5,
+            "language": "balanced",
+        },
+        "gross": {
+            "sell_pnl_loss": -10, "sell_confidence": 35,
+            "teilverkauf_pnl": 12, "teilverkauf_pct": 20,
+            "aufstocken_confidence": 72, "aufstocken_pnl_max": 3,
+            "stop_dist_mult": 1.8,
+            "language": "conservative",
+        },
+    }
+    t = thresholds.get(volume_modifier, thresholds["mittel"])
+
+    # ── Positionsbezogene Score-Anpassung ──────────────────────
+    # Basis: bestehender Confidence-Score + Positions-Faktoren
+    pos_adjustment = 0.0
+
+    # P&L-Faktor: Positions im Gewinn bekommen leichten Bonus
+    if pnl_pct > 20:
+        pos_adjustment += 5
+    elif pnl_pct > 10:
+        pos_adjustment += 3
+    elif pnl_pct < -20:
+        pos_adjustment -= 8
+    elif pnl_pct < -10:
+        pos_adjustment -= 4
+
+    # Haltedauer-Faktor: Sehr kurze Haltedauer = höhere Unsicherheit
+    if holding_days < 7:
+        pos_adjustment -= 3
+    elif holding_days > 180:
+        pos_adjustment += 2
+
+    # SMA200-Distanz: Kurs weit über SMA200 = Überdehnung
+    if sma200_dist is not None:
+        if sma200_dist > 30:
+            pos_adjustment -= 5
+        elif sma200_dist < -20:
+            pos_adjustment -= 3
+
+    # DCF Margin of Safety
+    if dcf_upside > 30:
+        pos_adjustment += 5
+    elif dcf_upside < -30:
+        pos_adjustment -= 5
+
+    position_score = max(0, min(100, confidence + pos_adjustment))
+
+    # ── Handlungsoption bestimmen ──────────────────────────────
+    rsi_overbought = signals.get("rsi_overbought", False)
+    rsi_oversold = signals.get("rsi_oversold", False)
+    trend_macro_bullish = signals.get("trend_macro_bullish", False)
+    trend_macro_bearish = signals.get("trend_macro_bearish", False)
+    macd_bullish = signals.get("macd_bullish", False)
+
+    action = "HALTEN"
+    action_css = "halten"
+    action_detail = ""
+    rc_color = "rc-blue"
+
+    # 1. VOLLSTÄNDIG SCHLIESSEN
+    if (pnl_pct <= t["sell_pnl_loss"] and position_score <= t["sell_confidence"]
+            and trend_macro_bearish):
+        action = "VOLLSTÄNDIG SCHLIESSEN"
+        action_css = "schliessen"
+        rc_color = "rc-red"
+        realized = pnl_eur
+        action_detail = (
+            f"Realisierbarer {'Verlust' if realized < 0 else 'Gewinn'}: "
+            f"{realized:+,.2f} EUR".replace(",", "X").replace(".", ",").replace("X", ".")
+        )
+
+    # 2. TEILVERKAUF
+    elif pnl_pct >= t["teilverkauf_pnl"] and rsi_overbought:
+        action = "TEILVERKAUF"
+        action_css = "teilverkauf"
+        rc_color = "rc-yellow"
+        sell_pct = t["teilverkauf_pct"]
+        sell_qty = round(quantity * sell_pct / 100, 2)
+        remaining_value = (quantity - sell_qty) * current_price
+        action_detail = (
+            f"Empfohlen: {sell_pct}% der Position verkaufen "
+            f"({sell_qty:.2f} Anteile). "
+            f"Verbleibender Positionswert: "
+            f"{remaining_value:,.2f} EUR".replace(",", "X").replace(".", ",").replace("X", ".")
+        )
+
+    # 3. AUFSTOCKEN
+    elif (position_score >= t["aufstocken_confidence"]
+          and pnl_pct <= t["aufstocken_pnl_max"]
+          and trend_macro_bullish
+          and not rsi_overbought
+          and dcf_upside > 10):
+        action = "AUFSTOCKEN"
+        action_css = "aufstocken"
+        rc_color = "rc-green"
+        # Empfohlener Zukauf: 25-50% der Ausgangsinvestition je nach Modifier
+        zukauf_pct = {"klein": 50, "mittel": 33, "gross": 25}.get(volume_modifier, 33)
+        zukauf_eur = total_invested * zukauf_pct / 100
+        action_detail = (
+            f"Empfohlener Zukaufbetrag: "
+            f"{zukauf_eur:,.2f} EUR".replace(",", "X").replace(".", ",").replace("X", ".") +
+            f" ({zukauf_pct}% der Ausgangsinvestition)"
+        )
+
+    # 4. STOP ANPASSEN
+    elif (pnl_pct > 10 and atr_val and stop_loss is not None
+          and trend_macro_bullish and macd_bullish):
+        new_stop = current_price - t["stop_dist_mult"] * atr_val
+        if new_stop > stop_loss:
+            action = "STOP ANPASSEN"
+            action_css = "stop"
+            rc_color = "rc-purple"
+            action_detail = (
+                f"Aktueller Stop: {stop_loss:,.2f} EUR → "
+                f"Empfohlener neuer Stop: {new_stop:,.2f} EUR "
+                f"({t['stop_dist_mult']}× ATR unter aktuellem Kurs)"
+            ).replace(",", "X").replace(".", ",").replace("X", ".")
+
+    # 5. ABSICHERN
+    elif (position_score <= 40 and pnl_pct > 5 and not trend_macro_bullish):
+        action = "ABSICHERN"
+        action_css = "absichern"
+        rc_color = "rc-blue"
+        action_detail = (
+            "Position im Gewinn, aber technisch/fundamental schwach. "
+            "Hedging erwägen (Stop nachziehen, Teilverkauf, oder Put-Absicherung)."
+        )
+
+    # 6. HALTEN (Default)
+    else:
+        action = "HALTEN"
+        action_css = "halten"
+        rc_color = "rc-blue"
+        action_detail = "Position beibehalten — kein unmittelbarer Handlungsbedarf."
+
+    # ── Begründung (strukturiert) ──────────────────────────────
+    # Technische Lage
+    tech_parts = []
+    if trend_macro_bullish:
+        tech_parts.append("Der übergeordnete Trend ist intakt (Kurs über SMA 200).")
+    elif trend_macro_bearish:
+        tech_parts.append("Der übergeordnete Trend ist negativ (Kurs unter SMA 200).")
+    if macd_bullish:
+        tech_parts.append("MACD zeigt kurzfristig bullishes Momentum.")
+    else:
+        tech_parts.append("MACD signalisiert nachlassendes Momentum.")
+    if rsi_overbought:
+        tech_parts.append("RSI im überkauften Bereich — Rücksetzer wahrscheinlich.")
+    elif rsi_oversold:
+        tech_parts.append("RSI überverkauft — technischer Rebound möglich.")
+    tech_text = " ".join(tech_parts[:3])
+
+    # Fundamentale Lage
+    fund_parts = []
+    if dcf_data:
+        if dcf_upside > 20:
+            fund_parts.append(f"DCF-Fair-Value {dcf_upside:+.0f}% über aktuellem Kurs — Unterbewertung.")
+        elif dcf_upside < -20:
+            fund_parts.append(f"DCF-Fair-Value {dcf_upside:+.0f}% unter aktuellem Kurs — Überbewertung.")
+        else:
+            fund_parts.append("Aktie nahe am fairen Wert bewertet.")
+
+    for part in score_result.fundamental_text_parts[:2]:
+        fund_parts.append(part)
+    fund_text = " ".join(fund_parts[:3]) if fund_parts else "Keine ausreichenden Fundamentaldaten verfügbar."
+
+    # Positionsspezifisch
+    def _fmt_eur(val):
+        return f"{val:+,.2f} EUR".replace(",", "X").replace(".", ",").replace("X", ".")
+
+    pos_parts = []
+    pos_parts.append(
+        f"Sie halten die Position seit {holding_days} Tagen mit einem "
+        f"unrealisierten {'Gewinn' if pnl_pct >= 0 else 'Verlust'} von "
+        f"{pnl_pct:+.1f}% ({_fmt_eur(pnl_eur)})."
+    )
+    if dcf_fair_value and current_price:
+        dist_to_dcf = ((current_price - dcf_fair_value) / dcf_fair_value) * 100
+        if dist_to_dcf < 0:
+            pos_parts.append(
+                f"Der aktuelle Kurs liegt {abs(dist_to_dcf):.1f}% unter dem "
+                f"DCF-Fair-Value von {dcf_fair_value:,.2f} EUR — "
+                f"fundamental bleibt die Aktie attraktiv bewertet.".replace(",", "X").replace(".", ",").replace("X", ".")
+            )
+        else:
+            pos_parts.append(
+                f"Der aktuelle Kurs liegt {dist_to_dcf:.1f}% über dem "
+                f"DCF-Fair-Value von {dcf_fair_value:,.2f} EUR.".replace(",", "X").replace(".", ",").replace("X", ".")
+            )
+    pos_text = " ".join(pos_parts[:3])
+
+    # Risikofaktoren
+    risks = []
+    if pnl_pct < -10:
+        risks.append(f"Position im deutlichen Verlust ({pnl_pct:+.1f}%) — psychologischer Druck auf Haltedisziplin.")
+    if rsi_overbought:
+        risks.append("Technisch überkauft — kurzfristiger Rücksetzer wahrscheinlich.")
+    if trend_macro_bearish:
+        risks.append("Übergeordneter Abwärtstrend aktiv — Gegenposition zum Markttrend.")
+    if sma200_dist is not None and sma200_dist > 25:
+        risks.append(f"Kurs {sma200_dist:.1f}% über SMA 200 — Mean Reversion Risiko.")
+    if dcf_upside < -20:
+        risks.append("DCF-Überbewertung — fundamentales Downside-Risiko.")
+    if not risks:
+        risks.append("Keine wesentlichen Risikofaktoren identifiziert.")
+    risks = risks[:4]  # Max 4
+
+    # ── Konkrete Handlungsschritte ─────────────────────────────
+    steps = []
+
+    # 1. Entry / Kein neuer Entry
+    if action == "AUFSTOCKEN":
+        steps.append(f"Zukauf: {action_detail}")
+    else:
+        steps.append("Kein neuer Entry — bestehende Position verwalten.")
+
+    # 2. Stop-Loss
+    if atr_val:
+        new_sl = current_price - t["stop_dist_mult"] * atr_val
+        if stop_loss:
+            steps.append(
+                f"Stop-Loss: {stop_loss:,.2f} EUR → empfohlen {new_sl:,.2f} EUR "
+                f"({t['stop_dist_mult']}× ATR)".replace(",", "X").replace(".", ",").replace("X", ".")
+            )
+        else:
+            steps.append(
+                f"Stop-Loss setzen: {new_sl:,.2f} EUR ({t['stop_dist_mult']}× ATR unter aktuellem Kurs)".replace(",", "X").replace(".", ",").replace("X", ".")
+            )
+
+    # 3. Take-Profit
+    if atr_val:
+        new_tp = buy_price + 2.5 * atr_val if buy_price > 0 else current_price + 2.5 * atr_val
+        if take_profit:
+            steps.append(
+                f"Take-Profit: {take_profit:,.2f} EUR → empfohlen {new_tp:,.2f} EUR "
+                f"(2,5× ATR über Einstieg)".replace(",", "X").replace(".", ",").replace("X", ".")
+            )
+        else:
+            steps.append(
+                f"Take-Profit setzen: {new_tp:,.2f} EUR (2,5× ATR über Einstieg)".replace(",", "X").replace(".", ",").replace("X", ".")
+            )
+
+    # 4. Nächster Review-Zeitpunkt
+    if atr_val and current_price > 0:
+        volatility_pct = (atr_val / current_price) * 100
+        if volatility_pct > 3:
+            review_days = 7
+        elif volatility_pct > 1.5:
+            review_days = 14
+        else:
+            review_days = 21
+        # Längere Haltedauer = seltener Review nötig
+        if holding_days > 90:
+            review_days = min(review_days + 7, 30)
+        steps.append(f"Nächster Review: In {review_days} Tagen")
+    else:
+        steps.append("Nächster Review: In 14 Tagen")
+
+    # ── Modifizierter Sprachstil ───────────────────────────────
+    modifier_labels = {
+        "klein": "Kleine Position (< 5% Portfolio)",
+        "mittel": "Mittlere Position (5–15% Portfolio)",
+        "gross": "Große Position (> 15% Portfolio)",
+    }
+    modifier_badge = modifier_labels.get(volume_modifier, modifier_labels["mittel"])
+
+    return {
+        "position_score": position_score,
+        "action": action,
+        "action_css": action_css,
+        "action_detail": action_detail,
+        "rc_color": rc_color,
+        "reasoning": {
+            "technisch": tech_text,
+            "fundamental": fund_text,
+            "positionsspezifisch": pos_text,
+            "risikofaktoren": risks,
+        },
+        "steps": steps,
+        "modifier_badge": modifier_badge,
+        "volume_modifier": volume_modifier,
+    }
+

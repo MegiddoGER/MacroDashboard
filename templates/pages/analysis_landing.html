@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block title %}Analyse — MacroDashboard{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h2>📊 Analyse</h2>
+  <p class="caption">Wähle einen Analyse-Modus, um fortzufahren.</p>
+</div>
+
+<div style="margin-top:40px;">
+  <div class="landing-grid">
+
+    <!-- Neue Aktie analysieren -->
+    <a href="/analysis/new" class="landing-card">
+      <div class="landing-icon">🔬</div>
+      <h3>Neue Aktie analysieren</h3>
+      <p>Vollständige technische + fundamentale Analyse für einen beliebigen Ticker — inkl. Charts, Scoring, SMC und Empfehlung.</p>
+      <div class="btn btn-primary">Analyse starten</div>
+    </a>
+
+    <!-- Position analysieren -->
+    <a href="/analysis/position" class="landing-card">
+      <div class="landing-icon">📊</div>
+      <h3>Position analysieren</h3>
+      <p>Bestehende Portfolio-Position auswerten — mit P&L, Risikoanalyse, positionsbezogenem Scoring und strategischer Handlungsempfehlung.</p>
+      <div class="btn btn-purple">Position prüfen</div>
+    </a>
+
+  </div>
+</div>
+
+<!-- Quick-Hinweis -->
+<div style="max-width:900px;margin:32px auto 0;text-align:center;">
+  <p class="caption" style="font-size:0.8rem;">
+    💡 <b>Tipp:</b> Die Positions-Analyse zeigt dir, ob du halten, aufstocken oder schließen solltest —
+    basierend auf technischen Indikatoren, Fundamentaldaten und deinem persönlichen Einstiegspreis.
+  </p>
+</div>
+{% endblock %}
