@@ -92,7 +92,8 @@ async def ticker_quote(ticker: str = Query(...)):
     """Lädt den aktuellen Live-Kurs für einen Ticker."""
     from services.cache_core import cached_quote
     try:
-        price = cached_quote(ticker)
+        quote = cached_quote(ticker)
+        price = quote.get("price") if isinstance(quote, dict) else quote
         return JSONResponse({"ticker": ticker, "price": price})
     except Exception:
         return JSONResponse({"ticker": ticker, "price": None})
