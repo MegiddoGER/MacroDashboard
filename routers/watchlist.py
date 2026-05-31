@@ -167,12 +167,31 @@ async def watchlist_buy(
         fees=fees_f,
         notes=notes,
     )
+    
+    if not result:
+        # Ticker existiert evtl. noch nicht in der Watchlist.
+        from services.watchlist import resolve_ticker, add_to_watchlist
+        resolved = resolve_ticker(ticker)
+        if resolved:
+            add_to_watchlist(resolved["ticker"], resolved["name"], resolved.get("display", ""))
+            # Erneuter Versuch
+            result = add_position(
+                ticker=resolved["ticker"],
+                buy_price=buy_price_f,
+                quantity=quantity_f,
+                buy_date=buy_date,
+                stop_loss=stop_loss_f if stop_loss_f > 0 else None,
+                take_profit=take_profit_f if take_profit_f > 0 else None,
+                fees=fees_f,
+                notes=notes,
+            )
+
     if result:
         return HTMLResponse(
             content="<script>showToast('Position eröffnet!');setTimeout(()=>location.reload(),500);</script>"
         )
     return HTMLResponse(
-        content="<script>showToast('Fehler beim Erstellen','error');</script>"
+        content="<script>showToast('Fehler beim Erstellen (Ticker nicht gefunden)','error');</script>"
     )
 
 

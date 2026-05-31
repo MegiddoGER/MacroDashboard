@@ -21,6 +21,7 @@ def get_quote(ticker: str) -> dict | None:
     """Holt den aktuellen Preis und die tägliche Veränderung.
 
     Rückgabe: {"price": float, "change_pct": float} oder None.
+    Alle Preise werden in EUR umgerechnet.
     """
     try:
         tk = yf.Ticker(ticker)
@@ -33,7 +34,18 @@ def get_quote(ticker: str) -> dict | None:
         current = float(closes.iloc[-1])
         prev = float(closes.iloc[-2])
         change_pct = ((current - prev) / prev) * 100 if prev else 0.0
-        return {"price": round(current, 2), "change_pct": round(change_pct, 2)}
+        
+        # Währung ermitteln und umrechnen
+        try:
+            info = tk.info or {}
+            currency = (info.get("currency") or "USD").upper()
+        except Exception:
+            currency = "EUR" if ticker.endswith(".DE") else "USD"
+            
+        from services.forex import convert_to_eur
+        current_eur = convert_to_eur(current, currency)
+        
+        return {"price": round(current_eur, 2) if current_eur else round(current, 2), "change_pct": round(change_pct, 2)}
     except Exception as exc:
         warnings.warn(f"get_quote({ticker}): {exc}")
         return None
