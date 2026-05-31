@@ -136,23 +136,35 @@ async def watchlist_page(request: Request):
 async def watchlist_buy(
     request: Request,
     ticker: str = Form(...),
-    buy_price: float = Form(...),
-    quantity: float = Form(...),
-    buy_date: str = Form(...),
-    stop_loss: float = Form(0),
-    take_profit: float = Form(0),
-    fees: float = Form(0),
+    buy_price: str = Form(...),
+    quantity: str = Form(...),
+    buy_date: str = Form(""),
+    stop_loss: str = Form(""),
+    take_profit: str = Form(""),
+    fees: str = Form(""),
     notes: str = Form(""),
 ):
     from services.watchlist import add_position
+    
+    def _to_float(v):
+        try:
+            return float(v) if v else 0.0
+        except ValueError:
+            return 0.0
+            
+    buy_price_f = _to_float(buy_price)
+    quantity_f = _to_float(quantity)
+    stop_loss_f = _to_float(stop_loss)
+    take_profit_f = _to_float(take_profit)
+    fees_f = _to_float(fees)
     result = add_position(
         ticker=ticker,
-        buy_price=buy_price,
-        quantity=quantity,
+        buy_price=buy_price_f,
+        quantity=quantity_f,
         buy_date=buy_date,
-        stop_loss=stop_loss if stop_loss > 0 else None,
-        take_profit=take_profit if take_profit > 0 else None,
-        fees=fees,
+        stop_loss=stop_loss_f if stop_loss_f > 0 else None,
+        take_profit=take_profit_f if take_profit_f > 0 else None,
+        fees=fees_f,
         notes=notes,
     )
     if result:

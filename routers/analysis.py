@@ -802,30 +802,43 @@ async def analysis_position_load(
     request: Request,
     ticker: str = Form(""),
     buy_date: str = Form(""),
-    buy_price: float = Form(0),
-    quantity: float = Form(0),
-    stop_loss: float = Form(None),
-    take_profit: float = Form(None),
+    buy_price: str = Form(""),
+    quantity: str = Form(""),
+    stop_loss: str = Form(""),
+    take_profit: str = Form(""),
     volume_modifier: str = Form("mittel"),
     input_mode: str = Form("manual"),
 ):
     import asyncio
     templates = request.app.state.templates
 
+    def _to_float(v):
+        try:
+            return float(v) if v else 0.0
+        except ValueError:
+            return 0.0
+            
+    buy_price_f = _to_float(buy_price)
+    quantity_f = _to_float(quantity)
+    stop_loss_f = _to_float(stop_loss)
+    take_profit_f = _to_float(take_profit)
+
     ticker = ticker.strip()
     if not ticker:
         return HTMLResponse(
             "<div class='alert alert-danger'>Bitte einen Ticker angeben.</div>"
         )
-    if buy_price <= 0 or quantity <= 0:
+    if buy_price_f <= 0 or quantity_f <= 0:
         return HTMLResponse(
             "<div class='alert alert-danger'>Kaufkurs und Stückzahl müssen > 0 sein.</div>"
         )
 
     ctx = await asyncio.to_thread(
         _build_position_analysis_context,
-        ticker, buy_date, buy_price, quantity,
-        stop_loss, take_profit, volume_modifier,
+        ticker, buy_date, buy_price_f, quantity_f,
+        stop_loss_f if stop_loss_f > 0 else None,
+        take_profit_f if take_profit_f > 0 else None,
+        volume_modifier,
     )
 
     if isinstance(ctx, str):
