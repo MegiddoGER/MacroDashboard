@@ -12,7 +12,7 @@ def _get_header_metrics():
 def _fig_to_json(fig):
     if fig is None:
         return "null"
-    return json.dumps(fig.to_dict(), default=str)
+    return fig.to_json()
 
 @router.get("/economy", response_class=HTMLResponse)
 async def economy_page(request: Request):
