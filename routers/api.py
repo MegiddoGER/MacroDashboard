@@ -80,11 +80,41 @@ async def watchlist_delete(request: Request, ticker: str):
 @router.get("/ticker/search")
 async def ticker_search(q: str = Query("")):
     """Sucht nach Tickern (Autocomplete-Backend) und liefert JSON."""
-    from services.watchlist import _search_xetra_csv
     if not q.strip() or len(q.strip()) < 1:
         return JSONResponse([])
-    results = _search_xetra_csv(q)
-    # Limitiere auf max 15 Vorschläge für UI-Performance
+        
+    q_lower = q.lower()
+    results = []
+    seen = set()
+    
+    # 1. Xetra (Prio)
+    from services.watchlist import _search_xetra_csv
+    xetra_res = _search_xetra_csv(q)
+    for r in xetra_res:
+        results.append(r)
+        seen.add(r["ticker"].upper())
+
+    # 2. Globale Listings
+    from services.cache_core import cached_listings
+    df = cached_listings()
+    if df is not None and not df.empty:
+        # Match Ticker starts with OR Name contains
+        mask = (df["Kürzel"].str.lower().str.startswith(q_lower, na=False)) | \
+               (df["Name"].str.lower().str.contains(q_lower, na=False))
+        
+        matches = df[mask].head(20)
+        for _, row in matches.iterrows():
+            t = str(row["Kürzel"]).upper()
+            if t not in seen:
+                results.append({
+                    "ticker": t,
+                    "name": str(row["Name"]),
+                    "index": str(row["Börse"])
+                })
+                seen.add(t)
+            if len(results) >= 15:
+                break
+                
     return JSONResponse(results[:15])
 
 @router.get("/ticker/quote")
