@@ -157,7 +157,7 @@ document.addEventListener('DOMContentLoaded', function() {
       // Ensure PLOTLY_LAYOUT exists before using it
       var baseLayout = window.PLOTLY_LAYOUT || {};
       var layout = deepMerge(baseLayout, fig.layout || {});
-      Plotly.newPlot(el, fig.data, layout, {displayModeBar:true, scrollZoom:true, responsive:true});
+      Plotly.newPlot(el, fig.data, layout, {displayModeBar:true, scrollZoom:false, responsive:true});
       plotted.push(el);
     }
   }

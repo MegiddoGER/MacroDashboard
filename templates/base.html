@@ -115,7 +115,7 @@
         // Render a Plotly chart from JSON (used by HTMX responses)
         function renderPlotly(elementId, figJson) {
             const fig = JSON.parse(figJson);
-            Plotly.newPlot(elementId, fig.data, fig.layout, {displayModeBar: true, scrollZoom: true});
+            Plotly.newPlot(elementId, fig.data, fig.layout, {displayModeBar: true, scrollZoom: false});
         }
     </script>
 </body>
