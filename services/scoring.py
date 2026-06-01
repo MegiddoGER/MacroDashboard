@@ -1306,3 +1306,251 @@ def calc_position_score(
         "volume_modifier": volume_modifier,
     }
 
+
+# ---------------------------------------------------------------------------
+# V2: Professionelle Positionsanalyse (orchestriert alle neuen Engines)
+# ---------------------------------------------------------------------------
+
+def calc_position_analysis_v2(
+    score_result,
+    position_data: dict,
+    dcf_data: dict | None = None,
+    balance_data: dict | None = None,
+    volume_modifier: str = "mittel",
+    hist=None,
+) -> dict:
+    """Professionelle Positionsanalyse V2 mit State Engine, Validierung,
+    Metriken, Stop-Vorschlägen, Multi-Score und erklärbarer Empfehlung.
+
+    Orchestriert alle neuen Domain-Engines und liefert ein vollständiges
+    Analyse-Ergebnis. Das Legacy-Format (calc_position_score) wird
+    weiterhin als Fallback innerhalb des zurückgegebenen Dicts mitgeliefert.
+
+    Args:
+        score_result: ScoreResult von calc_full_score()
+        position_data: Dict mit buy_price, current_price, quantity, etc.
+        dcf_data: DCF-Bewertungsdaten (optional)
+        balance_data: Bilanzdaten (optional)
+        volume_modifier: Positionsgrößen-Modifier
+        hist: Historische OHLCV-Daten (für Chandelier/Highest High)
+
+    Returns:
+        Dict mit 'position_analysis' (PositionAnalysis) und 'legacy_rec' (altes Format)
+    """
+    from services.position_types import (
+        PositionSide, PositionAnalysis, AuditEntry, Severity,
+    )
+    from services.target_stop_validator import validate_target_stop
+    from services.position_state_engine import determine_position_state
+    from services.position_metrics_engine import calc_position_metrics
+    from services.trailing_stop_engine import generate_stop_proposals, get_suggested_stop
+    from services.scoring_engine_v2 import calc_position_scores
+    from services.recommendation_engine import generate_recommendation
+    from services.data_quality_engine import assess_data_quality
+
+    signals = score_result.signals if score_result else {}
+
+    buy_price = position_data.get("buy_price", 0)
+    current_price = position_data.get("current_price", 0)
+    quantity = position_data.get("quantity", 0)
+    stop_loss = position_data.get("stop_loss")
+    take_profit = position_data.get("take_profit")
+    holding_days = position_data.get("holding_days", 0)
+    atr_val = position_data.get("atr_val")
+
+    side = PositionSide.LONG  # Default — Short support prepared but not UI-exposed
+    analysis = PositionAnalysis(side=side)
+
+    # ── 1. Validierung ────────────────────────────────────────────
+    validation = validate_target_stop(
+        side=side,
+        current_price=current_price,
+        entry_price=buy_price,
+        take_profit=take_profit,
+        active_stop=stop_loss,
+        previous_stop=None,  # No previous stop tracking yet
+        initial_stop=None,   # No initial stop tracking yet
+    )
+    analysis.validation = validation
+
+    # ── 2. Metriken ───────────────────────────────────────────────
+    # Compute highest_high from hist for drawdown/chandelier
+    highest_high_22 = None
+    if hist is not None and not hist.empty and "High" in hist.columns:
+        try:
+            high_series = hist["High"]
+            if len(high_series) >= 22:
+                highest_high_22 = float(high_series.iloc[-22:].max())
+        except Exception:
+            pass
+
+    metrics = calc_position_metrics(
+        side=side,
+        entry_price=buy_price,
+        current_price=current_price,
+        quantity=quantity,
+        active_stop=validation.active_stop,
+        active_take_profit=validation.active_take_profit,
+        initial_stop=None,
+        original_take_profit=take_profit,
+        holding_days=holding_days,
+        atr_val=atr_val,
+        high_since_entry=highest_high_22,  # Best approximation with available data
+    )
+    analysis.metrics = metrics
+
+    # ── 3. State Engine ───────────────────────────────────────────
+    pnl_pct = (metrics.unrealized_pnl_pct or 0) * 100
+    state = determine_position_state(
+        side=side,
+        pnl_pct=pnl_pct,
+        validation=validation,
+        signals=signals,
+        atr_val=atr_val,
+        current_price=current_price,
+        active_stop=validation.active_stop,
+    )
+    analysis.state = state
+    analysis.mode = state.mode
+
+    # ── 4. Stop-Vorschläge ────────────────────────────────────────
+    sma20 = signals.get("sma20_val")
+    sma50 = signals.get("sma50_val")
+
+    stop_proposals = generate_stop_proposals(
+        side=side,
+        current_price=current_price,
+        entry_price=buy_price,
+        quantity=quantity,
+        atr_val=atr_val,
+        highest_high_22=highest_high_22,
+        sma20=sma20,
+        sma50=sma50,
+        previous_stop=None,
+    )
+    analysis.stop_proposals = stop_proposals
+    suggested_stop = get_suggested_stop(stop_proposals, side)
+
+    # ── 5. Data Quality ───────────────────────────────────────────
+    data_quality = assess_data_quality(
+        position_data=position_data,
+        signals=signals,
+        has_dcf=dcf_data is not None,
+        has_balance=balance_data is not None,
+    )
+    analysis.data_quality = data_quality
+
+    # ── 6. Multi-Score ────────────────────────────────────────────
+    scores = calc_position_scores(
+        signals=signals,
+        position_data=position_data,
+        validation=validation,
+        metrics=metrics,
+        dcf_data=dcf_data,
+        balance_data=balance_data,
+    )
+    analysis.scores = scores
+
+    # ── 7. Recommendation ─────────────────────────────────────────
+    recommendation = generate_recommendation(
+        mode=state.mode,
+        state=state,
+        validation=validation,
+        metrics=metrics,
+        scores=scores,
+        signals=signals,
+        stop_proposals=stop_proposals,
+        data_quality=data_quality,
+        side=side,
+        current_price=current_price,
+        entry_price=buy_price,
+        original_take_profit=take_profit,
+        suggested_stop=suggested_stop,
+    )
+    analysis.recommendation = recommendation
+
+    # ── 8. Audit Log ──────────────────────────────────────────────
+    audit: list[AuditEntry] = []
+    for rule in validation.triggered_rules:
+        audit.append(AuditEntry(
+            rule_id=rule.rule_id,
+            severity=rule.severity,
+            triggered=True,
+            message=rule.message,
+            affected_recommendation=rule.affected_recommendation,
+        ))
+    for err in validation.errors:
+        audit.append(AuditEntry(
+            rule_id=err.rule_id,
+            severity=err.severity,
+            triggered=True,
+            message=err.message,
+            affected_recommendation=err.affected_recommendation,
+        ))
+    for warn in validation.warnings:
+        if warn.severity in (Severity.MEDIUM, Severity.HIGH, Severity.CRITICAL):
+            audit.append(AuditEntry(
+                rule_id=warn.rule_id,
+                severity=warn.severity,
+                triggered=True,
+                message=warn.message,
+                affected_recommendation=warn.affected_recommendation,
+            ))
+    analysis.audit_log = audit
+
+    # ── Legacy compatibility dict ─────────────────────────────────
+    # Map new recommendation to legacy action/css for templates that
+    # haven't been updated yet
+    _action_map = {
+        "HOLD_WITH_TRAILING_STOP": ("HALTEN MIT TRAILING STOP", "halten", "rc-purple"),
+        "TARGET_REACHED_REVIEW": ("KURSZIEL ERREICHT", "stop", "rc-yellow"),
+        "PARTIAL_TAKE_PROFIT": ("TEILVERKAUF PRÜFEN", "teilverkauf", "rc-yellow"),
+        "PROFIT_PROTECTION_MODE": ("GEWINNSICHERUNG", "absichern", "rc-purple"),
+        "NORMAL_HOLD": ("HALTEN", "halten", "rc-blue"),
+        "HOLD": ("HALTEN", "halten", "rc-blue"),
+        "EXIT_REVIEW": ("EXIT PRÜFEN", "schliessen", "rc-red"),
+        "EXIT": ("EXIT", "schliessen", "rc-red"),
+        "LOSS_POSITION_REVIEW": ("VERLUSTPOSITION PRÜFEN", "schliessen", "rc-red"),
+        "THESIS_REVIEW": ("THESE PRÜFEN", "absichern", "rc-yellow"),
+        "HOLD_BUT_REDUCE_RISK": ("RISIKO REDUZIEREN", "absichern", "rc-yellow"),
+        "STOP_THREATENED": ("STOP BEDROHT", "stop", "rc-red"),
+        "NO_ACTION_DATA_INSUFFICIENT": ("DATEN UNZUREICHEND", "halten", "rc-blue"),
+    }
+    primary_val = recommendation.primary.value if hasattr(recommendation.primary, 'value') else str(recommendation.primary)
+    legacy_action, legacy_css, legacy_color = _action_map.get(
+        primary_val, ("HALTEN", "halten", "rc-blue")
+    )
+
+    # Build steps from next_actions + review_triggers
+    legacy_steps = list(recommendation.next_actions)
+    if recommendation.review_triggers:
+        trigger_text = "Review bei: " + ", ".join(recommendation.review_triggers[:3])
+        legacy_steps.append(trigger_text)
+
+    legacy_rec = {
+        "position_score": scores.overall or 50,
+        "action": legacy_action,
+        "action_css": legacy_css,
+        "action_detail": recommendation.summary,
+        "rc_color": legacy_color,
+        "reasoning": {
+            "technisch": " ".join(recommendation.rationale[:2]) if recommendation.rationale else "—",
+            "fundamental": "—",
+            "positionsspezifisch": recommendation.summary,
+            "risikofaktoren": recommendation.warnings or ["Keine kritischen Risikofaktoren identifiziert."],
+        },
+        "steps": legacy_steps,
+        "modifier_badge": {
+            "klein": "Kleine Position (< 5% Portfolio)",
+            "mittel": "Mittlere Position (5–15% Portfolio)",
+            "gross": "Große Position (> 15% Portfolio)",
+        }.get(volume_modifier, "Mittlere Position (5–15% Portfolio)"),
+        "volume_modifier": volume_modifier,
+    }
+
+    return {
+        "position_analysis": analysis,
+        "legacy_rec": legacy_rec,
+        "suggested_stop": suggested_stop,
+    }
+

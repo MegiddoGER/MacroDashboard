@@ -22,7 +22,7 @@
     <span class="summary-bar-label">P&L</span>
     <span class="summary-bar-value" style="color:{{ '#22c55e' if pos_data.pnl_pct >= 0 else '#ef4444' }};">
       {{ "%+.1f"|format(pos_data.pnl_pct) }}%
-      ({{ "%+,.2f"|format(pos_data.pnl_eur)|replace(",","X")|replace(".","," )|replace("X",".") }} €)
+      ({{ "%+.2f"|format(pos_data.pnl_eur)|replace(".",",") }} €)
     </span>
   </div>
   <div class="summary-bar-item">
@@ -78,14 +78,14 @@
   </div>
   <div class="metric-card">
     <div class="metric-label">Investiert</div>
-    <div class="metric-value">{{ "%,.2f"|format(pos_data.total_invested)|replace(",","X")|replace(".","," )|replace("X",".") }} €</div>
+    <div class="metric-value">{{ "%.2f"|format(pos_data.total_invested)|replace(".",",") }} €</div>
   </div>
 </div>
 <div class="grid-4" style="gap:12px;margin-bottom:12px;">
   <div class="metric-card">
     <div class="metric-label">Aktueller Wert</div>
-    <div class="metric-value">{{ "%,.2f"|format(pos_data.current_value)|replace(",","X")|replace(".","," )|replace("X",".") }} €</div>
-    <div class="metric-delta {{ 'positive' if pos_data.pnl_eur >= 0 else 'negative' }}">{{ "%+,.2f"|format(pos_data.pnl_eur)|replace(",","X")|replace(".","," )|replace("X",".") }} €</div>
+    <div class="metric-value">{{ "%.2f"|format(pos_data.current_value)|replace(".",",") }} €</div>
+    <div class="metric-delta {{ 'positive' if pos_data.pnl_eur >= 0 else 'negative' }}">{{ "%+.2f"|format(pos_data.pnl_eur)|replace(".",",") }} €</div>
   </div>
   <div class="metric-card">
     <div class="metric-label">Haltedauer</div>

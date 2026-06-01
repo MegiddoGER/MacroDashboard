@@ -986,21 +986,30 @@ def _build_position_analysis_context(
             sum_data["checklist"], pos_data
         )
 
-    # ── Position Score + Recommendation ────────────────────────
+    # ── Position Score + Recommendation (V2 Engine) ──────────────
     rec = {}
     cat_scores = {}
     cat_max = {}
+    position_analysis = None
+    v2_result = None
     try:
-        from services.scoring import calc_full_score
+        from services.scoring import calc_full_score, calc_position_analysis_v2
         score_result = calc_full_score(hist, info_data, ticker)
         if score_result:
-            rec = calc_position_score(
+            # V2: Full position analysis with validation, metrics, scoring, recommendation
+            v2_result = calc_position_analysis_v2(
                 score_result, pos_data, dcf_data=dcf,
+                balance_data=balance,
                 volume_modifier=volume_modifier,
+                hist=hist,
             )
+            position_analysis = v2_result.get("position_analysis")
+            rec = v2_result.get("legacy_rec", {})
             cat_scores = dict(score_result.cat_scores)
             cat_max = dict(score_result.cat_max)
-    except Exception:
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
         rec = {
             "position_score": 50,
             "action": "HALTEN",
@@ -1032,6 +1041,9 @@ def _build_position_analysis_context(
         "cat_max": cat_max,
         "fmt_price": _fmt_price,
         "fmt_big": _fmt_big,
+        # V2 additions
+        "pa": position_analysis,
+        "v2_result": v2_result,
     }
     return ctx
 
