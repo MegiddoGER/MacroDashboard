@@ -60,6 +60,30 @@
 </div>
 {% endif %}
 
+<!-- ═══ Strategische Handlungsempfehlung (Executive Decision Card) ═══ -->
+<!-- Versteckte Felder für HTMX-Rerender der Empfehlung bei Modifier-Wechsel -->
+<input type="hidden" name="rec_ticker" value="{{ ticker }}">
+<input type="hidden" name="rec_buy_price" value="{{ pos_data.buy_price }}">
+<input type="hidden" name="rec_quantity" value="{{ pos_data.quantity }}">
+<input type="hidden" name="rec_buy_date" value="{{ pos_data.buy_date or '' }}">
+<input type="hidden" name="rec_current_price" value="{{ pos_data.current_price }}">
+<input type="hidden" name="rec_confidence" value="{{ sum_data.confidence if sum_data else 50 }}">
+<input type="hidden" name="rec_stop_loss" value="{{ pos_data.stop_loss or '' }}">
+<input type="hidden" name="rec_take_profit" value="{{ pos_data.take_profit or '' }}">
+<input type="hidden" name="rec_atr_val" value="{{ pos_data.atr_val or '' }}">
+<input type="hidden" name="rec_sma200_dist" value="{{ pos_data.sma200_dist or '' }}">
+<input type="hidden" name="rec_pnl_pct" value="{{ pos_data.pnl_pct }}">
+<input type="hidden" name="rec_pnl_eur" value="{{ pos_data.pnl_eur }}">
+<input type="hidden" name="rec_holding_days" value="{{ pos_data.holding_days }}">
+<input type="hidden" name="rec_total_invested" value="{{ pos_data.total_invested }}">
+<input type="hidden" name="rec_current_value" value="{{ pos_data.current_value }}">
+
+<div id="position-recommendation-section">
+  {% include "partials/position_recommendation.html" %}
+</div>
+
+<hr>
+
 <!-- ═══ Positions-Übersicht ═══ -->
 <h4>📋 Positions-Übersicht</h4>
 <div class="grid-4" style="gap:12px;margin-bottom:12px;">
@@ -164,80 +188,87 @@
 
 <!-- ═══ Technische Analyse — Indikator-Checkliste ═══ -->
 {% if enriched_checklist %}
-<h4>🔍 Technische Analyse — Indikatoren-Checkliste</h4>
-<p class="caption">Alle Indikatoren mit positionsspezifischer Relevanz für deine bestehende Position.</p>
+<div class="expander" style="margin-bottom: 16px;">
+  <div class="expander-header" onclick="this.parentElement.classList.toggle('open')">
+    <span>🔍 Detaillierte Indikatoren-Checkliste einblenden</span>
+    <span class="expander-chevron">▼</span>
+  </div>
+  <div class="expander-body">
+    <p class="caption" style="margin-bottom: 12px;">Alle Indikatoren mit positionsspezifischer Relevanz für deine bestehende Position.</p>
 
-{% set tech_indicators = ['ADX', 'Trend (SMAs)', 'MACD'] %}
-{% set osc_indicators = ['RSI (14)', 'Bollinger Bänder', 'Stochastic'] %}
-{% set vol_indicators = ['OBV Trend', 'VWMA (20T)', 'Volumen-Cluster (POC)', 'FVG (Fair Value Gap)', 'Equal Highs (EQH)', 'Equal Lows (EQL)'] %}
-{% set fund_indicators = ['DCF Fair Value', 'Bilanzqualität', 'Insider-Sentiment', 'Analysten-Konsens', 'Dividende'] %}
-{% set sent_indicators = ['News Sentiment', 'Earnings Surprise', 'Contrarian-Warnung 🧨'] %}
+    {% set tech_indicators = ['ADX', 'Trend (SMAs)', 'MACD'] %}
+    {% set osc_indicators = ['RSI (14)', 'Bollinger Bänder', 'Stochastic'] %}
+    {% set vol_indicators = ['OBV Trend', 'VWMA (20T)', 'Volumen-Cluster (POC)', 'FVG (Fair Value Gap)', 'Equal Highs (EQH)', 'Equal Lows (EQL)'] %}
+    {% set fund_indicators = ['DCF Fair Value', 'Bilanzqualität', 'Insider-Sentiment', 'Analysten-Konsens', 'Dividende'] %}
+    {% set sent_indicators = ['News Sentiment', 'Earnings Surprise', 'Contrarian-Warnung 🧨'] %}
 
-{% macro render_pos_category(title, icon, indicator_names, items) %}
-{% set cat_items = [] %}
-{% for item in items %}
-  {% if item.get('Indikator','') in indicator_names %}
-    {% if cat_items.append(item) %}{% endif %}
-  {% endif %}
-{% endfor %}
-{% if cat_items %}
-<div style="margin-bottom:16px;">
-  <h6 style="margin-bottom:6px;color:var(--text-dim);">{{ icon }} {{ title }}</h6>
-  <div class="table-container">
-    <table class="data-table">
-      <thead><tr><th>Indikator</th><th>Wert</th><th>Signal</th><th>Beitrag</th><th>Positionsrelevanz</th></tr></thead>
-      <tbody>
-      {% for item in cat_items %}
-      <tr>
-        <td><b>{{ item.get('Indikator','') }}</b></td>
-        <td>{{ item.get('Wert','—') }}</td>
-        <td>{{ item.get('Signal','—') }}</td>
-        <td>{{ item.get('Beitrag','—') }}</td>
-        <td>{% if item.get('Positionsrelevanz') %}<span class="relevance-note">{{ item.Positionsrelevanz }}</span>{% else %}—{% endif %}</td>
-      </tr>
-      {% endfor %}
-      </tbody>
-    </table>
+    {% macro render_pos_category(title, icon, indicator_names, items) %}
+    {% set cat_items = [] %}
+    {% for item in items %}
+      {% if item.get('Indikator','') in indicator_names %}
+        {% if cat_items.append(item) %}{% endif %}
+      {% endif %}
+    {% endfor %}
+    {% if cat_items %}
+    <div style="margin-bottom:16px;">
+      <h6 style="margin-bottom:6px;color:var(--text-dim);">{{ icon }} {{ title }}</h6>
+      <div class="table-container">
+        <table class="data-table">
+          <thead><tr><th>Indikator</th><th>Wert</th><th>Signal</th><th>Beitrag</th><th>Positionsrelevanz</th></tr></thead>
+          <tbody>
+          {% for item in cat_items %}
+          <tr>
+            <td><b>{{ item.get('Indikator','') }}</b></td>
+            <td>{{ item.get('Wert','—') }}</td>
+            <td>{{ item.get('Signal','—') }}</td>
+            <td>{{ item.get('Beitrag','—') }}</td>
+            <td>{% if item.get('Positionsrelevanz') %}<span class="relevance-note">{{ item.Positionsrelevanz }}</span>{% else %}—{% endif %}</td>
+          </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+    {% endmacro %}
+
+    {{ render_pos_category('Technisch', '🔬', tech_indicators, enriched_checklist) }}
+    {{ render_pos_category('Oszillatoren', '📉', osc_indicators, enriched_checklist) }}
+    {{ render_pos_category('Volumen & Struktur', '📊', vol_indicators, enriched_checklist) }}
+    {{ render_pos_category('Fundamental', '🏦', fund_indicators, enriched_checklist) }}
+    {{ render_pos_category('Sentiment', '📰', sent_indicators, enriched_checklist) }}
+
+    {# Catch-all für nicht kategorisierte Indikatoren #}
+    {% set all_known = tech_indicators + osc_indicators + vol_indicators + fund_indicators + sent_indicators %}
+    {% set other_items = [] %}
+    {% for item in enriched_checklist %}
+      {% if item.get('Indikator','') not in all_known %}
+        {% if other_items.append(item) %}{% endif %}
+      {% endif %}
+    {% endfor %}
+    {% if other_items %}
+    <div style="margin-bottom:16px;">
+      <h6 style="margin-bottom:6px;color:var(--text-dim);">🔧 Sonstige</h6>
+      <div class="table-container">
+        <table class="data-table">
+          <thead><tr><th>Indikator</th><th>Wert</th><th>Signal</th><th>Beitrag</th><th>Positionsrelevanz</th></tr></thead>
+          <tbody>
+          {% for item in other_items %}
+          <tr>
+            <td><b>{{ item.get('Indikator','') }}</b></td>
+            <td>{{ item.get('Wert','—') }}</td>
+            <td>{{ item.get('Signal','—') }}</td>
+            <td>{{ item.get('Beitrag','—') }}</td>
+            <td>{% if item.get('Positionsrelevanz') %}<span class="relevance-note">{{ item.Positionsrelevanz }}</span>{% else %}—{% endif %}</td>
+          </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
   </div>
 </div>
-{% endif %}
-{% endmacro %}
-
-{{ render_pos_category('Technisch', '🔬', tech_indicators, enriched_checklist) }}
-{{ render_pos_category('Oszillatoren', '📉', osc_indicators, enriched_checklist) }}
-{{ render_pos_category('Volumen & Struktur', '📊', vol_indicators, enriched_checklist) }}
-{{ render_pos_category('Fundamental', '🏦', fund_indicators, enriched_checklist) }}
-{{ render_pos_category('Sentiment', '📰', sent_indicators, enriched_checklist) }}
-
-{# Catch-all für nicht kategorisierte Indikatoren #}
-{% set all_known = tech_indicators + osc_indicators + vol_indicators + fund_indicators + sent_indicators %}
-{% set other_items = [] %}
-{% for item in enriched_checklist %}
-  {% if item.get('Indikator','') not in all_known %}
-    {% if other_items.append(item) %}{% endif %}
-  {% endif %}
-{% endfor %}
-{% if other_items %}
-<div style="margin-bottom:16px;">
-  <h6 style="margin-bottom:6px;color:var(--text-dim);">🔧 Sonstige</h6>
-  <div class="table-container">
-    <table class="data-table">
-      <thead><tr><th>Indikator</th><th>Wert</th><th>Signal</th><th>Beitrag</th><th>Positionsrelevanz</th></tr></thead>
-      <tbody>
-      {% for item in other_items %}
-      <tr>
-        <td><b>{{ item.get('Indikator','') }}</b></td>
-        <td>{{ item.get('Wert','—') }}</td>
-        <td>{{ item.get('Signal','—') }}</td>
-        <td>{{ item.get('Beitrag','—') }}</td>
-        <td>{% if item.get('Positionsrelevanz') %}<span class="relevance-note">{{ item.Positionsrelevanz }}</span>{% else %}—{% endif %}</td>
-      </tr>
-      {% endfor %}
-      </tbody>
-    </table>
-  </div>
-</div>
-{% endif %}
 {% endif %}
 
 <hr>
@@ -287,27 +318,3 @@
 <div class="alert alert-info">DCF nicht berechenbar (fehlende Daten) — fundamentale Projektion eingeschränkt.</div>
 <hr>
 {% endif %}
-
-<!-- ═══ Strategische Handlungsempfehlung ═══ -->
-<h4>🎯 Strategische Handlungsempfehlung</h4>
-
-<!-- Versteckte Felder für HTMX-Rerender der Empfehlung bei Modifier-Wechsel -->
-<input type="hidden" name="rec_ticker" value="{{ ticker }}">
-<input type="hidden" name="rec_buy_price" value="{{ pos_data.buy_price }}">
-<input type="hidden" name="rec_quantity" value="{{ pos_data.quantity }}">
-<input type="hidden" name="rec_buy_date" value="{{ pos_data.buy_date or '' }}">
-<input type="hidden" name="rec_current_price" value="{{ pos_data.current_price }}">
-<input type="hidden" name="rec_confidence" value="{{ sum_data.confidence if sum_data else 50 }}">
-<input type="hidden" name="rec_stop_loss" value="{{ pos_data.stop_loss or '' }}">
-<input type="hidden" name="rec_take_profit" value="{{ pos_data.take_profit or '' }}">
-<input type="hidden" name="rec_atr_val" value="{{ pos_data.atr_val or '' }}">
-<input type="hidden" name="rec_sma200_dist" value="{{ pos_data.sma200_dist or '' }}">
-<input type="hidden" name="rec_pnl_pct" value="{{ pos_data.pnl_pct }}">
-<input type="hidden" name="rec_pnl_eur" value="{{ pos_data.pnl_eur }}">
-<input type="hidden" name="rec_holding_days" value="{{ pos_data.holding_days }}">
-<input type="hidden" name="rec_total_invested" value="{{ pos_data.total_invested }}">
-<input type="hidden" name="rec_current_value" value="{{ pos_data.current_value }}">
-
-<div id="position-recommendation-section">
-  {% include "partials/position_recommendation.html" %}
-</div>

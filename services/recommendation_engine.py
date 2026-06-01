@@ -127,17 +127,6 @@ def generate_recommendation(
         if not signals.get("vwap_bullish", True):
             warnings_list.append("Kurs unter VWMA")
 
-        # DCF warning
-        dcf_upside = signals.get("dcf_upside")
-        if dcf_upside is not None and dcf_upside < -20:
-            warnings_list.append("DCF zeigt starkes Bewertungsrisiko")
-
-        # SMA20 warning
-        cp = signals.get("current_price", current_price)
-        sma20 = signals.get("sma20_val")
-        if cp and sma20 and cp < sma20:
-            warnings_list.append("Kurs unter SMA20 trotz intaktem übergeordnetem Trend")
-
         rationale.append("Das ursprüngliche Kursziel wurde erreicht — der alte Take-Profit ist nicht mehr als aktives Ziel gültig.")
         if trend_intact:
             rationale.append("Der übergeordnete Trend (Kurs > SMA200) ist intakt, was für weiteres Potenzial spricht.")
@@ -206,6 +195,16 @@ def generate_recommendation(
         rec.status = "HOLD"
         rec.confidence = 0.50
         rec.summary = "Keine klare Handlungsempfehlung. Position beobachten."
+
+    # ── Global Warnings ──────────────────────────────────────────
+    dcf_upside = signals.get("dcf_upside")
+    if dcf_upside is not None and dcf_upside < -20:
+        warnings_list.append("DCF zeigt starkes Bewertungsrisiko")
+
+    cp = signals.get("current_price", current_price)
+    sma20 = signals.get("sma20_val")
+    if cp and sma20 and cp < sma20:
+        warnings_list.append("Kurs unter SMA20 trotz intaktem übergeordnetem Trend")
 
     # ── Data Quality Adjustments ─────────────────────────────────
     if data_quality.score < 50:

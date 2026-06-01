@@ -1,6 +1,133 @@
 <!-- position_recommendation.html — HTMX partial für die Handlungsempfehlung -->
 <!-- Wird via GET /api/analysis/position/recommendation re-rendered bei Volume-Modifier-Änderung -->
 
+{% if pa %}
+<!-- V2: Executive Decision Card -->
+<div class="card" style="margin-bottom:16px; border: 2px solid {% if pa.scores.has_critical_warning %}var(--red){% elif pa.scores.overall >= 60 %}var(--green){% else %}var(--yellow){% endif %};">
+  
+  <!-- Header: Action & Score -->
+  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px; margin-bottom: 16px;">
+    <div>
+      <h3 style="margin-bottom:4px; font-size:1.4rem;">
+        {% if pa.recommendation.primary.value == 'HOLD_WITH_TRAILING_STOP' %}
+          <span style="color:var(--purple);">🛡️ Gewinnsicherung / Trailing Stop</span>
+        {% elif pa.recommendation.primary.value == 'EXIT_REVIEW' or pa.recommendation.primary.value == 'EXIT' %}
+          <span style="color:var(--red);">🚨 Exit Prüfen</span>
+        {% elif pa.recommendation.primary.value == 'PROFIT_PROTECTION_MODE' %}
+          <span style="color:var(--purple);">🛡️ Profit Protection Mode</span>
+        {% elif pa.recommendation.primary.value == 'NORMAL_HOLD' %}
+          <span style="color:var(--blue);">✅ Halten (Trend intakt)</span>
+        {% elif pa.recommendation.primary.value == 'LOSS_POSITION_REVIEW' %}
+          <span style="color:var(--red);">⚠️ Verlustposition Prüfen</span>
+        {% else %}
+          <span style="color:var(--text);">{{ pa.recommendation.primary.value | replace('_', ' ') }}</span>
+        {% endif %}
+      </h3>
+      <p style="color:var(--text-secondary); font-size:0.9rem;">{{ pa.recommendation.summary }}</p>
+    </div>
+    
+    <div style="text-align:right;">
+      <div style="font-size:2.2rem; font-weight:bold; color:{% if pa.scores.overall >= 60 %}var(--green){% elif pa.scores.overall >= 40 %}var(--yellow){% else %}var(--red){% endif %};">
+        {{ "%.0f"|format(pa.scores.overall) }} <span style="font-size:1rem;color:var(--text-dim);">/ 100</span>
+      </div>
+      <div style="font-size:0.75rem; color:var(--text-muted); text-transform:uppercase;">Overall Score</div>
+    </div>
+  </div>
+
+  <hr style="border-color:var(--border-subtle); margin-bottom:16px;">
+
+  <div class="grid-2" style="gap:24px;">
+    <!-- Left Column: Actions -->
+    <div>
+      <h5 style="margin-bottom:12px;">🎯 Nächste Schritte</h5>
+      <ul style="padding-left:20px; margin-bottom:16px;">
+        {% for act in pa.recommendation.next_actions %}
+          <li style="margin-bottom:6px; color:var(--text); font-size:0.9rem;">{{ act }}</li>
+        {% endfor %}
+        {% if not pa.recommendation.next_actions %}
+          <li style="color:var(--text-muted); font-size:0.9rem;">Keine spezifischen Aktionen erforderlich.</li>
+        {% endif %}
+      </ul>
+
+      {% if pa.recommendation.forbidden_actions %}
+        <h5 style="margin-bottom:12px; color:var(--red);">⛔ Nicht Erlaubt (Systemregeln)</h5>
+        <ul style="padding-left:20px; margin-bottom:16px;">
+          {% for fact in pa.recommendation.forbidden_actions %}
+            <li style="margin-bottom:6px; color:var(--red); font-size:0.9rem; font-weight:600;">{{ fact }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+
+      <!-- Volume Modifier -->
+      <div class="volume-modifier-wrap" style="margin-top:16px;">
+        <label>📐 Positionsgröße für Analyse anpassen:</label>
+        <select id="volume-modifier-select"
+                hx-get="/api/analysis/position/recommendation"
+                hx-target="#position-recommendation-section"
+                hx-swap="innerHTML"
+                hx-include="[name='rec_ticker'],[name='rec_buy_price'],[name='rec_quantity'],[name='rec_buy_date'],[name='rec_current_price'],[name='rec_confidence'],[name='rec_stop_loss'],[name='rec_take_profit'],[name='rec_atr_val'],[name='rec_sma200_dist'],[name='rec_pnl_pct'],[name='rec_pnl_eur'],[name='rec_holding_days'],[name='rec_total_invested'],[name='rec_current_value']"
+                name="volume_modifier"
+                class="form-select" style="width:auto; display:inline-block; margin-left:8px;">
+          <option value="klein" {{ 'selected' if rec.volume_modifier == 'klein' else '' }}>Klein (< 5%)</option>
+          <option value="mittel" {{ 'selected' if rec.volume_modifier == 'mittel' else '' }}>Mittel (5–15%)</option>
+          <option value="gross" {{ 'selected' if rec.volume_modifier == 'gross' else '' }}>Groß (> 15%)</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Right Column: Validation & Stop Proposals -->
+    <div>
+      <h5 style="margin-bottom:12px;">🚦 Harte Validierungen</h5>
+      <div style="display:flex; flex-direction:column; gap:8px; margin-bottom:16px;">
+        {% for entry in pa.audit_log %}
+          <div style="display:flex; align-items:flex-start; gap:8px; background:var(--bg-app-mid); padding:8px 12px; border-radius:var(--radius-sm); border-left:3px solid {% if entry.severity.value == 'CRITICAL' %}var(--red){% elif entry.severity.value == 'HIGH' %}var(--yellow){% else %}var(--blue){% endif %};">
+            <div style="font-size:1.1rem;">
+              {% if entry.severity.value == 'CRITICAL' %}🔴{% elif entry.severity.value == 'HIGH' %}🟡{% else %}🔵{% endif %}
+            </div>
+            <div>
+              <div style="font-size:0.85rem; font-weight:600; color:var(--text);">{{ entry.rule_id }}</div>
+              <div style="font-size:0.8rem; color:var(--text-secondary);">{{ entry.message }}</div>
+            </div>
+          </div>
+        {% endfor %}
+        {% if not pa.audit_log %}
+          <div style="font-size:0.85rem; color:var(--text-muted); padding:8px;">✅ Alle Validierungen bestanden.</div>
+        {% endif %}
+      </div>
+
+      {% if pa.stop_proposals %}
+        <h5 style="margin-bottom:12px;">🛡️ Stop-Loss Vorschläge (Ratchet-geprüft)</h5>
+        <div class="table-container" style="max-height: 200px;">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Typ</th>
+                <th>Stop-Preis</th>
+                <th>Distanz</th>
+                <th>Sichert Gewinn?</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for p in pa.stop_proposals %}
+                <tr>
+                  <td>{{ p.type.value | replace('_', ' ') | title }}</td>
+                  <td style="font-weight:bold;">{{ fmt_price(p.stop_price) }}</td>
+                  <td>{{ "%.1f"|format(p.distance_pct) }}%</td>
+                  <td style="color:{{ 'var(--green)' if p.locks_profit else 'var(--text-muted)' }};">
+                    {{ "Ja (+" ~ "%.1f"|format(p.locked_profit_pct) ~ "%)" if p.locks_profit else "Nein" }}
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+{% else %}
+<!-- Legacy Fallback -->
 {% set ps = rec.position_score %}
 {% if ps >= 60 %}{% set score_color = "#22c55e" %}
 {% elif ps >= 45 %}{% set score_color = "#eab308" %}
@@ -99,53 +226,4 @@
     {% endfor %}
   </ol>
 </div>
-
-<!-- Inline Nachkauf erfassen -->
-{% if rec.action == "AUFSTOCKEN" %}
-<div class="card" style="border-color: rgba(234, 179, 8, 0.4); background: rgba(234, 179, 8, 0.05); margin-bottom:12px;">
-  <h5 style="color:var(--yellow);margin-bottom:12px;">➕ Nachkauf erfassen</h5>
-  <form id="nachkauf-form" style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;">
-    <div class="form-group" style="margin:0; flex:1; min-width:120px;">
-      <label>Datum</label>
-      <input type="date" name="buy_date" class="form-input form-input-sm" required>
-    </div>
-    <div class="form-group" style="margin:0; flex:1; min-width:100px;">
-      <label>Kurs (€)</label>
-      <input type="number" name="buy_price" class="form-input form-input-sm" step="0.01" min="0.01" placeholder="150.00" required>
-    </div>
-    <div class="form-group" style="margin:0; flex:1; min-width:100px;">
-      <label>Stück</label>
-      <input type="number" name="quantity" class="form-input form-input-sm" step="0.01" min="0.01" placeholder="10" required>
-    </div>
-    <div style="margin:0;">
-      <button type="button" class="btn btn-primary btn-sm" onclick="submitNachkauf()">Speichern</button>
-    </div>
-  </form>
-  <script>
-    function submitNachkauf() {
-      const form = document.getElementById('nachkauf-form');
-      if (!form.checkValidity()) {
-        form.reportValidity();
-        return;
-      }
-      const fd = new FormData(form);
-      // Hinzufügen des aktuellen Tickers
-      fd.append('ticker', document.querySelector('input[name="rec_ticker"]').value);
-      fd.append('notes', 'Nachkauf (via Analyse)');
-      
-      fetch('/watchlist/buy', {
-          method: 'POST',
-          body: fd
-      }).then(r => r.text())
-      .then(html => {
-          showToast('Nachkauf wurde zur Watchlist hinzugefügt', 'success');
-          form.reset();
-      }).catch(err => {
-          showToast('Fehler beim Speichern', 'error');
-      });
-    }
-  </script>
-</div>
 {% endif %}
-
-<p class="caption" style="margin-top:12px;">⚠️ Dies ist eine algorithmische Momentaufnahme. Sie dient als Entscheidungshilfe, nicht als Anlageberatung.</p>
