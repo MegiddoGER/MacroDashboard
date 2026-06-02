@@ -1105,22 +1105,36 @@ async def position_recommendation_rerender(
             hist = details["hist_1y"]
             info_data = details.get("info", {})
 
-            from services.scoring import calc_full_score
+            from services.scoring import calc_full_score, calc_position_analysis_v2
             score_result = calc_full_score(hist, info_data, ticker)
             if score_result:
                 dcf = None
                 try:
+                    from services.valuation import calc_dcf_valuation
                     dcf = calc_dcf_valuation(info_data)
                 except Exception:
                     pass
 
-                rec = calc_position_score(
+                v2_result = calc_position_analysis_v2(
                     score_result, pos_data, dcf_data=dcf,
+                    balance_data=None,
                     volume_modifier=volume_modifier,
+                    hist=hist,
                 )
+                position_analysis = v2_result.get("position_analysis")
+                rec = v2_result.get("legacy_rec", {})
                 cat_scores = dict(score_result.cat_scores)
                 cat_max = dict(score_result.cat_max)
-                return {"rec": rec, "cat_scores": cat_scores, "cat_max": cat_max}
+                
+                return {
+                    "rec": rec, 
+                    "cat_scores": cat_scores, 
+                    "cat_max": cat_max,
+                    "pa": position_analysis,
+                    "v2_result": v2_result,
+                    "fmt_price": _fmt_price,
+                    "fmt_big": _fmt_big,
+                }
         except Exception:
             pass
 
@@ -1142,6 +1156,10 @@ async def position_recommendation_rerender(
             },
             "cat_scores": {},
             "cat_max": {},
+            "pa": None,
+            "v2_result": None,
+            "fmt_price": _fmt_price,
+            "fmt_big": _fmt_big,
         }
 
     result = await asyncio.to_thread(_rerender)
