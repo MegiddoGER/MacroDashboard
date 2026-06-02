@@ -1343,7 +1343,11 @@ def calc_position_analysis_v2(
     from services.target_stop_validator import validate_target_stop
     from services.position_state_engine import determine_position_state
     from services.position_metrics_engine import calc_position_metrics
-    from services.trailing_stop_engine import generate_stop_proposals, get_suggested_stop
+    from services.trailing_stop_engine import (
+        generate_stop_proposals, 
+        get_suggested_stop, 
+        calculate_suggested_take_profit
+    )
     from services.scoring_engine_v2 import calc_position_scores
     from services.recommendation_engine import generate_recommendation
     from services.data_quality_engine import assess_data_quality
