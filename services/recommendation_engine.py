@@ -34,6 +34,7 @@ def generate_recommendation(
     original_take_profit: Optional[float] = None,
     suggested_stop: Optional[float] = None,
     suggested_take_profit: Optional[float] = None,
+    volume_modifier: str = "mittel",
 ) -> RecommendationResult:
     """Erzeugt eine erklärbare, regelbasierte Empfehlung.
 
@@ -231,6 +232,17 @@ def generate_recommendation(
 
     for w in data_quality.warnings:
         dq_notes.append(w)
+
+    # ── Volume Modifier Adjustments ──────────────────────────────
+    if volume_modifier == "gross":
+        rec.confidence -= 0.05  # Große Positionen erfordern mehr Sicherheit
+        warnings_list.append("Übergewichtete Position (Groß). Strengeres Risikomanagement priorisieren.")
+        rationale.append("Da es sich um eine große Position handelt, liegt der Fokus auf Kapitalerhalt.")
+        if rec.primary == RecommendationType.NORMAL_HOLD:
+            rec.summary += " Position engmaschig überwachen aufgrund der Größe."
+    elif volume_modifier == "klein":
+        rec.confidence += 0.05  # Kleine Positionen haben mehr Spielraum
+        rationale.append("Da es sich um eine kleine Position handelt, kann dem Kurs mehr Volatilität eingeräumt werden.")
 
     # ── Review Triggers (ereignisbasiert statt pauschal) ─────────
     if validation.stop_status == StopStatus.ACTIVE:

@@ -1433,7 +1433,7 @@ def calc_position_analysis_v2(
         previous_stop=None,
     )
     analysis.stop_proposals = stop_proposals
-    suggested_stop = get_suggested_stop(stop_proposals, side)
+    suggested_stop = get_suggested_stop(stop_proposals, side, volume_modifier=volume_modifier)
 
     # ── 5. Data Quality ───────────────────────────────────────────
     data_quality = assess_data_quality(
@@ -1482,6 +1482,7 @@ def calc_position_analysis_v2(
         original_take_profit=take_profit,
         suggested_stop=suggested_stop,
         suggested_take_profit=suggested_tp,
+        volume_modifier=volume_modifier,
     )
     analysis.recommendation = recommendation
 

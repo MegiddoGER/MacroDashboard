@@ -247,6 +247,7 @@ def get_suggested_stop(
     proposals: list[StopProposal],
     side: PositionSide,
     previous_stop: Optional[float] = None,
+    volume_modifier: str = "mittel",
 ) -> Optional[float]:
     """Wählt den empfohlenen Stop aus den Vorschlägen.
 
@@ -256,13 +257,25 @@ def get_suggested_stop(
     if not proposals:
         return None
 
-    # Bevorzuge HIGH suitability Vorschläge
-    high_suit = [p for p in proposals if p.suitability == StopSuitability.HIGH and p.stop_price]
-    if high_suit:
-        best = high_suit[0]
+    # Bevorzuge Vorschläge basierend auf Positionsgröße
+    if volume_modifier == "gross":
+        # Für große Positionen den engsten (aggressivsten) Stop bevorzugen, der Gewinn sichert oder am wenigsten Risiko hat
+        best = proposals[0]
+    elif volume_modifier == "klein":
+        # Für kleine Positionen dem Markt mehr Luft geben (konservativer Struktur-Stop bevorzugt)
+        cons = [p for p in proposals if p.type == StopType.CONSERVATIVE_STRUCTURE and p.stop_price]
+        if cons:
+            best = cons[0]
+        else:
+            best = proposals[-1]  # weitester Stop
     else:
-        medium_suit = [p for p in proposals if p.suitability == StopSuitability.MEDIUM and p.stop_price]
-        best = medium_suit[0] if medium_suit else proposals[0]
+        # Mittel: Bevorzuge HIGH suitability Vorschläge
+        high_suit = [p for p in proposals if p.suitability == StopSuitability.HIGH and p.stop_price]
+        if high_suit:
+            best = high_suit[0]
+        else:
+            medium_suit = [p for p in proposals if p.suitability == StopSuitability.MEDIUM and p.stop_price]
+            best = medium_suit[0] if medium_suit else proposals[0]
 
     suggested = best.stop_price
 
