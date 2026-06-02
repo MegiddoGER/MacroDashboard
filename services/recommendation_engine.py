@@ -33,6 +33,7 @@ def generate_recommendation(
     entry_price: float = 0.0,
     original_take_profit: Optional[float] = None,
     suggested_stop: Optional[float] = None,
+    suggested_take_profit: Optional[float] = None,
 ) -> RecommendationResult:
     """Erzeugt eine erklärbare, regelbasierte Empfehlung.
 
@@ -43,6 +44,8 @@ def generate_recommendation(
         RecommendationResult mit allen Feldern
     """
     rec = RecommendationResult()
+    rec.suggested_optimal_stop = suggested_stop
+    rec.suggested_take_profit = suggested_take_profit
 
     next_actions: list[str] = []
     optional_actions: list[str] = []
@@ -164,7 +167,10 @@ def generate_recommendation(
         rec.confidence = 0.55
         rec.summary = "Position im Gewinn, aber erhöhte Warnsignale. Gewinnsicherung prüfen."
         if suggested_stop:
-            next_actions.append(f"Trailing Stop bei {suggested_stop:.2f} EUR prüfen")
+            msg = f"Trailing Stop bei {suggested_stop:.2f} EUR prüfen"
+            if suggested_take_profit and not validation.active_take_profit:
+                msg += f" (Dazu TP bei {suggested_take_profit:.2f} EUR)"
+            next_actions.append(msg)
         next_actions.append("Teilgewinnmitnahme erwägen")
 
     # ── 6. NORMAL HOLD ───────────────────────────────────────────
@@ -177,7 +183,10 @@ def generate_recommendation(
             "Position halten und regelmäßig überprüfen."
         )
         if suggested_stop:
-            next_actions.append(f"Stop bei {suggested_stop:.2f} EUR als Absicherung prüfen")
+            msg = f"Stop bei {suggested_stop:.2f} EUR als Absicherung prüfen"
+            if suggested_take_profit and not validation.active_take_profit:
+                msg += f" (Dazu TP bei {suggested_take_profit:.2f} EUR)"
+            next_actions.append(msg)
         rationale.append("Trend intakt, Momentum unterstützt die Position.")
 
     # ── 7. HOLD WITH TRAILING STOP ───────────────────────────────
@@ -187,7 +196,10 @@ def generate_recommendation(
         rec.confidence = 0.60
         rec.summary = "Position im Gewinn. Trailing Stop zur Gewinnsicherung empfohlen."
         if suggested_stop:
-            next_actions.append(f"Trailing Stop bei {suggested_stop:.2f} EUR prüfen")
+            msg = f"Trailing Stop bei {suggested_stop:.2f} EUR prüfen"
+            if suggested_take_profit and not validation.active_take_profit:
+                msg += f" (Dazu TP bei {suggested_take_profit:.2f} EUR)"
+            next_actions.append(msg)
 
     # ── 8. DEFAULT HOLD ──────────────────────────────────────────
     else:
@@ -236,6 +248,25 @@ def generate_recommendation(
 
     # ── Confidence clamping ──────────────────────────────────────
     rec.confidence = max(0.0, min(1.0, rec.confidence))
+
+    # ── Mode Title Mapping ───────────────────────────────────────
+    MODE_TITLES = {
+        RecommendationType.NORMAL_HOLD.value: "✅ Intakter Trend (Halten)",
+        RecommendationType.PROFIT_PROTECTION_MODE.value: "🛡️ Gewinne absichern",
+        RecommendationType.HOLD_WITH_TRAILING_STOP.value: "🛡️ Gewinne laufen lassen & absichern",
+        RecommendationType.TARGET_REACHED_REVIEW.value: "🎯 Kursziel erreicht (Handeln!)",
+        RecommendationType.EXIT_REVIEW.value: "🚨 Kritisch: Ausstieg prüfen",
+        RecommendationType.EXIT.value: "🚨 Kritisch: Ausstieg prüfen",
+        RecommendationType.LOSS_POSITION_REVIEW.value: "⚠️ Kritischer Verlust: These prüfen",
+        RecommendationType.THESIS_REVIEW.value: "🤔 Warnsignale: Investment-These prüfen",
+        RecommendationType.ADD_ALLOWED.value: "📈 Stärke ausbauen (Nachkaufen)",
+        RecommendationType.NO_ACTION_DATA_INSUFFICIENT.value: "⏸️ Daten unzureichend",
+        RecommendationType.HOLD_BUT_REDUCE_RISK.value: "⚠️ Halten, aber Risiko reduzieren",
+    }
+    rec.mode_title = MODE_TITLES.get(
+        rec.primary.value if hasattr(rec.primary, 'value') else str(rec.primary),
+        str(rec.primary)
+    )
 
     # ── Assemble ─────────────────────────────────────────────────
     rec.next_actions = next_actions

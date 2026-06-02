@@ -255,6 +255,9 @@ class RecommendationResult:
     status: str = ""
     confidence: float = 0.5
     summary: str = ""
+    mode_title: str = ""
+    suggested_optimal_stop: Optional[float] = None
+    suggested_take_profit: Optional[float] = None
     rationale: list[str] = field(default_factory=list)
     next_actions: list[str] = field(default_factory=list)
     optional_actions: list[str] = field(default_factory=list)
@@ -270,6 +273,9 @@ class RecommendationResult:
             "status": self.status,
             "confidence": self.confidence,
             "summary": self.summary,
+            "mode_title": self.mode_title,
+            "suggested_optimal_stop": self.suggested_optimal_stop,
+            "suggested_take_profit": self.suggested_take_profit,
             "rationale": self.rationale,
             "next_actions": self.next_actions,
             "optional_actions": self.optional_actions,

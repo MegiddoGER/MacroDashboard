@@ -9,16 +9,8 @@
   <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px; margin-bottom: 16px;">
     <div>
       <h3 style="margin-bottom:4px; font-size:1.4rem;">
-        {% if pa.recommendation.primary.value == 'HOLD_WITH_TRAILING_STOP' %}
-          <span style="color:var(--purple);">🛡️ Gewinnsicherung / Trailing Stop</span>
-        {% elif pa.recommendation.primary.value == 'EXIT_REVIEW' or pa.recommendation.primary.value == 'EXIT' %}
-          <span style="color:var(--red);">🚨 Exit Prüfen</span>
-        {% elif pa.recommendation.primary.value == 'PROFIT_PROTECTION_MODE' %}
-          <span style="color:var(--purple);">🛡️ Profit Protection Mode</span>
-        {% elif pa.recommendation.primary.value == 'NORMAL_HOLD' %}
-          <span style="color:var(--blue);">✅ Halten (Trend intakt)</span>
-        {% elif pa.recommendation.primary.value == 'LOSS_POSITION_REVIEW' %}
-          <span style="color:var(--red);">⚠️ Verlustposition Prüfen</span>
+        {% if pa.recommendation.mode_title %}
+          <span style="color:var(--text);">{{ pa.recommendation.mode_title }}</span>
         {% else %}
           <span style="color:var(--text);">{{ pa.recommendation.primary.value | replace('_', ' ') }}</span>
         {% endif %}
@@ -35,6 +27,31 @@
   </div>
 
   <hr style="border-color:var(--border-subtle); margin-bottom:16px;">
+
+  {% if not pa.validation.active_stop or not pa.validation.active_take_profit %}
+  <div style="background-color:rgba(234, 179, 8, 0.1); border-left:4px solid var(--yellow); padding:12px 16px; margin-bottom:20px; border-radius:var(--radius-sm);">
+    <h5 style="margin-bottom:8px; color:var(--yellow); display:flex; align-items:center; gap:8px;">
+      ⚠️ Risikomanagement inaktiv
+    </h5>
+    <p style="color:var(--text-secondary); font-size:0.9rem; margin-bottom:12px;">
+      Du hast für diese Position keinen aktiven Stop-Loss und/oder Take-Profit hinterlegt. Um dein Kapital zu schützen, schlägt dir das System folgendes "Perfektes Duo" vor:
+    </p>
+    <div style="display:flex; gap:16px; flex-wrap:wrap;">
+      <div style="background:var(--bg-app-dark); padding:8px 12px; border-radius:var(--radius-sm); border:1px solid var(--border-subtle);">
+        <span style="color:var(--text-dim); font-size:0.8rem; text-transform:uppercase;">Empfohlener Stop-Loss</span><br>
+        <span style="font-weight:bold; font-size:1.1rem; color:var(--red);">
+          {% if pa.recommendation.suggested_optimal_stop %}{{ fmt_price(pa.recommendation.suggested_optimal_stop) }}{% else %}—{% endif %}
+        </span>
+      </div>
+      <div style="background:var(--bg-app-dark); padding:8px 12px; border-radius:var(--radius-sm); border:1px solid var(--border-subtle);">
+        <span style="color:var(--text-dim); font-size:0.8rem; text-transform:uppercase;">Empfohlener Take-Profit (CRV 1:2)</span><br>
+        <span style="font-weight:bold; font-size:1.1rem; color:var(--green);">
+          {% if pa.recommendation.suggested_take_profit %}{{ fmt_price(pa.recommendation.suggested_take_profit) }}{% else %}—{% endif %}
+        </span>
+      </div>
+    </div>
+  </div>
+  {% endif %}
 
   <div class="grid-2" style="gap:24px;">
     <!-- Left Column: Actions -->

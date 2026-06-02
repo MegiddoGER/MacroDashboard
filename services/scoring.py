@@ -1451,6 +1451,17 @@ def calc_position_analysis_v2(
     )
     analysis.scores = scores
 
+    # ── 6b. Take Profit Vorschlag ─────────────────────────────────
+    atr_val = position_data.get("atr_val") or signals.get("atr_val")
+    suggested_tp = calculate_suggested_take_profit(
+        current_price=current_price,
+        entry_price=buy_price,
+        suggested_stop=suggested_stop,
+        atr_val=atr_val,
+        side=side,
+        risk_reward_ratio=2.0
+    )
+
     # ── 7. Recommendation ─────────────────────────────────────────
     recommendation = generate_recommendation(
         mode=state.mode,
@@ -1466,6 +1477,7 @@ def calc_position_analysis_v2(
         entry_price=buy_price,
         original_take_profit=take_profit,
         suggested_stop=suggested_stop,
+        suggested_take_profit=suggested_tp,
     )
     analysis.recommendation = recommendation
 

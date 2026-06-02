@@ -268,3 +268,49 @@ def get_suggested_stop(
             suggested = min(suggested, previous_stop)
 
     return suggested
+
+
+def calculate_suggested_take_profit(
+    current_price: float,
+    entry_price: float,
+    suggested_stop: Optional[float],
+    atr_val: Optional[float],
+    side: PositionSide = PositionSide.LONG,
+    risk_reward_ratio: float = 2.0,
+) -> Optional[float]:
+    """Berechnet einen empfohlenen Take-Profit basierend auf CRV und ATR.
+    
+    Ansatz:
+    1. Berechne das Risiko (Einstieg - Stop).
+    2. Wenn ein Risiko existiert, wende das gewünschte CRV an (z.B. 1:2).
+    3. Wenn kein Risiko existiert (z.B. Stop im Gewinn) oder kein Stop, nutze +3x ATR.
+    """
+    if current_price <= 0:
+        return None
+
+    tp = None
+
+    # 1. Risikobasierter Ansatz (CRV)
+    if suggested_stop and entry_price > 0:
+        if side == PositionSide.LONG and suggested_stop < entry_price:
+            risk = entry_price - suggested_stop
+            tp = entry_price + (risk * risk_reward_ratio)
+        elif side == PositionSide.SHORT and suggested_stop > entry_price:
+            risk = suggested_stop - entry_price
+            tp = entry_price - (risk * risk_reward_ratio)
+
+    # 2. Volatilitätsbasierter Ansatz (ATR-Projektion), falls Risiko <= 0 oder nicht anwendbar
+    if tp is None and atr_val and atr_val > 0:
+        if side == PositionSide.LONG:
+            tp = current_price + (3.0 * atr_val)
+        else:
+            tp = current_price - (3.0 * atr_val)
+
+    # Fallback: Fester Prozentsatz vom aktuellen Kurs
+    if tp is None:
+        if side == PositionSide.LONG:
+            tp = current_price * 1.15  # +15%
+        else:
+            tp = current_price * 0.85  # -15%
+
+    return round(tp, 2) if tp else None
