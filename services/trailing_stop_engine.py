@@ -115,6 +115,9 @@ def generate_stop_proposals(
                 continue
 
             details = _calc_stop_details(stop_price, current_price, entry_price, quantity, atr_val, side)
+            
+            if details["distance_pct"] is not None and details["distance_pct"] < 0:
+                continue
 
             proposals.append(StopProposal(
                 type=stop_type,
@@ -140,49 +143,52 @@ def generate_stop_proposals(
         chandelier_price = _safe(chandelier_price)
         if chandelier_price is not None and chandelier_price > 0:
             details = _calc_stop_details(chandelier_price, current_price, entry_price, quantity, atr_val, side)
+            if details["distance_pct"] is None or details["distance_pct"] >= 0:
+                proposals.append(StopProposal(
+                    type=StopType.CHANDELIER_EXIT,
+                    stop_price=round(chandelier_price, 2),
+                    distance_pct=details["distance_pct"],
+                    distance_atr=details["distance_atr"],
+                    locks_profit=details["locks_profit"],
+                    locked_profit=details["locked_profit"],
+                    locked_profit_pct=details["locked_profit_pct"],
+                    risk_if_hit=details["risk_if_hit"],
+                    explanation="Chandelier Exit (3× ATR unter 22-Tage-Hoch). Dynamischer Trailing Stop, passt sich an Hochs an.",
+                    suitability=StopSuitability.HIGH,
+                ))
+
+    # ── SMA-basierte Stops ───────────────────────────────────────
+    if sma20 is not None and sma20 > 0:
+        details = _calc_stop_details(sma20, current_price, entry_price, quantity, atr_val, side)
+        if details["distance_pct"] is None or details["distance_pct"] >= 0:
             proposals.append(StopProposal(
-                type=StopType.CHANDELIER_EXIT,
-                stop_price=round(chandelier_price, 2),
+                type=StopType.SMA20,
+                stop_price=round(sma20, 2),
                 distance_pct=details["distance_pct"],
                 distance_atr=details["distance_atr"],
                 locks_profit=details["locks_profit"],
                 locked_profit=details["locked_profit"],
                 locked_profit_pct=details["locked_profit_pct"],
                 risk_if_hit=details["risk_if_hit"],
-                explanation="Chandelier Exit (3× ATR unter 22-Tage-Hoch). Dynamischer Trailing Stop, passt sich an Hochs an.",
-                suitability=StopSuitability.HIGH,
+                explanation="SMA20-Stop. Kurzfristiger Trendindikator — aggressiver Stop.",
+                suitability=StopSuitability.LOW,
             ))
-
-    # ── SMA-basierte Stops ───────────────────────────────────────
-    if sma20 is not None and sma20 > 0:
-        details = _calc_stop_details(sma20, current_price, entry_price, quantity, atr_val, side)
-        proposals.append(StopProposal(
-            type=StopType.SMA20,
-            stop_price=round(sma20, 2),
-            distance_pct=details["distance_pct"],
-            distance_atr=details["distance_atr"],
-            locks_profit=details["locks_profit"],
-            locked_profit=details["locked_profit"],
-            locked_profit_pct=details["locked_profit_pct"],
-            risk_if_hit=details["risk_if_hit"],
-            explanation="SMA20-Stop. Kurzfristiger Trendindikator — aggressiver Stop.",
-            suitability=StopSuitability.LOW,
-        ))
 
     if sma50 is not None and sma50 > 0:
         details = _calc_stop_details(sma50, current_price, entry_price, quantity, atr_val, side)
-        proposals.append(StopProposal(
-            type=StopType.SMA50,
-            stop_price=round(sma50, 2),
-            distance_pct=details["distance_pct"],
-            distance_atr=details["distance_atr"],
-            locks_profit=details["locks_profit"],
-            locked_profit=details["locked_profit"],
-            locked_profit_pct=details["locked_profit_pct"],
-            risk_if_hit=details["risk_if_hit"],
-            explanation="SMA50-Stop. Mittelfristiger Trendindikator — moderater Stop.",
-            suitability=StopSuitability.MEDIUM,
-        ))
+        if details["distance_pct"] is None or details["distance_pct"] >= 0:
+            proposals.append(StopProposal(
+                type=StopType.SMA50,
+                stop_price=round(sma50, 2),
+                distance_pct=details["distance_pct"],
+                distance_atr=details["distance_atr"],
+                locks_profit=details["locks_profit"],
+                locked_profit=details["locked_profit"],
+                locked_profit_pct=details["locked_profit_pct"],
+                risk_if_hit=details["risk_if_hit"],
+                explanation="SMA50-Stop. Mittelfristiger Trendindikator — moderater Stop.",
+                suitability=StopSuitability.MEDIUM,
+            ))
 
     # ── Break-Even Stop ──────────────────────────────────────────
     if side == PositionSide.LONG and current_price > entry_price:
