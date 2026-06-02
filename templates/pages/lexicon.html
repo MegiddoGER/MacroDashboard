@@ -3,239 +3,51 @@
 {% block content %}
 <div class="page-header">
   <h2>📖 Analyse-Lexikon</h2>
-  <p class="caption">Das umfassende Nachschlagewerk: Entschlüssele jede Metrik, jedes Modell und jedes Signal im Dashboard.</p>
+  <p class="caption">Das Nachschlagewerk: Entschlüssele jede Metrik und Funktion — aufgeteilt nach den exakten Verzeichnissen und Seiten des Dashboards.</p>
 </div>
 
 <!-- Tabs -->
 <div class="tabs">
-  <button class="tab active" data-tab="tab-guide">📖 Handbuch</button>
-  <button class="tab" data-tab="tab-fund">📊 Fundamentale Analyse</button>
-  <button class="tab" data-tab="tab-quant">🏦 Quant-Modelle</button>
-  <button class="tab" data-tab="tab-tech">📈 Technische Indikatoren</button>
-  <button class="tab" data-tab="tab-strat">🎯 Strategische Taktiken</button>
-  <button class="tab" data-tab="tab-risk">🛡️ Risiko &amp; Backtest</button>
-  <button class="tab" data-tab="tab-sent">💬 Sentiment &amp; Flow</button>
-  <button class="tab" data-tab="tab-arch">🧠 System-Architektur</button>
+  <button class="tab active" data-tab="tab-home">🏠 Home (routers/home.py)</button>
+  <button class="tab" data-tab="tab-analysis">🔬 Analyse (routers/analysis.py)</button>
+  <button class="tab" data-tab="tab-screener">🎯 Screener (routers/screener.py)</button>
+  <button class="tab" data-tab="tab-watchlist">📋 Watchlist (routers/watchlist.py)</button>
+  <button class="tab" data-tab="tab-journal">📓 Journal (routers/journal.py)</button>
+  <button class="tab" data-tab="tab-economy">🌍 Economy (routers/economy.py)</button>
+  <button class="tab" data-tab="tab-sectors">🏢 Sektoren (routers/sectors.py)</button>
+  <button class="tab" data-tab="tab-backtesting">⏪ Backtesting (routers/backtesting.py)</button>
 </div>
 
-<!-- ═══ Tab 1: Handbuch ═══ -->
-<div class="tab-content active" id="tab-guide">
+<!-- ═══ Tab 1: Home ═══ -->
+<div class="tab-content active" id="tab-home">
   <div class="card" style="margin-bottom:var(--gap);">
-    <h4>Das Macro Dashboard: Einstieg & Orientierung</h4>
-    <p class="caption">Was ist dieses System und wie nutzt du es am effizientesten, um den Markt zu schlagen?</p>
+    <h4>Cockpit / Startseite (pages/home.html)</h4>
+    <p class="caption">Zentraler Einstiegspunkt für den täglichen Workflow. Aggregiert Makro-Daten, Portfolio und globale Signale.</p>
   </div>
   
   <div class="lex-entry">
     <div class="lex-header" onclick="toggleLex(this)">
       <div class="lex-title-wrap">
-        <span class="lex-icon">🎯</span>
-        <span class="lex-title">Zweck des Dashboards</span>
+        <span class="lex-icon">🌡️</span>
+        <span class="lex-title">Fear & Greed Index</span>
       </div>
       <div class="lex-toggle">Details <span class="chevron">▼</span></div>
     </div>
     <div class="lex-short">
-      Das Dashboard ist ein institutionelles Werkzeug für Retail-Investoren. Es kombiniert tiefgehende Fundamentaldaten mit Smart Money Concepts und maschinellem Scoring, um emotionale und fehlerhafte Trading-Entscheidungen zu eliminieren.
-    </div>
-    <div class="lex-body"><div class="lex-body-inner"><div class="lex-details">
-      <h5>Warum wurde es gebaut?</h5>
-      <p>Retail-Trader verlieren oft Geld durch FOMO, fehlendes Risikomanagement oder Ignoranz gegenüber Makro-Faktoren. Das Dashboard schützt davor durch knallharte, emotionslose Metriken und klare Warnsysteme (z.B. Euphorie-Falle).</p>
-      
-      <h5>Die 7 häufigsten Trading-Fehler & der System-Schutz</h5>
-      <ul>
-        <li><strong>Ohne Analyse kaufen (FOMO):</strong> Scoring Engine zwingt zur objektiven Betrachtung.</li>
-        <li><strong>Kein Stop-Loss setzen:</strong> ATR-basiertes Risk-Management in der Watchlist.</li>
-        <li><strong>Gegen den Makro-Trend handeln:</strong> Fear & Greed Index sowie Yield Spread Warnungen.</li>
-        <li><strong>Klumpenrisiko (Sektor-Overload):</strong> Sektor-Heatmap und Portfolio-Aufschlüsselung.</li>
-        <li><strong>Retail-Top kaufen:</strong> Contrarian-Warnung zieht bei Hype & Überkauf massiv Score ab.</li>
-        <li><strong>Strategie nie getestet:</strong> Integrierte Backtesting-Engine zur Validierung.</li>
-        <li><strong>Aus Fehlern nicht lernen:</strong> Trade-Journal erzwingt Post-Trade Reviews.</li>
-      </ul>
-      
-      <div class="lex-action">
-        <strong>💡 Workflow-Regel</strong>
-        Nutze das Dashboard nicht als reinen "Kauf-Signal-Generator", sondern als Risikofilter. Wenn der Score niedrig ist, kaufe nicht – egal wie gut die Story auf X/Twitter klingt.
-      </div>
-    </div></div></div>
-  </div>
-
-  <div class="lex-entry">
-    <div class="lex-header" onclick="toggleLex(this)">
-      <div class="lex-title-wrap">
-        <span class="lex-icon">⏱️</span>
-        <span class="lex-title">Optimaler täglicher Workflow (~25 Min.)</span>
-      </div>
-      <div class="lex-toggle">Details <span class="chevron">▼</span></div>
-    </div>
-    <div class="lex-short">
-      Ein strukturierter Ablauf spart Zeit und verhindert Impulshandlungen. Beginne immer Top-Down: Vom Makro-Bild über Sektoren bis hin zur Einzelaktie.
-    </div>
-    <div class="lex-body"><div class="lex-body-inner"><div class="lex-details">
-      <h5>Der 5-Schritte Plan</h5>
-      <p>Führe diese Schritte idealerweise vor US-Markteröffnung aus:</p>
-      <ol>
-        <li><strong>(5 Min) Makro-Check:</strong> Prüfe auf der Home-Seite den <em>Fear & Greed Index</em> und die anstehenden Termine im <em>Wirtschaftskalender</em>. Ist die Zinskurve invertiert?</li>
-        <li><strong>(3 Min) Sektor-Rotation:</strong> Öffne die Sektoren-Heatmap. Welche Sektoren haben Momentum? Vermeide Käufe in schwachen Sektoren.</li>
-        <li><strong>(5 Min) Screener:</strong> Lass den Screener laufen. Filtere nach Presets wie "Value" oder "Momentum" und suche Aktien mit einem Score > 75.</li>
-        <li><strong>(10 Min) Deep-Dive Analyse:</strong> Analysiere die Top-Kandidaten im Analyse-Tab. Prüfe die SMC-Matrix, Fair Value Gaps und den DCF-Wert. Setze Limit-Order-Marken.</li>
-        <li><strong>(2 Min) Journal & Watchlist:</strong> Füge den Trade der Watchlist hinzu und notiere dein Setup im Journal.</li>
-      </ol>
-      <div class="lex-warn">
-        <strong>⚠️ Warnung</strong>
-        Das Überspringen des Makro-Checks ist der Hauptgrund für unerwartete Verluste durch überraschende CPI- oder Fed-Meldungen.
-      </div>
-    </div></div></div>
-  </div>
-  
-  <div class="lex-entry">
-    <div class="lex-header" onclick="toggleLex(this)">
-      <div class="lex-title-wrap">
-        <span class="lex-icon">📚</span>
-        <span class="lex-title">Glossar: Die wichtigsten Dashboard-Begriffe</span>
-      </div>
-      <div class="lex-toggle">Details <span class="chevron">▼</span></div>
-    </div>
-    <div class="lex-short">
-      Kurze Definitionen der Dashboard-spezifischen Terminologie.
-    </div>
-    <div class="lex-body"><div class="lex-body-inner"><div class="lex-details">
-      <ul>
-        <li><strong>Score / Confidence:</strong> Der maschinell berechnete Wert (0-100), der fundamentale, technische und sentimentale Faktoren vereint.</li>
-        <li><strong>Confluence:</strong> Das Zusammentreffen mehrerer Signale am selben Punkt (z.B. FVG + SMA 200 + Überverkauft). Erhöht die Trade-Wahrscheinlichkeit massiv.</li>
-        <li><strong>Sweep / Stop-Hunt:</strong> Wenn der Preis kurz unter ein markantes Tief fällt, um Stop-Loss-Orders auszulösen, und danach stark steigt.</li>
-        <li><strong>Drift (Post-Earnings):</strong> Die Tendenz einer Aktie, sich nach starken Quartalszahlen noch Wochen in dieselbe Richtung weiterzubewegen.</li>
-      </ul>
-    </div></div></div>
-  </div>
-</div>
-
-<!-- ═══ Tab 2: Fundamentale Analyse ═══ -->
-<div class="tab-content" id="tab-fund">
-  <div class="card" style="margin-bottom:var(--gap);">
-    <h4>Fundamentale Analyse</h4>
-    <p class="caption">Bewertungsmodelle und Bilanzmetriken: Was ist das Unternehmen heute und in Zukunft wirklich wert?</p>
-  </div>
-
-  <div class="lex-entry">
-    <div class="lex-header" onclick="toggleLex(this)">
-      <div class="lex-title-wrap">
-        <span class="lex-icon">⚖️</span>
-        <span class="lex-title">DCF Fair Value Modell</span>
-      </div>
-      <div class="lex-toggle">Details <span class="chevron">▼</span></div>
-    </div>
-    <div class="lex-short">
-      Das Discounted Cash Flow Modell berechnet den inneren Wert einer Aktie, indem alle zukünftigen Cashflows auf den heutigen Tag abgezinst werden. Das Dashboard zeigt das Upside/Downside in % zum aktuellen Kurs.
+      Das Dashboard berechnet einen eigenen Marktzustands-Index (0-100), der extreme Angst oder Euphorie im Gesamtmarkt aufzeigt.
     </div>
     <div class="lex-body"><div class="lex-body-inner"><div class="lex-details">
       <h5>Berechnungslogik</h5>
-      <div class="lex-code">PV = Σ (FCF_t / (1 + WACC)^t) + Terminal Value</div>
-      <p>Das Dashboard verwendet einen <strong>dynamischen WACC</strong> (Weighted Average Cost of Capital). Die Eigenkapitalkosten werden via CAPM berechnet (Beta × Marktrisikoprämie + risikofreier Zins), die Fremdkapitalkosten via Zinsstruktur. Die <em>Terminal Growth Rate</em> ist sektorspezifisch (Tech = 3%, Value = 1.5%).</p>
-      
-      <div class="lex-action">
-        <strong>Wann handeln?</strong>
-        DCF ist ein Kompass, kein Timing-Tool. Ein Upside > 20% (Margin of Safety) macht die Aktie fundamental attraktiv. Kaufe aber erst, wenn der technische Trend (SMA 50, RSI) nach oben dreht.
-      </div>
-      
-      <div class="lex-warn">
-        <strong>⚠️ Edge Case</strong>
-        Bei stark verschuldeten oder unprofitablen Unternehmen (negativer FCF) scheitert das DCF-Modell. Hier greifen im Dashboard automatisch die sektorspezifischen Quant-Modelle.
-      </div>
-    </div></div></div>
-  </div>
-
-  <div class="lex-entry">
-    <div class="lex-header" onclick="toggleLex(this)">
-      <div class="lex-title-wrap">
-        <span class="lex-icon">🏦</span>
-        <span class="lex-title">Bilanzqualität & Verschuldung</span>
-      </div>
-      <div class="lex-toggle">Details <span class="chevron">▼</span></div>
-    </div>
-    <div class="lex-short">
-      Diese Kennzahlen prüfen das Überlebensrisiko. Ein exzellentes Geschäftsmodell nützt nichts, wenn die Schuldenlast bei steigenden Zinsen das Unternehmen erdrückt.
-    </div>
-    <div class="lex-body"><div class="lex-body-inner"><div class="lex-details">
+      <p>Der Index aggregiert 5 Komponenten:</p>
       <ul>
-        <li><strong>Debt-to-Equity (Verschuldungsgrad):</strong> Gesamtschulden / Eigenkapital. <br><em>Grün: < 0.5 | Gelb: 0.5 - 1.5 | Rot: > 1.5.</em></li>
-        <li><strong>Current Ratio:</strong> Umlaufvermögen / kurzfristige Verbindlichkeiten. Misst die Zahlungsfähigkeit auf 12 Monate. <br><em>Grün: > 1.5 (Sicher).</em></li>
-        <li><strong>Net Debt to EBITDA:</strong> (Schulden - Cash) / operatives Ergebnis. Zeigt an, wie viele Jahre es dauert, die Schulden aus dem Cashflow zu tilgen. <br><em>Grün: < 2.0x | Rot: > 4.0x.</em></li>
+        <li><strong>VIX (Volatilitätsindex):</strong> Misst Angst über S&P 500 Optionen.</li>
+        <li><strong>S&P 500 Abstand zum SMA 200 & SMA 50:</strong> Wie stark ist der Markt überdehnt?</li>
+        <li><strong>S&P 500 RSI (14):</strong> Breite Überkauft/Überverkauft-Zustände.</li>
+        <li><strong>Safe-Haven-Nachfrage:</strong> Performance von Gold (GC=F) vs. Aktien.</li>
       </ul>
       <div class="lex-action">
         <strong>Wann handeln?</strong>
-        Diese Metriken sind reine K.-o.-Kriterien. Vermeide Aktien mit rotem Net Debt/EBITDA (>4x) in Hochzinsphasen rigoros.
-      </div>
-    </div></div></div>
-  </div>
-
-  <div class="lex-entry">
-    <div class="lex-header" onclick="toggleLex(this)">
-      <div class="lex-title-wrap">
-        <span class="lex-icon">📈</span>
-        <span class="lex-title">Margen & Cashflow-Trends</span>
-      </div>
-      <div class="lex-toggle">Details <span class="chevron">▼</span></div>
-    </div>
-    <div class="lex-short">
-      Profitabilität ist Trumpf. Das Dashboard trackt die Entwicklung von Brutto-, EBITDA- und Nettomarge über mehrere Jahre sowie die Free Cashflow (FCF) Wandlung.
-    </div>
-    <div class="lex-body"><div class="lex-body-inner"><div class="lex-details">
-      <h5>Kennzahlen</h5>
-      <p><strong>Bruttomarge:</strong> Umsatz minus Herstellungskosten. Indikator für Preissetzungsmacht und den wirtschaftlichen Burggraben.<br>
-      <strong>Nettomarge:</strong> Was nach allen Kosten und Steuern übrig bleibt.<br>
-      <strong>FCF-Entwicklung:</strong> Free Cashflow ist der Betrag, mit dem das Unternehmen Dividenden zahlt, Aktien zurückkauft oder Akquisitionen tätigt.</p>
-      
-      <div class="lex-action">
-        <strong>Wann handeln?</strong>
-        Suche nach Unternehmen mit <em>Margen-Expansion</em>. Eine steigende Bruttomarge bei wachsendem Umsatz ist das stärkste fundamentale Kaufsignal für Wachstumsaktien.
-      </div>
-      <div class="lex-warn">
-        <strong>⚠️ Warnung</strong>
-        Wenn der Umsatz stagniert, aber der FCF sinkt, investiert das Unternehmen oft verzweifelt (CapEx) ohne ROI. Rote Flagge!
-      </div>
-    </div></div></div>
-  </div>
-
-  <div class="lex-entry">
-    <div class="lex-header" onclick="toggleLex(this)">
-      <div class="lex-title-wrap">
-        <span class="lex-icon">🏭</span>
-        <span class="lex-title">Peer-Vergleich</span>
-      </div>
-      <div class="lex-toggle">Details <span class="chevron">▼</span></div>
-    </div>
-    <div class="lex-short">
-      Eine Aktie ist nicht "teuer" mit KGV 30, wenn alle Konkurrenten KGV 50 haben. Das Dashboard benchmarkt die Bewertung automatisch gegen direkte Sektor-Konkurrenten.
-    </div>
-    <div class="lex-body"><div class="lex-body-inner"><div class="lex-details">
-      <p>Verglichen werden <strong>KGV (P/E)</strong>, <strong>EV/EBITDA</strong>, <strong>Wachstumsraten</strong> und <strong>Margen</strong>. Das Dashboard ordnet die Aktie in die Sektor-Perzentile ein.</p>
-      <div class="lex-action">
-        <strong>Wann handeln?</strong>
-        Der "Holy Grail" ist eine Aktie, die beim Umsatzwachstum im obersten Quartil (Top 25%) liegt, bei der Bewertung (EV/EBITDA) aber unter dem Branchenschnitt notiert.
-      </div>
-    </div></div></div>
-  </div>
-
-  <div class="lex-entry">
-    <div class="lex-header" onclick="toggleLex(this)">
-      <div class="lex-title-wrap">
-        <span class="lex-icon">💎</span>
-        <span class="lex-title">Dividenden-Analyse</span>
-      </div>
-      <div class="lex-toggle">Details <span class="chevron">▼</span></div>
-    </div>
-    <div class="lex-short">
-      Bewertet die Nachhaltigkeit und das Wachstum von Ausschüttungen. Eine extrem hohe Rendite ist oft kein Geschenk, sondern eine Warnung des Marktes vor einer bevorstehenden Kürzung.
-    </div>
-    <div class="lex-body"><div class="lex-body-inner"><div class="lex-details">
-      <h5>Kennzahlen</h5>
-      <ul>
-        <li><strong>Dividendenrendite:</strong> Jährliche Zahlung / Aktienkurs.</li>
-        <li><strong>Payout-Ratio:</strong> Anteil des Gewinns, der ausgeschüttet wird. Gesund: 30% - 60%. Bei REITs gesetzlich > 90%.</li>
-        <li><strong>Streak (Historie):</strong> Anzahl Jahre ohne Kürzung. Zeigt die Verlässlichkeit des Managements.</li>
-      </ul>
-      <div class="lex-warn">
-        <strong>⚠️ Die Dividenden-Falle</strong>
-        Renditen über 8% (außer bei bestimmten REITs/BDCs) signalisieren fast immer, dass der Markt einen massiven Gewinneinbruch und eine Dividendenkürzung einpreist. Das Dashboard senkt den Score bei Payout > 95%.
+        Extreme Fear (< 25) signalisiert exzellente Makro-Einstiegschancen. Extreme Greed (> 75) warnt vor späten Käufen und mahnt zu Teilgewinnmitnahmen.
       </div>
     </div></div></div>
   </div>
@@ -244,278 +56,72 @@
     <div class="lex-header" onclick="toggleLex(this)">
       <div class="lex-title-wrap">
         <span class="lex-icon">🎯</span>
-        <span class="lex-title">Analysten-Konsens & Earnings Profile</span>
+        <span class="lex-title">Hit Rate (Trefferquote)</span>
       </div>
       <div class="lex-toggle">Details <span class="chevron">▼</span></div>
     </div>
     <div class="lex-short">
-      Wie die Wall Street das Unternehmen sieht. Das Dashboard analysiert Kursziele, Empfehlungen und vor allem historische Gewinnüberraschungen (Surprise %).
+      Zeigt die Performance der algorithmischen Signale über die letzten 90 Tage an.
     </div>
     <div class="lex-body"><div class="lex-body-inner"><div class="lex-details">
-      <h5>Earnings Profile & Post-Earnings Drift</h5>
-      <p>Übertrifft ein Unternehmen die EPS-Schätzungen (Surprise %), passt sich der Kurs oft nicht sofort vollständig an, sondern "driftet" über 5 bis 20 Tage nach oben. Das Dashboard zeigt diese historische Drift-Tendenz an.</p>
-      
-      <h5>Analysten-Konsens</h5>
-      <p>Zeigt das Low, Mean, Median und High Kursziel der Analysten sowie die Empfehlungsverteilung.</p>
-      
-      <div class="lex-warn">
-        <strong>⚠️ Warnung</strong>
-        Analysten sind Lagging Indicators (sie laufen dem Kurs hinterher). Das Dashboard gewichtet den Analysten-Konsens im Gesamt-Score daher nur gering, bestraft aber extreme Abweichungen (Downgrades).
-      </div>
+      <p>Systemweite Trefferquote: Prüft historische Signale und analysiert, ob Aktien nach einem Buy-Signal im Dashboard tatsächlich über die Zielmarke gestiegen sind.</p>
     </div></div></div>
   </div>
 </div>
 
-<!-- ═══ Tab 3: Quant Modelle ═══ -->
-<div class="tab-content" id="tab-quant">
+<!-- ═══ Tab 2: Analysis ═══ -->
+<div class="tab-content" id="tab-analysis">
   <div class="card" style="margin-bottom:var(--gap);">
-    <h4>Quant-Modelle</h4>
-    <p class="caption">Sektorspezifische Bewertungslogik. Eine Bank wird fundamental völlig anders bewertet als ein Software-Unternehmen.</p>
-  </div>
-
-  <div class="lex-entry">
-    <div class="lex-header" onclick="toggleLex(this)">
-      <div class="lex-title-wrap">
-        <span class="lex-icon">💻</span>
-        <span class="lex-title">Technologie & SaaS</span>
-      </div>
-      <div class="lex-toggle">Details <span class="chevron">▼</span></div>
-    </div>
-    <div class="lex-short">
-      Bei Tech zählen Wachstum, Skalierbarkeit und Kundenbindung mehr als aktuelle Gewinne. Das Dashboard nutzt hier die "Rule of 40".
-    </div>
-    <div class="lex-body"><div class="lex-body-inner"><div class="lex-details">
-      <div class="lex-code">Rule of 40 = Umsatzwachstum (%) + Free Cashflow Marge (%)</div>
-      <p>Werte über 40 signalisieren ein gesundes SaaS-Modell, das Skalierung und Profitabilität exzellent ausbalanciert.</p>
-      <div class="lex-action">
-        <strong>Wann ist der Sektor attraktiv?</strong>
-        Wenn Wachstumsraten hoch sind und Zinsen sinken. Kaufe Tech-Aktien, die die Rule of 40 knacken und im Dashboard einen FVG Support bilden.
-      </div>
-    </div></div></div>
-  </div>
-
-  <div class="lex-entry">
-    <div class="lex-header" onclick="toggleLex(this)">
-      <div class="lex-title-wrap">
-        <span class="lex-icon">🏦</span>
-        <span class="lex-title">Finanzen & Versicherungen</span>
-      </div>
-      <div class="lex-toggle">Details <span class="chevron">▼</span></div>
-    </div>
-    <div class="lex-short">
-      Banken sind "Black Boxes" aus Schulden. Klassisches DCF funktioniert hier nicht. Es zählen Eigenkapitalrendite und Buchwert.
-    </div>
-    <div class="lex-body"><div class="lex-body-inner"><div class="lex-details">
-      <div class="lex-code">Excess Returns = Eigenkapitalrendite (ROE) - Eigenkapitalkosten (COE)</div>
-      <p>Nur Banken mit einem positiven Excess Return schaffen echten Wert. Das Dashboard prüft zudem das Price-to-Book (P/B) Ratio. Ein P/B < 1.0 bei ROE > 10% ist ein starkes Value-Signal.</p>
-      <p><strong>Versicherungen:</strong> Hier ist die <em>Combined Ratio</em> entscheidend. Ein Wert unter 100% bedeutet Profitabilität im reinen Versicherungsgeschäft (ohne Kapitalerträge).</p>
-    </div></div></div>
-  </div>
-
-  <div class="lex-entry">
-    <div class="lex-header" onclick="toggleLex(this)">
-      <div class="lex-title-wrap">
-        <span class="lex-icon">🔌</span>
-        <span class="lex-title">Halbleiter & Hardware</span>
-      </div>
-      <div class="lex-toggle">Details <span class="chevron">▼</span></div>
-    </div>
-    <div class="lex-short">
-      Hochgradig zyklische Industrien. Man kauft Semis typischerweise bei hohem KGV am Boden des Zyklus und verkauft bei niedrigem KGV am Top.
-    </div>
-    <div class="lex-body"><div class="lex-body-inner"><div class="lex-details">
-      <p>Das Dashboard fokussiert sich hier auf <strong>EV/EBITDA</strong> in Kombination mit Gross Margin Expansion und Inventory Levels. Wenn die Margen steigen und die Lagerbestände sinken, startet ein neuer Aufwärtszyklus.</p>
-    </div></div></div>
-  </div>
-
-  <div class="lex-entry">
-    <div class="lex-header" onclick="toggleLex(this)">
-      <div class="lex-title-wrap">
-        <span class="lex-icon">🛢️</span>
-        <span class="lex-title">Energie / Öl & Gas</span>
-      </div>
-      <div class="lex-toggle">Details <span class="chevron">▼</span></div>
-    </div>
-    <div class="lex-short">
-      Energieunternehmen werden nach ihren Reserven und der Kapitaleffizienz bewertet.
-    </div>
-    <div class="lex-body"><div class="lex-body-inner"><div class="lex-details">
-      <p>Die Hauptmetrik im System ist <strong>EV/DACF</strong> (Debt-Adjusted Cash Flow). Es bereinigt den operativen Cashflow um unterschiedliche Steuer- und Schuldenstrukturen, was den Vergleich internationaler Öl-Konzerne ermöglicht.</p>
-    </div></div></div>
-  </div>
-</div>
-
-<!-- ═══ Tab 4: Technische Indikatoren ═══ -->
-<div class="tab-content" id="tab-tech">
-  <div class="card" style="margin-bottom:var(--gap);">
-    <h4>Technische Indikatoren</h4>
-    <p class="caption">Das Timing-Modell: Wann man in den Markt ein- und aussteigt. Das Dashboard nutzt spezifische Perioden und Schwellenwerte.</p>
+    <h4>Deep-Dive Analyse (pages/analysis.html & partials)</h4>
+    <p class="caption">Die Kern-Engine. Kombiniert technische Chartanalyse, SMC-Logik, Order-Flow und fundamentale Bewertungsmodelle.</p>
   </div>
 
   <div class="lex-entry">
     <div class="lex-header" onclick="toggleLex(this)">
       <div class="lex-title-wrap">
         <span class="lex-icon">📈</span>
-        <span class="lex-title">RSI (Relative Strength Index)</span>
+        <span class="lex-title">Technische Oszillatoren (RSI, MACD, Stochastic)</span>
       </div>
       <div class="lex-toggle">Details <span class="chevron">▼</span></div>
     </div>
     <div class="lex-short">
-      Misst das Momentum und die Geschwindigkeit von Preisänderungen. Der RSI zeigt, ob eine Aktie kurzfristig "überkauft" oder "überverkauft" ist.
+      Klassische Timing-Instrumente, die Momentum und überkaufte/überverkaufte Zustände messen.
     </div>
     <div class="lex-body"><div class="lex-body-inner"><div class="lex-details">
-      <div class="lex-code">RSI = 100 − (100 ÷ (1 + (Avg Gain / Avg Loss)))</div>
-      <p><strong>Dashboard-Periode:</strong> 14 Tage.<br>
-      <strong>Schwellenwerte:</strong> > 70 = Überkauft (Score-Abzug im Dashboard), < 30 = Überverkauft (Score-Bonus, wenn Trend intakt).</p>
-      
-      <div class="lex-action">
-        <strong>Wann handeln?</strong>
-        Kaufe, wenn der Kurs in einem intakten Aufwärtstrend (über SMA 200) korrigiert und der RSI unter 30 fällt (Dip-Buying). RSI allein reicht nie!
-      </div>
-      
-      <div class="lex-warn">
-        <strong>⚠️ Warnung</strong>
-        In extrem starken Trends kann der RSI wochenlang über 70 bleiben. Ihn stumpf als Sell-Trigger zu nutzen, zerstört Profite.
-      </div>
-    </div></div></div>
-  </div>
-
-  <div class="lex-entry">
-    <div class="lex-header" onclick="toggleLex(this)">
-      <div class="lex-title-wrap">
-        <span class="lex-icon">〰️</span>
-        <span class="lex-title">SMA (Simple Moving Average) 20, 50, 200</span>
-      </div>
-      <div class="lex-toggle">Details <span class="chevron">▼</span></div>
-    </div>
-    <div class="lex-short">
-      Geglättete Durchschnittspreise, die den Trend visualisieren. Sie fungieren als dynamische Unterstützungen und Widerstände.
-    </div>
-    <div class="lex-body"><div class="lex-body-inner"><div class="lex-details">
+      <h5>Dashboard-Parameter</h5>
       <ul>
-        <li><strong>SMA 20:</strong> Kurzfristiges Momentum. Bruch = erste Warnung.</li>
-        <li><strong>SMA 50:</strong> Mittelfristiger Trend. Institutioneller Orientierungspunkt.</li>
-        <li><strong>SMA 200:</strong> Langfristiger Makro-Trend. "Der Regenschirm" – darunter herrscht Bärenmarkt.</li>
+        <li><strong>RSI (14 Perioden):</strong> > 70 führt zu Score-Abzug, < 30 gibt Score-Bonus.</li>
+        <li><strong>MACD (12, 26, 9):</strong> Ein Kreuzen der Signallinie von unten nach oben ist bullisch.</li>
+        <li><strong>Stochastic Oscillator (%K, %D):</strong> Schnelleres Momentum. Werte über 80 sind überkauft.</li>
       </ul>
-      <p><strong>Golden Cross:</strong> SMA 50 kreuzt SMA 200 nach oben = starkes, langfristiges Kaufsignal.<br>
-      <strong>Death Cross:</strong> SMA 50 kreuzt SMA 200 nach unten = Bärenmarkt-Signal.</p>
-      
       <div class="lex-action">
         <strong>Wann handeln?</strong>
-        Kaufe niemals Aktien, die deutlich unter ihrem fallenden SMA 200 notieren (außer im Deep-Value Bereich). Nutze den SMA 20 als Entry-Timing in Aufwärtstrends.
+        Nutze diese Oszillatoren nie isoliert. Ein RSI < 30 ist nur dann ein starkes Kaufsignal, wenn die Aktie sich in einem langfristigen Aufwärtstrend (über SMA 200) befindet.
       </div>
     </div></div></div>
-  </div>
-
-  <div class="lex-entry">
-    <div class="lex-header" onclick="toggleLex(this)">
-      <div class="lex-title-wrap">
-        <span class="lex-icon">📊</span>
-        <span class="lex-title">MACD (Moving Average Convergence Divergence)</span>
-      </div>
-      <div class="lex-toggle">Details <span class="chevron">▼</span></div>
-    </div>
-    <div class="lex-short">
-      Ein Trendfolge-Momentum-Indikator. Zeigt das Zusammen- und Auseinanderlaufen von zwei gleitenden Durchschnitten.
-    </div>
-    <div class="lex-body"><div class="lex-body-inner"><div class="lex-details">
-      <div class="lex-code">MACD = EMA(12) − EMA(26)<br>Signal = EMA(9) des MACD</div>
-      <p>Das Dashboard registriert ein <strong>Bullish Cross</strong>, wenn die MACD-Linie die Signallinie von unten nach oben kreuzt. Das Histogramm visualisiert die Differenz beider Linien (Momentum-Stärke).</p>
-      <div class="lex-action">
-        <strong>Wann handeln?</strong>
-        Ein MACD-Kreuz unter der Nulllinie nach oben ist ein starkes Umkehrsignal in Korrekturen.
-      </div>
-    </div></div></div>
-  </div>
-
-  <div class="lex-entry">
-    <div class="lex-header" onclick="toggleLex(this)">
-      <div class="lex-title-wrap">
-        <span class="lex-icon">🎢</span>
-        <span class="lex-title">Bollinger Bänder</span>
-      </div>
-      <div class="lex-toggle">Details <span class="chevron">▼</span></div>
-    </div>
-    <div class="lex-short">
-      Ein Volatilitätskanal. Der Preis verbringt statistisch 95% der Zeit innerhalb der Bänder.
-    </div>
-    <div class="lex-body"><div class="lex-body-inner"><div class="lex-details">
-      <div class="lex-code">Middle = SMA(20)<br>Upper/Lower = SMA(20) ± 2 × Std-Abweichung</div>
-      <p><strong>Overbought/Oversold:</strong> Berührt oder durchbricht der Preis das untere Band, gilt er als überdehnt (Rebound wahrscheinlich).</p>
-      <p><strong>Squeeze:</strong> Wenn die Bänder extrem eng zusammenlaufen, steht eine explosive Kursbewegung bevor.</p>
-    </div></div></div>
-  </div>
-
-  <div class="lex-entry">
-    <div class="lex-header" onclick="toggleLex(this)">
-      <div class="lex-title-wrap">
-        <span class="lex-icon">🛡️</span>
-        <span class="lex-title">ATR (Average True Range)</span>
-      </div>
-      <div class="lex-toggle">Details <span class="chevron">▼</span></div>
-    </div>
-    <div class="lex-short">
-      Die ATR misst die durchschnittliche Handelsspanne (Volatilität) einer Kerze. Das Dashboard nutzt ATR primär für das Risikomanagement und dynamische Stop-Loss-Marken.
-    </div>
-    <div class="lex-body"><div class="lex-body-inner"><div class="lex-details">
-      <div class="lex-code">Stop-Loss Empfehlung = Entry Price − (1.5 × ATR(14))<br>Chandelier Exit = Highest High − (3 × ATR(22))</div>
-      <p>Ein breiter ATR bedeutet hohe Schwankungen – hier muss die Positionsgröße im Rechner zwingend verkleinert werden, um das Euro-Risiko konstant zu halten.</p>
-      <div class="lex-warn">
-        <strong>⚠️ Warnung</strong>
-        ATR ist <strong>kein</strong> Richtungsindikator. Eine steigende ATR bei fallendem Kurs bedeutet lediglich zunehmende Panik.
-      </div>
-    </div></div></div>
-  </div>
-</div>
-
-<!-- ═══ Tab 5: Strategische Taktiken ═══ -->
-<div class="tab-content" id="tab-strat">
-  <div class="card" style="margin-bottom:var(--gap);">
-    <h4>Strategische Taktiken (Smart Money & Order Flow)</h4>
-    <p class="caption">Wie Algorithmen und Institutionelle den Markt lesen. Hier liegt der echte Alpha-Vorteil des Dashboards.</p>
   </div>
 
   <div class="lex-entry">
     <div class="lex-header" onclick="toggleLex(this)">
       <div class="lex-title-wrap">
         <span class="lex-icon">🧲</span>
-        <span class="lex-title">Fair Value Gaps (FVG)</span>
+        <span class="lex-title">Smart Money Concepts (FVG, Sweeps, EQH)</span>
       </div>
       <div class="lex-toggle">Details <span class="chevron">▼</span></div>
     </div>
     <div class="lex-short">
-      FVGs entstehen bei impulsiven, einseitigen Bewegungen, wenn das Smart Money aggressiv kauft oder verkauft. Der Preis tendiert stark dazu, diese ineffizienten Zonen später wieder "aufzufüllen".
+      Institutionelle Fußabdrücke im Preis-Chart. Identifiziert Liquiditäts-Pools und Ineffizienzen.
     </div>
     <div class="lex-body"><div class="lex-body-inner"><div class="lex-details">
-      <p>Das Dashboard scannt automatisch nach Preislücken (3-Candle Pattern).<br>
-      <strong>Bullish FVG:</strong> Gap zwischen dem Hoch von Kerze 1 und dem Tief von Kerze 3. Wirkt als starker <em>Support</em> (Kaufzone).<br>
-      <strong>Bearish FVG:</strong> Wirkt als <em>Resistance</em> (Verkaufsziel).</p>
-      
+      <h5>Erkennungslogik</h5>
+      <ul>
+        <li><strong>Fair Value Gaps (FVG):</strong> Eine Preislücke zwischen 3 Kerzen. Ein "offenes" FVG wirkt als magnetischer Support/Resistance.</li>
+        <li><strong>Liquidity Sweeps:</strong> Preis fällt kurz unter ein markantes Tief (Stop-Hunting), um Liquidität zu sammeln, und dreht dann stark.</li>
+        <li><strong>Equal Highs/Lows (EQH/EQL):</strong> Künstliche Retail-Widerstände/Supports, die vom Smart Money oft "durchbrochen" werden, um Stops zu triggern.</li>
+      </ul>
       <div class="lex-action">
         <strong>Wann handeln?</strong>
-        Nutze einen Retest eines offenen Bullish FVGs als perfekten Entry-Point. Ein "geschlossenes" FVG verliert seine magnetische Wirkung.
-      </div>
-    </div></div></div>
-  </div>
-
-  <div class="lex-entry">
-    <div class="lex-header" onclick="toggleLex(this)">
-      <div class="lex-title-wrap">
-        <span class="lex-icon">🔄</span>
-        <span class="lex-title">Liquidity Sweeps (Stop-Hunting)</span>
-      </div>
-      <div class="lex-toggle">Details <span class="chevron">▼</span></div>
-    </div>
-    <div class="lex-short">
-      Wenn der Preis kurz unter ein markantes Tief fällt, um dort liegende Stop-Loss-Orders der Retail-Trader auszulösen ("Sweeping"), und danach sofort stark dreht.
-    </div>
-    <div class="lex-body"><div class="lex-body-inner"><div class="lex-details">
-      <p>Große Institutionen brauchen Liquidität, um ihre riesigen Orders ohne massive Preisrutsche zu füllen. Diese Liquidität liegt exakt unter alten Swing-Lows (Sell-Stops) oder über Swing-Highs (Buy-Stops).</p>
-      <p>Das Dashboard markiert erkannte Sweeps. Ein bullisher Sweep an einem lokalen Tief ist eines der stärksten Reversal-Signale.</p>
-      
-      <div class="lex-action">
-        <strong>Wann handeln?</strong>
-        Sweep + Eintauchen in ein FVG = Extreme Confluence. Dies ist ein hochwahrscheinliches Setup für einen Long-Trade.
+        Ein FVG-Retest gepaart mit einem vorausgegangenen Liquidity Sweep bietet eines der besten Risk/Reward-Setups im gesamten System.
       </div>
     </div></div></div>
   </div>
@@ -524,265 +130,227 @@
     <div class="lex-header" onclick="toggleLex(this)">
       <div class="lex-title-wrap">
         <span class="lex-icon">⚖️</span>
-        <span class="lex-title">Equal Highs & Lows (EQH/EQL)</span>
+        <span class="lex-title">DCF Fair Value Modell & Bilanz</span>
       </div>
       <div class="lex-toggle">Details <span class="chevron">▼</span></div>
     </div>
     <div class="lex-short">
-      Doppeltops oder Doppelböden werden von Retailern oft als Widerstand/Support gehandelt. Das Smart Money sieht sie als "Liquiditäts-Pools" (Magneten).
+      Berechnet den inneren, fundamentalen Wert des Unternehmens durch Diskontierung zukünftiger Cashflows.
     </div>
     <div class="lex-body"><div class="lex-body-inner"><div class="lex-details">
-      <p>Das Dashboard warnt vor EQHs oder EQLs in Trendrichtung. Wenn der Kurs nach oben trendet und direkt darüber Equal Highs liegen, wird der Kurs sehr wahrscheinlich dorthin ziehen, um die dortigen Short-Squeeze-Stops abzufischen.</p>
+      <div class="lex-code">PV = Σ (FCF_t / (1 + WACC)^t) + Terminal Value</div>
+      <p>Das Dashboard verwendet einen dynamischen WACC, der Eigen- und Fremdkapitalkosten (via Zinsstruktur) kombiniert. Das Ergebnis ist das <strong>Upside / Downside in %</strong>.</p>
+      <ul>
+        <li><strong>Bilanzqualität:</strong> Prüft Current Ratio, Debt-to-Equity und Net Debt/EBITDA, um Insolvenzrisiken auszuschließen.</li>
+        <li><strong>Margen:</strong> Zeigt Umsatz, EBITDA-Marge und Net Income Historie. Steigende Margen = Burggraben.</li>
+      </ul>
     </div></div></div>
   </div>
 
   <div class="lex-entry">
     <div class="lex-header" onclick="toggleLex(this)">
       <div class="lex-title-wrap">
-        <span class="lex-icon">🎯</span>
-        <span class="lex-title">Scoring-System (Confidence Score 0–100)</span>
+        <span class="lex-icon">💯</span>
+        <span class="lex-title">Scoring-System (Confidence Score)</span>
       </div>
       <div class="lex-toggle">Details <span class="chevron">▼</span></div>
     </div>
     <div class="lex-short">
-      Das neuronale Herz des Dashboards. Der Score konsolidiert dutzende fundamentale, technische und sentimentale Indikatoren in einen einzigen, objektiven Wert.
+      Der finale Output der Analyse-Route: Ein Score von 0-100, der Makro, Mikro und Sentiment konsolidiert.
     </div>
     <div class="lex-body"><div class="lex-body-inner"><div class="lex-details">
-      <h5>Wie ist er gewichtet?</h5>
-      <ul>
-        <li><strong>Trend & Momentum (40%):</strong> SMA, MACD, OBV, RSI.</li>
-        <li><strong>SMC & Struktur (30%):</strong> FVG-Bounces, Sweeps, Trend-Struktur.</li>
-        <li><strong>Fundamental (20%):</strong> DCF Upside, Analysten-Upgrades.</li>
-        <li><strong>Sentiment (10%):</strong> Insider, News NLP.</li>
-      </ul>
-      <p><strong>Labels:</strong> > 75 (Strong Buy), 60–75 (Buy), 40–59 (Hold), < 40 (Sell/Strong Sell).</p>
-      
-      <h5>Die Euphorie-Falle</h5>
-      <p>Wenn die News extrem positiv sind (NLP hoch) UND die Aktie technisch völlig überkauft ist (RSI > 75), zieht das System automatisch Score ab. Dies verhindert Käufe am Peak des Hypes.</p>
-      
+      <p><strong>Zusammensetzung:</strong> 40% Trend/Momentum, 30% SMC/Struktur, 20% Fundamental, 10% Sentiment.</p>
       <div class="lex-warn">
-        <strong>⚠️ Warnung</strong>
-        Der Score berechnet eine Wahrscheinlichkeit, keine Garantie. Ein Score von 80 bei schlechtem Makro-Umfeld kann dennoch scheitern.
+        <strong>⚠️ Die Euphorie-Falle</strong>
+        Wenn die News extrem positiv sind (NLP hoch) UND die Aktie technisch völlig überkauft ist (RSI > 75), zieht das System automatisch Score ab. Dies verhindert Käufe am Peak des Hypes.
       </div>
     </div></div></div>
   </div>
 </div>
 
-<!-- ═══ Tab 6: Risiko & Backtest ═══ -->
-<div class="tab-content" id="tab-risk">
+<!-- ═══ Tab 3: Screener ═══ -->
+<div class="tab-content" id="tab-screener">
   <div class="card" style="margin-bottom:var(--gap);">
-    <h4>Risiko-Management & Backtesting</h4>
-    <p class="caption">Kapitalerhalt steht vor Kapitalvermehrung. Werkzeuge zur quantitativen Absicherung.</p>
+    <h4>Screener (pages/screener.html)</h4>
+    <p class="caption">Scannt hunderte Aktien asynchron durch die Algorithmen, um Kaufkandidaten zu finden.</p>
   </div>
 
   <div class="lex-entry">
     <div class="lex-header" onclick="toggleLex(this)">
       <div class="lex-title-wrap">
-        <span class="lex-icon">📏</span>
-        <span class="lex-title">Position Sizing (Kelly-Criterion)</span>
+        <span class="lex-icon">🔍</span>
+        <span class="lex-title">Screener-Logik & Quick-Score</span>
       </div>
       <div class="lex-toggle">Details <span class="chevron">▼</span></div>
     </div>
     <div class="lex-short">
-      Berechnet die exakt optimale Menge an Aktien, die du basierend auf Win-Rate, Risikoprofil und Volatilität kaufen solltest.
+      Nutzt eine "leichte" Version der Analyse-Engine für Geschwindigkeit. Liefert Buy/Hold/Sell Signale für Indizes wie S&P 500 oder DAX.
     </div>
     <div class="lex-body"><div class="lex-body-inner"><div class="lex-details">
-      <div class="lex-code">f* = (bp − q) / b</div>
-      <p>(b = Gewinn/Verlust-Verhältnis, p = Gewinnwahrscheinlichkeit, q = Verlustwahrscheinlichkeit).</p>
-      <p><strong>Dashboard-Anpassung:</strong> Das Kelly-Criterion ist mathematisch perfekt, aber psychologisch brutal. Das Dashboard limitiert die Empfehlung strikt auf maximal 25% des Portfolios (Fractional Kelly), um Ruin zu vermeiden.</p>
-      
+      <p>Der Screener wertet Aktien basierend auf Presets aus (z.B. Value, Momentum, Trend). Der "Quick-Score" gewichtet technische Indikatoren (RSI, SMA-Abstände, Volatilität) stärker, da DCF-Berechnungen für hunderte Aktien zu langsam wären.</p>
       <div class="lex-action">
-        <strong>Wann handeln?</strong>
-        Übernimm niemals blind die empfohlene Stückzahl. Sie ist ein Startpunkt, der zwingend an dein eingestelltes "Max. Risiko in EUR" und den ATR-Stop-Loss gekoppelt ist.
-      </div>
-    </div></div></div>
-  </div>
-
-  <div class="lex-entry">
-    <div class="lex-header" onclick="toggleLex(this)">
-      <div class="lex-title-wrap">
-        <span class="lex-icon">📉</span>
-        <span class="lex-title">Max Drawdown (MDD) & VaR</span>
-      </div>
-      <div class="lex-toggle">Details <span class="chevron">▼</span></div>
-    </div>
-    <div class="lex-short">
-      MDD misst den schlimmsten historischen Sturzflug vom Höchststand (Peak) bis zum Tiefpunkt (Trough). VaR (Value at Risk) schätzt das tägliche Verlustpotenzial ab.
-    </div>
-    <div class="lex-body"><div class="lex-body-inner"><div class="lex-details">
-      <div class="lex-code">MDD = (Trough − Peak) / Peak</div>
-      <p>Ein Drawdown von -50% erfordert einen Gewinn von +100%, nur um wieder auf null zu kommen. Im Backtesting zeigt dir das Dashboard den MDD für jede Strategie.</p>
-      <p><strong>VaR (Monte Carlo):</strong> Das Dashboard simuliert tausende Kurspfade, um auszugeben: "Mit 95% Wahrscheinlichkeit verlierst du morgen nicht mehr als X EUR."</p>
-      <div class="lex-warn">
-        <strong>⚠️ Edge Case</strong>
-        Bei schwarzen Schwänen (Crash) versagt VaR regelmäßig, da Marktkorrelationen plötzlich auf 1 springen.
-      </div>
-    </div></div></div>
-  </div>
-
-  <div class="lex-entry">
-    <div class="lex-header" onclick="toggleLex(this)">
-      <div class="lex-title-wrap">
-        <span class="lex-icon">🤖</span>
-        <span class="lex-title">Backtesting-Engine</span>
-      </div>
-      <div class="lex-toggle">Details <span class="chevron">▼</span></div>
-    </div>
-    <div class="lex-short">
-      Simuliert, wie eine Strategie in der Vergangenheit (z.B. letzte 5 Jahre) funktioniert hätte. Inklusive Steuern, Ordergebühren und Slippage.
-    </div>
-    <div class="lex-body"><div class="lex-body-inner"><div class="lex-details">
-      <h5>Verfügbare Strategien</h5>
-      <ul>
-        <li><strong>Score_Signal:</strong> Validiert das hauseigene Scoring-Modell (>65 = Kauf, <35 = Verkauf).</li>
-        <li><strong>RSI Mean Reversion:</strong> RSI < 30 Kaufen, RSI > 70 Verkaufen (Funktioniert gut in Seitwärtsmärkten).</li>
-        <li><strong>SMA Cross:</strong> Kaufe bei Golden Cross, verkaufe bei Death Cross (Nur für Trendmärkte).</li>
-        <li><strong>SMC FVG Bounce:</strong> Kauft Retests offener FVGs.</li>
-      </ul>
-      <p>Das Dashboard vergleicht die Netto-Performance stets mit der "Buy & Hold" <strong>Benchmark</strong>. Schlägt deine Strategie die Benchmark nicht, ist sie nutzlos.</p>
-      
-      <div class="lex-warn">
-        <strong>⚠️ Warnung</strong>
-        Gefahr des Overfittings: Ein Backtest auf einen 5-jährigen Bullenmarkt liefert immer traumhafte Werte für Buy-the-Dip-Strategien. Die Zukunft kann völlig anders aussehen.
+        <strong>Workflow</strong>
+        Nutze den Screener nur als Filter. Gefundene Aktien mit Signal "Buy" müssen zwingend in der tiefen Analyse-Route (Tab 2) im Detail validiert werden.
       </div>
     </div></div></div>
   </div>
 </div>
 
-<!-- ═══ Tab 7: Sentiment & Flow ═══ -->
-<div class="tab-content" id="tab-sent">
+<!-- ═══ Tab 4: Watchlist ═══ -->
+<div class="tab-content" id="tab-watchlist">
   <div class="card" style="margin-bottom:var(--gap);">
-    <h4>Sentiment & Flow</h4>
-    <p class="caption">Quantitative Auswertung der menschlichen Psychologie und der Geldflüsse von Institutionellen (Flow).</p>
+    <h4>Watchlist & Portfolio (pages/watchlist.html)</h4>
+    <p class="caption">Verwaltung von Beobachtungswerten und aktiven Investitionen inkl. Risikomanagement.</p>
   </div>
 
   <div class="lex-entry">
     <div class="lex-header" onclick="toggleLex(this)">
       <div class="lex-title-wrap">
-        <span class="lex-icon">🌡️</span>
-        <span class="lex-title">Fear & Greed Index (Makro)</span>
+        <span class="lex-icon">💼</span>
+        <span class="lex-title">Positions- und PnL-Berechnung</span>
       </div>
       <div class="lex-toggle">Details <span class="chevron">▼</span></div>
     </div>
     <div class="lex-short">
-      Eine proprietäre Dashboard-Berechnung, die den emotionalen Zustand des Gesamtmarktes (0-100) misst. Extreme Werte signalisieren Wendepunkte.
+      Berechnet Live den Wert offener Positionen, den Gewinn/Verlust (PnL) in Euro und Prozent.
     </div>
     <div class="lex-body"><div class="lex-body-inner"><div class="lex-details">
-      <h5>Wie wird er berechnet?</h5>
-      <p>Der Index aggregiert 5 Komponenten:</p>
-      <ol>
-        <li><strong>Volatilität (VIX):</strong> Steigender VIX = Angst.</li>
-        <li><strong>S&P 500 vs. SMA 200:</strong> Abstand zum Langfristtrend.</li>
-        <li><strong>S&P 500 vs. SMA 50:</strong> Abstand zum Mittelfristtrend.</li>
-        <li><strong>S&P 500 RSI (14):</strong> Breite Überkauft/Überverkauft-Zustände.</li>
-        <li><strong>Safe-Haven-Nachfrage:</strong> Gold-Performance relativ zum S&P 500.</li>
-      </ol>
-      <p><strong>Label:</strong> Extreme Fear (0-25), Fear (25-45), Neutral (45-55), Greed (55-75), Extreme Greed (75-100).</p>
-      <div class="lex-action">
-        <strong>Wann handeln?</strong>
-        Sei gierig, wenn andere ängstlich sind (Score < 25 ist ein Makro-Kauflimit). Reduziere Risiko bei Extreme Greed (> 75).
-      </div>
-    </div></div></div>
-  </div>
-
-  <div class="lex-entry">
-    <div class="lex-header" onclick="toggleLex(this)">
-      <div class="lex-title-wrap">
-        <span class="lex-icon">📰</span>
-        <span class="lex-title">VADER NLP (News Sentiment)</span>
-      </div>
-      <div class="lex-toggle">Details <span class="chevron">▼</span></div>
-    </div>
-    <div class="lex-short">
-      Das Dashboard nutzt "Natural Language Processing", um News-Headlines der letzten 30 Tage quantitativ auf Bullish/Bearish-Stimmung auszuwerten.
-    </div>
-    <div class="lex-body"><div class="lex-body-inner"><div class="lex-details">
-      <p>Der <strong>Compound Score</strong> reicht von -1 (Apokalypse) bis +1 (Euphorie).<br>
-      <strong>Schwellenwerte:</strong> > 0.05 gilt als bullish, < -0.05 als bearish.</p>
-      <div class="lex-warn">
-        <strong>⚠️ Warnung</strong>
-        News sind fast immer "Lagging Indicators". Eine gute Nachricht bedeutet oft, dass Institutionelle an Retailer verkaufen (Sell the News). Daher die Kombination mit der Euphorie-Falle im Scoring.
-      </div>
-    </div></div></div>
-  </div>
-
-  <div class="lex-entry">
-    <div class="lex-header" onclick="toggleLex(this)">
-      <div class="lex-title-wrap">
-        <span class="lex-icon">👔</span>
-        <span class="lex-title">Insider & Institutionelle</span>
-      </div>
-      <div class="lex-toggle">Details <span class="chevron">▼</span></div>
-    </div>
-    <div class="lex-short">
-      "Follow the Smart Money". Verfolgt, was Vorstände, Kongressmitglieder und riesige Fonds (BlackRock etc.) tun.
-    </div>
-    <div class="lex-body"><div class="lex-body-inner"><div class="lex-details">
-      <ul>
-        <li><strong>Corporate Insider:</strong> Netto-Käufe (Insider Buy > Sell) sind extrem stark. CEOs kaufen nur aus einem Grund: Sie glauben, die Aktie steigt. Sie verkaufen aus 100 Gründen (Steuern, Hauskauf).</li>
-        <li><strong>Kongress-Trades:</strong> Das Dashboard trackt US-Politiker. Ein <em>Urgency-Signal</em> (< 15 Tage Meldeverzögerung) oder eine <em>Ausschuss-Zugehörigkeit</em> (Interessenkonflikt) ist oft ein hochprofitables Front-Running-Signal.</li>
-        <li><strong>Institutioneller Anteil:</strong> Aktien mit extrem hohem Anteil (>80%) sind stabiler, aber anfällig für massive Sell-Offs bei Downgrades.</li>
-      </ul>
+      <p>Aktien sind in "Investiert" und "Beobachtet" unterteilt. Das Dashboard ruft über den Cache die Live-Kurse ab und errechnet den Total Portfolio Value. Beim Verkauf (Schließen) einer Position wird das Ergebnis automatisch in das Trade-Journal übertragen.</p>
     </div></div></div>
   </div>
 </div>
 
-<!-- ═══ Tab 8: Architektur ═══ -->
-<div class="tab-content" id="tab-arch">
+<!-- ═══ Tab 5: Journal ═══ -->
+<div class="tab-content" id="tab-journal">
   <div class="card" style="margin-bottom:var(--gap);">
-    <h4>System-Architektur</h4>
-    <p class="caption">Wie die Komponenten unter der Haube interagieren und warum das Dashboard so schnell ist.</p>
-  </div>
-
-  <div class="lex-entry">
-    <div class="lex-header" onclick="toggleLex(this)">
-      <div class="lex-title-wrap">
-        <span class="lex-icon">⚙️</span>
-        <span class="lex-title">Datenfluss & Cache</span>
-      </div>
-      <div class="lex-toggle">Details <span class="chevron">▼</span></div>
-    </div>
-    <div class="lex-short">
-      Um extrem schnelle Ladezeiten zu garantieren, fragt das Dashboard APIs nicht bei jedem Klick neu an.
-    </div>
-    <div class="lex-body"><div class="lex-body-inner"><div class="lex-details">
-      <p>Datenquellen (wie yFinance) werden im Backend asynchron abgerufen und im Memory gecacht (Standard: 5 Minuten). Diagramme werden via Plotly serverseitig in JSON kompiliert und im Frontend nativ gerendert.</p>
-      <div class="lex-action">
-        <strong>Daten aktualisieren</strong>
-        Klicke in der Sidebar auf "Alle Daten aktualisieren", um den Cache sofort zu leeren, falls du Live-Kursdaten erzwingen möchtest.
-      </div>
-    </div></div></div>
+    <h4>Trade-Journal (pages/journal.html)</h4>
+    <p class="caption">Die Lernmaschine des Traders. Trackt Setup-Performance und kalibriert das System.</p>
   </div>
 
   <div class="lex-entry">
     <div class="lex-header" onclick="toggleLex(this)">
       <div class="lex-title-wrap">
         <span class="lex-icon">🧠</span>
-        <span class="lex-title">Signal-Kalibrierung (Lernmaschine)</span>
+        <span class="lex-title">Win Rate & Profit Factor</span>
       </div>
       <div class="lex-toggle">Details <span class="chevron">▼</span></div>
     </div>
     <div class="lex-short">
-      Das Dashboard lernt aus vergangenen Trades. Das Modul "Journal" ist direkt mit der Auswertungs-Logik verknüpft.
+      Aggregiert alle geschlossenen Trades. Visualisiert, welche Setups am profitabelsten sind.
     </div>
     <div class="lex-body"><div class="lex-body-inner"><div class="lex-details">
-      <p>Der Chart <strong>"Win-Rate nach Score-Bereichen"</strong> prüft laufend: Wenn das Dashboard einen Score von "80" ausgab, wie oft führte das historisch tatsächlich zu einem profitablen Trade? So kalibriert sich das Vertrauen des Users in das Scoring-System selbst.</p>
+      <div class="lex-code">Profit Factor = Bruttogewinn / Bruttoverlust</div>
+      <ul>
+        <li><strong>Trefferquote nach Strategie:</strong> Welches Setup (z.B. FVG Bounce, RSI-Dip) gewinnt am häufigsten?</li>
+        <li><strong>Win-Rate nach Score-Bereichen:</strong> Kalibrierungs-Chart. Zeigt, wie oft die KI bei einem ausgegebenen Score-Bereich (z.B. 80-90) historisch tatsächlich recht behielt.</li>
+      </ul>
+      <div class="lex-action">
+        <strong>Wann handeln?</strong>
+        Passe deine Strategie an! Verlierst du oft bei "Breakout"-Trades, fokussiere dich auf "Mean Reversion" – das Journal sagt dir die Wahrheit.
+      </div>
+    </div></div></div>
+  </div>
+</div>
+
+<!-- ═══ Tab 6: Economy ═══ -->
+<div class="tab-content" id="tab-economy">
+  <div class="card" style="margin-bottom:var(--gap);">
+    <h4>Gesamtwirtschaft (pages/economy.html)</h4>
+    <p class="caption">Zinskurven, Inflation und Rohstoffe. Bestimmt, ob wir uns im Bullen- oder Bärenmarkt befinden.</p>
+  </div>
+
+  <div class="lex-entry">
+    <div class="lex-header" onclick="toggleLex(this)">
+      <div class="lex-title-wrap">
+        <span class="lex-icon">🌍</span>
+        <span class="lex-title">Zinsstrukturkurve (Yield Spread)</span>
+      </div>
+      <div class="lex-toggle">Details <span class="chevron">▼</span></div>
+    </div>
+    <div class="lex-short">
+      Differenz zwischen 10-jährigen und 2-jährigen US-Staatsanleihen. Der verlässlichste Vorbote einer Rezession.
+    </div>
+    <div class="lex-body"><div class="lex-body-inner"><div class="lex-details">
+      <p>Wenn kurzfristige Zinsen (2J) höher sind als langfristige (10J), gilt die Kurve als <strong>Invertiert</strong>. Das Dashboard schlägt in diesem Fall Alarm ("Rezessionswarnung"). Eine Normalisierung (Steepening) nach einer Inversion markiert oft den tatsächlichen Aktien-Crash.</p>
     </div></div></div>
   </div>
 
   <div class="lex-entry">
     <div class="lex-header" onclick="toggleLex(this)">
       <div class="lex-title-wrap">
-        <span class="lex-icon">🔔</span>
-        <span class="lex-title">Alerts & Automatisierung</span>
+        <span class="lex-icon">📆</span>
+        <span class="lex-title">Makro-Daten & Rohstoffe</span>
       </div>
       <div class="lex-toggle">Details <span class="chevron">▼</span></div>
     </div>
     <div class="lex-short">
-      Das System überwacht im Hintergrund Kurse und Indikatoren, damit du nicht stundenlang auf Charts starren musst.
+      Aggregation des Wirtschaftskalenders (CPI, Fed-Meetings) und langfristiger Rohstoff-Trends (Gold, Öl).
     </div>
     <div class="lex-body"><div class="lex-body-inner"><div class="lex-details">
-      <p>Alerts werden in einer lokalen SQLite-Datenbank (`alerts.db`) gespeichert. Ein asynchroner Background-Task überprüft Minütlich den Kurs. Wird ein Limit gerissen, pusht das Dashboard eine Notification auf die Home-Seite.</p>
+      <p>Regionale Makro-News (Europa, USA, Asien) sowie die Inflationsentwicklung werden hier grafisch aufbereitet, um zu bestimmen, ob "Value" oder "Growth" Aktien aktuell bevorzugt werden sollten.</p>
+    </div></div></div>
+  </div>
+</div>
+
+<!-- ═══ Tab 7: Sectors ═══ -->
+<div class="tab-content" id="tab-sectors">
+  <div class="card" style="margin-bottom:var(--gap);">
+    <h4>Sektoren-Performance (pages/sectors.html)</h4>
+    <p class="caption">Relative Stärke und Geldfluss-Visualisierung.</p>
+  </div>
+
+  <div class="lex-entry">
+    <div class="lex-header" onclick="toggleLex(this)">
+      <div class="lex-title-wrap">
+        <span class="lex-icon">🏢</span>
+        <span class="lex-title">Sektor-Heatmap & Rotation</span>
+      </div>
+      <div class="lex-toggle">Details <span class="chevron">▼</span></div>
+    </div>
+    <div class="lex-short">
+      Vergleicht Industrien wie Tech, Health Care und Financials über verschiedene Zeithorizonte (1d, 1w, ytd).
+    </div>
+    <div class="lex-body"><div class="lex-body-inner"><div class="lex-details">
+      <p>Märkte drehen sich in Zyklen. Geld fließt von einem Sektor in den nächsten. Die Heatmap zeigt an, welcher Sektor aktuell das institutionelle Momentum besitzt.</p>
+      <div class="lex-action">
+        <strong>Wann handeln?</strong>
+        Kaufe stärke, nicht schwäche. Die besten Trades finden sich in Aktien, die zu den stärksten Sektoren der letzten 4 Wochen gehören.
+      </div>
+    </div></div></div>
+  </div>
+</div>
+
+<!-- ═══ Tab 8: Backtesting ═══ -->
+<div class="tab-content" id="tab-backtesting">
+  <div class="card" style="margin-bottom:var(--gap);">
+    <h4>Backtesting Engine (pages/backtesting.html)</h4>
+    <p class="caption">Quantitative Validierung von Handelsstrategien in der Vergangenheit.</p>
+  </div>
+
+  <div class="lex-entry">
+    <div class="lex-header" onclick="toggleLex(this)">
+      <div class="lex-title-wrap">
+        <span class="lex-icon">⏪</span>
+        <span class="lex-title">Strategie-Simulation & Drawdown</span>
+      </div>
+      <div class="lex-toggle">Details <span class="chevron">▼</span></div>
+    </div>
+    <div class="lex-short">
+      Simuliert Trades über Jahre hinweg und vergleicht die Netto-Rendite mit passivem "Buy & Hold". Inklusive Broker-Kostenmodell.
+    </div>
+    <div class="lex-body"><div class="lex-body-inner"><div class="lex-details">
+      <h5>Strategien</h5>
+      <ul>
+        <li><strong>Score_Signal:</strong> Validiert das Dashboard-Score-Modell auf historische Kurse.</li>
+        <li><strong>RSI Mean Reversion:</strong> Kauft im Überverkauften, verkauft im Überkauften.</li>
+        <li><strong>MACD Momentum & SMA Cross:</strong> Trendfolge-Strategien.</li>
+      </ul>
+      <h5>Drawdown (MDD)</h5>
+      <p>Zeigt den maximalen Kapitalverlust vom Höchststand. Ein MDD > 25% macht eine Strategie psychologisch extrem schwer handelbar.</p>
+      <div class="lex-warn">
+        <strong>⚠️ Slippage & Overfitting</strong>
+        Die Engine kalkuliert Slippage ein, da Signalkurse nie exakt ausführbar sind. Vorsicht: Ein guter Backtest in einem starken Bullenmarkt garantiert keinen Erfolg in einem Bärenmarkt.
+      </div>
     </div></div></div>
   </div>
 </div>
