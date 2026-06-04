@@ -29,6 +29,7 @@ from services.technical import (
     calc_macd, calc_bollinger, calc_stochastic,
     calc_technical_summary, calc_atr, calc_position_sizing,
     detect_liquidity_sweeps, calc_swing_signals, calc_order_flow,
+    calc_rsi,
 )
 from services.fundamental import (
     calc_dcf_valuation, calc_balance_sheet_quality, get_margin_trends,
@@ -195,6 +196,7 @@ def _build_analysis_context(raw_input: str, time_filter: str) -> dict | str:
         "Gesamt": details.get("hist_max", details.get("hist_5y", hist)),
     }
     selected_hist = hist_map.get(time_filter, hist)
+    selected_close = selected_hist["Close"] if not selected_hist.empty else pd.Series()
 
     # === Build all chart JSONs ===
     charts = {}
@@ -209,29 +211,34 @@ def _build_analysis_context(raw_input: str, time_filter: str) -> dict | str:
         plot_financials_chart,
     )
 
+    # --- SMAs for selected_hist ---
+    sma_20_sel = selected_close.rolling(20).mean() if len(selected_close) >= 20 else None
+    sma_50_sel = selected_close.rolling(50).mean() if len(selected_close) >= 50 else None
+    sma_200_sel = selected_close.rolling(200).mean() if len(selected_close) >= 200 else None
+
     # --- Charts (CPU-bound, fast) ---
     try:
         charts["candlestick"] = _fig_to_json(plot_candlestick(
             selected_hist, f"{ticker} — Candlestick ({time_filter})",
-            sma_20=details.get("sma_20"), sma_50=details.get("sma_50"),
-            sma_200=details.get("sma_200"),
+            sma_20=sma_20_sel, sma_50=sma_50_sel,
+            sma_200=sma_200_sel,
         ))
     except Exception:
         charts["candlestick"] = "null"
 
-    rsi_series = details.get("rsi_series")
-    rsi_val = _safe_float(stats.get("rsi"))
     try:
+        rsi_series = calc_rsi(selected_close, 14) if len(selected_close) >= 14 else None
         if rsi_series is not None:
             charts["rsi"] = _fig_to_json(plot_rsi(rsi_series, f"RSI (14) — {ticker}"))
         else:
             charts["rsi"] = "null"
     except Exception:
         charts["rsi"] = "null"
+    rsi_val = _safe_float(stats.get("rsi"))
 
     macd_bullish = None
     try:
-        macd_line, signal_line, histogram = calc_macd(close)
+        macd_line, signal_line, histogram = calc_macd(selected_close)
         charts["macd"] = _fig_to_json(plot_macd_chart(
             macd_line, signal_line, histogram, f"MACD — {ticker}"
         ))
@@ -243,16 +250,16 @@ def _build_analysis_context(raw_input: str, time_filter: str) -> dict | str:
 
     boll_signal = None
     try:
-        upper, middle, lower = calc_bollinger(close)
+        upper, middle, lower = calc_bollinger(selected_close)
         charts["bollinger"] = _fig_to_json(plot_boll_chart(
-            close, upper, middle, lower, f"Bollinger Baender — {ticker}"
+            selected_close, upper, middle, lower, f"Bollinger Baender — {ticker}"
         ))
-        last_close = float(close.iloc[-1])
+        last_close = float(selected_close.iloc[-1]) if not selected_close.empty else 0
         last_upper = float(upper.dropna().iloc[-1]) if not upper.dropna().empty else 0
         last_lower = float(lower.dropna().iloc[-1]) if not lower.dropna().empty else 0
-        if last_close >= last_upper:
+        if last_close >= last_upper and last_upper > 0:
             boll_signal = "overbought"
-        elif last_close <= last_lower:
+        elif last_close <= last_lower and last_lower > 0:
             boll_signal = "oversold"
         else:
             boll_signal = "normal"
@@ -261,7 +268,7 @@ def _build_analysis_context(raw_input: str, time_filter: str) -> dict | str:
 
     last_k = None
     try:
-        k_line, d_line = calc_stochastic(hist["High"], hist["Low"], hist["Close"])
+        k_line, d_line = calc_stochastic(selected_hist["High"], selected_hist["Low"], selected_close)
         charts["stochastic"] = _fig_to_json(plot_stoch_chart(
             k_line, d_line, f"Stochastic — {ticker}"
         ))

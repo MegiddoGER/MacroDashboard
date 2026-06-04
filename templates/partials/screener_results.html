@@ -16,7 +16,7 @@
         <div class="metric-value">{{ stats.total }}</div>
     </div>
     <div class="metric-card">
-        <div class="metric-label">Ø Score</div>
+        <div class="metric-label">Ø Quick Score</div>
         <div class="metric-value">{{ "%.1f"|format(stats.avg_score) }}</div>
     </div>
     <div class="metric-card">
@@ -40,7 +40,7 @@
                 <th>Ticker</th>
                 <th>Unternehmen</th>
                 <th>Sektor</th>
-                <th>Score</th>
+                <th>Quick Score <span title="Basiert nur auf Technik/Oszillatoren" style="cursor:help">ℹ️</span></th>
                 <th>Signal</th>
                 <th>RSI</th>
                 <th>Kurs ({{ currency }})</th>
@@ -81,7 +81,7 @@
         <div style="padding: 8px 0; border-bottom: 1px solid var(--border);">
             <strong>{{ loop.index }}. {{ r.emoji }} {{ r.ticker }}</strong> — {{ r.name }}<br>
             <span class="caption">
-                Score: <strong style="color: {{ r.confidence_color }};">{{ "%.1f"|format(r.confidence) }}</strong>
+                Quick Score: <strong style="color: {{ r.confidence_color }};">{{ "%.1f"|format(r.confidence) }}</strong>
                 | RSI: {{ r.rsi_display }}
                 | {{ currency }}{{ r.price_display }}
             </span>
@@ -95,7 +95,7 @@
         <div style="padding: 8px 0; border-bottom: 1px solid var(--border);">
             <strong>{{ loop.index }}. {{ r.emoji }} {{ r.ticker }}</strong> — {{ r.name }}<br>
             <span class="caption">
-                Score: <strong style="color: {{ r.confidence_color }};">{{ "%.1f"|format(r.confidence) }}</strong>
+                Quick Score: <strong style="color: {{ r.confidence_color }};">{{ "%.1f"|format(r.confidence) }}</strong>
                 | RSI: {{ r.rsi_display }}
                 | {{ currency }}{{ r.price_display }}
             </span>

@@ -1301,11 +1301,24 @@ function filterCongress(type, btn) {
     tab.addEventListener('click', function() {
       setTimeout(function() {
         document.querySelectorAll('.tab-content.active .chart-container').forEach(function(c) {
-          if (c.data) { Plotly.Plots.resize(c); }
+          if (c.data) {
+            Plotly.Plots.resize(c);
+            Plotly.relayout(c, {autosize: true});
+          }
         });
       }, 50);
     });
   });
+
+  // Ensure initial charts are fully measured and laid out
+  setTimeout(function() {
+    document.querySelectorAll('.tab-content.active .chart-container').forEach(function(c) {
+      if (c.data) {
+        Plotly.Plots.resize(c);
+        Plotly.relayout(c, {autosize: true});
+      }
+    });
+  }, 150);
 })();
 </script>
 
