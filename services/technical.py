@@ -154,9 +154,17 @@ def _safe_haven_score(gold_close: pd.Series, sp500_close: pd.Series) -> float:
     if (gold_close is None or gold_close.empty or len(gold_close) < 20 or
             sp500_close is None or sp500_close.empty or len(sp500_close) < 20):
         return 10.0
+    # Align by index to ensure we are comparing the same trading days
+    common_idx = gold_close.index.intersection(sp500_close.index)
+    if len(common_idx) < 20:
+        return 10.0
+    
+    gc_aligned = gold_close.loc[common_idx]
+    sp_aligned = sp500_close.loc[common_idx]
+    
     # 20-Tage-Performance vergleichen
-    gold_ret = (gold_close.iloc[-1] / gold_close.iloc[-20] - 1) * 100
-    sp_ret = (sp500_close.iloc[-1] / sp500_close.iloc[-20] - 1) * 100
+    gold_ret = (gc_aligned.iloc[-1] / gc_aligned.iloc[-20] - 1) * 100
+    sp_ret = (sp_aligned.iloc[-1] / sp_aligned.iloc[-20] - 1) * 100
     diff = sp_ret - gold_ret  # positiv = Aktien stärker = Gier
     clamped = np.clip(diff, -5, 5)
     return 20.0 * (clamped + 5) / 10.0
@@ -593,7 +601,7 @@ def calc_position_sizing(current_price: float, atr_val: float,
     
     # Kelly Criterion: f* = (W × R - L) / R
     kelly_full = (win_rate * avg_win_loss_ratio - (1 - win_rate)) / avg_win_loss_ratio
-    kelly_full = max(0.0, kelly_full)
+    kelly_full = max(0.0, min(1.0, kelly_full))  # Clamp auf [0, 1] — theoretische Obergrenze
     # Half-Kelly für konservativeres Sizing (Standardpraxis bei institutionellen Tradern)
     kelly_fraction = kelly_full * 0.5
     kelly_fraction = min(kelly_fraction, 0.25)  # Absolutes Maximum: 25% des Portfolios

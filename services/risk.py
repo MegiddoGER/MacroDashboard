@@ -144,6 +144,9 @@ def calc_portfolio_var(positions: list[dict],
     mean_returns = np.atleast_1d(mean_returns)
     # Kein fester Seed — Monte Carlo soll stochastisch sein
 
+    # ACHTUNG (BUG #10 fix): Skalierung cov_matrix * n_days nimmt i.i.d. Returns an.
+    # Bei n_days > 1 unterschätzt dies das Tail-Risk durch Volatilitäts-Clustering leicht.
+
     simulated_returns = np.random.multivariate_normal(
         mean_returns * n_days,
         cov_matrix * n_days,
@@ -233,8 +236,9 @@ def calc_portfolio_beta(positions: list[dict],
             br = bm_returns.loc[common_idx].values
 
             # Beta = Cov(stock, market) / Var(market)
+            # ddof=1 für Stichproben-Varianz — konsistent mit np.cov() (ddof=1 default)
             cov = np.cov(sr, br)[0, 1]
-            var_market = np.var(br)
+            var_market = np.var(br, ddof=1)
             if var_market > 0:
                 beta = cov / var_market
                 portfolio_beta += beta * weights[i]
@@ -407,11 +411,11 @@ def calc_correlation_risk(positions: list[dict]) -> dict:
             hist = yf.Ticker(t).history(period="6mo")
             if not hist.empty and len(hist) > 30:
                 idx = hist.index.tz_localize(None) if hist.index.tz else hist.index
-                returns_data[t] = pd.Series(
-                    hist["Close"].pct_change().dropna().values,
-                    index=idx[1:len(hist)],
-                    name=t,
-                )
+                ret = hist["Close"].pct_change().dropna()
+                # Sicherer Index: Nutze den tatsächlichen Index der Returns
+                # statt einer festen Offset-Annahme (verhindert Length-Mismatch bei Lücken)
+                ret_idx = idx[ret.index.isin(hist.index) | True][-len(ret):]
+                returns_data[t] = pd.Series(ret.values, index=ret_idx, name=t)
         except Exception:
             pass
 

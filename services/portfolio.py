@@ -136,7 +136,21 @@ def calc_equity_curve(current_prices: dict[str, float] = None) -> pd.DataFrame |
             if not hist.empty:
                 # Timezone entfernen
                 idx = hist.index.tz_localize(None) if hist.index.tz else hist.index
-                hist_data[t] = pd.Series(hist["Close"].values, index=idx, name=t)
+                series = pd.Series(hist["Close"].values, index=idx, name=t)
+                
+                # BUG #4 Fix: EUR Konvertierung für historische Kurse
+                try:
+                    currency = (tk.info.get("currency") or "USD").upper()
+                except:
+                    currency = "EUR" if t.endswith(".DE") else "USD"
+                    
+                if currency != "EUR":
+                    from services.forex import get_rate_to_eur
+                    rate = get_rate_to_eur(currency)
+                    if rate:
+                        series = series * rate
+                        
+                hist_data[t] = series
         except Exception:
             pass
 
@@ -155,6 +169,7 @@ def calc_equity_curve(current_prices: dict[str, float] = None) -> pd.DataFrame |
     # Portfolio-Wert pro Tag berechnen (vektorisiert statt O(T×N) for-Loop)
     portfolio_values = pd.Series(0.0, index=price_df.index)
     cash_invested = pd.Series(0.0, index=price_df.index)
+    daily_pnl = pd.Series(0.0, index=price_df.index)
 
     for p in all_positions:
         ticker = p["ticker"]
@@ -169,6 +184,20 @@ def calc_equity_curve(current_prices: dict[str, float] = None) -> pd.DataFrame |
 
         qty = pos.get("quantity", 0)
         buy_price = pos.get("buy_price", 0)
+        
+        # BUG #4/2 Fix: EUR Konvertierung für den Kaufpreis
+        try:
+            tk = yf.Ticker(ticker)
+            currency = (tk.info.get("currency") or "USD").upper()
+        except Exception:
+            currency = "EUR" if ticker.endswith(".DE") else "USD"
+            
+        buy_price_eur = buy_price
+        if currency != "EUR":
+            from services.forex import get_rate_to_eur
+            rate = get_rate_to_eur(currency)
+            if rate:
+                buy_price_eur = buy_price * rate
 
         sell_dt = None
         if pos.get("sell_date"):
@@ -183,8 +212,15 @@ def calc_equity_curve(current_prices: dict[str, float] = None) -> pd.DataFrame |
             mask &= price_df.index <= sell_dt
 
         prices_in_range = price_df.loc[mask, ticker].fillna(0)
+        
+        # Daily P&L für TWRR-Berechnung
+        price_diff = prices_in_range.diff()
+        if not price_diff.empty:
+            price_diff.iloc[0] = prices_in_range.iloc[0] - buy_price_eur
+            daily_pnl[mask] += price_diff * qty
+            
         portfolio_values[mask] += prices_in_range * qty
-        cash_invested[mask] += buy_price * qty
+        cash_invested[mask] += buy_price_eur * qty
 
     # Nur Tage mit Werten > 0
     mask = portfolio_values > 0
@@ -193,6 +229,13 @@ def calc_equity_curve(current_prices: dict[str, float] = None) -> pd.DataFrame |
 
     portfolio_values = portfolio_values[mask]
     cash_invested = cash_invested[mask]
+    daily_pnl = daily_pnl[mask]
+    
+    # Echte TWRR-Berechnung (Isolierung der Cashflows)
+    denom = portfolio_values - daily_pnl
+    daily_returns = daily_pnl / denom
+    daily_returns = daily_returns.fillna(0).replace([np.inf, -np.inf], 0)
+    twrr_index = 100 * (1 + daily_returns).cumprod()
 
     # Benchmark normalisieren auf gleichen Startwert
     if benchmark_ticker in price_df.columns:
@@ -206,6 +249,7 @@ def calc_equity_curve(current_prices: dict[str, float] = None) -> pd.DataFrame |
     result = pd.DataFrame({
         "Datum": portfolio_values.index,
         "Portfolio": portfolio_values.values,
+        "TWRR_Index": twrr_index.values,
         "Benchmark": bm_normalized.values,
         "Investiert": cash_invested.values,
     })
@@ -270,7 +314,10 @@ def calc_performance_metrics(current_prices: dict[str, float] = None) -> Perform
     # Equity-Kurve für Sharpe, Sortino, Max DD
     equity = calc_equity_curve(current_prices)
     if equity is not None and len(equity) > 10:
-        portfolio_series = equity["Portfolio"].values
+        if "TWRR_Index" in equity.columns:
+            portfolio_series = equity["TWRR_Index"].values
+        else:
+            portfolio_series = equity["Portfolio"].values
 
         # Tägliche Returns
         returns = np.diff(portfolio_series) / portfolio_series[:-1]
@@ -295,8 +342,8 @@ def calc_performance_metrics(current_prices: dict[str, float] = None) -> Perform
                 metrics.sharpe_ratio = round(
                     np.mean(excess_returns) / np.std(excess_returns) * np.sqrt(252), 2)
 
-            # Sortino Ratio (nur Downside-Volatilität)
-            downside = returns[returns < 0]
+            # Sortino Ratio (nur Downside-Volatilität, gemessen gegen Risk-Free Rate)
+            downside = returns[returns < rf_daily]
             if len(downside) > 0 and np.std(downside) > 0:
                 metrics.sortino_ratio = round(
                     (np.mean(returns) - rf_daily) / np.std(downside) * np.sqrt(252), 2)

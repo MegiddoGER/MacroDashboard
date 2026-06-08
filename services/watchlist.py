@@ -413,6 +413,9 @@ def calc_position_pnl(position: dict, current_price: float = None) -> dict:
         }
     elif current_price is not None:
         current_value = current_price * quantity
+        # Hinweis (BUG #16): Zukünftige Verkaufsgebühren (sell_fees) sind hier nicht abgezogen,
+        # da der Verkaufspreis/-zeitpunkt unbekannt ist. Die unrealisierte P&L ist daher
+        # leicht optimistischer (um ~1-2€) als die tatsächliche Netto-P&L nach Verkauf.
         pnl_eur = current_value - invested
         pnl_pct = (pnl_eur / invested * 100) if invested > 0 else 0.0
         return {
@@ -450,27 +453,40 @@ def calc_portfolio_summary(current_prices: dict[str, float] = None) -> dict:
     has_de = False
     has_us = False
 
+    from services.forex import convert_to_eur
+    
     for op in open_positions:
         pos = op["position"]
         ticker = op.get("ticker", "")
+        currency = "EUR" if ticker.endswith(".DE") else "USD"
         if ticker.endswith(".DE"):
             has_de = True
         else:
             has_us = True
+            
         price = current_prices.get(ticker)
         pnl = calc_position_pnl(pos, price)
-        total_invested += pnl["invested"]
-        total_value += pnl["current_value"]
+        
+        invested_eur = convert_to_eur(pnl["invested"], currency) or pnl["invested"]
+        current_value_eur = convert_to_eur(pnl["current_value"], currency) or pnl["current_value"]
+        
+        total_invested += invested_eur
+        total_value += current_value_eur
 
     for cp in closed_positions:
         pos = cp["position"]
         ticker = cp.get("ticker", "")
+        currency = "EUR" if ticker.endswith(".DE") else "USD"
         if ticker.endswith(".DE"):
             has_de = True
         else:
             has_us = True
+            
         pnl = calc_position_pnl(pos)
-        realized_pnl += pnl["pnl_eur"]
+        
+        # P&L in EUR umrechnen
+        realized_eur = convert_to_eur(pnl["pnl_eur"], currency) or pnl["pnl_eur"]
+        realized_pnl += realized_eur
 
     unrealized_pnl = total_value - total_invested
     total_pnl = unrealized_pnl + realized_pnl

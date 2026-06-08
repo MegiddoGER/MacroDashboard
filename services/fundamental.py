@@ -370,7 +370,8 @@ def calc_dividend_analysis(ticker: str) -> dict | None:
 
         streak = 0
         values = list(annual.values)
-        if len(values) >= 2:
+        if len(values) >= 2 and values[-1] >= values[-2]:
+            streak = 1  # Start at 1 year (the first year of the comparison)
             for i in range(len(values) - 1, 0, -1):
                 if values[i] >= values[i - 1]:
                     streak += 1

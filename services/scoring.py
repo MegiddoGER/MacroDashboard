@@ -185,7 +185,7 @@ def _score_oscillators(close, high, low, result: ScoreResult):
 
     rsi_overbought = False
     rsi_oversold = False
-    if rsi_val:
+    if rsi_val is not None:
         result.cat_max["oscillator"] += 1
         if rsi_val > 70:
             result.cat_scores["oscillator"] -= 1
@@ -372,25 +372,34 @@ def _score_fundamental(info, ticker, result: ScoreResult):
         # DCF
         dcf = calc_dcf_valuation(info)
         if dcf:
-            result.cat_max["fundamental"] += 1
-            if dcf['upside_pct'] > 20:
-                result.cat_scores["fundamental"] += 1
-                result.checklist.append({"Indikator": "DCF Fair Value",
-                    "Wert": f"{dcf['fair_value']:,.2f} (Upside {dcf['upside_pct']:+.1f}%)",
-                    "Signal": "Unterbewertet ↑", "Beitrag": "+1"})
-                result.fundamental_text_parts.append(
-                    f"Das DCF-Modell sieht die Aktie {dcf['upside_pct']:.0f}% unter ihrem inneren Wert — eine klare fundamentale Unterbewertung.")
-            elif dcf['upside_pct'] < -20:
-                result.cat_scores["fundamental"] -= 1
-                result.checklist.append({"Indikator": "DCF Fair Value",
-                    "Wert": f"{dcf['fair_value']:,.2f} (Downside {dcf['upside_pct']:+.1f}%)",
-                    "Signal": "Überbewertet ↓", "Beitrag": "-1"})
-                result.fundamental_text_parts.append(
-                    f"Der DCF-basierte Fair Value liegt {abs(dcf['upside_pct']):.0f}% unter dem aktuellen Kurs — fundamental scheint die Aktie überbewertet.")
-            else:
+            # Proxy-FCF-Warnung: Wenn der FCF negativ war und ein Proxy verwendet wurde,
+            # ist das DCF-Ergebnis nicht belastbar genug für Score-Impact.
+            if dcf.get('is_proxy_fcf'):
                 result.checklist.append({"Indikator": "DCF Fair Value",
                     "Wert": f"{dcf['fair_value']:,.2f} ({dcf['upside_pct']:+.1f}%)",
-                    "Signal": "Fair bewertet ≈", "Beitrag": "0"})
+                    "Signal": "⚠️ Proxy-FCF (10% Umsatz) — FCF negativ, Modell unsicher", "Beitrag": "0"})
+                result.fundamental_text_parts.append(
+                    "Das DCF-Modell nutzt einen Proxy-FCF (10% des Umsatzes), da das Unternehmen keinen positiven Free Cashflow generiert — die Bewertung ist daher mit Vorsicht zu genießen.")
+            else:
+                result.cat_max["fundamental"] += 1
+                if dcf['upside_pct'] > 20:
+                    result.cat_scores["fundamental"] += 1
+                    result.checklist.append({"Indikator": "DCF Fair Value",
+                        "Wert": f"{dcf['fair_value']:,.2f} (Upside {dcf['upside_pct']:+.1f}%)",
+                        "Signal": "Unterbewertet ↑", "Beitrag": "+1"})
+                    result.fundamental_text_parts.append(
+                        f"Das DCF-Modell sieht die Aktie {dcf['upside_pct']:.0f}% unter ihrem inneren Wert — eine klare fundamentale Unterbewertung.")
+                elif dcf['upside_pct'] < -20:
+                    result.cat_scores["fundamental"] -= 1
+                    result.checklist.append({"Indikator": "DCF Fair Value",
+                        "Wert": f"{dcf['fair_value']:,.2f} (Downside {dcf['upside_pct']:+.1f}%)",
+                        "Signal": "Überbewertet ↓", "Beitrag": "-1"})
+                    result.fundamental_text_parts.append(
+                        f"Der DCF-basierte Fair Value liegt {abs(dcf['upside_pct']):.0f}% unter dem aktuellen Kurs — fundamental scheint die Aktie überbewertet.")
+                else:
+                    result.checklist.append({"Indikator": "DCF Fair Value",
+                        "Wert": f"{dcf['fair_value']:,.2f} ({dcf['upside_pct']:+.1f}%)",
+                        "Signal": "Fair bewertet ≈", "Beitrag": "0"})
 
         # Bilanzqualität
         balance = calc_balance_sheet_quality(info)

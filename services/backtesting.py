@@ -47,6 +47,8 @@ class BacktestEngine:
         loss = -delta.where(delta < 0, 0)
         avg_gain = gain.ewm(alpha=1/14, min_periods=14, adjust=False).mean()
         avg_loss = loss.ewm(alpha=1/14, min_periods=14, adjust=False).mean()
+        # Guard: avg_loss = 0 bei reinen Aufwärts-Serien → NaN statt Inf
+        avg_loss = avg_loss.replace(0, np.nan)
         rs = avg_gain / avg_loss
         self.df["RSI_14"] = 100 - (100 / (1 + rs))
         
@@ -361,10 +363,10 @@ class BacktestEngine:
             if np.std(excess) > 0:
                 sharpe = round(np.mean(excess) / np.std(excess) * np.sqrt(252), 2)
 
-        # Sortino Ratio (nur Downside-Volatilität)
+        # Sortino Ratio (nur Downside-Volatilität, gemessen gegen Risk-Free Rate)
         sortino = None
         if len(daily_returns) > 5:
-            downside = daily_returns[daily_returns < 0]
+            downside = daily_returns[daily_returns < rf_daily]
             if len(downside) > 0 and np.std(downside) > 0:
                 sortino = round(
                     (np.mean(daily_returns) - rf_daily) / np.std(downside) * np.sqrt(252), 2)

@@ -33,7 +33,6 @@ def get_quote(ticker: str) -> dict | None:
             return None
         current = float(closes.iloc[-1])
         prev = float(closes.iloc[-2])
-        change_pct = ((current - prev) / prev) * 100 if prev else 0.0
         
         # Währung ermitteln und umrechnen
         try:
@@ -44,7 +43,13 @@ def get_quote(ticker: str) -> dict | None:
             
         from services.forex import convert_to_eur
         current_eur = convert_to_eur(current, currency)
+        prev_eur = convert_to_eur(prev, currency)
         
+        if current_eur and prev_eur:
+            change_pct = ((current_eur - prev_eur) / prev_eur) * 100
+        else:
+            change_pct = ((current - prev) / prev) * 100 if prev else 0.0
+            
         return {"price": round(current_eur, 2) if current_eur else round(current, 2), "change_pct": round(change_pct, 2)}
     except Exception as exc:
         warnings.warn(f"get_quote({ticker}): {exc}")
@@ -62,6 +67,8 @@ def get_history(ticker: str, period: str = "1y") -> pd.DataFrame | None:
         hist = tk.history(period=period)
         if hist.empty:
             return None
+        if hist.index.tz is not None:
+            hist.index = hist.index.tz_localize(None)
         return hist
     except Exception as exc:
         warnings.warn(f"get_history({ticker}): {exc}")
@@ -98,7 +105,6 @@ def get_multi_quotes(tickers: list[str]) -> pd.DataFrame | None:
                 continue
             current = float(closes.iloc[-1])
             prev = float(closes.iloc[-2])
-            chg = round(((current - prev) / prev) * 100, 2) if prev else 0.0
             rsi_series = calc_rsi(hist["Close"], 14)
             rsi_val = (round(float(rsi_series.dropna().iloc[-1]), 1)
                        if rsi_series is not None and not rsi_series.dropna().empty
@@ -111,6 +117,12 @@ def get_multi_quotes(tickers: list[str]) -> pd.DataFrame | None:
             except Exception:
                 currency = "EUR" if t.endswith(".DE") else "USD"
             current_eur = convert_to_eur(current, currency)
+            prev_eur = convert_to_eur(prev, currency)
+
+            if current_eur and prev_eur:
+                chg = round(((current_eur - prev_eur) / prev_eur) * 100, 2)
+            else:
+                chg = round(((current - prev) / prev) * 100, 2) if prev else 0.0
 
             records.append({
                 "Ticker": t,
@@ -763,14 +775,18 @@ def get_sector_performance(period: str = "1d", region: str = "us") -> pd.DataFra
             current = float(hist["Close"].iloc[-1])
 
             # Performance je nach gewähltem Zeitraum berechnen
+            now = pd.Timestamp.now(tz=hist.index.tz)
             if period == "1d":
                 prev = float(hist["Close"].iloc[-2])
             elif period == "1w":
-                prev = float(hist["Close"].iloc[-6]) if len(hist) >= 6 else float(hist["Close"].iloc[0])
+                target_data = hist[hist.index >= (now - pd.Timedelta(days=7))]
+                prev = float(target_data["Close"].iloc[0]) if not target_data.empty else float(hist["Close"].iloc[0])
             elif period == "1m":
-                prev = float(hist["Close"].iloc[-22]) if len(hist) >= 22 else float(hist["Close"].iloc[0])
+                target_data = hist[hist.index >= (now - pd.DateOffset(months=1))]
+                prev = float(target_data["Close"].iloc[0]) if not target_data.empty else float(hist["Close"].iloc[0])
             elif period == "3m":
-                prev = float(hist["Close"].iloc[-66]) if len(hist) >= 66 else float(hist["Close"].iloc[0])
+                target_data = hist[hist.index >= (now - pd.DateOffset(months=3))]
+                prev = float(target_data["Close"].iloc[0]) if not target_data.empty else float(hist["Close"].iloc[0])
             elif period == "ytd":
                 # Ersten Handelstag des Jahres
                 import datetime
@@ -1005,14 +1021,18 @@ def get_components_performance(tickers: list[str], period: str) -> pd.DataFrame 
                     continue
                 current = float(series.iloc[-1])
                 
+                now = pd.Timestamp.now(tz=series.index.tz)
                 if period == "1d":
                     prev = float(series.iloc[-2])
                 elif period == "1w":
-                    prev = float(series.iloc[-6]) if len(series) >= 6 else float(series.iloc[0])
+                    target_data = series[series.index >= (now - pd.Timedelta(days=7))]
+                    prev = float(target_data.iloc[0]) if not target_data.empty else float(series.iloc[0])
                 elif period == "1m":
-                    prev = float(series.iloc[-22]) if len(series) >= 22 else float(series.iloc[0])
+                    target_data = series[series.index >= (now - pd.DateOffset(months=1))]
+                    prev = float(target_data.iloc[0]) if not target_data.empty else float(series.iloc[0])
                 elif period == "3m":
-                    prev = float(series.iloc[-66]) if len(series) >= 66 else float(series.iloc[0])
+                    target_data = series[series.index >= (now - pd.DateOffset(months=3))]
+                    prev = float(target_data.iloc[0]) if not target_data.empty else float(series.iloc[0])
                 elif period == "ytd" or period == "1y":
                     prev = float(series.iloc[0])
                 else:
