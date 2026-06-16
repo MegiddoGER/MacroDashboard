@@ -1,0 +1,1554 @@
+{% extends "base.html" %}
+{% block title %}Datenquellen & Methodik — Macro Dashboard{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h2> Datenquellen & Methodik</h2>
+  <p class="caption">Vollständige Transparenz: Jede Formel, jede Datenquelle, jeder Parameter — direkt aus dem Code dokumentiert.</p>
+</div>
+
+<!-- ═══ Search & Filter Bar ═══ -->
+<div class="src-filter-bar">
+  <input type="text" id="src-search" class="form-input" placeholder="Suche nach Metrik, Datei oder Bibliothek …"
+         oninput="filterSources()" autocomplete="off">
+  <div class="src-filter-pills">
+    <button class="src-pill active" data-filter="all" onclick="setFilter('all')">Alle</button>
+    <button class="src-pill" data-filter="formula" onclick="setFilter('formula')">Formeln</button>
+    <button class="src-pill" data-filter="api" onclick="setFilter('api')">APIs</button>
+  </div>
+</div>
+
+<!-- ═══ Summary Cards ═══ -->
+<div class="src-summary-grid">
+  <div class="src-summary-card">
+    <div class="src-summary-number">39</div>
+    <div class="src-summary-label">Formeln & Berechnungen</div>
+    <div class="src-summary-detail">8 Kategorien</div>
+  </div>
+  <div class="src-summary-card">
+    <div class="src-summary-number">10</div>
+    <div class="src-summary-label">Externe Datenquellen</div>
+    <div class="src-summary-detail">2 optional mit Token</div>
+  </div>
+  <div class="src-summary-card">
+    <div class="src-summary-number">6</div>
+    <div class="src-summary-label">Bibliotheken</div>
+    <div class="src-summary-detail">yfinance · pandas_ta · VADER · numpy</div>
+  </div>
+  <div class="src-summary-card src-summary-card--accent">
+    <div class="src-summary-number">3</div>
+    <div class="src-summary-label">Stellen zum Prüfen</div>
+    <div class="src-summary-detail">Inkonsistenzen markiert</div>
+  </div>
+</div>
+
+<!-- ═══ Tabs ═══ -->
+<div class="tabs">
+  <button class="tab active" data-tab="tab-indicators"> Technische Indikatoren</button>
+  <button class="tab" data-tab="tab-sentiment"> Sentiment</button>
+  <button class="tab" data-tab="tab-fundamental">️ Fundamentaldaten</button>
+  <button class="tab" data-tab="tab-risk"> Risiko</button>
+  <button class="tab" data-tab="tab-smc"> SMC</button>
+  <button class="tab" data-tab="tab-options"> Options</button>
+  <button class="tab" data-tab="tab-stops"> Stops & Sizing</button>
+  <button class="tab" data-tab="tab-apis"> Datenquellen</button>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!--  TAB 1: Technische Indikatoren                            -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="tab-content active" id="tab-indicators">
+  <div class="card" style="margin-bottom:var(--gap);">
+    <h4> Trend- & Oszillator-Indikatoren</h4>
+    <p class="caption">Klassische technische Analyse — alle mit Eigenimplementation und Wilder-Smoothing wo anwendbar.</p>
+  </div>
+
+  <!-- RSI -->
+  <div class="src-entry" data-type="formula" data-search="rsi relative strength index wilder smoothing pandas_ta technical.py oszillator">
+    <div class="src-header" onclick="toggleSrc(this)">
+      <div class="src-title-wrap">
+        <span class="src-badge src-badge--formula">Formel</span>
+        <span class="src-title">RSI (Relative Strength Index)</span>
+      </div>
+      <div class="src-meta">
+        <span class="src-file">technical.py:13–29</span>
+        <span class="src-chevron">▼</span>
+      </div>
+    </div>
+    <div class="src-body"><div class="src-body-inner"><div class="src-details">
+      <div class="src-params">
+        <div class="src-param"><span class="src-param-key">Periode</span><span class="src-param-val">14</span></div>
+        <div class="src-param"><span class="src-param-key">Bibliothek</span><span class="src-param-val">pandas_ta (Primär) · Eigenimpl. (Fallback)</span></div>
+        <div class="src-param"><span class="src-param-key">Smoothing</span><span class="src-param-val">Wilder-Smoothing — ewm(alpha=1/14)</span></div>
+      </div>
+      <div class="src-formula">RSI = 100 − 100 / (1 + RS)  wobei  RS = EMA(gains) / EMA(losses)</div>
+      <p>Verwendet <strong>Wilder-Smoothing</strong> (exponentieller gleitender Durchschnitt mit α = 1/Periode), nicht den einfachen SMA. Falls <code>pandas_ta</code> nicht installiert ist, greift die robuste Eigenimplementation.</p>
+      <div class="src-used-in">
+        <span class="src-used-tag">Analyse</span>
+        <span class="src-used-tag">Scoring (Oszillator-Kategorie)</span>
+        <span class="src-used-tag">Screener</span>
+        <span class="src-used-tag">Fear & Greed</span>
+      </div>
+    </div></div></div>
+  </div>
+
+  <!-- MACD -->
+  <div class="src-entry" data-type="formula" data-search="macd moving average convergence divergence technical.py ema signal histogram">
+    <div class="src-header" onclick="toggleSrc(this)">
+      <div class="src-title-wrap">
+        <span class="src-badge src-badge--formula">Formel</span>
+        <span class="src-title">MACD (Moving Average Convergence Divergence)</span>
+      </div>
+      <div class="src-meta">
+        <span class="src-file">technical.py:36–46</span>
+        <span class="src-chevron">▼</span>
+      </div>
+    </div>
+    <div class="src-body"><div class="src-body-inner"><div class="src-details">
+      <div class="src-params">
+        <div class="src-param"><span class="src-param-key">Fast EMA</span><span class="src-param-val">12</span></div>
+        <div class="src-param"><span class="src-param-key">Slow EMA</span><span class="src-param-val">26</span></div>
+        <div class="src-param"><span class="src-param-key">Signal EMA</span><span class="src-param-val">9</span></div>
+        <div class="src-param"><span class="src-param-key">Bibliothek</span><span class="src-param-val">Eigenimplementation (pandas EMA)</span></div>
+      </div>
+      <div class="src-formula">MACD = EMA(12) − EMA(26)   Signal = EMA(MACD, 9)   Histogram = MACD − Signal</div>
+      <p>Standard MACD nach Gerald Appel. Gibt drei Werte zurück: MACD-Line, Signallinie und Histogramm. Im Scoring als <strong>Info-Indikator</strong> verwendet (kein direkter Score-Impact).</p>
+      <div class="src-used-in">
+        <span class="src-used-tag">Analyse (Info)</span>
+        <span class="src-used-tag">Backtesting (MACD Momentum)</span>
+      </div>
+    </div></div></div>
+  </div>
+
+  <!-- Bollinger Bands -->
+  <div class="src-entry" data-type="formula" data-search="bollinger bands sma standardabweichung technical.py">
+    <div class="src-header" onclick="toggleSrc(this)">
+      <div class="src-title-wrap">
+        <span class="src-badge src-badge--formula">Formel</span>
+        <span class="src-title">Bollinger Bands</span>
+      </div>
+      <div class="src-meta">
+        <span class="src-file">technical.py:53–62</span>
+        <span class="src-chevron">▼</span>
+      </div>
+    </div>
+    <div class="src-body"><div class="src-body-inner"><div class="src-details">
+      <div class="src-params">
+        <div class="src-param"><span class="src-param-key">Periode</span><span class="src-param-val">20</span></div>
+        <div class="src-param"><span class="src-param-key">Standardabweichung</span><span class="src-param-val">2.0σ</span></div>
+        <div class="src-param"><span class="src-param-key">Bibliothek</span><span class="src-param-val">Eigenimplementation (pandas)</span></div>
+      </div>
+      <div class="src-formula">Middle = SMA(20)   Upper = Middle + 2σ   Lower = Middle − 2σ</div>
+      <p>Volatilitätsbänder nach John Bollinger. Kurs außerhalb der Bänder signalisiert Übertreibung. Im Scoring für Oszillator-Bewertung verwendet (Bollinger %B).</p>
+      <div class="src-used-in">
+        <span class="src-used-tag">Analyse (Oszillator-Scoring)</span>
+      </div>
+    </div></div></div>
+  </div>
+
+  <!-- Stochastic -->
+  <div class="src-entry" data-type="formula" data-search="stochastic oscillator %k %d technical.py momentum">
+    <div class="src-header" onclick="toggleSrc(this)">
+      <div class="src-title-wrap">
+        <span class="src-badge src-badge--formula">Formel</span>
+        <span class="src-title">Stochastic Oscillator (%K / %D)</span>
+      </div>
+      <div class="src-meta">
+        <span class="src-file">technical.py:69–79</span>
+        <span class="src-chevron">▼</span>
+      </div>
+    </div>
+    <div class="src-body"><div class="src-body-inner"><div class="src-details">
+      <div class="src-params">
+        <div class="src-param"><span class="src-param-key">%K Periode</span><span class="src-param-val">14</span></div>
+        <div class="src-param"><span class="src-param-key">%D Glättung</span><span class="src-param-val">SMA(3)</span></div>
+        <div class="src-param"><span class="src-param-key">Bibliothek</span><span class="src-param-val">Eigenimplementation (pandas)</span></div>
+      </div>
+      <div class="src-formula">%K = 100 × (Close − Low₁₄) / (High₁₄ − Low₁₄)   %D = SMA(%K, 3)</div>
+      <p>Klassischer Stochastic nach George Lane. Werte >80 = überkauft, <20 = überverkauft.</p>
+      <div class="src-used-in">
+        <span class="src-used-tag">Analyse (Oszillator-Scoring)</span>
+      </div>
+    </div></div></div>
+  </div>
+
+  <!-- ATR -->
+  <div class="src-entry" data-type="formula" data-search="atr average true range wilder volatilität technical.py position sizing">
+    <div class="src-header" onclick="toggleSrc(this)">
+      <div class="src-title-wrap">
+        <span class="src-badge src-badge--formula">Formel</span>
+        <span class="src-title">ATR (Average True Range)</span>
+      </div>
+      <div class="src-meta">
+        <span class="src-file">technical.py:86–95</span>
+        <span class="src-chevron">▼</span>
+      </div>
+    </div>
+    <div class="src-body"><div class="src-body-inner"><div class="src-details">
+      <div class="src-params">
+        <div class="src-param"><span class="src-param-key">Periode</span><span class="src-param-val">14</span></div>
+        <div class="src-param"><span class="src-param-key">Smoothing</span><span class="src-param-val">Wilder-Smoothing — ewm(alpha=1/14)</span></div>
+        <div class="src-param"><span class="src-param-key">Bibliothek</span><span class="src-param-val">Eigenimplementation (pandas)</span></div>
+      </div>
+      <div class="src-formula">TR = max(H−L, |H−Close_prev|, |L−Close_prev|)   ATR = EWM(TR, α=1/14)</div>
+      <p>Misst die durchschnittliche Volatilität. Kern-Input für Position Sizing, Stop-Loss-Berechnung (Chandelier Exit, ATR-Stops) und Swing-Signale.</p>
+      <div class="src-used-in">
+        <span class="src-used-tag">Position Sizing</span>
+        <span class="src-used-tag">Trailing Stop Engine</span>
+        <span class="src-used-tag">Swing Signals</span>
+      </div>
+    </div></div></div>
+  </div>
+
+  <!-- ADX -->
+  <div class="src-entry" data-type="formula" data-search="adx average directional index trendstärke di technical.py">
+    <div class="src-header" onclick="toggleSrc(this)">
+      <div class="src-title-wrap">
+        <span class="src-badge src-badge--formula">Formel</span>
+        <span class="src-title">ADX (Average Directional Index)</span>
+      </div>
+      <div class="src-meta">
+        <span class="src-file">technical.py:295–320</span>
+        <span class="src-chevron">▼</span>
+      </div>
+    </div>
+    <div class="src-body"><div class="src-body-inner"><div class="src-details">
+      <div class="src-params">
+        <div class="src-param"><span class="src-param-key">Periode</span><span class="src-param-val">14</span></div>
+        <div class="src-param"><span class="src-param-key">Smoothing</span><span class="src-param-val">Wilder-Smoothing</span></div>
+        <div class="src-param"><span class="src-param-key">Schwellenwerte</span><span class="src-param-val">>25 stark · <20 schwach</span></div>
+      </div>
+      <div class="src-formula">+DI, -DI → DX = |+DI − −DI| / (+DI + −DI) × 100 → ADX = Wilder-EMA(DX)</div>
+      <p>Misst die Trendstärke (nicht die Richtung). ADX > 25 bestätigt einen starken Trend. Im Scoring als Info-Indikator.</p>
+      <div class="src-used-in">
+        <span class="src-used-tag">Analyse (Info-Indikator)</span>
+      </div>
+    </div></div></div>
+  </div>
+
+  <!-- SMA -->
+  <div class="src-entry" data-type="formula" data-search="sma simple moving average 20 50 200 golden cross death cross scoring.py trend">
+    <div class="src-header" onclick="toggleSrc(this)">
+      <div class="src-title-wrap">
+        <span class="src-badge src-badge--formula">Formel</span>
+        <span class="src-title">SMA (Simple Moving Average — 20/50/200)</span>
+      </div>
+      <div class="src-meta">
+        <span class="src-file">scoring.py:74–79</span>
+        <span class="src-chevron">▼</span>
+      </div>
+    </div>
+    <div class="src-body"><div class="src-body-inner"><div class="src-details">
+      <div class="src-params">
+        <div class="src-param"><span class="src-param-key">Perioden</span><span class="src-param-val">20 · 50 · 200</span></div>
+        <div class="src-param"><span class="src-param-key">Bibliothek</span><span class="src-param-val">pandas .rolling().mean()</span></div>
+      </div>
+      <div class="src-formula">SMA(n) = Σ Close[i] / n  (für i = 0..n-1)</div>
+      <p>Verwendet in Trend-Scoring (Kurs vs. SMA 200), Swing-Signalen (SMA-Cross-Detection: Golden Cross / Death Cross), und als Stop-Loss-Level (SMA 20 / SMA 50).</p>
+      <div class="src-used-in">
+        <span class="src-used-tag">Scoring (Trend)</span>
+        <span class="src-used-tag">Trailing Stop</span>
+        <span class="src-used-tag">Fear & Greed</span>
+      </div>
+    </div></div></div>
+  </div>
+
+  <!-- Pivot Points -->
+  <div class="src-entry" data-type="formula" data-search="pivot points support resistance r1 r2 s1 s2 technical.py swing">
+    <div class="src-header" onclick="toggleSrc(this)">
+      <div class="src-title-wrap">
+        <span class="src-badge src-badge--formula">Formel</span>
+        <span class="src-title">Pivot Points (Klassisch)</span>
+      </div>
+      <div class="src-meta">
+        <span class="src-file">technical.py:374–382</span>
+        <span class="src-chevron">▼</span>
+      </div>
+    </div>
+    <div class="src-body"><div class="src-body-inner"><div class="src-details">
+      <div class="src-params">
+        <div class="src-param"><span class="src-param-key">Input</span><span class="src-param-val">High, Low, Close des letzten Handelstages</span></div>
+        <div class="src-param"><span class="src-param-key">Variante</span><span class="src-param-val">Klassisch (Floor Trader)</span></div>
+      </div>
+      <div class="src-formula">P = (H+L+C)/3   R1 = 2P−L   R2 = P+(H−L)   S1 = 2P−H   S2 = P−(H−L)</div>
+      <p>Klassische Floor-Trader Pivots für Intraday Support/Resistance. Verwendet in Swing-Trading-Signalen.</p>
+      <div class="src-used-in">
+        <span class="src-used-tag">Swing Trading</span>
+      </div>
+    </div></div></div>
+  </div>
+
+  <!-- ── Volume & Order Flow ── -->
+  <div class="card" style="margin:24px 0 var(--gap) 0;">
+    <h4> Volumen & Order Flow</h4>
+    <p class="caption">Institutionelle Geldflüsse erkennen — VWAP, OBV und Volume Profile.</p>
+  </div>
+
+  <!-- VWAP -->
+  <div class="src-entry" data-type="formula" data-search="vwap volume weighted average price institutional technical.py order flow">
+    <div class="src-header" onclick="toggleSrc(this)">
+      <div class="src-title-wrap">
+        <span class="src-badge src-badge--formula">Formel</span>
+        <span class="src-title">VWAP (Volume Weighted Average Price — rollierend)</span>
+      </div>
+      <div class="src-meta">
+        <span class="src-file">technical.py:434–441</span>
+        <span class="src-chevron">▼</span>
+      </div>
+    </div>
+    <div class="src-body"><div class="src-body-inner"><div class="src-details">
+      <div class="src-params">
+        <div class="src-param"><span class="src-param-key">Fenster</span><span class="src-param-val">20 Tage (rollierend)</span></div>
+        <div class="src-param"><span class="src-param-key">Variante</span><span class="src-param-val">Anchored VWAP (nicht kumulativ)</span></div>
+      </div>
+      <div class="src-formula">TP = (H+L+C)/3   VWAP = Σ(TP × Vol) / Σ(Vol)  über 20 Tage</div>
+      <p>Institutioneller Standard. Kurs über VWAP = institutionelle Käufer dominant.</p>
+      <div class="src-used-in">
+        <span class="src-used-tag">Analyse (Order Flow)</span>
+        <span class="src-used-tag">Scoring (Volume)</span>
+      </div>
+    </div></div></div>
+  </div>
+
+  <!-- OBV -->
+  <div class="src-entry" data-type="formula" data-search="obv on-balance volume technical.py slope normalisiert">
+    <div class="src-header" onclick="toggleSrc(this)">
+      <div class="src-title-wrap">
+        <span class="src-badge src-badge--formula">Formel</span>
+        <span class="src-title">OBV (On-Balance Volume)</span>
+      </div>
+      <div class="src-meta">
+        <span class="src-file">technical.py:457–479</span>
+        <span class="src-chevron">▼</span>
+      </div>
+    </div>
+    <div class="src-body"><div class="src-body-inner"><div class="src-details">
+      <div class="src-params">
+        <div class="src-param"><span class="src-param-key">OBV-Slope Lookback</span><span class="src-param-val">20 Tage</span></div>
+        <div class="src-param"><span class="src-param-key">Normalisierung</span><span class="src-param-val">Slope / Ø-Tagesvolumen</span></div>
+      </div>
+      <div class="src-formula">OBV += Volume wenn Close > Close_prev, −Volume wenn Close < Close_prev</div>
+      <div class="src-formula">Norm. Slope = (OBV[-1] − OBV[-20]) / mean(Volume)</div>
+      <p>Kumulative Volumenberechnung mit normalisiertem 20-Tage-Slope für Vergleichbarkeit zwischen Aktien.</p>
+      <div class="src-used-in">
+        <span class="src-used-tag">Analyse (Order Flow)</span>
+        <span class="src-used-tag">Scoring (Volume)</span>
+      </div>
+    </div></div></div>
+  </div>
+
+  <!-- Volume Profile -->
+  <div class="src-entry" data-type="formula" data-search="volume profile poc point of control value area bins technical.py">
+    <div class="src-header" onclick="toggleSrc(this)">
+      <div class="src-title-wrap">
+        <span class="src-badge src-badge--formula">Formel</span>
+        <span class="src-title">Volume Profile / POC (Point of Control)</span>
+      </div>
+      <div class="src-meta">
+        <span class="src-file">technical.py:481–509</span>
+        <span class="src-chevron">▼</span>
+      </div>
+    </div>
+    <div class="src-body"><div class="src-body-inner"><div class="src-details">
+      <div class="src-params">
+        <div class="src-param"><span class="src-param-key">Bins</span><span class="src-param-val">30 Preis-Bins</span></div>
+        <div class="src-param"><span class="src-param-key">Lookback</span><span class="src-param-val">252 Tage (1 Jahr)</span></div>
+        <div class="src-param"><span class="src-param-key">Bibliothek</span><span class="src-param-val">numpy (Histogram)</span></div>
+      </div>
+      <div class="src-formula">POC = Preiszone mit maximalem kumuliertem Volumen</div>
+      <p>Erstellt eine Volumenverteilung über 30 Preiszonen. Der POC (Bin mit maximalem Volumen) wirkt als starker Support/Resistance.</p>
+      <div class="src-used-in">
+        <span class="src-used-tag">Analyse (Order Flow)</span>
+        <span class="src-used-tag">Scoring (Volume)</span>
+      </div>
+    </div></div></div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!--  TAB 2: Sentiment                                         -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="tab-content" id="tab-sentiment">
+  <div class="card" style="margin-bottom:var(--gap);">
+    <h4> Sentiment & Fear/Greed</h4>
+    <p class="caption">NLP-Analyse, Marktstimmung und proprietärer Fear & Greed Index.</p>
+  </div>
+
+  <!-- Fear & Greed -->
+  <div class="src-entry" data-type="formula" data-search="fear greed index vix sma200 sma50 rsi safe haven technical.py marktstimmung">
+    <div class="src-header" onclick="toggleSrc(this)">
+      <div class="src-title-wrap">
+        <span class="src-badge src-badge--formula">Formel</span>
+        <span class="src-title">Fear & Greed Index (5 Komponenten)</span>
+      </div>
+      <div class="src-meta">
+        <span class="src-file">technical.py:102–207</span>
+        <span class="src-chevron">▼</span>
+      </div>
+    </div>
+    <div class="src-body"><div class="src-body-inner"><div class="src-details">
+      <div class="src-formula">Gesamt-Score = VIX + SMA200 + SMA50 + RSI + Safe-Haven   (je 0–20, ∑ 0–100)</div>
+      <h5>5 Subkomponenten</h5>
+      <div class="src-sub-grid">
+        <div class="src-sub-item">
+          <strong>1. VIX-Score</strong>
+          <span class="src-sub-file">Z. 102–107</span>
+          <p>20 × (1 − (VIX−12)/(40−12)). Clamp [12, 40]. Niedriger VIX = Gier.</p>
+        </div>
+        <div class="src-sub-item">
+          <strong>2. SMA 200 Score</strong>
+          <span class="src-sub-file">Z. 110–120</span>
+          <p>S&P 500 Close vs. SMA(200). pct_diff clamped [−10%, +10%], linear 0–20.</p>
+        </div>
+        <div class="src-sub-item">
+          <strong>3. SMA 50 Score</strong>
+          <span class="src-sub-file">Z. 123–133</span>
+          <p>S&P 500 Close vs. SMA(50). pct_diff clamped [−5%, +5%], linear 0–20.</p>
+        </div>
+        <div class="src-sub-item">
+          <strong>4. RSI Score</strong>
+          <span class="src-sub-file">Z. 136–145</span>
+          <p>S&P 500 RSI(14). Clamp [20, 80]. Score = 20 × (RSI−20)/60.</p>
+        </div>
+        <div class="src-sub-item">
+          <strong>5. Safe-Haven Score</strong>
+          <span class="src-sub-file">Z. 148–170</span>
+          <p>Gold vs. S&P 500, 20-Tage-Performance. diff clamped [−5, +5], linear 0–20.</p>
+        </div>
+      </div>
+      <div class="src-used-in">
+        <span class="src-used-tag">Startseite (Economy)</span>
+      </div>
+    </div></div></div>
+  </div>
+
+  <!-- VADER Sentiment -->
+  <div class="src-entry" data-type="formula" data-search="vader sentiment nlp news analyse finanz-lexikon compound score bullish bearish sentiment.py">
+    <div class="src-header" onclick="toggleSrc(this)">
+      <div class="src-title-wrap">
+        <span class="src-badge src-badge--formula">Formel</span>
+        <span class="src-title">VADER Sentiment (News-NLP)</span>
+      </div>
+      <div class="src-meta">
+        <span class="src-file">sentiment.py:8–274</span>
+        <span class="src-chevron">▼</span>
+      </div>
+    </div>
+    <div class="src-body"><div class="src-body-inner"><div class="src-details">
+      <div class="src-params">
+        <div class="src-param"><span class="src-param-key">Bibliothek</span><span class="src-param-val">vaderSentiment</span></div>
+        <div class="src-param"><span class="src-param-key">Custom Lexikon</span><span class="src-param-val">~100 Finanz-Begriffe (−4 bis +4 Skala)</span></div>
+        <div class="src-param"><span class="src-param-key">Recency Decay</span><span class="src-param-val">0.8^i (neueste News = Gewicht 1.0)</span></div>
+        <div class="src-param"><span class="src-param-key">Schwellen</span><span class="src-param-val">≥ 0.05 Bullish · ≤ −0.05 Bearish</span></div>
+      </div>
+      <div class="src-formula">Gewichteter Compound = Σ(compound_i × 0.8^i) / Σ(0.8^i)</div>
+      <p>Erweitert VADER mit domänenspezifischem Finanz-Vokabular (z.B. „beat" +2.0, „bankruptcy" −4.0, „upgrade" +2.5). Analysiert Headline + Summary als zusammenhängenden Text.</p>
+      <div class="src-used-in">
+        <span class="src-used-tag">Scoring (Sentiment-Kategorie)</span>
+      </div>
+    </div></div></div>
+  </div>
+
+  <!-- Earnings Surprise -->
+  <div class="src-entry" data-type="formula" data-search="earnings surprise eps beat miss inline drift earnings.py quartalszahlen">
+    <div class="src-header" onclick="toggleSrc(this)">
+      <div class="src-title-wrap">
+        <span class="src-badge src-badge--formula">Formel</span>
+        <span class="src-title">Earnings Surprise & Post-Earnings Drift</span>
+      </div>
+      <div class="src-meta">
+        <span class="src-file">earnings.py:106–265</span>
+        <span class="src-chevron">▼</span>
+      </div>
+    </div>
+    <div class="src-body"><div class="src-body-inner"><div class="src-details">
+      <div class="src-params">
+        <div class="src-param"><span class="src-param-key">Beat/Miss Schwelle</span><span class="src-param-val">±2% Surprise</span></div>
+        <div class="src-param"><span class="src-param-key">Drift-Perioden</span><span class="src-param-val">1, 5 und 20 Handelstage nach Event</span></div>
+      </div>
+      <div class="src-formula">Surprise% = (EPS_actual − EPS_estimate) / |EPS_estimate| × 100</div>
+      <div class="src-formula">Drift = (Close[t+N] − Close[t]) / Close[t] × 100</div>
+      <p>Klassifiziert jedes Quartal als Beat, Miss oder Inline. Post-Earnings Drift zeigt die Kursreaktion nach 1/5/20 Tagen. Inklusive Aggregation der Ø Beat/Miss-Drift über alle Quartale.</p>
+      <div class="src-used-in">
+        <span class="src-used-tag">Analyse (Earnings Tab)</span>
+        <span class="src-used-tag">Scoring (Sentiment)</span>
+      </div>
+    </div></div></div>
+  </div>
+
+  <!-- Contrarian Warning -->
+  <div class="src-entry" data-type="formula" data-search="contrarian euphorie falle warnung rsi scoring.py sentiment">
+    <div class="src-header" onclick="toggleSrc(this)">
+      <div class="src-title-wrap">
+        <span class="src-badge src-badge--formula">Formel</span>
+        <span class="src-title">Contrarian-Warnung (Euphorie-Falle)</span>
+      </div>
+      <div class="src-meta">
+        <span class="src-file">scoring.py:738–743</span>
+        <span class="src-chevron">▼</span>
+      </div>
+    </div>
+    <div class="src-body"><div class="src-body-inner"><div class="src-details">
+      <div class="src-params">
+        <div class="src-param"><span class="src-param-key">Trigger</span><span class="src-param-val">Sentiment avg ≥ 0.15 AND RSI > 70</span></div>
+        <div class="src-param"><span class="src-param-key">Malus</span><span class="src-param-val">−0.30 auf weighted_score (≈ −15% Confidence)</span></div>
+      </div>
+      <div class="src-formula">IF sentiment_avg ≥ 0.15 AND RSI > 70 → weighted_score −= 0.30</div>
+      <p>Schützt vor Käufen am Peak des Hypes. Wenn News extrem positiv sind und die Aktie technisch überkauft ist, wird der Score automatisch gesenkt.</p>
+      <div class="src-used-in">
+        <span class="src-used-tag">Scoring (Finalisierung)</span>
+      </div>
+    </div></div></div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!--  TAB 3: Fundamentaldaten                                  -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="tab-content" id="tab-fundamental">
+  <div class="card" style="margin-bottom:var(--gap);">
+    <h4>️ Fundamentale Bewertung</h4>
+    <p class="caption">DCF-Modell, Bilanzqualität und sektorspezifische Quant-Analysen.</p>
+  </div>
+
+  <!-- DCF -->
+  <div class="src-entry" data-type="formula" data-search="dcf discounted cash flow fair value wacc terminal growth fundamental.py bewertung">
+    <div class="src-header" onclick="toggleSrc(this)">
+      <div class="src-title-wrap">
+        <span class="src-badge src-badge--formula">Formel</span>
+        <span class="src-title">DCF Fair Value (Discounted Cash Flow)</span>
+      </div>
+      <div class="src-meta">
+        <span class="src-file">fundamental.py:41–176</span>
+        <span class="src-chevron">▼</span>
+      </div>
+    </div>
+    <div class="src-body"><div class="src-body-inner"><div class="src-details">
+      <div class="src-params">
+        <div class="src-param"><span class="src-param-key">Projektionsdauer</span><span class="src-param-val">5 Jahre</span></div>
+        <div class="src-param"><span class="src-param-key">Terminal Growth</span><span class="src-param-val">Tech 3% · Utilities 2% · Default 2.5%</span></div>
+        <div class="src-param"><span class="src-param-key">ERP</span><span class="src-param-val">5.5%</span></div>
+        <div class="src-param"><span class="src-param-key">Min WACC</span><span class="src-param-val">6%</span></div>
+        <div class="src-param"><span class="src-param-key">FCF-Proxy</span><span class="src-param-val">10% Umsatz (wenn FCF ≤ 0)</span></div>
+      </div>
+      <div class="src-formula">Fair Value = [Σ FCF_t / (1+WACC)^t] + [TV / (1+WACC)^5] − Net Debt + Cash</div>
+      <div class="src-formula">WACC = wE × CoE + wD × CoD × (1−τ)   wobei   CoE = Rf + β × ERP(5.5%)</div>
+      <p>Dynamischer WACC mit Kapitalstruktur aus Market Cap. Risk-Free Rate live von 10Y Treasury. Sensitivitätsanalyse: WACC ±1%, Terminal Growth ±0.5%.</p>
+      <div class="src-warn">
+        <strong>PRÜFEN: FCF-Proxy</strong>
+        Bei negativem Free Cashflow wird 10% des Umsatzes als Proxy verwendet. Im Scoring als „unsicher" markiert (kein Score-Impact), aber Fair Value wird trotzdem angezeigt.
+      </div>
+      <div class="src-used-in">
+        <span class="src-used-tag">Analyse (Fundamental-Scoring)</span>
+      </div>
+    </div></div></div>
+  </div>
+
+  <!-- Risk-Free Rate -->
+  <div class="src-entry" data-type="formula" data-search="risk free rate risikofreier zins 10y treasury yield fundamental.py ^tnx">
+    <div class="src-header" onclick="toggleSrc(this)">
+      <div class="src-title-wrap">
+        <span class="src-badge src-badge--formula">Formel</span>
+        <span class="src-title">Risk-Free Rate (Live 10Y Treasury)</span>
+      </div>
+      <div class="src-meta">
+        <span class="src-file">fundamental.py:15–35</span>
+        <span class="src-chevron">▼</span>
+      </div>
+    </div>
+    <div class="src-body"><div class="src-body-inner"><div class="src-details">
+      <div class="src-params">
+        <div class="src-param"><span class="src-param-key">Quelle</span><span class="src-param-val">yfinance ^TNX (10Y US Treasury)</span></div>
+        <div class="src-param"><span class="src-param-key">Cache</span><span class="src-param-val">1 Stunde TTL</span></div>
+        <div class="src-param"><span class="src-param-key">Clamp</span><span class="src-param-val">[0.5%, 12%]</span></div>
+        <div class="src-param"><span class="src-param-key">Fallback</span><span class="src-param-val">3.0%</span></div>
+      </div>
+      <p>Dynamische Risk-Free Rate als Input für WACC, Cost of Equity und Excess Returns. Clamp verhindert unrealistische Werte.</p>
+      <div class="src-used-in">
+        <span class="src-used-tag">DCF / WACC</span>
+        <span class="src-used-tag">Excess Returns</span>
+      </div>
+    </div></div></div>
+  </div>
+
+  <!-- Bilanzqualität -->
+  <div class="src-entry" data-type="formula" data-search="bilanzqualität current ratio debt equity net debt ebitda fundamental.py">
+    <div class="src-header" onclick="toggleSrc(this)">
+      <div class="src-title-wrap">
+        <span class="src-badge src-badge--formula">Formel</span>
+        <span class="src-title">Bilanzqualität (Score-System)</span>
+      </div>
+      <div class="src-meta">
+        <span class="src-file">fundamental.py:183–241</span>
+        <span class="src-chevron">▼</span>
+      </div>
+    </div>
+    <div class="src-body"><div class="src-body-inner"><div class="src-details">
+      <div class="src-params">
+        <div class="src-param"><span class="src-param-key">Kennzahlen</span><span class="src-param-val">D/E · Current Ratio · Quick Ratio · Net Debt/EBITDA</span></div>
+        <div class="src-param"><span class="src-param-key">Scoring</span><span class="src-param-val">+1/−1 je Kennzahl</span></div>
+      </div>
+      <p>Schwellen: D/E <50 gut, >150 schlecht · Current Ratio <1.0 kritisch · Net Debt/EBITDA >4 hoch belastet.</p>
+      <div class="src-used-in">
+        <span class="src-used-tag">Scoring (Fundamental-Kategorie)</span>
+      </div>
+    </div></div></div>
+  </div>
+
+  <!-- Sektorspezifische Bewertungen -->
+  <div class="src-entry" data-type="formula" data-search="rule of 40 excess returns ev dacf hardware cycle valuation.py sektor quant">
+    <div class="src-header" onclick="toggleSrc(this)">
+      <div class="src-title-wrap">
+        <span class="src-badge src-badge--formula">Formel</span>
+        <span class="src-title">Sektorspezifische Quant-Modelle (7 Varianten)</span>
+      </div>
+      <div class="src-meta">
+        <span class="src-file">valuation.py:12–184</span>
+        <span class="src-chevron">▼</span>
+      </div>
+    </div>
+    <div class="src-body"><div class="src-body-inner"><div class="src-details">
+      <div class="src-sub-grid">
+        <div class="src-sub-item">
+          <strong>Finanzen: Excess Returns</strong>
+          <p>ROE − Cost of Equity. Undervalued wenn Margin > 0.</p>
+        </div>
+        <div class="src-sub-item">
+          <strong>Tech/SaaS: Rule of 40</strong>
+          <p>(Revenue Growth + FCF Margin) × 100. Gesund ≥ 40.</p>
+        </div>
+        <div class="src-sub-item">
+          <strong>Hardware: EV/EBITDA-Zyklik</strong>
+          <p>Value-Trap Warnung wenn EV/EBITDA < 8 bei P/B > 5.</p>
+        </div>
+        <div class="src-sub-item">
+          <strong>Pharma: rNPV Proxy</strong>
+          <p>EV/Sales + Pipeline-Modellierung (als Proxy).</p>
+        </div>
+        <div class="src-sub-item">
+          <strong>Energie: EV/DACF</strong>
+          <p>EV/Operating CF als DACF-Proxy. Attraktiv < 8.</p>
+        </div>
+        <div class="src-sub-item">
+          <strong>Auto: Asset Turnover</strong>
+          <p>Revenue/Total Assets. Effizient wenn > 0.5.</p>
+        </div>
+        <div class="src-sub-item">
+          <strong>Telekom / Logistik / Rüstung</strong>
+          <p>EV/EBITDA + Div. Yield + Margen-Analyse.</p>
+        </div>
+      </div>
+      <div class="src-used-in">
+        <span class="src-used-tag">Analyse (Quant-Tab)</span>
+      </div>
+    </div></div></div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!--  TAB 4: Risiko                                            -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="tab-content" id="tab-risk">
+  <div class="card" style="margin-bottom:var(--gap);">
+    <h4> Risiko-Kennzahlen</h4>
+    <p class="caption">Portfolio-Risikoanalyse: VaR, Beta, Sharpe, Sortino und Drawdown.</p>
+  </div>
+
+  <!-- VaR -->
+  <div class="src-entry" data-type="formula" data-search="var value at risk monte carlo simulation kovarianz cvar risk.py">
+    <div class="src-header" onclick="toggleSrc(this)">
+      <div class="src-title-wrap">
+        <span class="src-badge src-badge--formula">Formel</span>
+        <span class="src-title">Value at Risk (Monte Carlo) & CVaR</span>
+      </div>
+      <div class="src-meta">
+        <span class="src-file">risk.py:62–175</span>
+        <span class="src-chevron">▼</span>
+      </div>
+    </div>
+    <div class="src-body"><div class="src-body-inner"><div class="src-details">
+      <div class="src-params">
+        <div class="src-param"><span class="src-param-key">Simulationen</span><span class="src-param-val">10.000</span></div>
+        <div class="src-param"><span class="src-param-key">Horizont</span><span class="src-param-val">1 Tag</span></div>
+        <div class="src-param"><span class="src-param-key">Konfidenz</span><span class="src-param-val">95% und 99%</span></div>
+        <div class="src-param"><span class="src-param-key">Kovarianzmatrix</span><span class="src-param-val">1 Jahr hist. Returns</span></div>
+      </div>
+      <div class="src-formula">Simulated Returns ~ N(μ, Σ)   VaR_95 = Percentile(5%)   CVaR = Mean(losses ≥ VaR_95)</div>
+      <p>Monte-Carlo mit historischer Kovarianzmatrix. CVaR (Expected Shortfall) als Ergänzung.</p>
+      <div class="src-warn">
+        <strong>PRÜFEN: Tail-Risk</strong>
+        Zeile 148: i.i.d.-Annahme unterschätzt Tail-Risk bei n_days > 1 (Volatilitäts-Clustering wird ignoriert).
+      </div>
+      <div class="src-used-in">
+        <span class="src-used-tag">Risiko-Dashboard</span>
+      </div>
+    </div></div></div>
+  </div>
+
+  <!-- Portfolio Beta -->
+  <div class="src-entry" data-type="formula" data-search="portfolio beta kovarianz varianz benchmark risk.py gewichtet">
+    <div class="src-header" onclick="toggleSrc(this)">
+      <div class="src-title-wrap">
+        <span class="src-badge src-badge--formula">Formel</span>
+        <span class="src-title">Portfolio Beta (gewichtet)</span>
+      </div>
+      <div class="src-meta">
+        <span class="src-file">risk.py:182–267</span>
+        <span class="src-chevron">▼</span>
+      </div>
+    </div>
+    <div class="src-body"><div class="src-body-inner"><div class="src-details">
+      <div class="src-params">
+        <div class="src-param"><span class="src-param-key">Benchmark</span><span class="src-param-val">^GSPC (dynamisch)</span></div>
+        <div class="src-param"><span class="src-param-key">Methode</span><span class="src-param-val">Cov(stock, market) / Var(market), ddof=1</span></div>
+      </div>
+      <div class="src-formula">β_stock = Cov(R_stock, R_market) / Var(R_market)   β_portfolio = Σ(w_i × β_i)</div>
+      <div class="src-used-in">
+        <span class="src-used-tag">Risiko-Dashboard</span>
+      </div>
+    </div></div></div>
+  </div>
+
+  <!-- Sharpe & Sortino -->
+  <div class="src-entry" data-type="formula" data-search="sharpe ratio sortino annualisiert risk free downside portfolio.py">
+    <div class="src-header" onclick="toggleSrc(this)">
+      <div class="src-title-wrap">
+        <span class="src-badge src-badge--formula">Formel</span>
+        <span class="src-title">Sharpe Ratio & Sortino Ratio</span>
+      </div>
+      <div class="src-meta">
+        <span class="src-file">portfolio.py:338–349</span>
+        <span class="src-chevron">▼</span>
+      </div>
+    </div>
+    <div class="src-body"><div class="src-body-inner"><div class="src-details">
+      <div class="src-params">
+        <div class="src-param"><span class="src-param-key">Risk-Free Rate</span><span class="src-param-val">4% / 252 (hardcoded)</span></div>
+        <div class="src-param"><span class="src-param-key">Annualisierung</span><span class="src-param-val">× √252</span></div>
+      </div>
+      <div class="src-formula">Sharpe = mean(excess) / std(excess) × √252</div>
+      <div class="src-formula">Sortino = (mean(R) − Rf) / std(downside) × √252</div>
+      <div class="src-warn">
+        <strong>PRÜFEN: Inkonsistenz</strong>
+        Risk-Free Rate ist hier hardcoded auf 4%, während DCF/WACC die dynamische Rate von ^TNX verwendet. Sollte vereinheitlicht werden.
+      </div>
+      <div class="src-used-in">
+        <span class="src-used-tag">Portfolio-Dashboard</span>
+      </div>
+    </div></div></div>
+  </div>
+
+  <!-- TWRR -->
+  <div class="src-entry" data-type="formula" data-search="twrr time weighted rate of return cashflow isolierung equity kurve portfolio.py">
+    <div class="src-header" onclick="toggleSrc(this)">
+      <div class="src-title-wrap">
+        <span class="src-badge src-badge--formula">Formel</span>
+        <span class="src-title">TWRR (Time-Weighted Rate of Return)</span>
+      </div>
+      <div class="src-meta">
+        <span class="src-file">portfolio.py:234–238</span>
+        <span class="src-chevron">▼</span>
+      </div>
+    </div>
+    <div class="src-body"><div class="src-body-inner"><div class="src-details">
+      <div class="src-formula">daily_return = daily_pnl / (portfolio_value − daily_pnl)</div>
+      <div class="src-formula">TWRR_Index = 100 × ∏(1 + daily_return)</div>
+      <p>Isoliert die Performance von Ein-/Auszahlungen. Ermöglicht fairen Vergleich mit Benchmark.</p>
+      <div class="src-used-in">
+        <span class="src-used-tag">Portfolio-Dashboard (Equity Curve)</span>
+      </div>
+    </div></div></div>
+  </div>
+
+  <!-- Herfindahl & Correlation -->
+  <div class="src-entry" data-type="formula" data-search="herfindahl index sektorkonzentration korrelation diversifikation risk.py">
+    <div class="src-header" onclick="toggleSrc(this)">
+      <div class="src-title-wrap">
+        <span class="src-badge src-badge--formula">Formel</span>
+        <span class="src-title">Sektorkonzentration (HHI) & Korrelationsrisiko</span>
+      </div>
+      <div class="src-meta">
+        <span class="src-file">risk.py:274–471</span>
+        <span class="src-chevron">▼</span>
+      </div>
+    </div>
+    <div class="src-body"><div class="src-body-inner"><div class="src-details">
+      <div class="src-formula">HHI = Σ(w_i²)   Warnung bei HHI > 0.25 oder Top-Sektor > 40%</div>
+      <div class="src-formula">Korrelation = Pearson ρ über 6 Monate Returns. Hochkorreliert ab ρ > 0.7</div>
+      <div class="src-used-in">
+        <span class="src-used-tag">Risiko-Dashboard</span>
+      </div>
+    </div></div></div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!--  TAB 5: Smart Money Concepts                              -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="tab-content" id="tab-smc">
+  <div class="card" style="margin-bottom:var(--gap);">
+    <h4> Smart Money Concepts</h4>
+    <p class="caption">Institutionelle Fußabdrücke: FVGs, Liquidity Sweeps, EQH/EQL und Multi-Timeframe Confluence.</p>
+  </div>
+
+  <!-- FVG -->
+  <div class="src-entry" data-type="formula" data-search="fvg fair value gap bullish bearish mitigation smc indicators.py kerzen">
+    <div class="src-header" onclick="toggleSrc(this)">
+      <div class="src-title-wrap">
+        <span class="src-badge src-badge--formula">Formel</span>
+        <span class="src-title">Fair Value Gap (FVG) Detection</span>
+      </div>
+      <div class="src-meta">
+        <span class="src-file">smc/indicators.py:4–81</span>
+        <span class="src-chevron">▼</span>
+      </div>
+    </div>
+    <div class="src-body"><div class="src-body-inner"><div class="src-details">
+      <div class="src-params">
+        <div class="src-param"><span class="src-param-key">Min. Gap</span><span class="src-param-val">Daily 0.5% · Weekly 0.3% · Monthly 0.2%</span></div>
+        <div class="src-param"><span class="src-param-key">Relevanz-Filter</span><span class="src-param-val">Letzte 100 Kerzen für mitigierte FVGs</span></div>
+      </div>
+      <div class="src-formula">Bullish FVG: Low[i] > High[i−2]   (Lücke über Kerze 1)</div>
+      <div class="src-formula">Bearish FVG: High[i] < Low[i−2]   (Lücke unter Kerze 1)</div>
+      <p>3-Kerzen-Muster. Mitigation-Prüfung: Wurde das FVG vom Kurs nachträglich gefüllt? Nur offene oder kürzlich mitigierte FVGs werden angezeigt.</p>
+      <div class="src-used-in">
+        <span class="src-used-tag">Analyse (SMC Tab)</span>
+        <span class="src-used-tag">Scoring (Trend)</span>
+      </div>
+    </div></div></div>
+  </div>
+
+  <!-- EQH/EQL -->
+  <div class="src-entry" data-type="formula" data-search="eqh eql equal highs lows liquidität swing punkte stop hunting smc indicators.py">
+    <div class="src-header" onclick="toggleSrc(this)">
+      <div class="src-title-wrap">
+        <span class="src-badge src-badge--formula">Formel</span>
+        <span class="src-title">Equal Highs / Equal Lows (EQH / EQL)</span>
+      </div>
+      <div class="src-meta">
+        <span class="src-file">smc/indicators.py:95–203</span>
+        <span class="src-chevron">▼</span>
+      </div>
+    </div>
+    <div class="src-body"><div class="src-body-inner"><div class="src-details">
+      <div class="src-params">
+        <div class="src-param"><span class="src-param-key">Lookback</span><span class="src-param-val">10 Perioden</span></div>
+        <div class="src-param"><span class="src-param-key">Toleranz</span><span class="src-param-val">0.5–0.8%</span></div>
+        <div class="src-param"><span class="src-param-key">Sweep-Prüfung</span><span class="src-param-val">Close-Durchbruch (nicht nur Wicks)</span></div>
+      </div>
+      <p>Erkennt Swing-Punkt-Paare mit minimalem Preisunterschied als Liquiditäts-Pools. Redundanz-Filter: Nur das markanteste Level pro Preiszone.</p>
+      <div class="src-used-in">
+        <span class="src-used-tag">Analyse (SMC Tab)</span>
+      </div>
+    </div></div></div>
+  </div>
+
+  <!-- MTF Confluence -->
+  <div class="src-entry" data-type="formula" data-search="mtf multi timeframe confluence score daily weekly monthly alignment smc indicators.py">
+    <div class="src-header" onclick="toggleSrc(this)">
+      <div class="src-title-wrap">
+        <span class="src-badge src-badge--formula">Formel</span>
+        <span class="src-title">MTF Confluence Score (Max 5)</span>
+      </div>
+      <div class="src-meta">
+        <span class="src-file">smc/indicators.py:330–353</span>
+        <span class="src-chevron">▼</span>
+      </div>
+    </div>
+    <div class="src-body"><div class="src-body-inner"><div class="src-details">
+      <div class="src-formula">+1 Daily↔Weekly FVG Alignment · +1 Daily↔Weekly Trend · +1 Weekly konsistent · +1 Monthly↔Weekly · +1 Alle aligned</div>
+      <p>Multi-Timeframe-Matrix (Monthly/Weekly/Daily) über 3 Dimensionen (Trend, FVG Bias, Structure). Maximaler Score = 5 = alle Timeframes aligned.</p>
+      <div class="src-used-in">
+        <span class="src-used-tag">Analyse (SMC Tab)</span>
+      </div>
+    </div></div></div>
+  </div>
+
+  <!-- Liquidity Sweeps -->
+  <div class="src-entry" data-type="formula" data-search="liquidity sweep stop hunt rückeroberung swing high low technical.py">
+    <div class="src-header" onclick="toggleSrc(this)">
+      <div class="src-title-wrap">
+        <span class="src-badge src-badge--formula">Formel</span>
+        <span class="src-title">Liquidity Sweep Detection</span>
+      </div>
+      <div class="src-meta">
+        <span class="src-file">technical.py:228–288</span>
+        <span class="src-chevron">▼</span>
+      </div>
+    </div>
+    <div class="src-body"><div class="src-body-inner"><div class="src-details">
+      <div class="src-params">
+        <div class="src-param"><span class="src-param-key">Lookback</span><span class="src-param-val">20 Perioden</span></div>
+        <div class="src-param"><span class="src-param-key">Reclaim-Fenster</span><span class="src-param-val">3 Kerzen</span></div>
+      </div>
+      <p>Erkennt Stop-Hunts: Swing-Hoch/-Tief Durchbruch (Wick) mit sofortiger Rückeroberung innerhalb von 3 Kerzen. Eines der stärksten SMC-Signale.</p>
+      <div class="src-used-in">
+        <span class="src-used-tag">Analyse (SMC Tab)</span>
+      </div>
+    </div></div></div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!--  TAB 6: Options                                           -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="tab-content" id="tab-options">
+  <div class="card" style="margin-bottom:var(--gap);">
+    <h4> Options-Analyse</h4>
+    <p class="caption">Put/Call Ratio, Max Pain, IV vs. HV und Unusual Activity.</p>
+  </div>
+
+  <!-- P/C Ratio -->
+  <div class="src-entry" data-type="formula" data-search="put call ratio volume open interest bullish bearish options.py sentiment">
+    <div class="src-header" onclick="toggleSrc(this)">
+      <div class="src-title-wrap">
+        <span class="src-badge src-badge--formula">Formel</span>
+        <span class="src-title">Put/Call Ratio</span>
+      </div>
+      <div class="src-meta">
+        <span class="src-file">options.py:108–155</span>
+        <span class="src-chevron">▼</span>
+      </div>
+    </div>
+    <div class="src-body"><div class="src-body-inner"><div class="src-details">
+      <div class="src-formula">P/C Volume = Σ Put-Volume / Σ Call-Volume   |   P/C OI = Σ Put-OI / Σ Call-OI</div>
+      <div class="src-params">
+        <div class="src-param"><span class="src-param-key">Bullish</span><span class="src-param-val">P/C < 0.7</span></div>
+        <div class="src-param"><span class="src-param-key">Bearish</span><span class="src-param-val">P/C > 1.2</span></div>
+      </div>
+      <div class="src-used-in">
+        <span class="src-used-tag">Options Tab</span>
+      </div>
+    </div></div></div>
+  </div>
+
+  <!-- Max Pain -->
+  <div class="src-entry" data-type="formula" data-search="max pain preismagnet verfall optionen market maker options.py numpy broadcasting">
+    <div class="src-header" onclick="toggleSrc(this)">
+      <div class="src-title-wrap">
+        <span class="src-badge src-badge--formula">Formel</span>
+        <span class="src-title">Max Pain</span>
+      </div>
+      <div class="src-meta">
+        <span class="src-file">options.py:162–194</span>
+        <span class="src-chevron">▼</span>
+      </div>
+    </div>
+    <div class="src-body"><div class="src-body-inner"><div class="src-details">
+      <div class="src-formula">Pain(P) = Σ max(0, P−K_call)×OI_call + Σ max(0, K_put−P)×OI_put</div>
+      <div class="src-formula">Max Pain = argmin Pain(P)  über alle Strikes P</div>
+      <p>Vektorisiert mit <strong>NumPy Broadcasting</strong> (~50-100× schneller als naive Loops). Der Preis, bei dem die meisten Optionen wertlos verfallen.</p>
+      <div class="src-used-in">
+        <span class="src-used-tag">Options Tab</span>
+      </div>
+    </div></div></div>
+  </div>
+
+  <!-- IV vs HV -->
+  <div class="src-entry" data-type="formula" data-search="iv hv implied historical volatility premium discount options.py atm">
+    <div class="src-header" onclick="toggleSrc(this)">
+      <div class="src-title-wrap">
+        <span class="src-badge src-badge--formula">Formel</span>
+        <span class="src-title">IV vs. HV (Volatilitätsvergleich)</span>
+      </div>
+      <div class="src-meta">
+        <span class="src-file">options.py:201–257</span>
+        <span class="src-chevron">▼</span>
+      </div>
+    </div>
+    <div class="src-body"><div class="src-body-inner"><div class="src-details">
+      <div class="src-params">
+        <div class="src-param"><span class="src-param-key">ATM Bereich</span><span class="src-param-val">±5% vom aktuellen Kurs</span></div>
+        <div class="src-param"><span class="src-param-key">HV Basis</span><span class="src-param-val">30 Tage Returns, annualisiert</span></div>
+        <div class="src-param"><span class="src-param-key">Premium</span><span class="src-param-val">IV/HV > 1.3</span></div>
+        <div class="src-param"><span class="src-param-key">Discount</span><span class="src-param-val">IV/HV < 0.8</span></div>
+      </div>
+      <div class="src-used-in">
+        <span class="src-used-tag">Options Tab</span>
+      </div>
+    </div></div></div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!--  TAB 7: Stops & Position Sizing                           -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="tab-content" id="tab-stops">
+  <div class="card" style="margin-bottom:var(--gap);">
+    <h4> Stops & Position Sizing</h4>
+    <p class="caption">ATR-basierte Stops, Chandelier Exit, Kelly Criterion und CRV-basierter Take-Profit.</p>
+  </div>
+
+  <!-- Kelly Criterion -->
+  <div class="src-entry" data-type="formula" data-search="kelly criterion half kelly position sizing win rate technical.py positionsgröße">
+    <div class="src-header" onclick="toggleSrc(this)">
+      <div class="src-title-wrap">
+        <span class="src-badge src-badge--formula">Formel</span>
+        <span class="src-title">Kelly Criterion (Half Kelly)</span>
+      </div>
+      <div class="src-meta">
+        <span class="src-file">technical.py:602–609</span>
+        <span class="src-chevron">▼</span>
+      </div>
+    </div>
+    <div class="src-body"><div class="src-body-inner"><div class="src-details">
+      <div class="src-formula">f* = (W × R − L) / R   →   Half-Kelly = f*/2   →   Max 25%</div>
+      <div class="src-params">
+        <div class="src-param"><span class="src-param-key">Win Rate</span><span class="src-param-val">Aus Signal-DB oder Default 50%</span></div>
+        <div class="src-param"><span class="src-param-key">Clamp</span><span class="src-param-val">[0%, 25%]</span></div>
+      </div>
+      <p>Optimale Positionsgröße nach Kelly. Half-Kelly als konservative Variante. Deckelung auf 25% des Gesamtkapitals.</p>
+      <div class="src-used-in">
+        <span class="src-used-tag">Position Sizing Tab</span>
+      </div>
+    </div></div></div>
+  </div>
+
+  <!-- Chandelier Exit -->
+  <div class="src-entry" data-type="formula" data-search="chandelier exit trailing stop atr 22-tage-hoch trailing_stop_engine.py dynamisch">
+    <div class="src-header" onclick="toggleSrc(this)">
+      <div class="src-title-wrap">
+        <span class="src-badge src-badge--formula">Formel</span>
+        <span class="src-title">Chandelier Exit & ATR-Stops (3 Stufen)</span>
+      </div>
+      <div class="src-meta">
+        <span class="src-file">trailing_stop_engine.py:97–158</span>
+        <span class="src-chevron">▼</span>
+      </div>
+    </div>
+    <div class="src-body"><div class="src-body-inner"><div class="src-details">
+      <div class="src-sub-grid">
+        <div class="src-sub-item">
+          <strong>Chandelier Exit</strong>
+          <p>Highest_High_22 − 3 × ATR. Dynamischer Trailing Stop.</p>
+        </div>
+        <div class="src-sub-item">
+          <strong>Aggressiv</strong>
+          <p>Current − 1.5 × ATR. Schnell ausgelöst.</p>
+        </div>
+        <div class="src-sub-item">
+          <strong>Normal</strong>
+          <p>Current − 2.5 × ATR. Standard-Trendfolge.</p>
+        </div>
+        <div class="src-sub-item">
+          <strong>Konservativ</strong>
+          <p>Current − 3.5 × ATR. Maximaler Spielraum.</p>
+        </div>
+      </div>
+      <p style="margin-top:12px;"><strong>Ratchet-Regel:</strong> Ein neuer Stop darf den vorherigen nie unterschreiten (Long) / überschreiten (Short).</p>
+      <div class="src-used-in">
+        <span class="src-used-tag">Positions-Analyse V2</span>
+      </div>
+    </div></div></div>
+  </div>
+
+  <!-- Take-Profit -->
+  <div class="src-entry" data-type="formula" data-search="take profit crv risk reward atr projektion trailing_stop_engine.py">
+    <div class="src-header" onclick="toggleSrc(this)">
+      <div class="src-title-wrap">
+        <span class="src-badge src-badge--formula">Formel</span>
+        <span class="src-title">Take-Profit (CRV-basiert)</span>
+      </div>
+      <div class="src-meta">
+        <span class="src-file">trailing_stop_engine.py:292–336</span>
+        <span class="src-chevron">▼</span>
+      </div>
+    </div>
+    <div class="src-body"><div class="src-body-inner"><div class="src-details">
+      <div class="src-formula">TP = Entry + Risk × CRV(2.0)  |  Fallback: Current + 3×ATR  |  Letzter Fallback: +15%</div>
+      <p>Hierarchisches System: Zuerst risikobasiert (CRV 1:2), dann volatilitätsbasiert (3× ATR), zuletzt fester Prozentsatz.</p>
+      <div class="src-used-in">
+        <span class="src-used-tag">Positions-Analyse V2</span>
+      </div>
+    </div></div></div>
+  </div>
+
+  <!-- Scoring Engine -->
+  <div class="src-entry" data-type="formula" data-search="scoring engine gewichtung confidence score trend volume fundamental sentiment oszillator scoring.py">
+    <div class="src-header" onclick="toggleSrc(this)">
+      <div class="src-title-wrap">
+        <span class="src-badge src-badge--formula">Formel</span>
+        <span class="src-title">Scoring Engine (Gewichtungsmatrix)</span>
+      </div>
+      <div class="src-meta">
+        <span class="src-file">scoring.py:21–35</span>
+        <span class="src-chevron">▼</span>
+      </div>
+    </div>
+    <div class="src-body"><div class="src-body-inner"><div class="src-details">
+      <h5>Full Score (Einzelanalyse)</h5>
+      <div class="src-weight-grid">
+        <div class="src-weight"><span class="src-weight-bar" style="width:30%;background:var(--blue);"></span><span>Trend 30%</span></div>
+        <div class="src-weight"><span class="src-weight-bar" style="width:25%;background:var(--purple);"></span><span>Volume 25%</span></div>
+        <div class="src-weight"><span class="src-weight-bar" style="width:30%;background:var(--green);"></span><span>Fundamental 30%</span></div>
+        <div class="src-weight"><span class="src-weight-bar" style="width:5%;background:var(--yellow);"></span><span>Sentiment 5%</span></div>
+        <div class="src-weight"><span class="src-weight-bar" style="width:10%;background:var(--sky);"></span><span>Oszillator 10%</span></div>
+      </div>
+      <h5>Quick Score (Screener)</h5>
+      <div class="src-weight-grid">
+        <div class="src-weight"><span class="src-weight-bar" style="width:15%;background:var(--blue);"></span><span>Trend 15%</span></div>
+        <div class="src-weight"><span class="src-weight-bar" style="width:20%;background:var(--purple);"></span><span>Volume 20%</span></div>
+        <div class="src-weight"><span class="src-weight-bar" style="width:65%;background:var(--sky);"></span><span>Oszillator 65%</span></div>
+      </div>
+      <p>Quick Score: Für Screener optimiert (Mean-Reversion dominant). Keine Fundamental-/Sentiment-API-Calls für Geschwindigkeit.</p>
+      <div class="src-used-in">
+        <span class="src-used-tag">Analyse</span>
+        <span class="src-used-tag">Screener</span>
+      </div>
+    </div></div></div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!--  TAB 8: Externe Datenquellen                              -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="tab-content" id="tab-apis">
+  <div class="card" style="margin-bottom:var(--gap);">
+    <h4> Externe APIs & Datenquellen</h4>
+    <p class="caption">Alle externen Datenabrufe — Endpunkte, Caching-Strategien und Authentifizierung.</p>
+  </div>
+
+  <!-- yfinance -->
+  <div class="src-entry" data-type="api" data-search="yfinance yahoo finance kurse fundamentaldaten insider institutionelle analysten dividenden options earnings market_data.py">
+    <div class="src-header" onclick="toggleSrc(this)">
+      <div class="src-title-wrap">
+        <span class="src-badge src-badge--api">API</span>
+        <span class="src-title">yfinance (Yahoo Finance)</span>
+        <span class="src-badge src-badge--free">Kostenlos</span>
+      </div>
+      <div class="src-meta">
+        <span class="src-file">market_data.py (+ diverse)</span>
+        <span class="src-chevron">▼</span>
+      </div>
+    </div>
+    <div class="src-body"><div class="src-body-inner"><div class="src-details">
+      <div class="src-params">
+        <div class="src-param"><span class="src-param-key">Hauptquelle</span><span class="src-param-val">Kurse (OHLCV alle Intervalle), Fundamentaldaten, Options Chains</span></div>
+        <div class="src-param"><span class="src-param-key">Zusätzlich</span><span class="src-param-val">Insider, Institutionelle, Analysten, Dividenden, Earnings, News</span></div>
+        <div class="src-param"><span class="src-param-key">Caching</span><span class="src-param-val">cache_core.py (App-Level), yfinance intern</span></div>
+        <div class="src-param"><span class="src-param-key">Auth</span><span class="src-param-val">Kein Token nötig</span></div>
+      </div>
+      <p>Primäre und zentrale Datenquelle für fast alle Berechnungen. Abdeckt Kurse, Fundamentaldaten, Options, Insider, Institutionelle Holdings, Analysten-Ratings, Dividenden und Unternehmens-News.</p>
+      <h5>Spezielle Ticker</h5>
+      <p><code>^VIX</code> · <code>^GSPC</code> · <code>^GDAXI</code> · <code>GC=F</code> · <code>^TNX</code> · <code>^IRX</code> · <code>URTH</code> · Sektor-ETFs (XLK, XLF, XLV, …)</p>
+    </div></div></div>
+  </div>
+
+  <!-- Kadoa -->
+  <div class="src-entry" data-type="api" data-search="kadoa congress trading monitor github json stock act trades kongress congress_data.py">
+    <div class="src-header" onclick="toggleSrc(this)">
+      <div class="src-title-wrap">
+        <span class="src-badge src-badge--api">API</span>
+        <span class="src-title">Kadoa Congress Trading Monitor</span>
+        <span class="src-badge src-badge--free">Kostenlos</span>
+      </div>
+      <div class="src-meta">
+        <span class="src-file">congress_data.py</span>
+        <span class="src-chevron">▼</span>
+      </div>
+    </div>
+    <div class="src-body"><div class="src-body-inner"><div class="src-details">
+      <div class="src-params">
+        <div class="src-param"><span class="src-param-key">Endpunkt</span><span class="src-param-val">GitHub Raw JSON (~280KB)</span></div>
+        <div class="src-param"><span class="src-param-key">Daten</span><span class="src-param-val">US-Kongress-Trades (STOCK Act Disclosures)</span></div>
+        <div class="src-param"><span class="src-param-key">Caching</span><span class="src-param-val">30 Min TTL, vollständig in-memory</span></div>
+        <div class="src-param"><span class="src-param-key">Auth</span><span class="src-param-val">Kein Token nötig</span></div>
+      </div>
+      <p>Gesamte JSON wird einmalig geladen und in-memory gecached. Nachfolgende Ticker-Abfragen filtern nur im RAM. Quelle: Offizielle House Clerk + Senate eFD Disclosures.</p>
+    </div></div></div>
+  </div>
+
+  <!-- Quiver -->
+  <div class="src-entry" data-type="api" data-search="quiver quantitative institutional 13f kongress insider token quiver.py rest api">
+    <div class="src-header" onclick="toggleSrc(this)">
+      <div class="src-title-wrap">
+        <span class="src-badge src-badge--api">API</span>
+        <span class="src-title">Quiver Quantitative</span>
+        <span class="src-badge src-badge--token">Token (optional)</span>
+      </div>
+      <div class="src-meta">
+        <span class="src-file">quiver.py</span>
+        <span class="src-chevron">▼</span>
+      </div>
+    </div>
+    <div class="src-body"><div class="src-body-inner"><div class="src-details">
+      <div class="src-params">
+        <div class="src-param"><span class="src-param-key">Endpunkte</span><span class="src-param-val">/live/institutional · /live/congresstrading · /live/insiders</span></div>
+        <div class="src-param"><span class="src-param-key">Daten</span><span class="src-param-val">Inst. Holdings (13F), Kongress-Trades, Corporate Insider</span></div>
+        <div class="src-param"><span class="src-param-key">Caching</span><span class="src-param-val">30 Min TTL (TTLCache, 300 Einträge)</span></div>
+        <div class="src-param"><span class="src-param-key">Rate Limit</span><span class="src-param-val">0.3s zwischen Requests</span></div>
+        <div class="src-param"><span class="src-param-key">Auth</span><span class="src-param-val">Bearer Token (QUIVER_API_TOKEN)</span></div>
+      </div>
+    </div></div></div>
+  </div>
+
+  <!-- Finnhub -->
+  <div class="src-entry" data-type="api" data-search="finnhub company news nachrichten token clickbait filter news.py">
+    <div class="src-header" onclick="toggleSrc(this)">
+      <div class="src-title-wrap">
+        <span class="src-badge src-badge--api">API</span>
+        <span class="src-title">Finnhub (Company News)</span>
+        <span class="src-badge src-badge--token">Token (optional)</span>
+      </div>
+      <div class="src-meta">
+        <span class="src-file">news.py</span>
+        <span class="src-chevron">▼</span>
+      </div>
+    </div>
+    <div class="src-body"><div class="src-body-inner"><div class="src-details">
+      <div class="src-params">
+        <div class="src-param"><span class="src-param-key">Endpunkt</span><span class="src-param-val">finnhub.io/api/v1/company-news</span></div>
+        <div class="src-param"><span class="src-param-key">Daten</span><span class="src-param-val">Unternehmens-News (14 Tage, Clickbait-Filter aktiv)</span></div>
+        <div class="src-param"><span class="src-param-key">Auth</span><span class="src-param-val">Token (FINNHUB_API_TOKEN)</span></div>
+      </div>
+      <p>Primärquelle für Unternehmens-News. Fallback auf yfinance News wenn kein Token konfiguriert. Clickbait-Quellen (Motley Fool, Benzinga, etc.) werden automatisch gefiltert.</p>
+    </div></div></div>
+  </div>
+
+  <!-- SEC EDGAR -->
+  <div class="src-entry" data-type="api" data-search="sec edgar cik xbrl quartalszahlen revenue net income gaap market_data.py">
+    <div class="src-header" onclick="toggleSrc(this)">
+      <div class="src-title-wrap">
+        <span class="src-badge src-badge--api">API</span>
+        <span class="src-title">SEC EDGAR</span>
+        <span class="src-badge src-badge--free">Kostenlos</span>
+      </div>
+      <div class="src-meta">
+        <span class="src-file">market_data.py</span>
+        <span class="src-chevron">▼</span>
+      </div>
+    </div>
+    <div class="src-body"><div class="src-body-inner"><div class="src-details">
+      <div class="src-params">
+        <div class="src-param"><span class="src-param-key">Endpunkte</span><span class="src-param-val">sec.gov/files/company_tickers.json · data.sec.gov/api/xbrl/companyfacts</span></div>
+        <div class="src-param"><span class="src-param-key">Daten</span><span class="src-param-val">CIK-Mapping, Quartalszahlen (Revenue, Net Income via US-GAAP XBRL)</span></div>
+        <div class="src-param"><span class="src-param-key">Auth</span><span class="src-param-val">User-Agent Header (kein Token)</span></div>
+      </div>
+    </div></div></div>
+  </div>
+
+  <!-- Eurostat -->
+  <div class="src-entry" data-type="api" data-search="eurostat sdmx inflation hvpi deutschland cpi market_data.py fred fallback">
+    <div class="src-header" onclick="toggleSrc(this)">
+      <div class="src-title-wrap">
+        <span class="src-badge src-badge--api">API</span>
+        <span class="src-title">Eurostat SDMX & FRED (Fallback)</span>
+        <span class="src-badge src-badge--free">Kostenlos</span>
+      </div>
+      <div class="src-meta">
+        <span class="src-file">market_data.py</span>
+        <span class="src-chevron">▼</span>
+      </div>
+    </div>
+    <div class="src-body"><div class="src-body-inner"><div class="src-details">
+      <div class="src-params">
+        <div class="src-param"><span class="src-param-key">Eurostat</span><span class="src-param-val">ec.europa.eu — Deutsche Inflationsrate (HVPI, monatlich)</span></div>
+        <div class="src-param"><span class="src-param-key">FRED Fallback</span><span class="src-param-val">pandas_datareader — FPCPITOTLZGDEU</span></div>
+      </div>
+    </div></div></div>
+  </div>
+
+  <!-- RSS Feeds -->
+  <div class="src-entry" data-type="api" data-search="rss feeds reuters tagesschau handelsblatt cnbc nikkei google news nachrichten news.py regional">
+    <div class="src-header" onclick="toggleSrc(this)">
+      <div class="src-title-wrap">
+        <span class="src-badge src-badge--api">API</span>
+        <span class="src-title">RSS-Feeds (Regional News)</span>
+        <span class="src-badge src-badge--free">Kostenlos</span>
+      </div>
+      <div class="src-meta">
+        <span class="src-file">news.py</span>
+        <span class="src-chevron">▼</span>
+      </div>
+    </div>
+    <div class="src-body"><div class="src-body-inner"><div class="src-details">
+      <div class="src-params">
+        <div class="src-param"><span class="src-param-key">Europa</span><span class="src-param-val">Reuters DE · Tagesschau · Handelsblatt</span></div>
+        <div class="src-param"><span class="src-param-key">USA</span><span class="src-param-val">Reuters · CNBC</span></div>
+        <div class="src-param"><span class="src-param-key">Asien</span><span class="src-param-val">Reuters Asia · Nikkei Asia · CNBC Asia</span></div>
+      </div>
+      <p>Via Google News RSS Proxies. Quellenqualität-System: Premium-Quellen (Reuters, Bloomberg, FT) werden bevorzugt angezeigt.</p>
+    </div></div></div>
+  </div>
+
+  <!-- Forex -->
+  <div class="src-entry" data-type="api" data-search="forex wechselkurs eur usd gbp chf währung konvertierung forex.py yfinance">
+    <div class="src-header" onclick="toggleSrc(this)">
+      <div class="src-title-wrap">
+        <span class="src-badge src-badge--api">API</span>
+        <span class="src-title">Forex-Kurse (via yfinance)</span>
+        <span class="src-badge src-badge--free">Kostenlos</span>
+      </div>
+      <div class="src-meta">
+        <span class="src-file">forex.py</span>
+        <span class="src-chevron">▼</span>
+      </div>
+    </div>
+    <div class="src-body"><div class="src-body-inner"><div class="src-details">
+      <div class="src-params">
+        <div class="src-param"><span class="src-param-key">Methode</span><span class="src-param-val">yf.Ticker("{CCY}EUR=X").history()</span></div>
+        <div class="src-param"><span class="src-param-key">Caching</span><span class="src-param-val">1 Stunde TTL pro Währungspaar</span></div>
+        <div class="src-param"><span class="src-param-key">Fallback</span><span class="src-param-val">Statische Rates (22 Währungen)</span></div>
+      </div>
+      <p>Alle Preise werden in EUR konvertiert. Bei API-Ausfall greift ein statischer Fallback.</p>
+    </div></div></div>
+  </div>
+
+  <!-- Wikipedia & NASDAQ -->
+  <div class="src-entry" data-type="api" data-search="wikipedia sp500 komponenten nasdaq trader listings otc market_data.py aktienverzeichnis scraping">
+    <div class="src-header" onclick="toggleSrc(this)">
+      <div class="src-title-wrap">
+        <span class="src-badge src-badge--api">API</span>
+        <span class="src-title">Wikipedia & NASDAQ Trader (Listings)</span>
+        <span class="src-badge src-badge--free">Kostenlos</span>
+      </div>
+      <div class="src-meta">
+        <span class="src-file">market_data.py</span>
+        <span class="src-chevron">▼</span>
+      </div>
+    </div>
+    <div class="src-body"><div class="src-body-inner"><div class="src-details">
+      <div class="src-params">
+        <div class="src-param"><span class="src-param-key">Wikipedia</span><span class="src-param-val">S&P 500 Komponentenliste (Symbol, Name, Sektor)</span></div>
+        <div class="src-param"><span class="src-param-key">NASDAQ Trader</span><span class="src-param-val">NASDAQ, NYSE, AMEX, OTC Listings</span></div>
+        <div class="src-param"><span class="src-param-key">Caching</span><span class="src-param-val">NASDAQ: 24h CSV-Cache (data/stock_listings.csv)</span></div>
+      </div>
+    </div></div></div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!--  Inline Styles (scoped to this page)                      -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<style>
+/* ── Filter Bar ── */
+.src-filter-bar {
+  display: flex; align-items: center; gap: 16px;
+  margin-bottom: 24px; flex-wrap: wrap;
+}
+.src-filter-bar .form-input {
+  flex: 1; min-width: 200px;
+}
+.src-filter-pills {
+  display: flex; gap: 8px;
+}
+.src-pill {
+  padding: 6px 16px; border-radius: 20px;
+  background: var(--bg-card); border: 1px solid var(--border);
+  color: var(--text-dim); cursor: pointer; font-size: 0.85rem;
+  font-weight: var(--font-weight-medium);
+  transition: var(--transition-fast);
+}
+.src-pill:hover { border-color: var(--accent); color: var(--text); }
+.src-pill.active {
+  background: rgba(0,212,170,0.12); border-color: var(--accent);
+  color: var(--accent); font-weight: var(--font-weight-semibold);
+}
+
+/* ── Summary Grid ── */
+.src-summary-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px; margin-bottom: 28px;
+}
+.src-summary-card {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--radius-md); padding: 20px; text-align: center;
+  transition: var(--transition-fast);
+}
+.src-summary-card:hover { border-color: var(--border-subtle); transform: translateY(-2px); }
+.src-summary-card--accent { border-color: var(--yellow); }
+.src-summary-card--accent .src-summary-number { color: var(--yellow); }
+.src-summary-number {
+  font-size: 2.2rem; font-weight: var(--font-weight-bold);
+  color: var(--accent); line-height: 1;
+}
+.src-summary-label {
+  font-size: 0.95rem; font-weight: var(--font-weight-semibold);
+  color: var(--text); margin-top: 6px;
+}
+.src-summary-detail {
+  font-size: 0.8rem; color: var(--text-muted); margin-top: 4px;
+}
+
+/* ── Entry Component (reuses .lex-entry pattern) ── */
+.src-entry {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--radius-md); margin-bottom: 12px;
+  overflow: hidden; transition: var(--transition-fast);
+}
+.src-entry:hover { border-color: var(--border-subtle); }
+.src-entry.hidden { display: none; }
+.src-header {
+  padding: 14px 20px; cursor: pointer;
+  display: flex; justify-content: space-between; align-items: center;
+  background: rgba(15,23,42,0.4); gap: 12px;
+}
+.src-header:hover { background: rgba(148,163,184,0.05); }
+.src-title-wrap { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.src-title {
+  font-size: 1rem; font-weight: var(--font-weight-semibold); color: var(--text);
+}
+.src-meta { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+.src-file {
+  font-family: Consolas, monospace; font-size: 0.78rem;
+  color: var(--text-muted); background: rgba(10,15,26,0.6);
+  padding: 3px 8px; border-radius: 4px;
+}
+.src-chevron {
+  color: var(--text-muted); font-size: 0.7rem;
+  transition: transform 0.2s ease;
+}
+.src-entry.open .src-chevron { transform: rotate(180deg); }
+
+/* ── Badges ── */
+.src-badge {
+  padding: 3px 10px; border-radius: 12px;
+  font-size: 0.72rem; font-weight: var(--font-weight-semibold);
+  text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap;
+}
+.src-badge--formula { background: rgba(59,130,246,0.15); color: var(--blue); }
+.src-badge--api { background: rgba(168,85,247,0.15); color: var(--purple); }
+.src-badge--free { background: rgba(34,197,94,0.15); color: var(--green); }
+.src-badge--token { background: rgba(234,179,8,0.15); color: var(--yellow); }
+
+/* ── Collapsible Body ── */
+.src-body {
+  display: grid; grid-template-rows: 0fr;
+  transition: grid-template-rows 0.3s ease;
+}
+.src-entry.open .src-body { grid-template-rows: 1fr; }
+.src-body-inner { overflow: hidden; }
+.src-details {
+  padding: 18px 20px; color: var(--text-secondary);
+  font-size: 0.9rem; line-height: 1.65;
+}
+.src-details h5 {
+  color: var(--text); margin: 18px 0 10px 0;
+  font-size: 0.88rem; font-weight: var(--font-weight-semibold);
+  text-transform: uppercase; letter-spacing: 0.05em;
+}
+.src-details h5:first-child { margin-top: 0; }
+
+/* ── Formula Code ── */
+.src-formula {
+  background: rgba(10,15,26,0.8); border: 1px solid var(--border-subtle);
+  padding: 10px 14px; border-radius: var(--radius-sm);
+  font-family: 'Consolas', 'Fira Mono', monospace;
+  font-size: 0.84rem; color: var(--accent);
+  margin: 10px 0; line-height: 1.5;
+  overflow-x: auto;
+}
+
+/* ── Params Grid ── */
+.src-params {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 8px; margin-bottom: 14px;
+}
+.src-param {
+  display: flex; gap: 8px; align-items: baseline;
+  font-size: 0.85rem; padding: 5px 0;
+  border-bottom: 1px solid rgba(148,163,184,0.06);
+}
+.src-param-key {
+  color: var(--text-muted); font-weight: var(--font-weight-medium);
+  min-width: 100px; flex-shrink: 0;
+}
+.src-param-val { color: var(--text); }
+
+/* ── Used-in Tags ── */
+.src-used-in {
+  display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px;
+  padding-top: 12px; border-top: 1px solid var(--border);
+}
+.src-used-tag {
+  background: rgba(148,163,184,0.08); color: var(--text-dim);
+  padding: 3px 10px; border-radius: 12px;
+  font-size: 0.75rem; font-weight: var(--font-weight-medium);
+}
+
+/* ── Sub-Grids (Fear & Greed components etc.) ── */
+.src-sub-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 12px; margin: 12px 0;
+}
+.src-sub-item {
+  background: rgba(10,15,26,0.5); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 12px 14px;
+}
+.src-sub-item strong {
+  color: var(--text); display: block; margin-bottom: 4px;
+  font-size: 0.88rem;
+}
+.src-sub-item p { margin: 0; font-size: 0.83rem; color: var(--text-dim); }
+.src-sub-file {
+  float: right; font-size: 0.72rem; color: var(--text-muted);
+  font-family: Consolas, monospace;
+}
+
+/* ── Warning Box ── */
+.src-warn {
+  border-left: 3px solid var(--yellow);
+  background: rgba(234,179,8,0.08);
+  padding: 12px 16px; border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  margin: 14px 0 0 0;
+}
+.src-warn strong {
+  color: var(--yellow); display: block; margin-bottom: 4px;
+  font-size: 0.88rem;
+}
+
+/* ── Weight Bars (Scoring) ── */
+.src-weight-grid {
+  display: flex; flex-direction: column; gap: 6px; margin: 10px 0 16px 0;
+}
+.src-weight {
+  display: flex; align-items: center; gap: 10px; font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+.src-weight-bar {
+  height: 8px; border-radius: 4px; display: inline-block;
+  min-width: 8px; transition: width 0.4s ease;
+}
+</style>
+
+<script>
+function toggleSrc(el) {
+  el.closest('.src-entry').classList.toggle('open');
+}
+
+function filterSources() {
+  const q = document.getElementById('src-search').value.toLowerCase();
+  document.querySelectorAll('.src-entry').forEach(entry => {
+    const searchData = (entry.dataset.search || '') + ' ' + entry.textContent.toLowerCase();
+    entry.classList.toggle('hidden', q.length > 0 && !searchData.includes(q));
+  });
+}
+
+function setFilter(type) {
+  document.querySelectorAll('.src-pill').forEach(p => p.classList.remove('active'));
+  document.querySelector(`.src-pill[data-filter="${type}"]`).classList.add('active');
+
+  document.querySelectorAll('.src-entry').forEach(entry => {
+    if (type === 'all') {
+      entry.classList.remove('hidden');
+    } else {
+      entry.classList.toggle('hidden', entry.dataset.type !== type);
+    }
+  });
+
+  // Also switch to the relevant tab for APIs
+  if (type === 'api') {
+    const apiTab = document.querySelector('[data-tab="tab-apis"]');
+    if (apiTab) apiTab.click();
+  }
+}
+</script>
+{% endblock %}

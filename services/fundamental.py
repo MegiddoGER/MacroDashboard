@@ -218,11 +218,11 @@ def calc_balance_sheet_quality(info: dict) -> dict | None:
                 warnings_list.append(f"Hohe Nettoverschuldung ({net_debt_ebitda:.1f}x EBITDA)")
 
         if score >= 2:
-            label = "Solide 🟢"
+            label = "Solide "
         elif score >= 0:
-            label = "Akzeptabel 🟡"
+            label = "Akzeptabel "
         else:
-            label = "Kritisch 🔴"
+            label = "Kritisch "
 
         return {
             "debt_to_equity": round(debt_to_equity, 1) if debt_to_equity else None,

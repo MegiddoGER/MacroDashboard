@@ -2,7 +2,7 @@
 {% block title %}Gesamtwirtschaft — Macro Dashboard{% endblock %}
 {% block content %}
 <div class="page-header">
-  <h2>🌍 Weltwirtschaft</h2>
+  <h2> Weltwirtschaft</h2>
   <p class="caption">Makroökonomische Indikatoren: Wirtschaftskalender, Rohstoffe, Zinsen und Inflation</p>
 </div>
 
@@ -10,17 +10,17 @@
 {% if summary %}
 <div class="grid-4" style="gap:12px;margin-bottom:var(--gap);">
   <div class="metric-card"><div class="metric-label">Events (14 Tage)</div><div class="metric-value">{{ summary.get('total',0) }}</div></div>
-  <div class="metric-card"><div class="metric-label">🔴 High Impact</div><div class="metric-value">{{ summary.get('high_count',0) }}</div></div>
-  <div class="metric-card"><div class="metric-label">🟠 Medium Impact</div><div class="metric-value">{{ summary.get('medium_count',0) }}</div></div>
+  <div class="metric-card"><div class="metric-label">High Impact</div><div class="metric-value">{{ summary.get('high_count',0) }}</div></div>
+  <div class="metric-card"><div class="metric-label"> Medium Impact</div><div class="metric-value">{{ summary.get('medium_count',0) }}</div></div>
   <div class="metric-card"><div class="metric-label">Nächstes High-Event</div><div class="metric-value">{{ summary.get('next_high_event',{}).countdown_label if summary.get('next_high_event') else '—' }}</div></div>
 </div>
 {% endif %}
 
 <!-- Calendar Events Tabs -->
-<h4>📅 Wirtschaftskalender</h4>
+<h4> Wirtschaftskalender</h4>
 <div>
   <div class="tabs">
-    <button class="tab active" data-tab="tab-ev-all">📋 Alle</button>
+    <button class="tab active" data-tab="tab-ev-all"> Alle</button>
     <button class="tab" data-tab="tab-ev-us">🇺🇸 USA</button>
     <button class="tab" data-tab="tab-ev-eu">🇪🇺 Eurozone</button>
     <button class="tab" data-tab="tab-ev-de">🇩🇪 Deutschland</button>
@@ -53,7 +53,7 @@
 <hr>
 
 <!-- Commodities -->
-<h4>🌍 Rohstoffmärkte</h4>
+<h4> Rohstoffmärkte</h4>
 <div class="grid-2" style="gap:var(--gap);">
   <div>{% if charts.gold != "null" %}<div id="chart-gold" class="chart-container" style="height:350px;"></div>{% else %}<div class="alert alert-info">Gold-Daten nicht verfügbar.</div>{% endif %}</div>
   <div>{% if charts.oil != "null" %}<div id="chart-oil" class="chart-container" style="height:350px;"></div>{% else %}<div class="alert alert-info">Rohöl-Daten nicht verfügbar.</div>{% endif %}</div>
@@ -62,7 +62,7 @@
 <hr>
 
 <!-- Yield Spread -->
-<h4>📊 Zinsstrukturkurve (Yield Spread)</h4>
+<h4>Zinsstrukturkurve (Yield Spread)</h4>
 {% if charts.yield != "null" %}
 <div id="chart-yield" class="chart-container" style="height:400px;"></div>
 <div class="grid-3" style="gap:12px;margin-top:12px;">
@@ -75,7 +75,7 @@
 <hr>
 
 <!-- Inflation -->
-<h4>📈 Inflationsrate Deutschland</h4>
+<h4>Inflationsrate Deutschland</h4>
 {% if charts.inflation != "null" %}
 <div id="chart-inflation" class="chart-container" style="height:350px;"></div>
 <div class="grid-2" style="gap:12px;margin-top:12px;">
@@ -87,7 +87,7 @@
 <hr>
 
 <!-- News -->
-<h4>📰 Nachrichten</h4>
+<h4> Nachrichten</h4>
 <div>
   <div class="tabs">
     <button class="tab active" data-tab="tab-news-eu">🇪🇺 Europa</button>
@@ -115,7 +115,7 @@
               <span style="color:var(--text-muted);font-size:0.72rem;">{{ n.get('date','') }}</span>
             </div>
           </div>
-          <span style="color:var(--text-muted);font-size:0.8rem;flex-shrink:0;margin-top:2px;">↗</span>
+          <span style="color:var(--text-muted);font-size:0.8rem;flex-shrink:0;margin-top:2px;"></span>
         </div>
       </a>
       {% endfor %}

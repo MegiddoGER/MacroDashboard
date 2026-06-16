@@ -1,5 +1,5 @@
 <!-- partials/backtest_results.html — HTMX partial for backtest results -->
-<h4>📊 Resultate: {{ strat_name }} auf <strong>{{ display_name }}</strong></h4>
+<h4>Resultate: {{ strat_name }} auf <strong>{{ display_name }}</strong></h4>
 
 <!-- Row 1: Core Metrics -->
 <div class="grid-5" style="margin-bottom:var(--gap);">
@@ -73,13 +73,13 @@
   </div>
 </div>
 
-<p class="caption">🛡️ Gebühren: <strong>€ {{ "{:,.2f}".format(metrics.commission_paid) }}</strong> · Slippage: <strong>{{ slippage }}%</strong> · Zeitraum: {{ period }}</p>
+<p class="caption">Gebühren: <strong>€ {{ "{:,.2f}".format(metrics.commission_paid) }}</strong> · Slippage: <strong>{{ slippage }}%</strong> · Zeitraum: {{ period }}</p>
 
 <!-- Tabs: Charts + Trade Log -->
 <div class="tabs" style="margin-top:var(--gap);">
-  <button class="tab active" data-tab="bt-tab-equity">📉 Equity-Kurve</button>
-  <button class="tab" data-tab="bt-tab-dd">📊 Drawdown</button>
-  <button class="tab" data-tab="bt-tab-trades">📓 Trade Log</button>
+  <button class="tab active" data-tab="bt-tab-equity">Equity-Kurve</button>
+  <button class="tab" data-tab="bt-tab-dd">Drawdown</button>
+  <button class="tab" data-tab="bt-tab-trades"> Trade Log</button>
 </div>
 
 <div class="tab-content active" id="bt-tab-equity">

@@ -73,13 +73,13 @@ def open_browser():
     """Öffnet das native Browser-Fenster und speichert den Prozess für späteres Aufräumen."""
     browser = _find_browser()
     if not browser:
-        print(f"⚠️  Kein Edge/Chrome gefunden. Öffne manuell: {URL}")
+        print(f" Kein Edge/Chrome gefunden. Öffne manuell: {URL}")
         return
 
     user_data_dir = os.path.join(tempfile.gettempdir(), "macro_dashboard_browser")
     os.makedirs(user_data_dir, exist_ok=True)
 
-    print(f"🖥️  Öffne natives Fenster mit: {os.path.basename(browser)}")
+    print(f"️  Öffne natives Fenster mit: {os.path.basename(browser)}")
     proc = subprocess.Popen([
         browser,
         f"--app={URL}",
@@ -109,22 +109,22 @@ def main():
     )
 
     # 2. Warten bis der HTTP-Server wirklich antwortet (max 45 Sek.)
-    print("⏳ Starte FastAPI-Server …")
+    print("Starte FastAPI-Server …")
     for i in range(90):
         if _server_ready(URL):
             break
         # Prüfen ob der Prozess abgestürzt ist
         if server_proc.poll() is not None:
-            print("❌ Server-Prozess unerwartet beendet.")
+            print("Server-Prozess unerwartet beendet.")
             sys.exit(1)
         time.sleep(0.5)
     else:
-        print("❌ Server antwortet nicht. Timeout.")
+        print("Server antwortet nicht. Timeout.")
         server_proc.terminate()
         sys.exit(1)
 
     time.sleep(1.0)
-    print(f"✅ Server bereit auf {URL}")
+    print(f"Server bereit auf {URL}")
 
     # 3. Direkt das Browserfenster öffen
     open_browser()
@@ -154,14 +154,14 @@ def main():
     threading.Thread(target=monitor_process, daemon=True).start()
 
     # 6. Starte Icon (Blockiert den Main-Thread bis icon.stop() gerufen wird)
-    print("🔔 System Tray Icon aktiv.")
+    print(" System Tray Icon aktiv.")
     try:
         icon.run()
     except Exception as e:
-        print(f"❌ Error in icon.run(): {e}")
+        print(f"Error in icon.run(): {e}")
 
     # 7. Aufräumen nachdem icon.stop() gerufen wurde
-    print("🛑 Beende Server …")
+    print(" Beende Server …")
     if server_proc.poll() is None:
         server_proc.terminate()
         try:
@@ -177,7 +177,7 @@ def main():
         except:
             pass
 
-    print("✅ Fertig.")
+    print("Fertig.")
 
 
 if __name__ == "__main__":

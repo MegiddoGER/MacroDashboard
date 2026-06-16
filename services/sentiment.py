@@ -253,15 +253,15 @@ def analyze_ticker_news(ticker: str) -> dict:
     
     # Gesamt-Label
     if avg_compound >= 0.15:
-        overall_label = "🔥 Stark Bullish"
+        overall_label = " Stark Bullish"
     elif avg_compound >= 0.05:
-        overall_label = "🟢 Bullish"
+        overall_label = "Bullish"
     elif avg_compound <= -0.15:
-        overall_label = "🧨 Stark Bearish"
+        overall_label = " Stark Bearish"
     elif avg_compound <= -0.05:
-        overall_label = "🔴 Bearish"
+        overall_label = "Bearish"
     else:
-        overall_label = "➖ Neutral / Gemischt"
+        overall_label = "Neutral / Gemischt"
         
     return {
         "avg_compound": round(avg_compound, 3),

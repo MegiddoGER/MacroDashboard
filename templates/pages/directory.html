@@ -2,14 +2,14 @@
 {% block title %}Aktien-Verzeichnis — Macro Dashboard{% endblock %}
 {% block content %}
 <div class="page-header">
-  <h2>📋 Aktien-Verzeichnis</h2>
+  <h2> Aktien-Verzeichnis</h2>
   <p class="caption">Alle handelbaren Aktien — NYSE, NASDAQ, AMEX (Quelle: NASDAQ Screener)</p>
 </div>
 
 <div class="card" style="margin-bottom:var(--gap);">
   <form method="get" action="/directory" style="display:flex;gap:12px;flex-wrap:wrap;align-items:end;">
     <div style="flex:2;min-width:200px;">
-      <label class="form-label">🔍 Suche</label>
+      <label class="form-label">Suche</label>
       <input type="text" name="q" class="form-input" value="{{ search }}" placeholder="z.B. AAPL, Microsoft">
     </div>
     <div style="flex:1;min-width:140px;">

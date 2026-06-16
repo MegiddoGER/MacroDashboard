@@ -297,11 +297,11 @@ def calc_sector_concentration(sector_allocation: list[dict]) -> dict:
 
     warning = ""
     if top_pct > 60:
-        warning = f"🔴 Extreme Konzentration: {top_pct:.0f}% in {top_sector} — hohes Klumpenrisiko!"
+        warning = f"Extreme Konzentration: {top_pct:.0f}% in {top_sector} — hohes Klumpenrisiko!"
     elif top_pct > 40:
-        warning = f"⚠️ Hohe Konzentration: {top_pct:.0f}% in {top_sector} — Diversifikation empfohlen."
+        warning = f"Hohe Konzentration: {top_pct:.0f}% in {top_sector} — Diversifikation empfohlen."
     elif hhi > 0.25:
-        warning = f"⚠️ Mäßige Konzentration (HHI: {hhi:.2f}) — einige Sektoren übergewichtet."
+        warning = f"Mäßige Konzentration (HHI: {hhi:.2f}) — einige Sektoren übergewichtet."
 
     return {
         "herfindahl_index": round(hhi, 4),
@@ -457,10 +457,10 @@ def calc_correlation_risk(positions: list[dict]) -> dict:
 
     warning = ""
     if avg_corr > 0.6:
-        warning = ("🔴 Hohes Klumpenrisiko: Portfolio-Positionen sind stark korreliert "
+        warning = ("Hohes Klumpenrisiko: Portfolio-Positionen sind stark korreliert "
                    f"(∅ {avg_corr:.2f}). Diversifikation wäre empfehlenswert.")
     elif avg_corr > 0.4:
-        warning = (f"⚠️ Mäßiges Korrelationsrisiko (∅ {avg_corr:.2f}). "
+        warning = (f"Mäßiges Korrelationsrisiko (∅ {avg_corr:.2f}). "
                    "Einige Positionen bewegen sich ähnlich.")
 
     return {

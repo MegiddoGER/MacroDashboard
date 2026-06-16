@@ -227,7 +227,7 @@ def set_setting(key: str, value: str):
         session.commit()
     except Exception as e:
         session.rollback()
-        print(f"⚠️ Setting '{key}' konnte nicht gespeichert werden: {e}")
+        print(f"Setting '{key}' konnte nicht gespeichert werden: {e}")
     finally:
         session.close()
 
@@ -284,9 +284,9 @@ def _migrate_json_if_needed():
                         )
                         session.add(p)
                 migrated_any = True
-                print(f"✅ Watchlist migriert: {len(wl_data)} Einträge")
+                print(f"Watchlist migriert: {len(wl_data)} Einträge")
             except Exception as e:
-                print(f"⚠️ Watchlist-Migration fehlgeschlagen: {e}")
+                print(f"Watchlist-Migration fehlgeschlagen: {e}")
 
         # ── Journal ──────────────────────────────────────────────────
         journal_file = os.path.join(_DATA_DIR, "journal.json")
@@ -313,9 +313,9 @@ def _migrate_json_if_needed():
                     )
                     session.add(je)
                 migrated_any = True
-                print(f"✅ Journal migriert: {len(journal_data)} Einträge")
+                print(f"Journal migriert: {len(journal_data)} Einträge")
             except Exception as e:
-                print(f"⚠️ Journal-Migration fehlgeschlagen: {e}")
+                print(f"Journal-Migration fehlgeschlagen: {e}")
 
         # ── Signale ──────────────────────────────────────────────────
         signals_file = os.path.join(_DATA_DIR, "signals.json")
@@ -347,9 +347,9 @@ def _migrate_json_if_needed():
                     )
                     session.add(sr)
                 migrated_any = True
-                print(f"✅ Signale migriert: {len(sig_data)} Einträge")
+                print(f"Signale migriert: {len(sig_data)} Einträge")
             except Exception as e:
-                print(f"⚠️ Signal-Migration fehlgeschlagen: {e}")
+                print(f"Signal-Migration fehlgeschlagen: {e}")
 
         # ── Alerts ───────────────────────────────────────────────────
         alerts_file = os.path.join(_DATA_DIR, "alerts.json")
@@ -370,18 +370,18 @@ def _migrate_json_if_needed():
                     )
                     session.add(ar)
                 migrated_any = True
-                print(f"✅ Alerts migriert: {len(alert_data)} Einträge")
+                print(f"Alerts migriert: {len(alert_data)} Einträge")
             except Exception as e:
-                print(f"⚠️ Alert-Migration fehlgeschlagen: {e}")
+                print(f"Alert-Migration fehlgeschlagen: {e}")
 
         if migrated_any:
             session.commit()
-            print("✅ JSON → SQLite Migration abgeschlossen!")
+            print("JSON → SQLite Migration abgeschlossen!")
         else:
-            print("ℹ️ Keine JSON-Daten zum Migrieren gefunden.")
+            print("Keine JSON-Daten zum Migrieren gefunden.")
 
     except Exception as e:
         session.rollback()
-        print(f"❌ Migration fehlgeschlagen: {e}")
+        print(f"Migration fehlgeschlagen: {e}")
     finally:
         session.close()

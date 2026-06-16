@@ -2,7 +2,7 @@
 {% block title %}Sektoren — Macro Dashboard{% endblock %}
 {% block content %}
 <div class="page-header">
-  <h2>📊 Sektoren</h2>
+  <h2>Sektoren</h2>
   <p class="caption">Sektor-Performance — welche Branchen führen den Markt?</p>
 </div>
 
@@ -29,8 +29,8 @@
 
 {% if best and worst %}
 <div class="grid-2" style="gap:12px;margin-bottom:var(--gap);">
-  <div class="metric-card"><div class="metric-label">🏆 Bester Sektor: {{ best.name }}</div><div class="metric-value positive">{{ "%+.2f %%"|format(best.pct) }}</div></div>
-  <div class="metric-card"><div class="metric-label">📉 Schwächster: {{ worst.name }}</div><div class="metric-value negative">{{ "%+.2f %%"|format(worst.pct) }}</div></div>
+  <div class="metric-card"><div class="metric-label"> Bester Sektor: {{ best.name }}</div><div class="metric-value positive">{{ "%+.2f %%"|format(best.pct) }}</div></div>
+  <div class="metric-card"><div class="metric-label">Schwächster: {{ worst.name }}</div><div class="metric-value negative">{{ "%+.2f %%"|format(worst.pct) }}</div></div>
 </div>
 {% endif %}
 

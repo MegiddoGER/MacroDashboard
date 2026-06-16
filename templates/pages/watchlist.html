@@ -2,7 +2,7 @@
 {% block title %}Watchlist — Macro Dashboard{% endblock %}
 {% block content %}
 <div class="page-header">
-  <h2>📋 Watchlist</h2>
+  <h2> Watchlist</h2>
   <p class="caption">Portfolio-Verwaltung: Marktdaten, Positionen, P&amp;L und Risiko.</p>
 </div>
 
@@ -32,13 +32,13 @@
 {% endfor %}
 
 {% if not groups %}
-<div class="alert alert-info">👈 Füge Ticker über die Sidebar hinzu.</div>
+<div class="alert alert-info"> Füge Ticker über die Sidebar hinzu.</div>
 {% endif %}
 
 <!-- ═══ Portfolio-Übersicht ═══ -->
 {% if summary %}
 <hr>
-<h4>💼 Portfolio-Übersicht</h4>
+<h4>Portfolio-Übersicht</h4>
 <div class="grid-4" style="margin-bottom:var(--gap);">
   <div class="metric-card">
     <div class="metric-label">Investiert</div>
@@ -64,7 +64,7 @@
 <!-- ═══ Aktive Positionen ═══ -->
 {% if pos_rows %}
 <hr>
-<h4>📊 Aktive Positionen</h4>
+<h4>Aktive Positionen</h4>
 <div class="table-container" style="margin-bottom:var(--gap);">
   <table class="data-table">
     <thead><tr><th>Ticker</th><th>Kaufdatum</th><th>Kaufkurs</th><th>Stück</th><th>Aktuell</th><th>P&amp;L €</th><th>P&amp;L %</th><th>SL</th><th>TP</th></tr></thead>
@@ -89,7 +89,7 @@
 
 <!-- ═══ Position kaufen ═══ -->
 <hr>
-<h4>➕ Position kaufen</h4>
+<h4> Position kaufen</h4>
 {% if buy_options %}
 <form hx-post="/watchlist/buy" hx-target="#buy-result" hx-swap="innerHTML">
   <div class="card" style="margin-bottom:var(--gap);">
@@ -112,7 +112,7 @@
       <div class="form-group"><label>Gebühren (€)</label><input type="number" name="fees" step="0.01" min="0" value="0" class="form-input"></div>
     </div>
     <div class="form-group"><label>Notizen</label><input type="text" name="notes" class="form-input" placeholder="z.B. RSI überverkauft, FVG Entry"></div>
-    <button type="submit" class="btn btn-primary btn-block" style="margin-top:12px;">🛒 Position eröffnen</button>
+    <button type="submit" class="btn btn-primary btn-block" style="margin-top:12px;">Position eröffnen</button>
   </div>
 </form>
 <div id="buy-result"></div>
@@ -123,7 +123,7 @@
 <!-- ═══ Position schließen ═══ -->
 {% if sell_options %}
 <hr>
-<h4>💰 Position schließen (Verkauf)</h4>
+<h4>Position schließen (Verkauf)</h4>
 <form hx-post="/watchlist/sell" hx-target="#sell-result" hx-swap="innerHTML">
   <div class="card" style="margin-bottom:var(--gap);">
     <div class="form-group">
@@ -141,7 +141,7 @@
       <div class="form-group"><label>Verkaufsdatum</label><input type="date" name="sell_date" class="form-input" required></div>
       <div class="form-group"><label>Verkaufsgebühren (€)</label><input type="number" name="sell_fees" step="0.01" min="0" value="0" class="form-input"></div>
     </div>
-    <h5 style="margin-top:16px;">📓 Trade-Review (Auto-Journal)</h5>
+    <h5 style="margin-top:16px;"> Trade-Review (Auto-Journal)</h5>
     <div class="grid-2" style="gap:12px; margin-bottom:12px;">
       <div class="form-group">
         <label>Setup-Kategorie</label>
@@ -162,7 +162,7 @@
       </div>
     </div>
     <div class="form-group"><label>Lessons Learned / Review</label><textarea name="sell_review" class="form-input" rows="3" placeholder="Was hast du gelernt?"></textarea></div>
-    <button type="submit" class="btn btn-primary btn-block" style="margin-top:12px;">📤 Position schließen + Journal speichern</button>
+    <button type="submit" class="btn btn-primary btn-block" style="margin-top:12px;"> Position schließen + Journal speichern</button>
   </div>
 </form>
 <div id="sell-result"></div>

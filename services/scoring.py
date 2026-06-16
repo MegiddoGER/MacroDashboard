@@ -44,7 +44,7 @@ class ScoreResult:
     """Standardisiertes Scoring-Ergebnis für eine Aktie."""
     confidence: float = 50.0
     score: int = 0
-    score_label: str = "Neutral ➖"
+    score_label: str = "Neutral "
     confidence_label: str = "Gemischte Signale"
 
     cat_scores: dict = field(default_factory=lambda: {
@@ -123,35 +123,35 @@ def _score_trend(close, high, low, volume, result: ScoreResult):
         # ADX > 25 bestätigt Trendstärke — wird als Info geloggt,
         # aber KEIN eigenes cat_max/cat_scores (vermeidet Doppelzählung mit SMA-Cross)
         result.checklist.append({"Indikator": "ADX", "Wert": f"{adx_val:.0f}",
-            "Signal": "🟢 Starker Trend bestätigt", "Beitrag": "Info"})
+            "Signal": "Starker Trend bestätigt", "Beitrag": "Info"})
     elif adx_val and adx_val < 20:
         # Seitwärtsmarkt: Info-Indikator (kein Score-Impact — symmetrisch mit ADX > 25)
         result.checklist.append({"Indikator": "ADX", "Wert": f"{adx_val:.0f}",
-            "Signal": "🟡 Schwacher Trend / Seitwärts — Trend-Signale weniger verlässlich", "Beitrag": "Info"})
+            "Signal": "Schwacher Trend / Seitwärts — Trend-Signale weniger verlässlich", "Beitrag": "Info"})
     elif adx_val:
         result.checklist.append({"Indikator": "ADX", "Wert": f"{adx_val:.0f}",
-            "Signal": "➖ Moderater Trend", "Beitrag": "0"})
+            "Signal": "Moderater Trend", "Beitrag": "0"})
 
     # Checklist
     if trend_macro_bullish and cross_bullish:
         result.checklist.append({"Indikator": "Trend (SMAs)", "Wert": "Stark Aufwärts",
-            "Signal": "🟢 Intakter Aufwärtstrend (Kurs > SMA 200, Golden Cross)"})
+            "Signal": "Intakter Aufwärtstrend (Kurs > SMA 200, Golden Cross)"})
     elif trend_macro_bearish and cross_bullish:
         result.checklist.append({"Indikator": "Trend (SMAs)", "Wert": "Erholung",
-            "Signal": "↗️ Kurzfristiges Aufwärtsmomentum im übergeordneten Abwärtstrend"})
+            "Signal": "️ Kurzfristiges Aufwärtsmomentum im übergeordneten Abwärtstrend"})
     elif trend_macro_bullish and cross_bearish:
         result.checklist.append({"Indikator": "Trend (SMAs)", "Wert": "Korrektur",
-            "Signal": "↘️ Kurzfristige Schwäche im übergeordneten Aufwärtstrend"})
+            "Signal": "️ Kurzfristige Schwäche im übergeordneten Aufwärtstrend"})
     else:
         result.checklist.append({"Indikator": "Trend (SMAs)", "Wert": "Abwärts",
-            "Signal": "🔴 Intakter Abwärtstrend (Kurs < SMA 200, Death Cross)"})
+            "Signal": "Intakter Abwärtstrend (Kurs < SMA 200, Death Cross)"})
 
     if macd_bullish:
         result.checklist.append({"Indikator": "MACD", "Wert": "MACD > Signal",
-            "Signal": "🟢 Bullishes kurzfristiges Momentum", "Beitrag": "Info"})
+            "Signal": "Bullishes kurzfristiges Momentum", "Beitrag": "Info"})
     else:
         result.checklist.append({"Indikator": "MACD", "Wert": "MACD < Signal",
-            "Signal": "🔴 Bearishes kurzfristiges Momentum", "Beitrag": "Info"})
+            "Signal": "Bearishes kurzfristiges Momentum", "Beitrag": "Info"})
 
     # Signale speichern
     result.signals.update({
@@ -191,15 +191,15 @@ def _score_oscillators(close, high, low, result: ScoreResult):
             result.cat_scores["oscillator"] -= 1
             rsi_overbought = True
             result.checklist.append({"Indikator": "RSI (14)", "Wert": f"{rsi_val:.1f}",
-                "Signal": "🔴 Überkauft (Erhöhtes Rückschlagrisiko)"})
+                "Signal": "Überkauft (Erhöhtes Rückschlagrisiko)"})
         elif rsi_val < 30:
             result.cat_scores["oscillator"] += 1
             rsi_oversold = True
             result.checklist.append({"Indikator": "RSI (14)", "Wert": f"{rsi_val:.1f}",
-                "Signal": "🟢 Überverkauft (Chance auf Rebound)"})
+                "Signal": "Überverkauft (Chance auf Rebound)"})
         else:
             result.checklist.append({"Indikator": "RSI (14)", "Wert": f"{rsi_val:.1f}",
-                "Signal": "➖ Neutraler Bereich", "Beitrag": "0"})
+                "Signal": "Neutraler Bereich", "Beitrag": "0"})
 
     k_line, _ = calc_stochastic(high, low, close)
     if not k_line.dropna().empty:
@@ -220,15 +220,15 @@ def _score_oscillators(close, high, low, result: ScoreResult):
             bollinger_state = "Am oberen Band"
             result.cat_scores["oscillator"] -= 1
             result.checklist.append({"Indikator": "Bollinger Bänder", "Wert": "Am oberen Rand",
-                "Signal": "🔴 Kurs technisch überdehnt"})
+                "Signal": "Kurs technisch überdehnt"})
         elif current_price <= last_l:
             bollinger_state = "Am unteren Band"
             result.cat_scores["oscillator"] += 1
             result.checklist.append({"Indikator": "Bollinger Bänder", "Wert": "Am unteren Rand",
-                "Signal": "🟢 Kurs stark abgestraft"})
+                "Signal": "Kurs stark abgestraft"})
         else:
             result.checklist.append({"Indikator": "Bollinger Bänder", "Wert": "Im Kanal",
-                "Signal": "➖ Normale Volatilität", "Beitrag": "0"})
+                "Signal": "Normale Volatilität", "Beitrag": "0"})
 
     result.signals.update({
         "rsi_overbought": rsi_overbought,
@@ -259,25 +259,25 @@ def _score_volume(high, low, close, volume, result: ScoreResult):
             result.cat_scores["volume"] += 1
             obv_bullish = True
             result.checklist.append({"Indikator": "OBV Trend", "Wert": "Steigend",
-                "Signal": "🟢 Akkumulation (Kaufdruck vorhanden)"})
+                "Signal": "Akkumulation (Kaufdruck vorhanden)"})
         elif flow.get("obv_signal") == "bearish":
             result.cat_scores["volume"] -= 1
             result.checklist.append({"Indikator": "OBV Trend", "Wert": "Fallend",
-                "Signal": "🔴 Distribution (Verkaufsdruck vorhanden)"})
+                "Signal": "Distribution (Verkaufsdruck vorhanden)"})
         else:
             result.checklist.append({"Indikator": "OBV Trend", "Wert": "Neutral",
-                "Signal": "➖ Kein klarer Volumentrend"})
+                "Signal": "Kein klarer Volumentrend"})
 
         result.cat_max["volume"] += 1
         if flow.get("vwap_signal") == "bullish":
             result.cat_scores["volume"] += 1
             vwap_bullish = True
             result.checklist.append({"Indikator": "VWMA (20T)", "Wert": "Kurs > VWMA",
-                "Signal": "🟢 Käufer dominieren den Durchschnitt"})
+                "Signal": "Käufer dominieren den Durchschnitt"})
         else:
             result.cat_scores["volume"] -= 1
             result.checklist.append({"Indikator": "VWMA (20T)", "Wert": "Kurs < VWMA",
-                "Signal": "🔴 Verkäufer dominieren den Durchschnitt"})
+                "Signal": "Verkäufer dominieren den Durchschnitt"})
 
         poc = flow.get("poc_price")
         if poc:
@@ -286,11 +286,11 @@ def _score_volume(high, low, close, volume, result: ScoreResult):
                 result.cat_scores["volume"] += 1
                 poc_bullish = True
                 result.checklist.append({"Indikator": "Volumen-Cluster (POC)", "Wert": f"{poc:,.2f}",
-                    "Signal": "🟢 Kurs oberhalb des stärksten Volumens"})
+                    "Signal": "Kurs oberhalb des stärksten Volumens"})
             else:
                 result.cat_scores["volume"] -= 1
                 result.checklist.append({"Indikator": "Volumen-Cluster (POC)", "Wert": f"{poc:,.2f}",
-                    "Signal": "🔴 Kurs unterhalb des stärksten Volumens"})
+                    "Signal": "Kurs unterhalb des stärksten Volumens"})
 
     result.signals.update({
         "obv_bullish": obv_bullish,
@@ -336,12 +336,12 @@ def _score_smc(hist, result: ScoreResult):
                 dist_eqh = ((nearest_eqh - current) / current) * 100
                 result.checklist.append({"Indikator": "Equal Highs (EQH)",
                     "Wert": f"{nearest_eqh:,.2f} ({dist_eqh:+.1f}%)",
-                    "Signal": "Liquiditätsmagnet ⬆️", "Beitrag": "Info"})
+                    "Signal": "Liquiditätsmagnet ️", "Beitrag": "Info"})
             if nearest_eql:
                 dist_eql = ((nearest_eql - current) / current) * 100
                 result.checklist.append({"Indikator": "Equal Lows (EQL)",
                     "Wert": f"{nearest_eql:,.2f} ({dist_eql:+.1f}%)",
-                    "Signal": "Liquiditätsmagnet ⬇️", "Beitrag": "Info"})
+                    "Signal": "Liquiditätsmagnet ️", "Beitrag": "Info"})
 
             result.signals.update({
                 "unmitigated_bull": unmitigated_bull,
@@ -377,7 +377,7 @@ def _score_fundamental(info, ticker, result: ScoreResult):
             if dcf.get('is_proxy_fcf'):
                 result.checklist.append({"Indikator": "DCF Fair Value",
                     "Wert": f"{dcf['fair_value']:,.2f} ({dcf['upside_pct']:+.1f}%)",
-                    "Signal": "⚠️ Proxy-FCF (10% Umsatz) — FCF negativ, Modell unsicher", "Beitrag": "0"})
+                    "Signal": "Proxy-FCF (10% Umsatz) — FCF negativ, Modell unsicher", "Beitrag": "0"})
                 result.fundamental_text_parts.append(
                     "Das DCF-Modell nutzt einen Proxy-FCF (10% des Umsatzes), da das Unternehmen keinen positiven Free Cashflow generiert — die Bewertung ist daher mit Vorsicht zu genießen.")
             else:
@@ -492,20 +492,20 @@ def _score_fundamental(info, ticker, result: ScoreResult):
                     result.cat_max["fundamental"] += 1
                     if fast_buys > fast_sells:
                         result.cat_scores["fundamental"] += 0.5
-                        result.checklist.append({"Indikator": "🏛️ Kongress (Urgency)",
+                        result.checklist.append({"Indikator": "️ Kongress (Urgency)",
                             "Wert": f"{fast_buys} schnelle Käufe / {fast_sells} schnelle Verkäufe (<15T Lag)",
-                            "Signal": "Leicht bullisch ↑ (⚠️ Look-Ahead Bias Risiko bei Backtests)", "Beitrag": "+0.5"})
+                            "Signal": "Leicht bullisch ↑ (Look-Ahead Bias Risiko bei Backtests)", "Beitrag": "+0.5"})
                     elif fast_sells > fast_buys:
                         result.cat_scores["fundamental"] -= 0.5
-                        result.checklist.append({"Indikator": "🏛️ Kongress (Urgency)",
+                        result.checklist.append({"Indikator": "️ Kongress (Urgency)",
                             "Wert": f"{fast_buys} schnelle Käufe / {fast_sells} schnelle Verkäufe (<15T Lag)",
-                            "Signal": "Leicht bearisch ↓ (⚠️ Look-Ahead Bias Risiko bei Backtests)", "Beitrag": "-0.5"})
+                            "Signal": "Leicht bearisch ↓ (Look-Ahead Bias Risiko bei Backtests)", "Beitrag": "-0.5"})
                     else:
-                        result.checklist.append({"Indikator": "🏛️ Kongress (Urgency)",
+                        result.checklist.append({"Indikator": "️ Kongress (Urgency)",
                             "Wert": f"{fast_buys} K / {fast_sells} V (<15T Lag)",
                             "Signal": "Neutral ≈", "Beitrag": "0"})
                 else:
-                    result.checklist.append({"Indikator": "🏛️ Kongress",
+                    result.checklist.append({"Indikator": "️ Kongress",
                         "Wert": f"{len(congress_trades)} Trades (keine <15T)",
                         "Signal": "Kein Urgency-Signal", "Beitrag": "Info"})
 
@@ -513,15 +513,15 @@ def _score_fundamental(info, ticker, result: ScoreResult):
                 if coi_detected:
                     net_congress = fast_buys - fast_sells
                     if net_congress > 0:
-                        result.checklist.append({"Indikator": "🔴 Interessenkonflikt (COI)",
+                        result.checklist.append({"Indikator": "Interessenkonflikt (COI)",
                             "Wert": f"{coi_politician} sitzt im {coi_committee}-Ausschuss",
                             "Signal": f"Kauf trotz Aufsicht über {ticker_sector} ↑", "Beitrag": "Info"})
                     elif net_congress < 0:
-                        result.checklist.append({"Indikator": "🔴 Interessenkonflikt (COI)",
+                        result.checklist.append({"Indikator": "Interessenkonflikt (COI)",
                             "Wert": f"{coi_politician} sitzt im {coi_committee}-Ausschuss",
                             "Signal": f"Verkauf trotz Aufsicht über {ticker_sector} ↓", "Beitrag": "Info"})
                     else:
-                        result.checklist.append({"Indikator": "🔴 Interessenkonflikt (COI)",
+                        result.checklist.append({"Indikator": "Interessenkonflikt (COI)",
                             "Wert": f"{coi_politician} ({coi_committee})",
                             "Signal": "Erkannt — Netto neutral", "Beitrag": "Info"})
             except Exception as exc:
@@ -534,15 +534,15 @@ def _score_fundamental(info, ticker, result: ScoreResult):
             result.cat_max["fundamental"] += 1
             if inst_pct > 70:
                 result.cat_scores["fundamental"] += 0.5
-                result.checklist.append({"Indikator": "🏦 Institutioneller Anteil",
+                result.checklist.append({"Indikator": "Institutioneller Anteil",
                     "Wert": f"{inst_pct:.1f}%",
                     "Signal": "Hoher Smart-Money-Anteil ↑", "Beitrag": "+0.5"})
             elif inst_pct < 20:
-                result.checklist.append({"Indikator": "🏦 Institutioneller Anteil",
+                result.checklist.append({"Indikator": "Institutioneller Anteil",
                     "Wert": f"{inst_pct:.1f}%",
                     "Signal": "Niedrig (Micro-/Small-Cap typisch)", "Beitrag": "0"})
             else:
-                result.checklist.append({"Indikator": "🏦 Institutioneller Anteil",
+                result.checklist.append({"Indikator": "Institutioneller Anteil",
                     "Wert": f"{inst_pct:.1f}%",
                     "Signal": "Normal ≈", "Beitrag": "0"})
 
@@ -628,19 +628,19 @@ def _score_sentiment(ticker: str, result: ScoreResult):
     # +2 bis -2 Scoring für Sentiment (symmetrisch mit cat_max=2)
     if avg_c >= 0.15:
         score = 2
-        sig = "Stark Bullish 🔥"
+        sig = "Stark Bullish "
     elif avg_c >= 0.05:
         score = 1
-        sig = "Bullish 🟢"
+        sig = "Bullish "
     elif avg_c <= -0.15:
         score = -2
-        sig = "Stark Bearish 🧨"
+        sig = "Stark Bearish "
     elif avg_c <= -0.05:
         score = -1
-        sig = "Bearish 🔴"
+        sig = "Bearish "
     else:
         score = 0
-        sig = "Neutral ➖"
+        sig = "Neutral "
 
     result.cat_scores["sentiment"] += score
     result.checklist.append({"Indikator": "News Sentiment",
@@ -673,7 +673,7 @@ def _score_sentiment(ticker: str, result: ScoreResult):
                     result.checklist.append({
                         "Indikator": "Earnings Surprise",
                         "Wert": f"{latest.quarter}: {latest.surprise_pct:+.1f}%",
-                        "Signal": "Beat 🟢",
+                        "Signal": "Beat ",
                         "Beitrag": "+1"
                     })
                 elif latest.surprise_pct < -5.0:
@@ -682,7 +682,7 @@ def _score_sentiment(ticker: str, result: ScoreResult):
                     result.checklist.append({
                         "Indikator": "Earnings Surprise",
                         "Wert": f"{latest.quarter}: {latest.surprise_pct:+.1f}%",
-                        "Signal": "Miss 🔴",
+                        "Signal": "Miss ",
                         "Beitrag": "-1"
                     })
                 else:
@@ -690,7 +690,7 @@ def _score_sentiment(ticker: str, result: ScoreResult):
                     result.checklist.append({
                         "Indikator": "Earnings Surprise",
                         "Wert": f"{latest.quarter}: {latest.surprise_pct:+.1f}%",
-                        "Signal": "Inline ➖",
+                        "Signal": "Inline ",
                         "Beitrag": "0"
                     })
                     
@@ -729,7 +729,7 @@ def _finalize_score(result: ScoreResult):
     # Clamp weighted_score auf [-1, +1] (Sicherheit gegen Fließkomma-Drift)
     weighted_score = max(-1.0, min(1.0, weighted_score))
 
-    # 🧨 Contrarian-Logik: Euphorie-Falle!
+    #  Contrarian-Logik: Euphorie-Falle!
     # Operiert auf dem gewichteten Score VOR der Confidence-Umrechnung,
     # damit der Malus proportional zum Scoring-System wirkt.
     avg_c = result.signals.get("sentiment_avg", 0.0)
@@ -738,7 +738,7 @@ def _finalize_score(result: ScoreResult):
     if avg_c >= 0.15 and rsi_overbought:
         weighted_score -= 0.30  # ≈ 15% Confidence-Malus (0.30 auf [-1,+1] Skala)
         weighted_score = max(-1.0, weighted_score)
-        result.checklist.append({"Indikator": "Contrarian-Warnung 🧨",
+        result.checklist.append({"Indikator": "Contrarian-Warnung ",
                                  "Wert": "News extrem Bullish + RSI > 70",
                                  "Signal": "Euphorie-Falle", "Beitrag": "-15% Conf"})
 
@@ -748,19 +748,19 @@ def _finalize_score(result: ScoreResult):
     score = round(weighted_score * 10)
 
     if confidence >= 75:
-        score_label = "Starkes Kaufsignal 🟢"
+        score_label = "Starkes Kaufsignal "
         confidence_label = "Hohe Confidence"
     elif confidence >= 60:
-        score_label = "Kauftendenz ↗️"
+        score_label = "Kauftendenz ️"
         confidence_label = "Gute Confidence"
     elif confidence >= 45:
-        score_label = "Neutral ➖"
+        score_label = "Neutral "
         confidence_label = "Gemischte Signale"
     elif confidence >= 30:
-        score_label = "Verkaufstendenz ↘️"
+        score_label = "Verkaufstendenz ️"
         confidence_label = "Schwache Confidence"
     else:
-        score_label = "Starkes Verkaufssignal 🔴"
+        score_label = "Starkes Verkaufssignal "
         confidence_label = "Sehr Schwache Confidence"
 
     result.confidence = confidence
@@ -876,7 +876,7 @@ def generate_position_relevance(checklist: list, position_data: dict) -> list:
                 entry["Positionsrelevanz"] = "Position im neutralen Bereich — kein unmittelbarer Handlungsdruck."
 
         elif "MACD" in indicator:
-            if "Bullish" in entry.get("Signal", "") or "🟢" in entry.get("Signal", ""):
+            if "Bullish" in entry.get("Signal", "") or "" in entry.get("Signal", ""):
                 if in_profit:
                     entry["Positionsrelevanz"] = "Momentum unterstützt die Position — Gewinne laufen lassen."
                 else:
@@ -901,9 +901,9 @@ def generate_position_relevance(checklist: list, position_data: dict) -> list:
                 entry["Positionsrelevanz"] = "Erholungsversuch — Bestätigung abwarten vor Aufstockung."
 
         elif "OBV" in indicator:
-            if "Akkumulation" in entry.get("Signal", "") or "🟢" in entry.get("Signal", ""):
+            if "Akkumulation" in entry.get("Signal", "") or "" in entry.get("Signal", ""):
                 entry["Positionsrelevanz"] = "Institutionelle Käufe stützen die Position."
-            elif "Distribution" in entry.get("Signal", "") or "🔴" in entry.get("Signal", ""):
+            elif "Distribution" in entry.get("Signal", "") or "" in entry.get("Signal", ""):
                 entry["Positionsrelevanz"] = "Abfluss erkennbar — Smart Money verkauft. Position im Auge behalten."
             else:
                 entry["Positionsrelevanz"] = "Volumentrend neutral — kein Handlungssignal."

@@ -263,17 +263,17 @@ def generate_recommendation(
 
     # ── Mode Title Mapping ───────────────────────────────────────
     MODE_TITLES = {
-        RecommendationType.NORMAL_HOLD.value: "✅ Intakter Trend (Halten)",
-        RecommendationType.PROFIT_PROTECTION_MODE.value: "🛡️ Gewinne absichern",
-        RecommendationType.HOLD_WITH_TRAILING_STOP.value: "🛡️ Gewinne laufen lassen & absichern",
-        RecommendationType.TARGET_REACHED_REVIEW.value: "🎯 Kursziel erreicht (Handeln!)",
-        RecommendationType.EXIT_REVIEW.value: "🚨 Kritisch: Ausstieg prüfen",
-        RecommendationType.EXIT.value: "🚨 Kritisch: Ausstieg prüfen",
-        RecommendationType.LOSS_POSITION_REVIEW.value: "⚠️ Kritischer Verlust: These prüfen",
-        RecommendationType.THESIS_REVIEW.value: "🤔 Warnsignale: Investment-These prüfen",
-        RecommendationType.ADD_ALLOWED.value: "📈 Stärke ausbauen (Nachkaufen)",
-        RecommendationType.NO_ACTION_DATA_INSUFFICIENT.value: "⏸️ Daten unzureichend",
-        RecommendationType.HOLD_BUT_REDUCE_RISK.value: "⚠️ Halten, aber Risiko reduzieren",
+        RecommendationType.NORMAL_HOLD.value: "Intakter Trend (Halten)",
+        RecommendationType.PROFIT_PROTECTION_MODE.value: "Gewinne absichern",
+        RecommendationType.HOLD_WITH_TRAILING_STOP.value: "Gewinne laufen lassen & absichern",
+        RecommendationType.TARGET_REACHED_REVIEW.value: " Kursziel erreicht (Handeln!)",
+        RecommendationType.EXIT_REVIEW.value: "Kritisch: Ausstieg prüfen",
+        RecommendationType.EXIT.value: "Kritisch: Ausstieg prüfen",
+        RecommendationType.LOSS_POSITION_REVIEW.value: "Kritischer Verlust: These prüfen",
+        RecommendationType.THESIS_REVIEW.value: " Warnsignale: Investment-These prüfen",
+        RecommendationType.ADD_ALLOWED.value: "Stärke ausbauen (Nachkaufen)",
+        RecommendationType.NO_ACTION_DATA_INSUFFICIENT.value: "️ Daten unzureichend",
+        RecommendationType.HOLD_BUT_REDUCE_RISK.value: "Halten, aber Risiko reduzieren",
     }
     rec.mode_title = MODE_TITLES.get(
         rec.primary.value if hasattr(rec.primary, 'value') else str(rec.primary),

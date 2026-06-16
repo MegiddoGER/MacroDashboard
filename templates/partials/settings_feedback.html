@@ -1,7 +1,7 @@
 <!-- partials/settings_feedback.html — HTMX-Feedback nach dem Speichern -->
 {% if saved %}
 <div class="alert alert-success" style="margin-bottom:12px;">
-  ✅ Einstellungen gespeichert!<br>
+  Einstellungen gespeichert!<br>
   <span style="font-size: 0.9em;">
   {% if quiver_token_set %}Quiver API aktiv.{% else %}Quiver API inaktiv (Fallback aktiv).{% endif %}<br>
   {% if finnhub_token_set %}Finnhub API aktiv.{% else %}Finnhub API inaktiv (Fallback aktiv).{% endif %}
@@ -11,6 +11,6 @@
 
 {% if error %}
 <div class="alert alert-warning" style="margin-bottom:12px;">
-  ⚠️ {{ error }}
+  {{ error }}
 </div>
 {% endif %}

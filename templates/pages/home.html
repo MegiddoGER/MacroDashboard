@@ -3,7 +3,7 @@
 
 {% block content %}
 <div class="page-header">
-    <h2>🕹️ Cockpit</h2>
+    <h2>️ Cockpit</h2>
     <p class="caption">Dein High-Win-Rate Handelszentrum. Alle Systeme online.</p>
 </div>
 
@@ -184,7 +184,7 @@
 <!-- ═══════════════════════════════════════════════════════════
      1. System-Status
      ═══════════════════════════════════════════════════════════ -->
-<h4>⚡ System-Status</h4>
+<h4> System-Status</h4>
 
 <div class="grid-4">
     <!-- Portfolio-Wert -->
@@ -200,7 +200,7 @@
     <div class="metric-card">
         {% if unack_alerts %}
         <div class="metric-label">Signal-Wachhunde</div>
-        <div class="metric-value" style="color: var(--red);">🚨 {{ unack_alerts|length }} Alarme!</div>
+        <div class="metric-value" style="color: var(--red);">{{ unack_alerts|length }} Alarme!</div>
         {% else %}
         <div class="metric-label">Signal-Wachhunde</div>
         <div class="metric-value">{{ active_alerts|length }} aktiv</div>
@@ -239,7 +239,7 @@
 <!-- ═══════════════════════════════════════════════════════════
      2. Markt-Metriken (Fear & Greed + AI Hit-Rate)
      ═══════════════════════════════════════════════════════════ -->
-<h4>🌡️ Markt-Metriken</h4>
+<h4>️ Markt-Metriken</h4>
 
 <div class="grid-2">
     <!-- Fear & Greed -->
@@ -285,7 +285,7 @@
     <!-- AI Hit-Rate -->
     <div class="card">
         {% if hit_rate and hit_rate.total|default(0) > 0 %}
-        <h5>🎯 Maschinelle Signal-Trefferquote</h5>
+        <h5> Maschinelle Signal-Trefferquote</h5>
         <p class="caption">Wie gut performt unser Confidence-Score aktuell (90T)?</p>
         {% set evaluated = hit_rate.evaluated|default(0) %}
         {% if evaluated >= 5 %}
@@ -304,7 +304,7 @@
         <div class="alert alert-info">Sammle Daten: {{ evaluated }}/5 evaluierten Signalen.</div>
         {% endif %}
         {% else %}
-        <h5>🎯 Maschinelle Signal-Trefferquote</h5>
+        <h5> Maschinelle Signal-Trefferquote</h5>
         <div class="alert alert-info">Noch keine algorithmischen Signale gesammelt.</div>
         {% endif %}
     </div>
@@ -315,7 +315,7 @@
 <!-- ═══════════════════════════════════════════════════════════
      3. Watchlist Flow
      ═══════════════════════════════════════════════════════════ -->
-<h5>📋 Watchlist Flow</h5>
+<h5> Watchlist Flow</h5>
 
 {% if watchlist_df is not none %}
 <div class="table-container">
@@ -357,7 +357,7 @@
      ═══════════════════════════════════════════════════════════ -->
 <details style="margin-top: var(--gap); background: var(--bg-card); border-radius: var(--radius); border: 1px solid var(--border);">
     <summary style="padding: 16px; font-weight: 600; cursor: pointer; user-select: none;">
-        🗄️ Alert-Archiv (Historie)
+        ️ Alert-Archiv (Historie)
     </summary>
     <div style="padding: 16px; border-top: 1px solid var(--border);">
         {% if ach_alerts %}
@@ -385,7 +385,7 @@
         </div>
         <form hx-post="/home/clear_archive" hx-swap="none" style="margin-top: 16px;">
             <button type="submit" class="btn btn-outline" style="color: var(--red); border-color: var(--red);">
-                🗑️ Archiv leeren
+                ️ Archiv leeren
             </button>
         </form>
         {% else %}

@@ -2,13 +2,13 @@
 
 {% if not results %}
 <div class="card" style="text-align: center; padding: 32px;">
-    <div style="font-size: 2rem; margin-bottom: 8px;">⚠️</div>
+    <div style="font-size: 2rem; margin-bottom: 8px;"></div>
     <p>Keine Aktien gefunden, die den Filterkriterien entsprechen.</p>
 </div>
 {% else %}
 
 <!-- Statistik-Header -->
-<h4>📊 Ergebnisse ({{ stats.total }} Aktien)</h4>
+<h4>Ergebnisse ({{ stats.total }} Aktien)</h4>
 
 <div class="grid-4" style="margin-bottom: var(--gap);">
     <div class="metric-card">
@@ -40,7 +40,7 @@
                 <th>Ticker</th>
                 <th>Unternehmen</th>
                 <th>Sektor</th>
-                <th>Quick Score <span title="Basiert nur auf Technik/Oszillatoren" style="cursor:help">ℹ️</span></th>
+                <th>Quick Score <span title="Basiert nur auf Technik/Oszillatoren" style="cursor:help"></span></th>
                 <th>Signal</th>
                 <th>RSI</th>
                 <th>Kurs ({{ currency }})</th>
@@ -62,9 +62,9 @@
                 <td><span class="badge {{ r.signal_badge }}">{{ r.signal }}</span></td>
                 <td>{{ r.rsi_display }}</td>
                 <td>{{ r.price_display }}</td>
-                <td>{{ "✅" if r.trend_bullish else "❌" }}</td>
-                <td>{{ "✅" if r.macd_bullish else "❌" }}</td>
-                <td>{{ "✅" if r.obv_bullish else "❌" }}</td>
+                <td>{{ "" if r.trend_bullish else "" }}</td>
+                <td>{{ "" if r.macd_bullish else "" }}</td>
+                <td>{{ "" if r.obv_bullish else "" }}</td>
             </tr>
             {% endfor %}
         </tbody>
@@ -76,7 +76,7 @@
 <hr>
 <div class="grid-2" style="margin-top: var(--gap);">
     <div class="card">
-        <h5>🏆 Top 5 (hoechster Score)</h5>
+        <h5> Top 5 (hoechster Score)</h5>
         {% for r in top5 %}
         <div style="padding: 8px 0; border-bottom: 1px solid var(--border);">
             <strong>{{ loop.index }}. {{ r.emoji }} {{ r.ticker }}</strong> — {{ r.name }}<br>
@@ -90,7 +90,7 @@
     </div>
 
     <div class="card">
-        <h5>📉 Bottom 5 (niedrigster Score)</h5>
+        <h5>Bottom 5 (niedrigster Score)</h5>
         {% for r in bottom5 %}
         <div style="padding: 8px 0; border-bottom: 1px solid var(--border);">
             <strong>{{ loop.index }}. {{ r.emoji }} {{ r.ticker }}</strong> — {{ r.name }}<br>
@@ -108,12 +108,12 @@
 <!-- Footer -->
 <hr>
 <p class="caption">
-    💡 <strong>Tipp:</strong> Fuer eine vollstaendige Analyse mit Fundamentaldaten,
+    <strong>Tipp:</strong> Fuer eine vollstaendige Analyse mit Fundamentaldaten,
     SMC-Signalen und Handlungsempfehlung → wechsle zur <a href="/analysis">Analyse-Seite</a>
     und gib den gewuenschten Ticker ein.
 </p>
 <p class="caption">
-    ⚠️ Quick-Score basiert nur auf technischen Indikatoren (Trend,
+    Quick-Score basiert nur auf technischen Indikatoren (Trend,
     Volumen, Oszillatoren). Fundamentaldaten werden nicht beruecksichtigt.
     Ergebnisse sind keine Anlageberatung.
 </p>

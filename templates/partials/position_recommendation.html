@@ -31,7 +31,7 @@
   {% if not pa.validation.active_stop or not pa.validation.active_take_profit %}
   <div style="background-color:rgba(234, 179, 8, 0.1); border-left:4px solid var(--yellow); padding:12px 16px; margin-bottom:20px; border-radius:var(--radius-sm);">
     <h5 style="margin-bottom:8px; color:var(--yellow); display:flex; align-items:center; gap:8px;">
-      ⚠️ Risikomanagement inaktiv
+      Risikomanagement inaktiv
     </h5>
     <p style="color:var(--text-secondary); font-size:0.9rem; margin-bottom:12px;">
       Du hast für diese Position keinen aktiven Stop-Loss und/oder Take-Profit hinterlegt. Um dein Kapital zu schützen, schlägt dir das System folgendes "Perfektes Duo" vor:
@@ -56,7 +56,7 @@
   <div class="grid-2" style="gap:24px;">
     <!-- Left Column: Actions -->
     <div>
-      <h5 style="margin-bottom:12px;">🎯 Nächste Schritte</h5>
+      <h5 style="margin-bottom:12px;"> Nächste Schritte</h5>
       <ul style="padding-left:20px; margin-bottom:16px;">
         {% for act in pa.recommendation.next_actions %}
           <li style="margin-bottom:6px; color:var(--text); font-size:0.9rem;">{{ act }}</li>
@@ -67,7 +67,7 @@
       </ul>
 
       {% if pa.recommendation.forbidden_actions %}
-        <h5 style="margin-bottom:12px; color:var(--red);">⛔ Nicht Erlaubt (Systemregeln)</h5>
+        <h5 style="margin-bottom:12px; color:var(--red);"> Nicht Erlaubt (Systemregeln)</h5>
         <ul style="padding-left:20px; margin-bottom:16px;">
           {% for fact in pa.recommendation.forbidden_actions %}
             <li style="margin-bottom:6px; color:var(--red); font-size:0.9rem; font-weight:600;">{{ fact }}</li>
@@ -77,7 +77,7 @@
 
       <!-- Volume Modifier -->
       <div class="volume-modifier-wrap" style="margin-top:16px;">
-        <label>📐 Positionsgröße für Analyse anpassen:</label>
+        <label> Positionsgröße für Analyse anpassen:</label>
         <select id="volume-modifier-select"
                 hx-get="/api/analysis/position/recommendation"
                 hx-target="#position-recommendation-section"
@@ -94,12 +94,12 @@
 
     <!-- Right Column: Validation & Stop Proposals -->
     <div>
-      <h5 style="margin-bottom:12px;">🚦 Harte Validierungen</h5>
+      <h5 style="margin-bottom:12px;"> Harte Validierungen</h5>
       <div style="display:flex; flex-direction:column; gap:8px; margin-bottom:16px;">
         {% for entry in pa.audit_log %}
           <div style="display:flex; align-items:flex-start; gap:8px; background:var(--bg-app-mid); padding:8px 12px; border-radius:var(--radius-sm); border-left:3px solid {% if entry.severity.value == 'CRITICAL' %}var(--red){% elif entry.severity.value == 'HIGH' %}var(--yellow){% else %}var(--blue){% endif %};">
             <div style="font-size:1.1rem;">
-              {% if entry.severity.value == 'CRITICAL' %}🔴{% elif entry.severity.value == 'HIGH' %}🟡{% else %}🔵{% endif %}
+              {% if entry.severity.value == 'CRITICAL' %}{% elif entry.severity.value == 'HIGH' %}{% else %}{% endif %}
             </div>
             <div>
               <div style="font-size:0.85rem; font-weight:600; color:var(--text);">{{ entry.rule_id }}</div>
@@ -108,12 +108,12 @@
           </div>
         {% endfor %}
         {% if not pa.audit_log %}
-          <div style="font-size:0.85rem; color:var(--text-muted); padding:8px;">✅ Alle Validierungen bestanden.</div>
+          <div style="font-size:0.85rem; color:var(--text-muted); padding:8px;">Alle Validierungen bestanden.</div>
         {% endif %}
       </div>
 
       {% if pa.stop_proposals %}
-        <h5 style="margin-bottom:12px;">🛡️ Stop-Loss Vorschläge (Ratchet-geprüft)</h5>
+        <h5 style="margin-bottom:12px;">Stop-Loss Vorschläge (Ratchet-geprüft)</h5>
         <div class="table-container" style="max-height: 200px;">
           <table class="data-table">
             <thead>
@@ -192,7 +192,7 @@
 <!-- Volume Modifier -->
 <div style="margin-bottom:16px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
   <div class="volume-modifier-wrap">
-    <label>📐 Positionsgröße:</label>
+    <label> Positionsgröße:</label>
     <select id="volume-modifier-select"
             hx-get="/api/analysis/position/recommendation"
             hx-target="#position-recommendation-section"
@@ -209,22 +209,22 @@
 
 <!-- Begründung -->
 <div class="card" style="margin-bottom:12px;">
-  <h5>📌 Begründung</h5>
+  <h5> Begründung</h5>
   <ul style="margin:8px 0;padding-left:20px;list-style:none;">
     <li style="margin-bottom:8px;">
-      <b style="color:var(--blue);">📊 Technisch:</b>
+      <b style="color:var(--blue);">Technisch:</b>
       <span style="color:var(--text-secondary);font-size:0.88rem;">{{ rec.reasoning.technisch }}</span>
     </li>
     <li style="margin-bottom:8px;">
-      <b style="color:var(--green);">🏦 Fundamental:</b>
+      <b style="color:var(--green);">Fundamental:</b>
       <span style="color:var(--text-secondary);font-size:0.88rem;">{{ rec.reasoning.fundamental }}</span>
     </li>
     <li style="margin-bottom:8px;">
-      <b style="color:var(--purple);">📊 Position:</b>
+      <b style="color:var(--purple);">Position:</b>
       <span style="color:var(--text-secondary);font-size:0.88rem;">{{ rec.reasoning.positionsspezifisch }}</span>
     </li>
     <li>
-      <b style="color:var(--red);">⚠️ Risiken:</b>
+      <b style="color:var(--red);">Risiken:</b>
       <ul style="padding-left:16px;margin-top:4px;">
         {% for r in rec.reasoning.risikofaktoren %}
         <li style="color:var(--text-dim);font-size:0.82rem;margin-bottom:4px;">{{ r }}</li>
@@ -236,7 +236,7 @@
 
 <!-- Konkrete Handlungsschritte -->
 <div class="card" style="margin-bottom:12px;">
-  <h5>🎯 Handlungsschritte</h5>
+  <h5> Handlungsschritte</h5>
   <ol style="margin:8px 0;padding-left:24px;">
     {% for step in rec.steps %}
     <li style="color:var(--text-secondary);font-size:0.88rem;margin-bottom:6px;line-height:1.5;">{{ step }}</li>

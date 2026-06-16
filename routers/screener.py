@@ -26,14 +26,14 @@ def _get_header_metrics():
 
 def _score_emoji(confidence: float) -> str:
     if confidence >= 75:
-        return "🟢"
+        return ""
     elif confidence >= 60:
-        return "↗️"
+        return "️"
     elif confidence >= 45:
-        return "➖"
+        return ""
     elif confidence >= 30:
-        return "↘️"
-    return "🔴"
+        return "️"
+    return ""
 
 
 def _signal_type(confidence: float) -> str:

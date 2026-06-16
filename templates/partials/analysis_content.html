@@ -8,7 +8,7 @@
 {% if macro_events %}
 {% for ev in macro_events %}
 <div style="background:linear-gradient(90deg, rgba(234,179,8,0.13) 0%, rgba(15,23,42,0) 100%);border-left:4px solid #eab308;border-radius:6px;padding:10px 16px;margin-bottom:8px;">
-  <span style="font-size:0.9rem;">⚠️ <b>{{ ev.name }}</b> — {{ ev.countdown_label }}{% if ev.date %} ({{ ev.date.strftime('%d.%m.%Y') if ev.date is not string else ev.date }}){% endif %}</span>
+  <span style="font-size:0.9rem;"><b>{{ ev.name }}</b> — {{ ev.countdown_label }}{% if ev.date %} ({{ ev.date.strftime('%d.%m.%Y') if ev.date is not string else ev.date }}){% endif %}</span>
   {% if ev.description %}<br><span style="color:var(--text-dim);font-size:0.78rem;">{{ ev.description }}</span>{% endif %}
 </div>
 {% endfor %}
@@ -35,7 +35,7 @@
 </div>
 
 {% if stats.get('currency_converted') %}
-<div class="alert alert-info">💱 Originalwährung: <b>{{ stats.get('currency','USD') }}</b> — Umrechnungskurs: 1 {{ stats.get('currency','USD') }} = {{ "%.4f"|format(stats.get('fx_rate',0)) }} EUR</div>
+<div class="alert alert-info"> Originalwährung: <b>{{ stats.get('currency','USD') }}</b> — Umrechnungskurs: 1 {{ stats.get('currency','USD') }} = {{ "%.4f"|format(stats.get('fx_rate',0)) }} EUR</div>
 {% endif %}
 
 <hr>
@@ -43,14 +43,14 @@
 <!-- ═══ TABS: Charts ═══ -->
 <div>
   <div class="tabs" style="flex-wrap:wrap;">
-    <button class="tab active" data-tab="tab-candle">📊 Kurs</button>
-    <button class="tab" data-tab="tab-rsi">📉 RSI</button>
-    <button class="tab" data-tab="tab-macd">📀 MACD</button>
-    <button class="tab" data-tab="tab-boll">🌐 Bollinger</button>
-    <button class="tab" data-tab="tab-stoch">📈 Stochastic</button>
-    <button class="tab" data-tab="tab-returns">🎲 Renditen</button>
-    <button class="tab" data-tab="tab-5y">🗓️ 5 Jahre</button>
-    <button class="tab" data-tab="tab-corr">🔗 Korrelation</button>
+    <button class="tab active" data-tab="tab-candle">Kurs</button>
+    <button class="tab" data-tab="tab-rsi">RSI</button>
+    <button class="tab" data-tab="tab-macd"> MACD</button>
+    <button class="tab" data-tab="tab-boll"> Bollinger</button>
+    <button class="tab" data-tab="tab-stoch">Stochastic</button>
+    <button class="tab" data-tab="tab-returns"> Renditen</button>
+    <button class="tab" data-tab="tab-5y">️ 5 Jahre</button>
+    <button class="tab" data-tab="tab-corr"> Korrelation</button>
   </div>
 
   <div id="tab-candle" class="tab-content active">
@@ -75,8 +75,8 @@
     {% if charts.macd != "null" %}
     <div id="chart-macd" class="chart-container" style="height:400px;"></div>
     {% if macd_bullish is not none %}
-      {% if macd_bullish %}<div class="alert alert-success">✅ MACD über Signal → Bullish</div>
-      {% else %}<div class="alert alert-warning">⚠️ MACD unter Signal → Bearish</div>{% endif %}
+      {% if macd_bullish %}<div class="alert alert-success">MACD über Signal → Bullish</div>
+      {% else %}<div class="alert alert-warning">MACD unter Signal → Bearish</div>{% endif %}
     {% endif %}
     {% else %}<div class="alert alert-info">MACD nicht verfügbar.</div>{% endif %}
   </div>
@@ -133,13 +133,13 @@
 <hr>
 
 <!-- ═══ SMC / Swing / Order Flow ═══ -->
-<h4>🧲 Smart Money Concepts</h4>
+<h4> Smart Money Concepts</h4>
 <div>
   <div class="tabs">
-    <button class="tab active" data-tab="tab-liq">🔄 Liquidity</button>
-    <button class="tab" data-tab="tab-smc">🧲 SMC</button>
-    <button class="tab" data-tab="tab-swing">📈 Swing</button>
-    <button class="tab" data-tab="tab-flow">📊 Order Flow</button>
+    <button class="tab active" data-tab="tab-liq"> Liquidity</button>
+    <button class="tab" data-tab="tab-smc"> SMC</button>
+    <button class="tab" data-tab="tab-swing">Swing</button>
+    <button class="tab" data-tab="tab-flow">Order Flow</button>
   </div>
 
   <div id="tab-liq" class="tab-content active">
@@ -147,8 +147,8 @@
     <div id="chart-liq" class="chart-container" style="height:450px;"></div>
     <div class="grid-3" style="gap:12px;margin-top:12px;">
       <div class="metric-card"><div class="metric-label">Erkannte Sweeps</div><div class="metric-value">{{ sweeps|length }}</div></div>
-      <div class="metric-card"><div class="metric-label">🟢 Bullish</div><div class="metric-value">{{ sweeps|selectattr('type','equalto','bullish')|list|length }}</div></div>
-      <div class="metric-card"><div class="metric-label">🔴 Bearish</div><div class="metric-value">{{ sweeps|selectattr('type','equalto','bearish')|list|length }}</div></div>
+      <div class="metric-card"><div class="metric-label">Bullish</div><div class="metric-value">{{ sweeps|selectattr('type','equalto','bullish')|list|length }}</div></div>
+      <div class="metric-card"><div class="metric-label">Bearish</div><div class="metric-value">{{ sweeps|selectattr('type','equalto','bearish')|list|length }}</div></div>
     </div>
     {% else %}<div class="alert alert-info">Keine Liquidity Sweeps erkannt.</div>{% endif %}
   </div>
@@ -199,7 +199,7 @@
 
 <!-- ═══ Financials ═══ -->
 {% if fin_data %}
-<h4>📄 Gemeldete Finanzzahlen</h4>
+<h4> Gemeldete Finanzzahlen</h4>
 {% if charts.financials != "null" %}
 <div id="chart-fin" class="chart-container" style="height:400px;"></div>
 {% endif %}
@@ -222,7 +222,7 @@
 {% endif %}
 
 <!-- ═══ Valuation: DCF, Bilanz, Margen ═══ -->
-<h4>💰 Innerer Wert (DCF)</h4>
+<h4>Innerer Wert (DCF)</h4>
 {% if dcf %}
 <div class="grid-4" style="gap:12px;margin-bottom:12px;">
   <div class="metric-card"><div class="metric-label">Fair Value</div><div class="metric-value">{{ fmt_price(dcf.fair_value) }}</div></div>
@@ -230,13 +230,13 @@
   <div class="metric-card"><div class="metric-label">Upside</div><div class="metric-value {% if dcf.upside_pct > 0 %}positive{% else %}negative{% endif %}">{{ "%+.1f %%"|format(dcf.upside_pct) }}</div></div>
   <div class="metric-card"><div class="metric-label">WACC</div><div class="metric-value">{{ "%.1f %%"|format(dcf.wacc) }} <span style="font-size:0.75rem;font-weight:normal;color:var(--text-dim);">EK {{ "%.0f"|format(dcf.equity_weight) }}%</span></div></div>
 </div>
-{% if dcf.is_proxy_fcf %}<div class="alert alert-warning" style="margin-bottom:12px;">⚠️ <b>Growth-Modell:</b> FCF ist negativ. Fair Value wurde mit proxyhafter 10% FCF-Marge (basierend auf Umsatz) modelliert.</div>{% endif %}
-{% if dcf.margin_of_safety %}<div class="alert alert-success">✅ Margin of Safety vorhanden ({{ "%+.1f"|format(dcf.upside_pct) }}%)</div>
+{% if dcf.is_proxy_fcf %}<div class="alert alert-warning" style="margin-bottom:12px;"><b>Growth-Modell:</b> FCF ist negativ. Fair Value wurde mit proxyhafter 10% FCF-Marge (basierend auf Umsatz) modelliert.</div>{% endif %}
+{% if dcf.margin_of_safety %}<div class="alert alert-success">Margin of Safety vorhanden ({{ "%+.1f"|format(dcf.upside_pct) }}%)</div>
 {% elif dcf.upside_pct > 0 %}<div class="alert alert-info">Leichtes Upside ({{ "%+.1f"|format(dcf.upside_pct) }}%)</div>
-{% else %}<div class="alert alert-warning">⚠️ Überbewertet ({{ "%+.1f"|format(dcf.upside_pct) }}% vs. DCF)</div>{% endif %}
+{% else %}<div class="alert alert-warning">Überbewertet ({{ "%+.1f"|format(dcf.upside_pct) }}% vs. DCF)</div>{% endif %}
 {% else %}<div class="alert alert-info">DCF nicht berechenbar (fehlende Daten).</div>{% endif %}
 
-<h4>🏦 Bilanzqualität</h4>
+<h4>Bilanzqualität</h4>
 {% if balance %}
 <div class="grid-4" style="gap:12px;margin-bottom:12px;">
   <div class="metric-card"><div class="metric-label">Debt/Equity</div><div class="metric-value">{{ "%.1f %%"|format(balance.debt_to_equity) if balance.debt_to_equity else "—" }}</div></div>
@@ -244,18 +244,18 @@
   <div class="metric-card"><div class="metric-label">Net Debt/EBITDA</div><div class="metric-value">{{ "%.1fx"|format(balance.net_debt_ebitda) if balance.net_debt_ebitda is not none else "—" }}</div></div>
   <div class="metric-card"><div class="metric-label">Cash</div><div class="metric-value">{{ fmt_big(balance.total_cash) }}</div></div>
 </div>
-{% for w in balance.get('warnings',[]) %}<div class="alert alert-warning">⚠️ {{ w }}</div>{% endfor %}
+{% for w in balance.get('warnings',[]) %}<div class="alert alert-warning">{{ w }}</div>{% endfor %}
 {% else %}<div class="alert alert-info">Bilanzdaten nicht verfügbar.</div>{% endif %}
 
 {% if margins_chart != "null" %}
-<h4>📈 Margen-Trends</h4>
+<h4>Margen-Trends</h4>
 <div id="chart-margins" class="chart-container" style="height:350px;"></div>
 {% endif %}
 
 {% if margins %}
 {% set fcf_entries = margins|selectattr('fcf')|list %}
 {% if fcf_entries %}
-<h5 style="margin-top:16px;">💵 Free Cashflow pro Jahr</h5>
+<h5 style="margin-top:16px;"> Free Cashflow pro Jahr</h5>
 <div class="table-container">
   <table class="data-table">
     <thead><tr><th>Jahr</th><th>Free Cashflow</th></tr></thead>
@@ -276,13 +276,13 @@
 
 <!-- ═══ Fundamentals: Peers, Dividende, Insider, Analyst ═══ -->
 {% if peers_html %}
-<h4>🏭 Peer-Vergleich</h4>
+<h4> Peer-Vergleich</h4>
 <div class="table-container">{{ peers_html|safe }}</div>
 <hr>
 {% endif %}
 
 {% if div_data and div_data.get('has_dividends') %}
-<h4>💎 Dividende</h4>
+<h4> Dividende</h4>
 <div class="grid-4" style="gap:12px;margin-bottom:12px;">
   <div class="metric-card"><div class="metric-label">Rendite</div><div class="metric-value">{{ "%.2f %%"|format(div_data.current_yield) }}</div></div>
   <div class="metric-card"><div class="metric-label">Payout Ratio</div><div class="metric-value">{{ "%.1f %%"|format(div_data.payout_ratio) }}</div></div>
@@ -296,21 +296,21 @@
 {% endif %}
 
 {% if insider %}
-<h4>👔 Insider & Institutionelle
+<h4> Insider & Institutionelle
   {% if insider.get('data_source') == 'yfinance+kadoa' or insider.get('kadoa_queried') %}
-  <span class="source-badge source-badge-quiver">⚡ yfinance + Kadoa</span>
+  <span class="source-badge source-badge-quiver"> yfinance + Kadoa</span>
   {% elif insider.get('data_source') == 'quiver' %}
-  <span class="source-badge source-badge-quiver">⚡ Quiver</span>
+  <span class="source-badge source-badge-quiver"> Quiver</span>
   {% elif insider.get('data_source') == 'yfinance' %}
-  <span class="source-badge source-badge-yfinance">📊 yfinance</span>
+  <span class="source-badge source-badge-yfinance">yfinance</span>
   {% endif %}
 </h4>
 <div>
   <div class="tabs" style="flex-wrap:wrap;">
-    <button class="tab active" data-tab="tab-insider-overview">📊 Übersicht</button>
-    {% if insider.has_institutional_data or insider.get('has_quiver_institutional') %}<button class="tab" data-tab="tab-institutional-v2">🏦 Institutionen</button>{% endif %}
-    {% if insider.get('has_congress_data') or insider.get('kadoa_queried') %}<button class="tab" data-tab="tab-congress">🏛️ Kongress</button>{% endif %}
-    {% if insider.has_insider_data or insider.get('has_quiver_insider') %}<button class="tab" data-tab="tab-corp-insider">👔 Corporate Insider</button>{% endif %}
+    <button class="tab active" data-tab="tab-insider-overview">Übersicht</button>
+    {% if insider.has_institutional_data or insider.get('has_quiver_institutional') %}<button class="tab" data-tab="tab-institutional-v2">Institutionen</button>{% endif %}
+    {% if insider.get('has_congress_data') or insider.get('kadoa_queried') %}<button class="tab" data-tab="tab-congress">️ Kongress</button>{% endif %}
+    {% if insider.has_insider_data or insider.get('has_quiver_insider') %}<button class="tab" data-tab="tab-corp-insider"> Corporate Insider</button>{% endif %}
   </div>
 
   <!-- ═══ Tab: Übersicht ═══ -->
@@ -326,12 +326,12 @@
     {% set sell_pct = 100 - buy_pct %}
     <h5 style="margin-bottom:8px;">Netto-Sentiment (90 Tage)</h5>
     <div class="sentiment-bar-container">
-      <span class="sentiment-label" style="color:var(--green);">🟢 {{ buy_count }} Käufe</span>
+      <span class="sentiment-label" style="color:var(--green);">{{ buy_count }} Käufe</span>
       <div class="sentiment-bar">
         {% if buy_pct > 0 %}<div class="sentiment-bar-buy" style="width:{{ buy_pct }}%;">{{ buy_pct }}%</div>{% endif %}
         {% if sell_pct > 0 %}<div class="sentiment-bar-sell" style="width:{{ sell_pct }}%;">{{ sell_pct }}%</div>{% endif %}
       </div>
-      <span class="sentiment-label" style="color:var(--red);">{{ sell_count }} Verkäufe 🔴</span>
+      <span class="sentiment-label" style="color:var(--red);">{{ sell_count }} Verkäufe </span>
     </div>
     {% endif %}
 
@@ -345,9 +345,9 @@
     </div>
 
     {% if buy_count > sell_count and insider.net_shares > 0 %}
-    <div class="alert alert-success">✅ Netto-Käufe: Insider kaufen mehr als sie verkaufen.</div>
+    <div class="alert alert-success">Netto-Käufe: Insider kaufen mehr als sie verkaufen.</div>
     {% elif sell_count > buy_count and insider.net_shares < 0 %}
-    <div class="alert alert-warning">⚠️ Netto-Verkäufe durch Insider.</div>
+    <div class="alert alert-warning">Netto-Verkäufe durch Insider.</div>
     {% endif %}
     {% else %}
     <div class="alert alert-info">Keine aggregierten Insider-Daten verfügbar.</div>
@@ -379,7 +379,7 @@
 
     {% if insider.get('has_quiver_institutional') and insider.quiver_institutional %}
     <!-- Quiver: Vollständige institutionelle Tabelle mit Suche + Sortierung -->
-    <input type="text" class="table-search" id="inst-search" placeholder="🔍 Institution suchen..." oninput="filterInstTable()">
+    <input type="text" class="table-search" id="inst-search" placeholder="Institution suchen..." oninput="filterInstTable()">
     <div class="table-container" style="max-height:500px;overflow-y:auto;">
       <table class="data-table" id="inst-table">
         <thead>
@@ -422,14 +422,14 @@
   <!-- ═══ Tab: Kongress ═══ -->
   {% if insider.get('has_congress_data') %}
   <div id="tab-congress" class="tab-content">
-    <h5>🏛️ Kongress-Trades</h5>
+    <h5>️ Kongress-Trades</h5>
     <p class="caption">Aktienhandel durch Mitglieder des US-Kongresses. Disclosure-Lag: Zeitspanne zwischen Handelsdatum und Veröffentlichung.</p>
 
     <!-- Filter -->
     <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;">
       <button class="btn btn-sm btn-secondary congress-filter active" data-filter="all" onclick="filterCongress('all',this)">Alle</button>
-      <button class="btn btn-sm btn-secondary congress-filter" data-filter="purchase" onclick="filterCongress('purchase',this)">🟢 Käufe</button>
-      <button class="btn btn-sm btn-secondary congress-filter" data-filter="sale" onclick="filterCongress('sale',this)">🔴 Verkäufe</button>
+      <button class="btn btn-sm btn-secondary congress-filter" data-filter="purchase" onclick="filterCongress('purchase',this)">Käufe</button>
+      <button class="btn btn-sm btn-secondary congress-filter" data-filter="sale" onclick="filterCongress('sale',this)">Verkäufe</button>
     </div>
 
     <div class="table-container" style="max-height:500px;overflow-y:auto;">
@@ -472,7 +472,7 @@
             <td>
               {% if t.disclosure_lag is not none %}
                 {% if t.disclosure_lag < 15 %}
-                <span class="lag-badge lag-badge-fast">{{ t.disclosure_lag }}T ⚡</span>
+                <span class="lag-badge lag-badge-fast">{{ t.disclosure_lag }}T </span>
                 {% else %}
                 <span class="lag-badge lag-badge-normal">{{ t.disclosure_lag }}T</span>
                 {% endif %}
@@ -483,12 +483,12 @@
         </tbody>
       </table>
     </div>
-    <p class="caption" style="margin-top:6px;">⚠️ Kongress-Trades haben einen gesetzlichen Disclosure-Lag von bis zu 45 Tagen.</p>
+    <p class="caption" style="margin-top:6px;">Kongress-Trades haben einen gesetzlichen Disclosure-Lag von bis zu 45 Tagen.</p>
   </div>
   {% elif insider.get('kadoa_queried') %}
   <!-- Kadoa wurde abgefragt, aber keine Trades für diesen Ticker -->
   <div id="tab-congress" class="tab-content">
-    <h5>🏛️ Kongress-Trades</h5>
+    <h5>️ Kongress-Trades</h5>
     <div class="alert alert-info">Keine Kongress-Trades für diesen Ticker in den letzten 12 Monaten gefunden. Die Kadoa-Datenquelle wurde erfolgreich abgefragt.</div>
     <p class="caption">Datenquelle: Kadoa Congress Trading Monitor (basierend auf STOCK Act Disclosures). Nur US-Kongressmitglieder werden erfasst.</p>
   </div>
@@ -620,7 +620,7 @@ function filterCongress(type, btn) {
 
 
 {% if analyst and analyst.get('target_mean') %}
-<h4>🎯 Analysten-Konsens</h4>
+<h4> Analysten-Konsens</h4>
 <div class="grid-4" style="gap:12px;margin-bottom:12px;">
   <div class="metric-card"><div class="metric-label">Kursziel</div><div class="metric-value">{{ fmt_price(analyst.target_mean) }}</div></div>
   <div class="metric-card"><div class="metric-label">Spanne</div><div class="metric-value">{{ fmt_price(analyst.target_low) }} — {{ fmt_price(analyst.target_high) }}</div></div>
@@ -647,9 +647,9 @@ function filterCongress(type, btn) {
   <div class="metric-card"><div class="metric-label">Buchwert / Aktie</div><div class="metric-value">{{ "%.2f €"|format(qr.book_value) }}</div></div>
 </div>
 {% if qr.is_undervalued %}
-<div class="alert alert-success">✅ ROE > Eigenkapitalkosten → Wertschöpfend (Excess Return: {{ "%+.1f"|format(qr.excess_return_margin * 100) }}%)</div>
+<div class="alert alert-success">ROE > Eigenkapitalkosten → Wertschöpfend (Excess Return: {{ "%+.1f"|format(qr.excess_return_margin * 100) }}%)</div>
 {% else %}
-<div class="alert alert-warning">⚠️ ROE < Eigenkapitalkosten → Wertvernichtend</div>
+<div class="alert alert-warning">ROE < Eigenkapitalkosten → Wertvernichtend</div>
 {% endif %}
 
 {% elif sc == "tech" %}
@@ -659,9 +659,9 @@ function filterCongress(type, btn) {
   <div class="metric-card"><div class="metric-label">Rule of 40 Score</div><div class="metric-value {% if qr.rule_of_40_score >= 40 %}positive{% else %}negative{% endif %}">{{ "%.0f"|format(qr.rule_of_40_score) }}</div></div>
 </div>
 {% if qr.is_healthy %}
-<div class="alert alert-success">✅ Rule of 40 erfüllt ({{ "%.0f"|format(qr.rule_of_40_score) }} ≥ 40) — gesunde Balance aus Wachstum und Profitabilität</div>
+<div class="alert alert-success">Rule of 40 erfüllt ({{ "%.0f"|format(qr.rule_of_40_score) }} ≥ 40) — gesunde Balance aus Wachstum und Profitabilität</div>
 {% else %}
-<div class="alert alert-warning">⚠️ Rule of 40 nicht erfüllt ({{ "%.0f"|format(qr.rule_of_40_score) }} < 40)</div>
+<div class="alert alert-warning">Rule of 40 nicht erfüllt ({{ "%.0f"|format(qr.rule_of_40_score) }} < 40)</div>
 {% endif %}
 
 {% elif sc == "hardware" %}
@@ -671,9 +671,9 @@ function filterCongress(type, btn) {
   <div class="metric-card"><div class="metric-label">Inventory Turnover</div><div class="metric-value">{{ "%.1f"|format(qr.inventory_turnover) }}</div></div>
 </div>
 {% if qr.is_value_trap_warning %}
-<div class="alert alert-warning">⚠️ Mögliche Value Trap: Niedriges EV/EBITDA ({{ "%.1f"|format(qr.ev_ebitda) }}) + hohes P/B ({{ "%.1f"|format(qr.price_to_book) }}) — Earnings möglicherweise am Zyklus-Peak</div>
+<div class="alert alert-warning">Mögliche Value Trap: Niedriges EV/EBITDA ({{ "%.1f"|format(qr.ev_ebitda) }}) + hohes P/B ({{ "%.1f"|format(qr.price_to_book) }}) — Earnings möglicherweise am Zyklus-Peak</div>
 {% else %}
-<div class="alert alert-info">ℹ️ Zyklik-Check: EV/EBITDA {{ "%.1f"|format(qr.ev_ebitda) }}, P/B {{ "%.1f"|format(qr.price_to_book) }}</div>
+<div class="alert alert-info">Zyklik-Check: EV/EBITDA {{ "%.1f"|format(qr.ev_ebitda) }}, P/B {{ "%.1f"|format(qr.price_to_book) }}</div>
 {% endif %}
 
 {% elif sc == "pharma" %}
@@ -682,7 +682,7 @@ function filterCongress(type, btn) {
   <div class="metric-card"><div class="metric-label">EV/Sales</div><div class="metric-value">{{ "%.1f"|format(qr.ev_to_sales) }}</div></div>
   <div class="metric-card"><div class="metric-label">Revenue</div><div class="metric-value">{{ fmt_big(qr.revenue) }}</div></div>
 </div>
-<div class="alert alert-info">ℹ️ rNPV-Modell benötigt Pipeline-Daten (Phase I/II/III Erfolgsraten) — Proxy: EV/Sales {{ "%.1f"|format(qr.ev_to_sales) }}</div>
+<div class="alert alert-info">rNPV-Modell benötigt Pipeline-Daten (Phase I/II/III Erfolgsraten) — Proxy: EV/Sales {{ "%.1f"|format(qr.ev_to_sales) }}</div>
 
 {% elif sc == "energie" %}
 <div class="grid-3" style="gap:12px;margin-bottom:12px;">
@@ -691,23 +691,23 @@ function filterCongress(type, btn) {
   <div class="metric-card"><div class="metric-label">EV/OCF</div><div class="metric-value">{{ "%.1f"|format(qr.ev_to_ocf) }}</div></div>
 </div>
 {% if qr.is_attractive %}
-<div class="alert alert-success">✅ EV/OCF < 8 → Attraktive Cashflow-Bewertung</div>
+<div class="alert alert-success">EV/OCF < 8 → Attraktive Cashflow-Bewertung</div>
 {% else %}
-<div class="alert alert-info">ℹ️ EV/OCF {{ "%.1f"|format(qr.ev_to_ocf) }} — Reserven-Daten für vollständige DACF-Analyse nicht verfügbar</div>
+<div class="alert alert-info">EV/OCF {{ "%.1f"|format(qr.ev_to_ocf) }} — Reserven-Daten für vollständige DACF-Analyse nicht verfügbar</div>
 {% endif %}
 
 {% elif sc == "telekom" %}
 <div class="grid-3" style="gap:12px;margin-bottom:12px;">
   <div class="metric-card"><div class="metric-label">EV/EBITDA</div><div class="metric-value">{{ "%.1f"|format(qr.ev_ebitda) }}</div></div>
   <div class="metric-card"><div class="metric-label">Dividendenrendite</div><div class="metric-value">{{ "%.1f %%"|format(qr.dividend_yield * 100) }}</div></div>
-  <div class="metric-card"><div class="metric-label">Cash Cow?</div><div class="metric-value">{{ "✅ Ja" if qr.is_cash_cow else "❌ Nein" }}</div></div>
+  <div class="metric-card"><div class="metric-label">Cash Cow?</div><div class="metric-value">{{ "Ja" if qr.is_cash_cow else "Nein" }}</div></div>
 </div>
 
 {% elif sc == "defense" %}
 <div class="grid-3" style="gap:12px;margin-bottom:12px;">
   <div class="metric-card"><div class="metric-label">EV/EBITDA</div><div class="metric-value">{{ "%.1f"|format(qr.ev_ebitda) }}</div></div>
   <div class="metric-card"><div class="metric-label">Operating Margin</div><div class="metric-value">{{ "%.1f %%"|format(qr.operating_margin * 100) }}</div></div>
-  <div class="metric-card"><div class="metric-label">Hochprofitabel?</div><div class="metric-value">{{ "✅ Ja" if qr.is_highly_profitable else "❌ Nein" }}</div></div>
+  <div class="metric-card"><div class="metric-label">Hochprofitabel?</div><div class="metric-value">{{ "Ja" if qr.is_highly_profitable else "Nein" }}</div></div>
 </div>
 
 {% elif sc == "auto" %}
@@ -717,7 +717,7 @@ function filterCongress(type, btn) {
   <div class="metric-card"><div class="metric-label">ROIC (Proxy)</div><div class="metric-value">{{ "%.1f %%"|format(qr.roa_proxy_roic * 100) }}</div></div>
 </div>
 {% if qr.is_efficient_allocator %}
-<div class="alert alert-success">✅ Effizienter Kapitalallokator</div>
+<div class="alert alert-success">Effizienter Kapitalallokator</div>
 {% endif %}
 
 {% elif sc == "maschinenbau" %}
@@ -727,7 +727,7 @@ function filterCongress(type, btn) {
   <div class="metric-card"><div class="metric-label">ROA</div><div class="metric-value">{{ "%.1f %%"|format(qr.roa * 100) }}</div></div>
 </div>
 {% if qr.is_value_trap_warning %}
-<div class="alert alert-warning">⚠️ Mögliche Value Trap: Niedrige Bewertung, aber hohes P/B</div>
+<div class="alert alert-warning">Mögliche Value Trap: Niedrige Bewertung, aber hohes P/B</div>
 {% endif %}
 
 {% elif sc == "logistik" %}
@@ -741,11 +741,11 @@ function filterCongress(type, btn) {
 <div class="grid-3" style="gap:12px;margin-bottom:12px;">
   <div class="metric-card"><div class="metric-label">Dividendenrendite</div><div class="metric-value">{{ "%.1f %%"|format(qr.dividend_yield * 100) }}</div></div>
   <div class="metric-card"><div class="metric-label">Price/Book</div><div class="metric-value">{{ "%.1f"|format(qr.price_to_book) }}</div></div>
-  <div class="metric-card"><div class="metric-label">Unterbewertet?</div><div class="metric-value">{{ "✅ Ja" if qr.is_undervalued_soe else "❌ Nein" }}</div></div>
+  <div class="metric-card"><div class="metric-label">Unterbewertet?</div><div class="metric-value">{{ "Ja" if qr.is_undervalued_soe else "Nein" }}</div></div>
 </div>
 
 {% else %}
-<div class="alert alert-info">ℹ️ Sektorspezifische Quant-Daten verfügbar (Kategorie: {{ sc }}).</div>
+<div class="alert alert-info">Sektorspezifische Quant-Daten verfügbar (Kategorie: {{ sc }}).</div>
 {% endif %}
 <hr>
 {% endif %}
@@ -753,7 +753,7 @@ function filterCongress(type, btn) {
 <!-- ═══ Options Analysis ═══ -->
 {% if opts %}
 <hr>
-<h4>📋 Options-Analyse</h4>
+<h4> Options-Analyse</h4>
 <div class="grid-4" style="gap:12px;margin-bottom:12px;">
   <div class="metric-card"><div class="metric-label">Put/Call Ratio</div><div class="metric-value">{{ "%.2f"|format(opts.put_call_ratio) if opts.put_call_ratio else "—" }}</div>
     <div class="metric-delta {{ 'positive' if opts.put_call_ratio and opts.put_call_ratio < 0.7 else ('negative' if opts.put_call_ratio and opts.put_call_ratio > 1.2 else 'neutral') }}">
@@ -767,7 +767,7 @@ function filterCongress(type, btn) {
 {% if opts.top_call_strikes or opts.top_put_strikes %}
 <div class="grid-2" style="gap:12px;margin-top:12px;">
   <div>
-    <h5>🟢 Top Calls (Resistance)</h5>
+    <h5>Top Calls (Resistance)</h5>
     {% if opts.top_call_strikes %}
     {% for s in opts.top_call_strikes %}
     <div style="background:var(--bg-card);padding:6px 12px;border-radius:6px;border-left:3px solid #22c55e;margin-bottom:4px;font-size:0.85rem;">
@@ -777,7 +777,7 @@ function filterCongress(type, btn) {
     {% else %}<p class="caption">Keine Call-OI-Daten.</p>{% endif %}
   </div>
   <div>
-    <h5>🔴 Top Puts (Support)</h5>
+    <h5>Top Puts (Support)</h5>
     {% if opts.top_put_strikes %}
     {% for s in opts.top_put_strikes %}
     <div style="background:var(--bg-card);padding:6px 12px;border-radius:6px;border-left:3px solid #ef4444;margin-bottom:4px;font-size:0.85rem;">
@@ -790,12 +790,12 @@ function filterCongress(type, btn) {
 {% endif %}
 
 {% if opts.unusual_calls or opts.unusual_puts %}
-<h5 style="margin-top:16px;">🔥 Ungewöhnliche Options-Aktivität</h5>
+<h5 style="margin-top:16px;"> Ungewöhnliche Options-Aktivität</h5>
 <p class="caption">Strikes mit Volume > 5× Open Interest — mögliche Block-Trades oder institutionelle Positionierung.</p>
 <div class="grid-2" style="gap:12px;margin-top:8px;">
   <div>
     {% if opts.unusual_calls %}
-    <h6 style="color:#22c55e;margin-bottom:6px;">🟢 Unusual Calls</h6>
+    <h6 style="color:#22c55e;margin-bottom:6px;">Unusual Calls</h6>
     {% for u in opts.unusual_calls %}
     <div style="background:var(--bg-card);padding:8px 12px;border-radius:6px;border-left:3px solid #22c55e;margin-bottom:4px;font-size:0.82rem;">
       <b>${{ "{:,.0f}".format(u.strike) }}</b>
@@ -810,7 +810,7 @@ function filterCongress(type, btn) {
   </div>
   <div>
     {% if opts.unusual_puts %}
-    <h6 style="color:#ef4444;margin-bottom:6px;">🔴 Unusual Puts</h6>
+    <h6 style="color:#ef4444;margin-bottom:6px;">Unusual Puts</h6>
     {% for u in opts.unusual_puts %}
     <div style="background:var(--bg-card);padding:8px 12px;border-radius:6px;border-left:3px solid #ef4444;margin-bottom:4px;font-size:0.82rem;">
       <b>${{ "{:,.0f}".format(u.strike) }}</b>
@@ -832,26 +832,26 @@ function filterCongress(type, btn) {
 <!-- ═══ Earnings Profile ═══ -->
 {% if earnings_profile and earnings_profile.events %}
 <hr>
-<h4>📊 Earnings Profile</h4>
+<h4>Earnings Profile</h4>
 <p class="caption">EPS Surprise Tracking — Beat/Miss/Inline + Post-Earnings-Drift über die letzten Quartale.</p>
 
 {% if earnings_profile.next_earnings_date %}
-<div class="alert alert-info">📅 Nächste Quartalszahlen: <b>{{ earnings_profile.next_earnings_date.strftime('%d.%m.%Y') if earnings_profile.next_earnings_date.strftime is defined else earnings_profile.next_earnings_date }}</b></div>
+<div class="alert alert-info"> Nächste Quartalszahlen: <b>{{ earnings_profile.next_earnings_date.strftime('%d.%m.%Y') if earnings_profile.next_earnings_date.strftime is defined else earnings_profile.next_earnings_date }}</b></div>
 {% endif %}
 
 <div class="grid-5" style="gap:8px;margin-bottom:var(--gap);">
   <div class="metric-card"><div class="metric-label">Quartale</div><div class="metric-value">{{ earnings_profile.total_quarters }}</div></div>
-  <div class="metric-card"><div class="metric-label">Beats 🟢</div><div class="metric-value">{{ earnings_profile.beats }}</div><div class="metric-delta neutral">{{ "%.0f"|format(earnings_profile.beat_rate) }}%</div></div>
-  <div class="metric-card"><div class="metric-label">Misses 🔴</div><div class="metric-value">{{ earnings_profile.misses }}</div></div>
+  <div class="metric-card"><div class="metric-label">Beats </div><div class="metric-value">{{ earnings_profile.beats }}</div><div class="metric-delta neutral">{{ "%.0f"|format(earnings_profile.beat_rate) }}%</div></div>
+  <div class="metric-card"><div class="metric-label">Misses </div><div class="metric-value">{{ earnings_profile.misses }}</div></div>
   <div class="metric-card"><div class="metric-label">Ø Surprise</div><div class="metric-value">{{ "%+.1f"|format(earnings_profile.avg_surprise_pct) }}%</div></div>
   <div class="metric-card"><div class="metric-label">Ø Drift (1T)</div><div class="metric-value">{{ "%+.2f"|format(earnings_profile.avg_drift_1d) }}%</div></div>
 </div>
 
 <div>
   <div class="tabs">
-    <button class="tab active" data-tab="tab-eps-chart">📊 EPS Chart</button>
-    <button class="tab" data-tab="tab-drift">📈 Post-Earnings Drift</button>
-    <button class="tab" data-tab="tab-earnings-history">📋 Historie</button>
+    <button class="tab active" data-tab="tab-eps-chart">EPS Chart</button>
+    <button class="tab" data-tab="tab-drift">Post-Earnings Drift</button>
+    <button class="tab" data-tab="tab-earnings-history"> Historie</button>
   </div>
 
   <div id="tab-eps-chart" class="tab-content active">
@@ -859,11 +859,11 @@ function filterCongress(type, btn) {
     <div id="chart-eps" class="chart-container" style="height:380px;"></div>
     {% else %}<div class="alert alert-info">EPS-Chart nicht verfügbar.</div>{% endif %}
     {% if earnings_profile.beat_rate >= 75 %}
-    <div class="alert alert-success">✅ Starker Track-Record: {{ "%.0f"|format(earnings_profile.beat_rate) }}% Beat-Rate</div>
+    <div class="alert alert-success">Starker Track-Record: {{ "%.0f"|format(earnings_profile.beat_rate) }}% Beat-Rate</div>
     {% elif earnings_profile.beat_rate >= 50 %}
-    <div class="alert alert-info">ℹ️ Solider Track-Record: {{ "%.0f"|format(earnings_profile.beat_rate) }}% Beat-Rate</div>
+    <div class="alert alert-info">Solider Track-Record: {{ "%.0f"|format(earnings_profile.beat_rate) }}% Beat-Rate</div>
     {% else %}
-    <div class="alert alert-warning">⚠️ Schwacher Track-Record: {{ "%.0f"|format(earnings_profile.beat_rate) }}% Beat-Rate</div>
+    <div class="alert alert-warning">Schwacher Track-Record: {{ "%.0f"|format(earnings_profile.beat_rate) }}% Beat-Rate</div>
     {% endif %}
   </div>
 
@@ -888,7 +888,7 @@ function filterCongress(type, btn) {
         <tbody>
         {% for e in earnings_profile.events %}
         <tr>
-          <td>{% if e.result == 'Beat' %}🟢{% elif e.result == 'Miss' %}🔴{% else %}🟡{% endif %}</td>
+          <td>{% if e.result == 'Beat' %}{% elif e.result == 'Miss' %}{% else %}{% endif %}</td>
           <td>{{ e.quarter }}</td>
           <td>{{ e.date.strftime('%d.%m.%Y') if e.date.strftime is defined else e.date }}</td>
           <td>{{ "$%.2f"|format(e.eps_actual) if e.eps_actual is not none else '—' }}</td>
@@ -905,7 +905,7 @@ function filterCongress(type, btn) {
     </div>
   </div>
 </div>
-<p class="caption" style="margin-top:8px;">⚠️ Post-Earnings Drift basiert auf historischen Schlusskursen.</p>
+<p class="caption" style="margin-top:8px;">Post-Earnings Drift basiert auf historischen Schlusskursen.</p>
 {% endif %}
 
 
@@ -913,7 +913,7 @@ function filterCongress(type, btn) {
 <!-- ═══ Summary / Scoring ═══ -->
 {% if sum_data %}
 <hr>
-<h4>📝 Zusammenfassung</h4>
+<h4> Zusammenfassung</h4>
 {% set confidence = sum_data.get('confidence', 50) %}
 {% if confidence >= 60 %}{% set conf_color = "#22c55e" %}
 {% elif confidence >= 45 %}{% set conf_color = "#eab308" %}
@@ -932,31 +932,31 @@ function filterCongress(type, btn) {
   </div>
 </div>
 
-{% if confidence >= 70 %}<div class="alert alert-success">🟢 <b>KAUFEN</b> | {{ "%.0f"|format(confidence) }}/100</div>
-{% elif confidence >= 55 %}<div class="alert alert-warning">🟡 <b>HALTEN</b> | {{ "%.0f"|format(confidence) }}/100</div>
-{% elif confidence >= 40 %}<div class="alert alert-info">➖ <b>NEUTRAL</b> | {{ "%.0f"|format(confidence) }}/100</div>
-{% else %}<div class="alert alert-danger">🔴 <b>NICHT KAUFEN</b> | {{ "%.0f"|format(confidence) }}/100</div>{% endif %}
+{% if confidence >= 70 %}<div class="alert alert-success"><b>KAUFEN</b> | {{ "%.0f"|format(confidence) }}/100</div>
+{% elif confidence >= 55 %}<div class="alert alert-warning"><b>HALTEN</b> | {{ "%.0f"|format(confidence) }}/100</div>
+{% elif confidence >= 40 %}<div class="alert alert-info"><b>NEUTRAL</b> | {{ "%.0f"|format(confidence) }}/100</div>
+{% else %}<div class="alert alert-danger"><b>NICHT KAUFEN</b> | {{ "%.0f"|format(confidence) }}/100</div>{% endif %}
 
 {% if sum_data.get('macro') %}
 <div class="card" style="margin-top:12px;">
-  <h5>📌 Synthese</h5>
+  <h5> Synthese</h5>
   <ul style="margin:8px 0;padding-left:20px;">
-    <li>📊 <b>Trend:</b> {{ sum_data.macro }}</li>
-    <li>⚡ <b>Momentum:</b> {{ sum_data.micro }}</li>
-    <li>💡 <b>Handlung:</b> {{ sum_data.actionable }}</li>
+    <li><b>Trend:</b> {{ sum_data.macro }}</li>
+    <li> <b>Momentum:</b> {{ sum_data.micro }}</li>
+    <li><b>Handlung:</b> {{ sum_data.actionable }}</li>
   </ul>
 </div>
 {% endif %}
 
 <!-- ═══ Indikatoren-Checkliste (gruppiert) ═══ -->
 {% if sum_data.get('checklist') %}
-<h5 style="margin-top:16px;">🔍 Indikatoren-Checkliste</h5>
+<h5 style="margin-top:16px;">Indikatoren-Checkliste</h5>
 
 {% set tech_indicators = ['ADX', 'Trend (SMAs)', 'MACD'] %}
 {% set osc_indicators = ['RSI (14)', 'Bollinger Bänder', 'Stochastic'] %}
 {% set vol_indicators = ['OBV Trend', 'VWMA (20T)', 'Volumen-Cluster (POC)', 'FVG (Fair Value Gap)', 'Equal Highs (EQH)', 'Equal Lows (EQL)'] %}
 {% set fund_indicators = ['DCF Fair Value', 'Bilanzqualität', 'Insider-Sentiment', 'Analysten-Konsens', 'Dividende'] %}
-{% set sent_indicators = ['News Sentiment', 'Earnings Surprise', 'Contrarian-Warnung 🧨'] %}
+{% set sent_indicators = ['News Sentiment', 'Earnings Surprise', 'Contrarian-Warnung '] %}
 
 {% macro render_category(title, icon, indicator_names, items) %}
 {% set cat_items = [] %}
@@ -987,11 +987,11 @@ function filterCongress(type, btn) {
 {% endif %}
 {% endmacro %}
 
-{{ render_category('Technisch', '🔬', tech_indicators, sum_data.checklist) }}
-{{ render_category('Oszillatoren', '📉', osc_indicators, sum_data.checklist) }}
-{{ render_category('Volumen & Struktur', '📊', vol_indicators, sum_data.checklist) }}
-{{ render_category('Fundamental', '🏦', fund_indicators, sum_data.checklist) }}
-{{ render_category('Sentiment', '📰', sent_indicators, sum_data.checklist) }}
+{{ render_category('Technisch', '', tech_indicators, sum_data.checklist) }}
+{{ render_category('Oszillatoren', '', osc_indicators, sum_data.checklist) }}
+{{ render_category('Volumen & Struktur', '', vol_indicators, sum_data.checklist) }}
+{{ render_category('Fundamental', '', fund_indicators, sum_data.checklist) }}
+{{ render_category('Sentiment', '', sent_indicators, sum_data.checklist) }}
 
 {# Datenabdeckungs-Transparenz (Audit S6): Zeigt welche Kategorien neutral einfließen weil keine Daten vorliegen #}
 {% if sum_data.get('cat_max') %}
@@ -1004,7 +1004,7 @@ function filterCongress(type, btn) {
 {% endfor %}
 {% if missing_cats %}
 <div class="alert alert-info" style="margin-top:8px;font-size:0.82rem;">
-  ℹ️ <b>Eingeschränkte Datenbasis:</b> Für {{ missing_cats|join(', ') }} lagen keine Daten vor — {{ 'diese Kategorie fließt' if missing_cats|length == 1 else 'diese Kategorien fließen' }} neutral (0) in den Score ein.
+  <b>Eingeschränkte Datenbasis:</b> Für {{ missing_cats|join(', ') }} lagen keine Daten vor — {{ 'diese Kategorie fließt' if missing_cats|length == 1 else 'diese Kategorien fließen' }} neutral (0) in den Score ein.
 </div>
 {% endif %}
 {% endif %}
@@ -1019,7 +1019,7 @@ function filterCongress(type, btn) {
 {% endfor %}
 {% if other_items %}
 <div style="margin-bottom:16px;">
-  <h6 style="margin-bottom:6px;color:var(--text-dim);">🔧 Sonstige</h6>
+  <h6 style="margin-bottom:6px;color:var(--text-dim);"> Sonstige</h6>
   <div class="table-container">
     <table class="data-table">
       <thead><tr><th>Indikator</th><th>Wert</th><th>Signal</th><th>Beitrag</th></tr></thead>
@@ -1043,7 +1043,7 @@ function filterCongress(type, btn) {
 <!-- ═══ Signal-Historie ═══ -->
 {% if signal_history %}
 <hr>
-<h4>📡 Signal-Historie (Letzte 5)</h4>
+<h4> Signal-Historie (Letzte 5)</h4>
 <p class="caption">Das Dashboard speichert automatisch Bewertungssignale, um die eigene Trefferquote zu messen.</p>
 <div class="table-container">
   <table class="data-table">
@@ -1052,10 +1052,10 @@ function filterCongress(type, btn) {
     {% for s in signal_history %}
     <tr>
       <td>{{ s.timestamp[:16] if s.timestamp else '—' }}</td>
-      <td>{% if s.signal_type == 'buy' %}KAUFEN 🟢{% elif s.signal_type == 'sell' %}VERKAUFEN 🔴{% else %}NEUTRAL 🟡{% endif %}</td>
+      <td>{% if s.signal_type == 'buy' %}KAUFEN {% elif s.signal_type == 'sell' %}VERKAUFEN {% else %}NEUTRAL {% endif %}</td>
       <td>{{ "%.0f"|format(s.confidence) if s.confidence else '—' }}</td>
       <td>{{ "{:,.2f} €".format(s.price_at_signal) if s.price_at_signal else '—' }}</td>
-      <td>{% if s.was_successful is true %}✅ Gewonnen{% elif s.was_successful is false %}❌ Verloren{% else %}⏳ Ausstehend{% endif %}</td>
+      <td>{% if s.was_successful is true %}Gewonnen{% elif s.was_successful is false %}Verloren{% else %}Ausstehend{% endif %}</td>
     </tr>
     {% endfor %}
     </tbody>
@@ -1066,17 +1066,17 @@ function filterCongress(type, btn) {
 <!-- ═══ Position Sizing (Kelly + ATR) — Interactive ═══ -->
 {% if atr_val and stats.get('current_price') %}
 <hr>
-<h4>📐 Position Sizing (Kelly + ATR)</h4>
+<h4> Position Sizing (Kelly + ATR)</h4>
 <p class="caption">Bestimmt, wie viele Aktien du kaufen solltest — basierend auf deinem Gesamtkapital, dem aktuellen Kurs und der Volatilität (ATR).</p>
 
 <div class="grid-2" style="gap:12px;margin-bottom:16px;">
   <div class="card" style="padding:16px;">
-    <label class="form-label" style="font-weight:600;">💰 Portfoliowert (€)</label>
+    <label class="form-label" style="font-weight:600;">Portfoliowert (€)</label>
     <input type="number" id="ps-portfolio" value="10000" min="100" max="100000000" step="1000"
            class="form-input" oninput="recalcPositionSizing()">
   </div>
   <div class="card" style="padding:16px;">
-    <label class="form-label" style="font-weight:600;">⚠️ Max. Verlust pro Trade (% vom Portfolio): <span id="ps-risk-label">2.0</span>%</label>
+    <label class="form-label" style="font-weight:600;">Max. Verlust pro Trade (% vom Portfolio): <span id="ps-risk-label">2.0</span>%</label>
     <input type="range" id="ps-risk" min="0.5" max="5.0" step="0.5" value="2.0"
            class="form-range" oninput="document.getElementById('ps-risk-label').textContent=this.value; recalcPositionSizing()">
   </div>
@@ -1137,13 +1137,13 @@ function filterCongress(type, btn) {
   recalc();
 })();
 </script>
-<p class="caption" style="margin-top:8px;">⚠️ Dies ist eine algorithmische Momentaufnahme. Sie dient als Entscheidungshilfe, nicht als Anlageberatung.</p>
+<p class="caption" style="margin-top:8px;">Dies ist eine algorithmische Momentaufnahme. Sie dient als Entscheidungshilfe, nicht als Anlageberatung.</p>
 {% endif %}
 
 <!-- ═══ News ═══ -->
 {% if company_news %}
 <hr>
-<h4>📰 Nachrichten</h4>
+<h4> Nachrichten</h4>
 <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(340px, 1fr));gap:12px;">
 {% for news in company_news[:8] %}
 <a href="{{ news.get('link','#') }}" target="_blank" rel="noopener"
@@ -1162,7 +1162,7 @@ function filterCongress(type, btn) {
         <span style="color:var(--text-muted);font-size:0.72rem;">{{ news.get('date','') }}</span>
       </div>
     </div>
-    <span style="color:var(--text-muted);font-size:0.8rem;flex-shrink:0;margin-top:2px;">↗</span>
+    <span style="color:var(--text-muted);font-size:0.8rem;flex-shrink:0;margin-top:2px;"></span>
   </div>
 </a>
 {% endfor %}

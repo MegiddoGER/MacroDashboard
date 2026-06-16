@@ -34,7 +34,7 @@ async def watchlist_page(request: Request):
 
     # Market data for invested/watching groups
     groups = []
-    for title, items, color in [("💰 Investiert", invested, "#00d4aa"), ("👁 Beobachtet", watching, "#64748b")]:
+    for title, items, color in [("Investiert", invested, "#00d4aa"), (" Beobachtet", watching, "#64748b")]:
         if not items:
             continue
         tickers = [i["ticker"] for i in items]

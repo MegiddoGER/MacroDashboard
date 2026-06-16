@@ -3,7 +3,7 @@
 
 {% block content %}
 <div class="page-header">
-    <h2>🔍 Aktien-Screener</h2>
+    <h2>Aktien-Screener</h2>
     <p class="caption">
         Scannt Aktien und bewertet sie nach technischen Kriterien.
         Der Quick-Score nutzt Trend-, Volumen- und Oszillator-Indikatoren.
@@ -23,7 +23,7 @@
 
     <!-- Index-Auswahl -->
     <div class="card" style="margin-bottom: var(--gap);">
-        <h5>🌐 Index</h5>
+        <h5> Index</h5>
         <div class="btn-group" style="margin-top: 8px;">
             <label class="btn btn-outline active" id="idx-sp500-label">
                 <input type="radio" name="index" value="sp500" checked
@@ -42,7 +42,7 @@
     <div class="grid-2" style="margin-bottom: var(--gap);">
         <!-- Preset-Auswahl -->
         <div class="card">
-            <h5>📋 Screener-Typ</h5>
+            <h5> Screener-Typ</h5>
             <div class="preset-list" style="margin-top: 12px;">
                 {% for key, cfg in presets.items() %}
                 <label class="preset-option {{ 'active' if loop.first else '' }}"
@@ -64,7 +64,7 @@
 
         <!-- Erweiterte Filter -->
         <div class="card">
-            <h5>⚙️ Erweiterte Filter</h5>
+            <h5>Erweiterte Filter</h5>
             <div style="margin-top: 12px;">
                 <div style="margin-bottom: 16px;">
                     <label class="form-label">Min. Score</label>
@@ -106,11 +106,11 @@
     <!-- Scan-Button -->
     <div style="display: flex; gap: 12px; margin-bottom: var(--gap);">
         <button type="submit" class="btn btn-primary" style="flex: 3;">
-            🚀 Scan starten
+            Scan starten
         </button>
         <button type="button" class="btn btn-outline" style="flex: 1;"
                 onclick="document.getElementById('screener-results').innerHTML='';">
-            🗑️ Leeren
+            ️ Leeren
         </button>
     </div>
 
@@ -127,7 +127,7 @@
 <!-- Ergebnis-Container (wird via HTMX befuellt) -->
 <div id="screener-results">
     <div class="card" style="text-align: center; padding: 48px;">
-        <div style="font-size: 3rem; margin-bottom: 12px;">👆</div>
+        <div style="font-size: 3rem; margin-bottom: 12px;"></div>
         <p>Wähle einen Screener-Typ und klicke <strong>Scan starten</strong>.</p>
     </div>
 </div>

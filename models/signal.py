@@ -108,10 +108,10 @@ class Signal:
         factors = []
         for entry in score_result.checklist:
             signal_text = entry.get("Signal", "")
-            if "🟢" in signal_text or "↑" in signal_text:
-                factors.append(f"✅ {entry.get('Indikator', '')}: {signal_text}")
-            elif "🔴" in signal_text or "↓" in signal_text:
-                factors.append(f"❌ {entry.get('Indikator', '')}: {signal_text}")
+            if "" in signal_text or "↑" in signal_text:
+                factors.append(f"{entry.get('Indikator', '')}: {signal_text}")
+            elif "" in signal_text or "↓" in signal_text:
+                factors.append(f"{entry.get('Indikator', '')}: {signal_text}")
 
         return cls(
             ticker=ticker.upper(),

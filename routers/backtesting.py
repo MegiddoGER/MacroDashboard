@@ -72,7 +72,7 @@ def _load_market_presets() -> dict[str, list[dict]]:
 
 
 STRATEGIES = {
-    "Score_Signal": "📊 Scoring-Engine Backtest (Validierung)",
+    "Score_Signal": "Scoring-Engine Backtest (Validierung)",
     "RSI_Mean_Reversion": "RSI Mean Reversion (Oszillator)",
     "SMA_Cross_Trend": "SMA Golden Cross (Trendfolge)",
     "MACD_Momentum": "MACD Crossover (Momentum)",

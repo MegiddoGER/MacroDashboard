@@ -450,7 +450,7 @@ def plot_correlation_matrix(corr_df: pd.DataFrame,
             tickvals=[-1, -0.5, 0, 0.5, 1],
             tickfont=dict(color="#94a3b8"),
         ),
-        hovertemplate="%{x} ↔ %{y}<br>Korrelation: %{z:.3f}<extra></extra>",
+        hovertemplate="%{x}  %{y}<br>Korrelation: %{z:.3f}<extra></extra>",
     ))
     fig.update_layout(
         title=dict(text=title, font=dict(size=14)),
@@ -549,11 +549,11 @@ def plot_liquidity_sweeps(df: pd.DataFrame, sweeps: list[dict],
         if s["type"] == "bullish":
             color = "#22c55e"
             symbol = "triangle-up"
-            label = "🟢 Bull Sweep"
+            label = "Bull Sweep"
         else:
             color = "#ef4444"
             symbol = "triangle-down"
-            label = "🔴 Bear Sweep"
+            label = "Bear Sweep"
 
         fig.add_trace(go.Scatter(
             x=[s["sweep_date"]], y=[s["level"]],

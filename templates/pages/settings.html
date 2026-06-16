@@ -2,13 +2,13 @@
 {% block title %}Einstellungen — Macro Dashboard{% endblock %}
 {% block content %}
 <div class="page-header">
-  <h2>⚙️ Einstellungen</h2>
+  <h2>Einstellungen</h2>
   <p class="caption">API-Schlüssel und Dashboard-Konfiguration</p>
 </div>
 
 <!-- API Keys -->
 <div class="card" style="margin-bottom:var(--gap);">
-  <h3 style="margin-bottom:16px;">🔑 API-Schlüssel</h3>
+  <h3 style="margin-bottom:16px;"> API-Schlüssel</h3>
 
   <div id="settings-feedback"></div>
 
@@ -22,9 +22,9 @@
       <label class="form-label" for="quiver_token">
         Quiver Quantitative API-Token
         {% if quiver_token_set %}
-        <span style="color:var(--green);font-size:0.8rem;margin-left:8px;">✅ Aktiv</span>
+        <span style="color:var(--green);font-size:0.8rem;margin-left:8px;">Aktiv</span>
         {% else %}
-        <span style="color:var(--text-dim);font-size:0.8rem;margin-left:8px;">❌ Nicht konfiguriert</span>
+        <span style="color:var(--text-dim);font-size:0.8rem;margin-left:8px;">Nicht konfiguriert</span>
         {% endif %}
       </label>
 
@@ -57,7 +57,7 @@
                 hx-swap="innerHTML"
                 hx-vals='{"quiver_token": ""}'
                 onclick="return confirm('Quiver Token wirklich löschen?');">
-          🗑️ Löschen
+          ️ Löschen
         </button>
         {% endif %}
       </div>
@@ -68,9 +68,9 @@
       <label class="form-label" for="finnhub_token">
         Finnhub API-Token
         {% if finnhub_token_set %}
-        <span style="color:var(--green);font-size:0.8rem;margin-left:8px;">✅ Aktiv</span>
+        <span style="color:var(--green);font-size:0.8rem;margin-left:8px;">Aktiv</span>
         {% else %}
-        <span style="color:var(--text-dim);font-size:0.8rem;margin-left:8px;">❌ Nicht konfiguriert</span>
+        <span style="color:var(--text-dim);font-size:0.8rem;margin-left:8px;">Nicht konfiguriert</span>
         {% endif %}
       </label>
 
@@ -103,21 +103,21 @@
                 hx-swap="innerHTML"
                 hx-vals='{"finnhub_token": ""}'
                 onclick="return confirm('Finnhub Token wirklich löschen?');">
-          🗑️ Löschen
+          ️ Löschen
         </button>
         {% endif %}
       </div>
     </div>
 
     <div style="display:flex;gap:12px;align-items:center;margin-top:10px;">
-      <button type="submit" class="btn btn-primary">💾 Alle Änderungen speichern</button>
+      <button type="submit" class="btn btn-primary"> Alle Änderungen speichern</button>
     </div>
   </form>
 </div>
 
 <!-- Info Box -->
 <div class="card">
-  <h3 style="margin-bottom:12px;">ℹ️ Hinweise</h3>
+  <h3 style="margin-bottom:12px;">Hinweise</h3>
   <ul style="list-style:disc;padding-left:20px;color:var(--text-dim);line-height:1.8;">
     <li><b>Sicherheit:</b> Dein Token wird ausschließlich lokal in der SQLite-Datenbank gespeichert und niemals an Dritte übermittelt.</li>
     <li><b>Ohne Token:</b> Das Dashboard funktioniert weiterhin — allerdings ohne Kongress-Trades und mit eingeschränkten Insider-Daten (yfinance Fallback).</li>

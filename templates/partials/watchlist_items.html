@@ -27,8 +27,8 @@
 {% endif %}
 {% endmacro %}
 
-{{ render_group("Investiert", "💰", invested, "#00d4aa", "#00d4aa") }}
-{{ render_group("Beobachtet", "👁", watching, "#64748b", "#475569") }}
+{{ render_group("Investiert", "", invested, "#00d4aa", "#00d4aa") }}
+{{ render_group("Beobachtet", "", watching, "#64748b", "#475569") }}
 
 {% if not invested and not watching %}
 <p class="caption">Noch keine Ticker gespeichert.</p>

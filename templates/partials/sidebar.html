@@ -2,7 +2,7 @@
 
 <!-- Logo -->
 <div class="analyzer-logo">
-    <span class="logo-icon">📊</span> Analyzer
+    <span class="logo-icon"></span> Analyzer
     <span class="logo-sub">Macro Dashboard</span>
 </div>
 <hr>
@@ -10,24 +10,25 @@
 <!-- Navigation -->
 <nav>
     {% set categories = [
-        {"id": "dashboard", "icon": "🏠", "label": "Dashboard",   "pages": [
+        {"id": "dashboard", "icon": "", "label": "Dashboard",   "pages": [
             {"name": "Startseite",       "url": "/"},
             {"name": "Gesamtwirtschaft", "url": "/economy"},
         ]},
-        {"id": "tools", "icon": "🔬", "label": "Tools",   "pages": [
+        {"id": "tools", "icon": "", "label": "Tools",   "pages": [
             {"name": "Analyse",     "url": "/analysis"},
             {"name": "Screener",    "url": "/screener"},
             {"name": "Backtesting", "url": "/backtesting"},
         ]},
-        {"id": "portfolio", "icon": "📂", "label": "Portfolio",   "pages": [
+        {"id": "portfolio", "icon": "", "label": "Portfolio",   "pages": [
             {"name": "Watchlist",     "url": "/watchlist"},
             {"name": "Trade-Journal", "url": "/journal"},
         ]},
-        {"id": "resources", "icon": "📚", "label": "Ressourcen",   "pages": [
+        {"id": "resources", "icon": "", "label": "Ressourcen",   "pages": [
             {"name": "Sektoren",          "url": "/sectors"},
             {"name": "Analyse-Lexikon",   "url": "/lexicon"},
+            {"name": "Datenquellen",      "url": "/sources"},
             {"name": "Aktien-Verzeichnis","url": "/directory"},
-            {"name": "⚙️ Einstellungen",  "url": "/settings"},
+            {"name": "Einstellungen",  "url": "/settings"},
         ]},
     ] %}
 
@@ -67,13 +68,13 @@
           style="margin-bottom:6px;">
         <input type="text" name="query" class="form-input"
                placeholder="Ticker oder Name" autocomplete="off">
-        <button type="submit" class="btn btn-success btn-sm">➕</button>
+        <button type="submit" class="btn btn-success btn-sm"></button>
     </form>
     <span class="wl-spinner spinner" style="display:none;"></span>
 
     <button class="wl-toggle-btn nav-category-btn"
             onclick="var b=document.getElementById('wl-body');b.style.display=b.style.display==='none'?'block':'none';this.classList.toggle('expanded');">
-        ⚡  Watchlist
+          Watchlist
         <span class="chevron">▾</span>
     </button>
     <div id="wl-body" style="display:none;padding:4px 0;">
@@ -100,6 +101,6 @@
     <div style="height: 12px;"></div>
     <button class="btn btn-danger btn-block btn-sm"
             onclick="if(confirm('Dashboard wirklich beenden?')) fetch('/api/shutdown', {method:'POST'});">
-        🔴 System Beenden
+        System Beenden
     </button>
 </div>

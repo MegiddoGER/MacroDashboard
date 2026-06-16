@@ -6,7 +6,7 @@
     <span>←</span> Zurück zur Übersicht
 </a>
 <div class="page-header">
-    <h2>🔬 Aktien-Analyse</h2>
+    <h2> Aktien-Analyse</h2>
     <p class="caption">
         Vollstaendige technische \u0026 fundamentale Analyse mit Scoring, Charts, SMC-Signalen und Handlungsempfehlung.
     </p>
@@ -14,7 +14,7 @@
 
 <!-- Ticker-Eingabe -->
 <div class="card" style="margin-bottom: var(--gap);">
-    <h5>🎯 Ticker auswaehlen</h5>
+    <h5> Ticker auswaehlen</h5>
     <form id="analysis-form"
           hx-post="/analysis/load"
           hx-target="#analysis-content"
@@ -37,7 +37,7 @@
 
             <!-- Watchlist Dropdown -->
             <div>
-                <label class="form-label">⚡ Watchlist</label>
+                <label class="form-label"> Watchlist</label>
                 <select class="form-input" id="wl-select"
                         onchange="if(this.value){document.getElementById('ticker-input').value=this.value;}">
                     <option value="">— Manuell eingeben —</option>
@@ -76,7 +76,7 @@
         </div>
 
         <button type="submit" class="btn btn-primary" style="width: 100%;">
-            🚀 Analyse starten
+            Analyse starten
         </button>
 
         <!-- Spinner -->
@@ -93,7 +93,7 @@
 <!-- Analyse-Content (wird via HTMX befuellt) -->
 <div id="analysis-content">
     <div class="card" style="text-align: center; padding: 48px;">
-        <div style="font-size: 3rem; margin-bottom: 12px;">🔬</div>
+        <div style="font-size: 3rem; margin-bottom: 12px;"></div>
         <p>Waehle einen Ticker und klicke <strong>Analyse starten</strong>.</p>
     </div>
 </div>

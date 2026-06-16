@@ -193,45 +193,45 @@ def determine_sector_category(stats: dict, details: dict) -> tuple:
     yfin_industry = details.get("info", {}).get("industry", "").lower()
 
     sector_cat = "none"
-    tab_name = "📊 Quant-Analyse"
+    tab_name = "Quant-Analyse"
 
     if "financial" in yfin_sector or "insurance" in yfin_sector:
         sector_cat = "finanzen"
-        tab_name = "🏦 Excess Returns (Finanzen)"
+        tab_name = "Excess Returns (Finanzen)"
     elif "technology" in yfin_sector or "software" in yfin_sector:
         sector_cat = "tech"
-        tab_name = "💻 Rule of 40 (Tech/SaaS)"
+        tab_name = " Rule of 40 (Tech/SaaS)"
     elif "semiconductor" in yfin_industry or "hardware" in yfin_industry:
         sector_cat = "hardware"
-        tab_name = "🔌 EV/EBITDA-Zyklik (Hardware)"
+        tab_name = " EV/EBITDA-Zyklik (Hardware)"
     elif "healthcare" in yfin_sector or "biotech" in yfin_sector or "pharm" in yfin_sector:
         sector_cat = "pharma"
-        tab_name = "🧬 rNPV Proxy (Pharma)"
+        tab_name = " rNPV Proxy (Pharma)"
     elif "energy" in yfin_sector or "oil" in yfin_sector:
         sector_cat = "energie"
-        tab_name = "🛢️ EV/DACF (Energie)"
+        tab_name = "️ EV/DACF (Energie)"
     elif "communication" in yfin_sector or "telecom" in yfin_sector:
         sector_cat = "telekom"
-        tab_name = "📡 ARPU-Adj. EV/EBITDA (Telekom)"
+        tab_name = " ARPU-Adj. EV/EBITDA (Telekom)"
     elif "industrial" in yfin_sector or "transportation" in yfin_sector or "consumer cyclical" in yfin_sector:
         if "aerospace" in yfin_industry or "defense" in yfin_industry:
             sector_cat = "defense"
-            tab_name = "🛡️ EV/EBITDA & Marge (Rüstung/Luftfahrt)"
+            tab_name = "EV/EBITDA & Marge (Rüstung/Luftfahrt)"
         elif "auto" in yfin_industry:
             sector_cat = "auto"
-            tab_name = "🚗 Asset Turnover (Automobil)"
+            tab_name = " Asset Turnover (Automobil)"
         elif "machinery" in yfin_industry or "construction" in yfin_industry or "building" in yfin_industry:
             sector_cat = "maschinenbau"
-            tab_name = "🏗️ Zyklus-Proxy (Maschinen-/Bauwesen)"
+            tab_name = "️ Zyklus-Proxy (Maschinen-/Bauwesen)"
         elif "freight" in yfin_industry or "logistic" in yfin_industry or "airline" in yfin_industry or "railroad" in yfin_industry or "shipping" in yfin_industry or "transport" in yfin_industry:
             sector_cat = "logistik"
-            tab_name = "🚢 EV/EBITDAR (Logistik)"
+            tab_name = " EV/EBITDAR (Logistik)"
         else:
             sector_cat = "industrie"
-            tab_name = "🏭 Asset-Based (Allg. Industrie)"
+            tab_name = " Asset-Based (Allg. Industrie)"
     else:
         sector_cat = "csvs"
-        tab_name = "🏛️ CSVS (Dividenden & Buchwert)"
+        tab_name = "️ CSVS (Dividenden & Buchwert)"
 
     return sector_cat, tab_name
 

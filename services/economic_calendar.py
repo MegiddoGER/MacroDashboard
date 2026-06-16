@@ -43,11 +43,11 @@ class EconomicEvent:
 # ---------------------------------------------------------------------------
 
 CATEGORY_ICONS = {
-    "central_bank": "🏦",
-    "inflation": "📊",
-    "employment": "💼",
-    "growth": "📈",
-    "other": "📋",
+    "central_bank": "",
+    "inflation": "",
+    "employment": "",
+    "growth": "",
+    "other": "",
 }
 
 COUNTRY_FLAGS = {
@@ -63,9 +63,9 @@ IMPACT_COLORS = {
 }
 
 IMPACT_BADGES = {
-    "high": "🔴 High Impact",
-    "medium": "🟠 Medium Impact",
-    "low": "🟢 Low Impact",
+    "high": "High Impact",
+    "medium": " Medium Impact",
+    "low": "Low Impact",
 }
 
 
@@ -178,13 +178,13 @@ def get_upcoming_events(days: int = 14,
 
         if delta == 0:
             time_str = f" um {event.time_cet}" if event.time_cet else ""
-            event.countdown_label = f"🔴 HEUTE{time_str}"
+            event.countdown_label = f"HEUTE{time_str}"
         elif delta == 1:
-            event.countdown_label = "⚡ MORGEN"
+            event.countdown_label = " MORGEN"
         elif delta <= 3:
-            event.countdown_label = f"⏰ in {delta} Tagen"
+            event.countdown_label = f" in {delta} Tagen"
         elif delta <= 7:
-            event.countdown_label = f"📅 in {delta} Tagen"
+            event.countdown_label = f" in {delta} Tagen"
         else:
             event.countdown_label = f"in {delta} Tagen"
 
@@ -253,10 +253,10 @@ def get_events_for_ticker(ticker: str, days: int = 7) -> list[EconomicEvent]:
 def get_event_categories() -> list[dict]:
     """Gibt alle Event-Kategorien mit Icons zurück."""
     return [
-        {"id": "central_bank", "name": "Zentralbanken", "icon": "🏦"},
-        {"id": "inflation", "name": "Inflation", "icon": "📊"},
-        {"id": "employment", "name": "Arbeitsmarkt", "icon": "💼"},
-        {"id": "growth", "name": "Wachstum", "icon": "📈"},
+        {"id": "central_bank", "name": "Zentralbanken", "icon": ""},
+        {"id": "inflation", "name": "Inflation", "icon": ""},
+        {"id": "employment", "name": "Arbeitsmarkt", "icon": ""},
+        {"id": "growth", "name": "Wachstum", "icon": ""},
     ]
 
 
@@ -294,9 +294,9 @@ def get_impact_color(impact: str) -> str:
 
 def get_country_flag(country: str) -> str:
     """Gibt das Flaggen-Emoji für ein Land zurück."""
-    return COUNTRY_FLAGS.get(country, "🌍")
+    return COUNTRY_FLAGS.get(country, "")
 
 
 def get_category_icon(category: str) -> str:
     """Gibt das Icon für eine Kategorie zurück."""
-    return CATEGORY_ICONS.get(category, "📋")
+    return CATEGORY_ICONS.get(category, "")

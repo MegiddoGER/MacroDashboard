@@ -85,7 +85,7 @@
 <hr>
 
 <!-- ═══ Positions-Übersicht ═══ -->
-<h4>📋 Positions-Übersicht</h4>
+<h4> Positions-Übersicht</h4>
 <div class="grid-4" style="gap:12px;margin-bottom:12px;">
   <div class="metric-card">
     <div class="metric-label">Kaufkurs</div>
@@ -181,7 +181,7 @@
 </div>
 
 {% if stats.get('currency_converted') %}
-<div class="alert alert-info">💱 Originalwährung: <b>{{ stats.get('currency','USD') }}</b> — Umrechnungskurs: 1 {{ stats.get('currency','USD') }} = {{ "%.4f"|format(stats.get('fx_rate',0)) }} EUR</div>
+<div class="alert alert-info"> Originalwährung: <b>{{ stats.get('currency','USD') }}</b> — Umrechnungskurs: 1 {{ stats.get('currency','USD') }} = {{ "%.4f"|format(stats.get('fx_rate',0)) }} EUR</div>
 {% endif %}
 
 <hr>
@@ -190,7 +190,7 @@
 {% if enriched_checklist %}
 <div class="expander" style="margin-bottom: 16px;">
   <div class="expander-header" onclick="this.parentElement.classList.toggle('open')">
-    <span>🔍 Detaillierte Indikatoren-Checkliste einblenden</span>
+    <span>Detaillierte Indikatoren-Checkliste einblenden</span>
     <span class="expander-chevron">▼</span>
   </div>
   <div class="expander-body">
@@ -200,7 +200,7 @@
     {% set osc_indicators = ['RSI (14)', 'Bollinger Bänder', 'Stochastic'] %}
     {% set vol_indicators = ['OBV Trend', 'VWMA (20T)', 'Volumen-Cluster (POC)', 'FVG (Fair Value Gap)', 'Equal Highs (EQH)', 'Equal Lows (EQL)'] %}
     {% set fund_indicators = ['DCF Fair Value', 'Bilanzqualität', 'Insider-Sentiment', 'Analysten-Konsens', 'Dividende'] %}
-    {% set sent_indicators = ['News Sentiment', 'Earnings Surprise', 'Contrarian-Warnung 🧨'] %}
+    {% set sent_indicators = ['News Sentiment', 'Earnings Surprise', 'Contrarian-Warnung '] %}
 
     {% macro render_pos_category(title, icon, indicator_names, items) %}
     {% set cat_items = [] %}
@@ -232,11 +232,11 @@
     {% endif %}
     {% endmacro %}
 
-    {{ render_pos_category('Technisch', '🔬', tech_indicators, enriched_checklist) }}
-    {{ render_pos_category('Oszillatoren', '📉', osc_indicators, enriched_checklist) }}
-    {{ render_pos_category('Volumen & Struktur', '📊', vol_indicators, enriched_checklist) }}
-    {{ render_pos_category('Fundamental', '🏦', fund_indicators, enriched_checklist) }}
-    {{ render_pos_category('Sentiment', '📰', sent_indicators, enriched_checklist) }}
+    {{ render_pos_category('Technisch', '', tech_indicators, enriched_checklist) }}
+    {{ render_pos_category('Oszillatoren', '', osc_indicators, enriched_checklist) }}
+    {{ render_pos_category('Volumen & Struktur', '', vol_indicators, enriched_checklist) }}
+    {{ render_pos_category('Fundamental', '', fund_indicators, enriched_checklist) }}
+    {{ render_pos_category('Sentiment', '', sent_indicators, enriched_checklist) }}
 
     {# Catch-all für nicht kategorisierte Indikatoren #}
     {% set all_known = tech_indicators + osc_indicators + vol_indicators + fund_indicators + sent_indicators %}
@@ -248,7 +248,7 @@
     {% endfor %}
     {% if other_items %}
     <div style="margin-bottom:16px;">
-      <h6 style="margin-bottom:6px;color:var(--text-dim);">🔧 Sonstige</h6>
+      <h6 style="margin-bottom:6px;color:var(--text-dim);"> Sonstige</h6>
       <div class="table-container">
         <table class="data-table">
           <thead><tr><th>Indikator</th><th>Wert</th><th>Signal</th><th>Beitrag</th><th>Positionsrelevanz</th></tr></thead>
@@ -275,7 +275,7 @@
 
 <!-- ═══ Fundamentale Projektion ═══ -->
 {% if dcf %}
-<h4>💰 Fundamentale Projektion vs. Position</h4>
+<h4>Fundamentale Projektion vs. Position</h4>
 <div class="grid-4" style="gap:12px;margin-bottom:12px;">
   <div class="metric-card">
     <div class="metric-label">DCF Fair Value</div>
@@ -300,10 +300,10 @@
     <div class="metric-value">{{ "%.1f %%"|format(dcf.wacc) }}</div>
   </div>
 </div>
-{% if dcf.is_proxy_fcf %}<div class="alert alert-warning" style="margin-bottom:12px;">⚠️ <b>Growth-Modell:</b> FCF ist negativ. Fair Value wurde mit proxyhafter 10% FCF-Marge (basierend auf Umsatz) modelliert.</div>{% endif %}
-{% if dcf.margin_of_safety %}<div class="alert alert-success">✅ Margin of Safety vorhanden ({{ "%+.1f"|format(dcf.upside_pct) }}%)</div>
+{% if dcf.is_proxy_fcf %}<div class="alert alert-warning" style="margin-bottom:12px;"><b>Growth-Modell:</b> FCF ist negativ. Fair Value wurde mit proxyhafter 10% FCF-Marge (basierend auf Umsatz) modelliert.</div>{% endif %}
+{% if dcf.margin_of_safety %}<div class="alert alert-success">Margin of Safety vorhanden ({{ "%+.1f"|format(dcf.upside_pct) }}%)</div>
 {% elif dcf.upside_pct > 0 %}<div class="alert alert-info">Leichtes Upside ({{ "%+.1f"|format(dcf.upside_pct) }}%)</div>
-{% else %}<div class="alert alert-warning">⚠️ Überbewertet ({{ "%+.1f"|format(dcf.upside_pct) }}% vs. DCF)</div>{% endif %}
+{% else %}<div class="alert alert-warning">Überbewertet ({{ "%+.1f"|format(dcf.upside_pct) }}% vs. DCF)</div>{% endif %}
 
 {% if balance %}
 <div class="grid-4" style="gap:12px;margin-top:12px;">

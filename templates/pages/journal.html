@@ -2,17 +2,17 @@
 {% block title %}Trade-Journal — Macro Dashboard{% endblock %}
 {% block content %}
 <div class="page-header">
-  <h2>📓 Trade-Journal</h2>
+  <h2> Trade-Journal</h2>
   <p class="caption">Deine Lernmaschine: Tracke deine Trades, bewerte Setups und finde heraus, was für dich funktioniert.</p>
 </div>
 
 <!-- Tabs -->
 <div class="tabs">
-  <button class="tab active" data-tab="tab-new">➕ Neuer Eintrag</button>
-  <button class="tab" data-tab="tab-open">📂 Offen ({{ open_count }})</button>
-  <button class="tab" data-tab="tab-closed">✅ Historie ({{ closed_count }})</button>
-  <button class="tab" data-tab="tab-stats">📈 Setup-Statistiken</button>
-  <button class="tab" data-tab="tab-ai">🤖 System-Signale (AI)</button>
+  <button class="tab active" data-tab="tab-new"> Neuer Eintrag</button>
+  <button class="tab" data-tab="tab-open"> Offen ({{ open_count }})</button>
+  <button class="tab" data-tab="tab-closed">Historie ({{ closed_count }})</button>
+  <button class="tab" data-tab="tab-stats">Setup-Statistiken</button>
+  <button class="tab" data-tab="tab-ai"> System-Signale (AI)</button>
 </div>
 
 <!-- ═══ Tab: Neuer Eintrag ═══ -->
@@ -47,7 +47,7 @@
         </div>
       </div>
       <div class="form-group"><label>Kaufgrund / Notes</label><textarea name="notes" class="form-input" rows="3" placeholder="Z.B.: RSI überverkauft, bullische Marktstruktur..."></textarea></div>
-      <button type="submit" class="btn btn-primary btn-block" style="margin-top:12px;">📓 Trade speichern</button>
+      <button type="submit" class="btn btn-primary btn-block" style="margin-top:12px;"> Trade speichern</button>
     </div>
   </form>
   <div id="new-result"></div>
@@ -65,7 +65,7 @@
         <strong>{{ t.ticker }}</strong>
         <span class="badge {{ 'badge-green' if t.trade_type == 'Long' else 'badge-red' }}" style="margin-left:8px;">{{ t.trade_type }}</span>
         <br>
-        <span class="caption">Entry: {{ t.entry_price|round(2) }} € · {{ t.entry_date }} · Setup: {{ t.setup_type }} · {{ "⭐" * t.conviction }}</span>
+        <span class="caption">Entry: {{ t.entry_price|round(2) }} € · {{ t.entry_date }} · Setup: {{ t.setup_type }} · {{ "" * t.conviction }}</span>
         {% if t.entry_notes %}<br><span class="caption">{{ t.entry_notes }}</span>{% endif %}
       </div>
       <div>
@@ -86,7 +86,7 @@
         </div>
         <div class="form-group"><label>Post-Trade Review</label><textarea name="review_notes" class="form-input" rows="2" placeholder="Was hast du gelernt?"></textarea></div>
         <div style="display:flex; gap:8px;">
-          <button type="submit" class="btn btn-primary">✅ Trade abschließen</button>
+          <button type="submit" class="btn btn-primary">Trade abschließen</button>
           <button type="button" class="btn btn-secondary" onclick="this.closest('[id^=close-form]').style.display='none'">Abbrechen</button>
         </div>
       </form>
@@ -113,14 +113,14 @@
         <br>
         <span class="caption">Entry: {{ t.entry_date }} @ {{ "{:,.2f}".format(t.entry_price) }} € → Exit: {{ t.exit_date }} @ {{ "{:,.2f}".format(t.exit_price) }} €</span>
         <br>
-        <span class="caption">Setup: <strong>{{ t.setup_type }}</strong> · {{ "⭐" * t.conviction }}</span>
+        <span class="caption">Setup: <strong>{{ t.setup_type }}</strong> · {{ "" * t.conviction }}</span>
         {% if t.review_notes %}
-        <div class="alert alert-info" style="margin-top:8px; margin-bottom:0;">💡 {{ t.review_notes }}</div>
+        <div class="alert alert-info" style="margin-top:8px; margin-bottom:0;">{{ t.review_notes }}</div>
         {% endif %}
       </div>
       <form hx-post="/journal/delete" hx-target="closest .card" hx-swap="outerHTML" hx-confirm="Eintrag wirklich löschen?">
         <input type="hidden" name="trade_id" value="{{ t.id }}">
-        <button type="submit" class="btn-icon" title="Löschen">🗑️</button>
+        <button type="submit" class="btn-icon" title="Löschen">️</button>
       </form>
     </div>
   </div>
@@ -133,7 +133,7 @@
   {% if not stats or stats.get('total_closed', 0) == 0 %}
   <div class="alert alert-info">Noch nicht genug geschlossene Trades für Statistiken.</div>
   {% else %}
-  <h4>🏆 Mein Performance-Report</h4>
+  <h4> Mein Performance-Report</h4>
   <div class="grid-4" style="margin-bottom:var(--gap);">
     <div class="metric-card"><div class="metric-label">Geschlossene Trades</div><div class="metric-value">{{ stats.total_closed }}</div></div>
     <div class="metric-card"><div class="metric-label">Win-Rate</div><div class="metric-value">{{ "{:.1f}".format(stats.win_rate) }}%</div></div>
@@ -151,7 +151,7 @@
 
 <!-- ═══ Tab: System-Signale (AI) ═══ -->
 <div class="tab-content" id="tab-ai">
-  <h4>🤖 Signal-Performance Deep-Dive</h4>
+  <h4> Signal-Performance Deep-Dive</h4>
   <p class="caption">Auswertung der automatisiert generierten Scoring-Signale.</p>
   {% if ai_stats and ai_stats.get('evaluated_signals', 0) > 0 %}
   <div class="grid-4" style="margin-bottom:var(--gap);">
@@ -164,7 +164,7 @@
   </div>
 
   {% if calib_chart_json != "null" %}
-  <h5>🎯 Score Breakdown (Trefferquote nach Confidence)</h5>
+  <h5> Score Breakdown (Trefferquote nach Confidence)</h5>
   <div class="chart-container" id="calib-chart" style="height:350px;"></div>
   <script>renderPlotly('calib-chart', '{{ calib_chart_json | safe }}');</script>
   {% endif %}
@@ -172,15 +172,15 @@
   {% if ai_stats.top_signals or ai_stats.flop_signals %}
   <div class="grid-2" style="gap:var(--gap);">
     <div class="card">
-      <h5>🏆 Beste Calls</h5>
+      <h5> Beste Calls</h5>
       {% for s in ai_stats.get('top_signals', []) %}
-      <div class="alert alert-success">{{ '🟢' if s.type == 'buy' else '🔴' }} <strong>{{ s.ticker }}</strong> ({{ s.type|upper }} @ {{ "{:.0f}".format(s.confidence) }}%) ➔ <strong>{{ "{:+.1f}".format(s.return_pct) }}%</strong></div>
+      <div class="alert alert-success">{{ '' if s.type == 'buy' else '' }} <strong>{{ s.ticker }}</strong> ({{ s.type|upper }} @ {{ "{:.0f}".format(s.confidence) }}%) ➔ <strong>{{ "{:+.1f}".format(s.return_pct) }}%</strong></div>
       {% endfor %}
     </div>
     <div class="card">
-      <h5>💀 Schlechteste Calls</h5>
+      <h5> Schlechteste Calls</h5>
       {% for s in ai_stats.get('flop_signals', []) %}
-      <div class="alert alert-danger">{{ '🟢' if s.type == 'buy' else '🔴' }} <strong>{{ s.ticker }}</strong> ({{ s.type|upper }} @ {{ "{:.0f}".format(s.confidence) }}%) ➔ <strong>{{ "{:+.1f}".format(s.return_pct) }}%</strong></div>
+      <div class="alert alert-danger">{{ '' if s.type == 'buy' else '' }} <strong>{{ s.ticker }}</strong> ({{ s.type|upper }} @ {{ "{:.0f}".format(s.confidence) }}%) ➔ <strong>{{ "{:+.1f}".format(s.return_pct) }}%</strong></div>
       {% endfor %}
     </div>
   </div>

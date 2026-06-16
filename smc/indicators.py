@@ -334,16 +334,16 @@ def analyze_smc(df: pd.DataFrame,
 
     daily_bias = daily_tf["fvg_bias"]
 
-    # Daily ↔ Weekly FVG Alignment
+    # Daily  Weekly FVG Alignment
     if daily_bias != "neutral" and daily_bias == htf_fvg_bias:
         confluence_score += 1
-    # Daily ↔ Weekly Trend Alignment
+    # Daily  Weekly Trend Alignment
     if daily_tf["trend"] != "neutral" and daily_tf["trend"] == htf_trend:
         confluence_score += 1
     # Weekly intern konsistent (Trend = FVG)
     if htf_fvg_bias == htf_trend and htf_trend != "neutral":
         confluence_score += 1
-    # Monthly ↔ Weekly Trend Alignment
+    # Monthly  Weekly Trend Alignment
     if monthly_tf["trend"] != "neutral" and monthly_tf["trend"] == htf_trend:
         confluence_score += 1
     # Alle drei Trends aligned

@@ -94,12 +94,12 @@ def get_dax_mdax_tickers() -> pd.DataFrame | None:
 
 PRESETS = {
     "all": {
-        "name": "🔍 Alle scannen",
+        "name": "Alle scannen",
         "description": "Alle S&P 500 Aktien bewerten und nach Score sortieren.",
         "filters": {},
     },
     "oversold_quality": {
-        "name": "📉 Überverkaufte Qualitätsaktien",
+        "name": "Überverkaufte Qualitätsaktien",
         "description": "RSI < 35, bullischer Trend (Kurs > SMA 200) — Rebound-Kandidaten.",
         "filters": {
             "rsi_max": 35,
@@ -107,21 +107,21 @@ PRESETS = {
         },
     },
     "momentum": {
-        "name": "🚀 Momentum Leaders",
+        "name": "Momentum Leaders",
         "description": "Score > 65, starker Aufwärtstrend — Momentum-Aktien.",
         "filters": {
             "score_min": 65,
         },
     },
     "bearish": {
-        "name": "🐻 Bearish Signals",
+        "name": " Bearish Signals",
         "description": "Score < 35, überverkaufte Aktien mit schwachem Trend.",
         "filters": {
             "score_max": 35,
         },
     },
     "volume_accumulation": {
-        "name": "📊 Akkumulation (Volume)",
+        "name": "Akkumulation (Volume)",
         "description": "Bullisches OBV + Kurs über VWAP — institutioneller Kaufdruck.",
         "filters": {
             "obv_bullish": True,
