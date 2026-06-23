@@ -480,9 +480,10 @@ def get_vix_value() -> float | None:
     """Gibt den aktuellen VIX-Schlusskurs zurück."""
     try:
         hist = yf.Ticker("^VIX").history(period="5d")
-        if hist.empty:
+        close_series = hist["Close"].dropna()
+        if close_series.empty:
             return None
-        return float(hist["Close"].iloc[-1])
+        return float(close_series.iloc[-1])
     except Exception as exc:
         warnings.warn(f"get_vix_value: {exc}")
         return None
@@ -492,9 +493,10 @@ def get_sp500_close_series(period: str = "2y") -> pd.Series | None:
     """Gibt die S&P-500-Schlusskurse zurück (^GSPC)."""
     try:
         hist = yf.Ticker("^GSPC").history(period=period)
-        if hist.empty:
+        close_series = hist["Close"].dropna()
+        if close_series.empty:
             return None
-        return hist["Close"]
+        return close_series
     except Exception as exc:
         warnings.warn(f"get_sp500_close_series: {exc}")
         return None
@@ -504,9 +506,10 @@ def get_gold_close_series(period: str = "2y") -> pd.Series | None:
     """Gibt die Gold-Schlusskurse zurück (GC=F)."""
     try:
         hist = yf.Ticker("GC=F").history(period=period)
-        if hist.empty:
+        close_series = hist["Close"].dropna()
+        if close_series.empty:
             return None
-        return hist["Close"]
+        return close_series
     except Exception as exc:
         warnings.warn(f"get_gold_close_series: {exc}")
         return None
