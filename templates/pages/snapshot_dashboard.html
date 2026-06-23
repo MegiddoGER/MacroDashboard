@@ -1,0 +1,506 @@
+{% extends "base.html" %}
+{% block title %}Snapshot Engine — Macro Dashboard{% endblock %}
+
+{% block content %}
+<style>
+    /* ═══ Snapshot Engine Styles ═══ */
+    .snapshot-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+    .snapshot-header h1 {
+        font-size: 1.4rem;
+        color: var(--text);
+        margin: 0;
+    }
+    .snapshot-header .header-actions {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+    }
+
+    /* Kennzahl-Karten Grid */
+    .kennzahlen-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 14px;
+        margin-bottom: 24px;
+    }
+    .kennzahl-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-md);
+        padding: 18px 20px;
+        transition: var(--transition-fast);
+        position: relative;
+        overflow: hidden;
+    }
+    .kennzahl-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        border-radius: var(--radius-md) var(--radius-md) 0 0;
+    }
+    .kennzahl-card:nth-child(1)::before { background: linear-gradient(90deg, var(--green), var(--accent)); }
+    .kennzahl-card:nth-child(2)::before { background: linear-gradient(90deg, var(--blue), var(--purple)); }
+    .kennzahl-card:nth-child(3)::before { background: linear-gradient(90deg, var(--yellow), #f97316); }
+    .kennzahl-card:hover {
+        border-color: var(--border-subtle);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+    }
+    .kennzahl-label {
+        color: var(--text-dim);
+        font-size: 0.72rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        font-weight: var(--font-weight-medium);
+        margin-bottom: 6px;
+    }
+    .kennzahl-wert {
+        color: var(--text);
+        font-weight: var(--font-weight-bold);
+        font-size: 1.6rem;
+        line-height: 1.2;
+    }
+    .kennzahl-sub {
+        font-size: 0.78rem;
+        color: var(--text-muted);
+        margin-top: 4px;
+    }
+
+    /* Kalibrierungs-Sektion */
+    .kalibrierung-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 10px;
+        margin-bottom: 24px;
+    }
+    .kalib-item {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+        padding: 12px 14px;
+        text-align: center;
+        transition: var(--transition-fast);
+    }
+    .kalib-item:hover {
+        border-color: var(--border-subtle);
+    }
+    .kalib-range {
+        font-size: 0.72rem;
+        color: var(--text-dim);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        margin-bottom: 6px;
+    }
+    .kalib-return {
+        font-size: 1.15rem;
+        font-weight: var(--font-weight-bold);
+    }
+    .kalib-count {
+        font-size: 0.7rem;
+        color: var(--text-muted);
+        margin-top: 2px;
+    }
+
+    /* Sektions-Titel */
+    .section-title {
+        font-size: 0.85rem;
+        color: var(--text-dim);
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        font-weight: var(--font-weight-semibold);
+        margin: 24px 0 12px 0;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .section-title::after {
+        content: '';
+        flex: 1;
+        height: 1px;
+        background: var(--border);
+    }
+
+    /* Ticker-Verwaltung */
+    .ticker-verwaltung {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+        margin-bottom: 24px;
+    }
+    @media (max-width: 768px) {
+        .ticker-verwaltung { grid-template-columns: 1fr; }
+        .kalibrierung-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    .ticker-form-card, .ticker-liste-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-md);
+        padding: 16px 20px;
+    }
+    .ticker-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 0.78rem;
+        font-weight: var(--font-weight-medium);
+        background: rgba(0, 212, 170, 0.1);
+        color: var(--accent);
+        border: 1px solid rgba(0, 212, 170, 0.25);
+        margin: 3px;
+        transition: var(--transition-fast);
+    }
+    .ticker-chip:hover {
+        background: rgba(0, 212, 170, 0.18);
+    }
+    .ticker-chip .deaktivieren-btn {
+        background: none;
+        border: none;
+        color: var(--text-muted);
+        cursor: pointer;
+        font-size: 0.85rem;
+        padding: 0 2px;
+        line-height: 1;
+        transition: var(--transition-fast);
+    }
+    .ticker-chip .deaktivieren-btn:hover {
+        color: var(--red);
+    }
+
+    /* Paginierung */
+    .pagination {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+        margin-top: 16px;
+    }
+    .pagination a, .pagination span {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 32px;
+        height: 32px;
+        padding: 0 8px;
+        border-radius: var(--radius-sm);
+        font-size: 0.82rem;
+        text-decoration: none;
+        transition: var(--transition-fast);
+    }
+    .pagination a {
+        color: var(--text-dim);
+        border: 1px solid var(--border);
+    }
+    .pagination a:hover {
+        background: rgba(148, 163, 184, 0.08);
+        color: var(--text);
+        border-color: var(--border-subtle);
+    }
+    .pagination .current {
+        background: var(--accent);
+        color: #0f172a;
+        font-weight: var(--font-weight-semibold);
+        border: 1px solid var(--accent);
+    }
+
+    /* Outcome-Return Farben */
+    .outcome-korrekt { color: var(--green); font-weight: var(--font-weight-semibold); }
+    .outcome-falsch  { color: var(--red);   font-weight: var(--font-weight-semibold); }
+    .outcome-neutral { color: var(--text-muted); }
+
+    /* Signal-Badge */
+    .signal-kauf    { background: rgba(34, 197, 94, 0.15); color: var(--green); }
+    .signal-neutral { background: rgba(148, 163, 184, 0.12); color: var(--text-dim); }
+    .signal-verkauf { background: rgba(239, 68, 68, 0.15); color: var(--red); }
+
+    /* Status-Badge */
+    .status-ausstehend  { background: rgba(234, 179, 8, 0.15); color: var(--yellow); }
+    .status-ausgewertet { background: rgba(34, 197, 94, 0.15); color: var(--green); }
+
+    /* Loading-Indicator für manuellen Run */
+    .run-loading {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--text-dim);
+        font-size: 0.85rem;
+        padding: 12px 0;
+    }
+</style>
+
+<!-- Header -->
+<div class="snapshot-header">
+    <h1>📊 Snapshot Engine</h1>
+    <div class="header-actions">
+        <a href="/snapshot/export/csv" class="btn btn-secondary btn-sm">📥 CSV Export</a>
+        <button class="btn btn-primary btn-sm"
+                hx-post="/snapshot/manuell-ausfuehren"
+                hx-target="#run-ergebnis"
+                hx-swap="innerHTML"
+                hx-indicator="#run-spinner">
+            ▶ Snapshot-Run jetzt ausführen
+        </button>
+    </div>
+</div>
+
+<!-- Run-Ergebnis -->
+<div id="run-ergebnis">
+    <div id="run-spinner" class="run-loading htmx-indicator">
+        <span class="spinner"></span> Snapshot-Run läuft — bitte warten...
+    </div>
+</div>
+
+<!-- Kennzahl-Karten -->
+<div class="kennzahlen-grid">
+    <div class="kennzahl-card">
+        <div class="kennzahl-label">KAUF Win-Rate</div>
+        <div class="kennzahl-wert" style="color: var(--green);">
+            {% if kennzahlen.kauf_win_rate is not none %}
+                {{ "%.1f"|format(kennzahlen.kauf_win_rate) }}%
+            {% else %}
+                —
+            {% endif %}
+        </div>
+        <div class="kennzahl-sub">
+            {% if kennzahlen.verkauf_win_rate is not none %}
+                VERKAUF Win-Rate: {{ "%.1f"|format(kennzahlen.verkauf_win_rate) }}%
+            {% else %}
+                Noch keine ausgewerteten Daten
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="kennzahl-card">
+        <div class="kennzahl-label">Ø Return bei KAUF-Signal</div>
+        <div class="kennzahl-wert"
+             style="color: {% if kennzahlen.avg_return_je_signal.KAUF is not none and kennzahlen.avg_return_je_signal.KAUF > 0 %}var(--green){% elif kennzahlen.avg_return_je_signal.KAUF is not none %}var(--red){% else %}var(--text-muted){% endif %};">
+            {% if kennzahlen.avg_return_je_signal.KAUF is not none %}
+                {{ "%+.2f"|format(kennzahlen.avg_return_je_signal.KAUF) }}%
+            {% else %}
+                —
+            {% endif %}
+        </div>
+        <div class="kennzahl-sub">
+            {% if kennzahlen.avg_return_je_signal.VERKAUF is not none %}
+                Ø VERKAUF: {{ "%+.2f"|format(kennzahlen.avg_return_je_signal.VERKAUF) }}% · Ø NEUTRAL: {{ "%+.2f"|format(kennzahlen.avg_return_je_signal.NEUTRAL) if kennzahlen.avg_return_je_signal.NEUTRAL is not none else "—" }}%
+            {% else %}
+                Noch keine Daten
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="kennzahl-card">
+        <div class="kennzahl-label">Snapshots ausstehend</div>
+        <div class="kennzahl-wert" style="color: var(--yellow);">
+            {{ kennzahlen.snapshots_ausstehend }}
+        </div>
+        <div class="kennzahl-sub">
+            {{ kennzahlen.snapshots_ausgewertet }} ausgewertet · {{ gesamt_anzahl }} gesamt
+        </div>
+    </div>
+</div>
+
+<!-- Score-Kalibrierung -->
+{% if kennzahlen.score_kalibrierung %}
+<div class="section-title">Score-Kalibrierung — Ø Return nach Confidence-Range</div>
+<div class="kalibrierung-grid">
+    {% for k in kennzahlen.score_kalibrierung %}
+    <div class="kalib-item">
+        <div class="kalib-range">{{ k.range }}</div>
+        <div class="kalib-return"
+             style="color: {% if k.avg_return is not none and k.avg_return > 0 %}var(--green){% elif k.avg_return is not none and k.avg_return < 0 %}var(--red){% else %}var(--text-muted){% endif %};">
+            {% if k.avg_return is not none %}
+                {{ "%+.2f"|format(k.avg_return) }}%
+            {% else %}
+                —
+            {% endif %}
+        </div>
+        <div class="kalib-count">{{ k.anzahl }} Snapshots</div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<!-- Snapshot-Tabelle -->
+<div class="section-title">Alle Snapshots ({{ gesamt_anzahl }})</div>
+<div class="card">
+    <div class="table-container" style="max-height: none;">
+        <table class="data-table" id="snapshot-tabelle">
+            <thead>
+                <tr>
+                    <th>Ticker</th>
+                    <th>Datum</th>
+                    <th>Confidence</th>
+                    <th>Signal</th>
+                    <th>Kurs bei Snapshot</th>
+                    <th>Outcome-Return</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if snapshots %}
+                    {% for s in snapshots %}
+                    <tr>
+                        <td style="font-weight: var(--font-weight-semibold); color: var(--text);">
+                            {{ s.ticker }}
+                        </td>
+                        <td>{{ s.snapshot_zeitpunkt[:16] if s.snapshot_zeitpunkt else "—" }}</td>
+                        <td>
+                            <span style="color: {% if s.confidence >= 60 %}var(--green){% elif s.confidence < 40 %}var(--red){% else %}var(--text-dim){% endif %};">
+                                {{ "%.1f"|format(s.confidence) }}%
+                            </span>
+                            <span style="font-size: 0.7rem; color: var(--text-muted); display: block;">
+                                {{ s.confidence_label or "" }}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="badge {% if s.richtungssignal == 'KAUF' %}signal-kauf{% elif s.richtungssignal == 'VERKAUF' %}signal-verkauf{% else %}signal-neutral{% endif %}">
+                                {{ s.richtungssignal }}
+                            </span>
+                        </td>
+                        <td>{{ "%.2f"|format(s.kurs_bei_snapshot) if s.kurs_bei_snapshot else "—" }}</td>
+                        <td>
+                            {% if s.ausgewertet and s.outcome_return is not none %}
+                                {% set korrekt = (s.richtungssignal == 'KAUF' and s.outcome_return > 0) or
+                                                 (s.richtungssignal == 'VERKAUF' and s.outcome_return < 0) or
+                                                 (s.richtungssignal == 'NEUTRAL') %}
+                                <span class="{% if s.richtungssignal == 'NEUTRAL' %}outcome-neutral{% elif korrekt %}outcome-korrekt{% else %}outcome-falsch{% endif %}">
+                                    {{ "%+.2f"|format(s.outcome_return) }}%
+                                </span>
+                            {% else %}
+                                <span class="outcome-neutral">—</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if s.ausgewertet %}
+                                <span class="badge status-ausgewertet">Ausgewertet</span>
+                            {% else %}
+                                <span class="badge status-ausstehend">Ausstehend</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 32px;">
+                            Noch keine Snapshots vorhanden. Klicke oben auf "Snapshot-Run jetzt ausführen".
+                        </td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Paginierung -->
+    {% if gesamt_seiten > 1 %}
+    <div class="pagination">
+        {% if aktuelle_seite > 1 %}
+            <a href="/snapshot/dashboard?seite={{ aktuelle_seite - 1 }}">←</a>
+        {% endif %}
+
+        {% for p in range(1, gesamt_seiten + 1) %}
+            {% if p == aktuelle_seite %}
+                <span class="current">{{ p }}</span>
+            {% elif p <= 3 or p > gesamt_seiten - 2 or (p >= aktuelle_seite - 1 and p <= aktuelle_seite + 1) %}
+                <a href="/snapshot/dashboard?seite={{ p }}">{{ p }}</a>
+            {% elif p == 4 or p == gesamt_seiten - 2 %}
+                <span style="color: var(--text-muted);">…</span>
+            {% endif %}
+        {% endfor %}
+
+        {% if aktuelle_seite < gesamt_seiten %}
+            <a href="/snapshot/dashboard?seite={{ aktuelle_seite + 1 }}">→</a>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+
+<!-- Ticker-Verwaltung -->
+<div class="section-title">Ticker-Verwaltung</div>
+<div class="ticker-verwaltung">
+    <!-- Ticker hinzufügen -->
+    <div class="ticker-form-card">
+        <h3 style="font-size: 0.9rem; color: var(--text); margin: 0 0 12px 0;">Ticker hinzufügen</h3>
+        <form hx-post="/snapshot/ticker/hinzufuegen"
+              hx-target="#ticker-feedback"
+              hx-swap="innerHTML"
+              style="display: flex; gap: 8px;">
+            <input type="text" name="ticker" class="form-input autocomplete-input"
+                   placeholder="z.B. AAPL, ALV.DE..." style="flex: 1;"
+                   autocomplete="off" required>
+            <button type="submit" class="btn btn-primary btn-sm">+ Hinzufügen</button>
+        </form>
+        <div id="ticker-feedback" style="margin-top: 8px;"></div>
+    </div>
+
+    <!-- Aktive Ticker -->
+    <div class="ticker-liste-card">
+        <h3 style="font-size: 0.9rem; color: var(--text); margin: 0 0 12px 0;">
+            Aktive Ticker ({{ ticker_liste|length }})
+        </h3>
+        <div id="ticker-chips" style="display: flex; flex-wrap: wrap; gap: 2px;">
+            {% for t in ticker_liste %}
+            <div class="ticker-chip" id="chip-{{ t.ticker }}">
+                {{ t.ticker }}
+                <button class="deaktivieren-btn"
+                        hx-post="/snapshot/ticker/deaktivieren/{{ t.ticker }}"
+                        hx-target="#ticker-feedback"
+                        hx-swap="innerHTML"
+                        title="{{ t.ticker }} deaktivieren">✕</button>
+            </div>
+            {% endfor %}
+            {% if not ticker_liste %}
+                <span style="color: var(--text-muted); font-size: 0.82rem;">
+                    Keine aktiven Ticker. Füge welche hinzu!
+                </span>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Top/Flop Ticker -->
+{% if kennzahlen.top_ticker or kennzahlen.flop_ticker %}
+<div class="section-title">Top & Flop Ticker (KAUF-Signale, min. 3 Snapshots)</div>
+<div class="ticker-verwaltung">
+    {% if kennzahlen.top_ticker %}
+    <div class="ticker-form-card">
+        <h3 style="font-size: 0.9rem; color: var(--green); margin: 0 0 10px 0;">🏆 Top 3</h3>
+        {% for t in kennzahlen.top_ticker %}
+        <div style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--border);">
+            <span style="font-weight: var(--font-weight-semibold); color: var(--text);">{{ t.ticker }}</span>
+            <span style="color: var(--green); font-weight: var(--font-weight-semibold);">
+                {{ "%+.2f"|format(t.avg_return) }}% <span style="font-size: 0.7rem; color: var(--text-muted);">({{ t.anzahl }}x)</span>
+            </span>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if kennzahlen.flop_ticker %}
+    <div class="ticker-form-card">
+        <h3 style="font-size: 0.9rem; color: var(--red); margin: 0 0 10px 0;">📉 Flop 3</h3>
+        {% for t in kennzahlen.flop_ticker %}
+        <div style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--border);">
+            <span style="font-weight: var(--font-weight-semibold); color: var(--text);">{{ t.ticker }}</span>
+            <span style="color: var(--red); font-weight: var(--font-weight-semibold);">
+                {{ "%+.2f"|format(t.avg_return) }}% <span style="font-size: 0.7rem; color: var(--text-muted);">({{ t.anzahl }}x)</span>
+            </span>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
+{% endblock %}

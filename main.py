@@ -27,8 +27,19 @@ async def lifespan(app: FastAPI):
     """Startup: DB initialisieren, Templates konfigurieren."""
     init_db()
     print("[OK] Datenbank initialisiert.")
+
+    from snapshot_engine.models import init_snapshot_db
+    init_snapshot_db()
+
+    from snapshot_engine.scheduler import scheduler_starten
+    scheduler_starten()
+
     yield
+
+    from snapshot_engine.scheduler import scheduler_stoppen
+    scheduler_stoppen()
     print("[STOP] Server wird beendet.")
+
 
 
 # ---------------------------------------------------------------------------
@@ -115,6 +126,7 @@ from routers.journal import router as journal_router
 from routers.backtesting import router as backtesting_router
 from routers.settings import router as settings_router
 from routers.sources import router as sources_router
+from snapshot_engine.router import router as snapshot_router
 
 app.include_router(api_router)
 app.include_router(home_router)
@@ -129,4 +141,6 @@ app.include_router(journal_router)
 app.include_router(backtesting_router)
 app.include_router(settings_router)
 app.include_router(sources_router)
+app.include_router(snapshot_router)
+
 
