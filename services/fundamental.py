@@ -10,7 +10,7 @@ import yfinance as yf
 # Dynamische Risk-Free Rate (Live Treasury Yield)
 # ---------------------------------------------------------------------------
 
-_cached_risk_free = {"value": None, "timestamp": 0}
+_cached_risk_free: dict[str, float | None] = {"value": None, "timestamp": 0}
 
 def _get_live_risk_free_rate(fallback: float = 0.03) -> float:
     """Zieht den aktuellen 10Y US-Treasury Yield als Risk-Free Rate.
@@ -20,7 +20,8 @@ def _get_live_risk_free_rate(fallback: float = 0.03) -> float:
     """
     import time
     now = time.time()
-    if _cached_risk_free["value"] is not None and (now - _cached_risk_free["timestamp"]) < 3600:
+    cached_ts = _cached_risk_free["timestamp"] or 0
+    if _cached_risk_free["value"] is not None and (now - cached_ts) < 3600:
         return _cached_risk_free["value"]
     try:
         tnx = yf.Ticker("^TNX").history(period="5d")

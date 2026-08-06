@@ -67,7 +67,7 @@ def create_icon_image():
     return image
 
 
-browser_procs = []
+browser_procs: list[subprocess.Popen] = []
 
 def open_browser():
     """Öffnet das native Browser-Fenster und speichert den Prozess für späteres Aufräumen."""

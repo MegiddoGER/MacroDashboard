@@ -145,7 +145,7 @@ def _rsi_score(close: pd.Series) -> float:
     return 20.0 * (clamped - 20) / 60.0
 
 
-def _safe_haven_score(gold_close: pd.Series, sp500_close: pd.Series) -> float:
+def _safe_haven_score(gold_close: pd.Series | None, sp500_close: pd.Series) -> float:
     """Gold vs. S&P 500 relative Performance (0–20).
 
     Wenn Gold besser performt als Aktien → Angst (Safe-Haven-Nachfrage).
@@ -171,7 +171,7 @@ def _safe_haven_score(gold_close: pd.Series, sp500_close: pd.Series) -> float:
 
 
 def calc_fear_greed_components(vix_value: float, sp500_close: pd.Series,
-                                gold_close: pd.Series = None) -> dict:
+                                gold_close: pd.Series | None = None) -> dict:
     """Berechnet alle 5 Komponenten und den Gesamt-Score.
 
     Rückgabe: dict mit scores und Gesamt.
@@ -201,7 +201,7 @@ def calc_fear_greed_components(vix_value: float, sp500_close: pd.Series,
 
 
 def calc_fear_greed(vix_value: float, sp500_close: pd.Series,
-                    gold_close: pd.Series = None) -> float:
+                    gold_close: pd.Series | None = None) -> float:
     """Gibt den Fear-&-Greed-Gesamtwert (0–100) zurück."""
     result = calc_fear_greed_components(vix_value, sp500_close, gold_close)
     return result["total"]
@@ -494,8 +494,8 @@ def calc_order_flow(high: pd.Series, low: pd.Series,
 
     bin_edges = np.linspace(price_min, price_max, n_bins + 1)
     bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
-    close_arr = close_recent.values.astype(float)
-    volume_arr = volume_recent.values.astype(float)
+    close_arr = np.asarray(close_recent.values, dtype=float)
+    volume_arr = np.asarray(volume_recent.values, dtype=float)
     bin_indices = np.clip(np.searchsorted(bin_edges, close_arr) - 1, 0, n_bins - 1)
     vol_profile = np.bincount(bin_indices, weights=volume_arr, minlength=n_bins)[:n_bins]
 
@@ -632,7 +632,7 @@ def calc_position_sizing(current_price: float, atr_val: float,
 # Zusammenfassung — Synthese aller Indikatoren
 # ---------------------------------------------------------------------------
 
-def calc_technical_summary(stats: dict, hist: pd.DataFrame, info: dict = None, ticker: str = None) -> dict:
+def calc_technical_summary(stats: dict, hist: pd.DataFrame, info: dict | None = None, ticker: str | None = None) -> dict:
     """Wertet Trend, Oszillatoren, Volumen und Fundamentaldaten aus und generiert ein Gesamt-Fazit.
 
     Nutzt die Scoring Engine (services/scoring.py) für die Bewertung und

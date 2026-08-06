@@ -143,7 +143,8 @@ def _quiver_get(endpoint: str) -> list[dict]:
                         return data
                     elif isinstance(data, dict):
                         # Manche Endpunkte wrappen Ergebnisse in ein Dict
-                        return data.get("data", data.get("results", [data]))
+                        inner = data.get("data", data.get("results", [data]))
+                        return inner if isinstance(inner, list) else [data]
                     return []
 
                 elif response.status_code == 401:
@@ -243,7 +244,7 @@ def get_quiver_institutional(ticker: str) -> list[dict]:
             continue
 
     # Sortierung: nach Positionsgröße absteigend
-    result.sort(key=lambda x: x.get("shares", 0), reverse=True)
+    result.sort(key=lambda x: int(x.get("shares") or 0), reverse=True)
 
     with _cache_lock:
         _cache[cache_key] = result
@@ -316,7 +317,7 @@ def get_quiver_congress_trades(ticker: str) -> list[dict]:
             continue
 
     # Sortierung: neueste zuerst
-    result.sort(key=lambda x: x.get("trade_date", ""), reverse=True)
+    result.sort(key=lambda x: str(x.get("trade_date") or ""), reverse=True)
 
     with _cache_lock:
         _cache[cache_key] = result
@@ -328,7 +329,7 @@ def get_quiver_congress_trades(ticker: str) -> list[dict]:
 # Corporate Insider Trades
 # ---------------------------------------------------------------------------
 
-def get_quiver_insider_trades(ticker: str) -> list[dict]:
+def get_quiver_insider_trades(ticker: str) -> tuple[list[dict], dict]:
     """Lädt Corporate Insider Trades von Quiver (/live/insiders/{ticker}).
 
     Returns:
@@ -408,7 +409,7 @@ def get_quiver_insider_trades(ticker: str) -> list[dict]:
             continue
 
     # Sortierung: neueste zuerst
-    trades.sort(key=lambda x: x.get("date", ""), reverse=True)
+    trades.sort(key=lambda x: str(x.get("date") or ""), reverse=True)
 
     sentiment = {
         "buys_count": buys_count,

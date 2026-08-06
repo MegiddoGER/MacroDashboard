@@ -11,11 +11,13 @@ Nutzt das bestehende models/signal.py (Signal + SignalStore) und erweitert es um
 
 import warnings
 from datetime import datetime, timedelta
+from typing import Any
 
 import math
 import numpy as np
 import yfinance as yf
 
+from database import get_session, SignalRecord
 from models.signal import Signal, SignalStore
 
 
@@ -290,8 +292,8 @@ def get_signal_statistics() -> dict:
     # Best/Worst Ticker
     best_ticker = None
     worst_ticker = None
-    best_rate = -1
-    worst_rate = 101
+    best_rate: float = -1
+    worst_rate: float = 101
 
     for ticker, stats in ticker_stats.items():
         if stats["total"] >= 2:  # Mindestens 2 Signale für Relevanz
@@ -311,7 +313,7 @@ def get_signal_statistics() -> dict:
     oldest = all_signals[-1].timestamp if all_signals else None
 
     # Top & Flop Individual Signals berechnen
-    signal_returns = []
+    signal_returns: list[dict[str, Any]] = []
     for s in evaluated:
         if s.price_at_signal <= 0:
             continue
@@ -371,22 +373,20 @@ def cleanup_old_signals() -> int:
     Returns:
         Anzahl gelöschter Signale
     """
-    all_raw = SignalStore._load_all()
     cutoff = datetime.now() - timedelta(days=365)
-    original_count = len(all_raw)
 
-    filtered = []
-    for s in all_raw:
-        ts_str = s.get("timestamp", "")
-        try:
-            ts = datetime.fromisoformat(ts_str)
-            if ts >= cutoff:
-                filtered.append(s)
-        except (ValueError, AttributeError):
-            filtered.append(s)  # Behalte bei ungültigem Timestamp
-
-    deleted = original_count - len(filtered)
-    if deleted > 0:
-        SignalStore._save_all(filtered)
-
-    return deleted
+    session = get_session()
+    try:
+        deleted = 0
+        for row in session.query(SignalRecord).all():
+            try:
+                ts = datetime.fromisoformat(row.timestamp or "")
+            except ValueError:
+                continue  # Behalte bei ungültigem Timestamp
+            if ts < cutoff:
+                session.delete(row)
+                deleted += 1
+        session.commit()
+        return deleted
+    finally:
+        session.close()

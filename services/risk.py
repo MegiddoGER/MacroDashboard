@@ -97,7 +97,7 @@ def calc_portfolio_var(positions: list[dict],
         return {"var_95_eur": 0, "var_99_eur": 0, "var_95_pct": 0,
                 "var_99_pct": 0, "cvar_95_eur": 0}
 
-    weights = np.array(weights) / total_value
+    weights_arr = np.array(weights) / total_value
 
     # Historische Returns laden (1 Jahr)
     returns_data = {}
@@ -126,7 +126,7 @@ def calc_portfolio_var(positions: list[dict],
     )
 
     # Gewichte für verfügbare Ticker neu normalisieren
-    valid_weights = np.array([weights[tickers.index(t)] for t in valid_tickers])
+    valid_weights = np.array([weights_arr[tickers.index(t)] for t in valid_tickers])
     valid_weights = valid_weights / valid_weights.sum()
 
     # Kovarianzmatrix
@@ -207,7 +207,7 @@ def calc_portfolio_beta(positions: list[dict],
     if total_value == 0:
         return {"beta": None, "description": "Kein Portfolio-Wert"}
 
-    weights = np.array(weights) / total_value
+    weights_arr = np.array(weights) / total_value
 
     # Benchmark-Returns
     try:
@@ -241,7 +241,7 @@ def calc_portfolio_beta(positions: list[dict],
             var_market = np.var(br, ddof=1)
             if var_market > 0:
                 beta = cov / var_market
-                portfolio_beta += beta * weights[i]
+                portfolio_beta += beta * weights_arr[i]
                 n_valid += 1
         except Exception:
             continue
@@ -315,7 +315,7 @@ def calc_sector_concentration(sector_allocation: list[dict]) -> dict:
 # Drawdown-Analyse
 # ---------------------------------------------------------------------------
 
-def calc_drawdown_analysis(equity_curve: pd.DataFrame = None) -> dict:
+def calc_drawdown_analysis(equity_curve: pd.DataFrame | None = None) -> dict:
     """Analysiert Drawdown-Phasen im Portfolio.
 
     Args:
@@ -333,7 +333,7 @@ def calc_drawdown_analysis(equity_curve: pd.DataFrame = None) -> dict:
             "recovery_days": None,
         }
 
-    values = equity_curve["Portfolio"].values
+    values = np.asarray(equity_curve["Portfolio"].values)
     dates = equity_curve["Datum"].values
 
     if len(values) < 2:
@@ -446,9 +446,10 @@ def calc_correlation_risk(positions: list[dict]) -> dict:
     # Hoch korrelierte Paare (> 0.7)
     high_pairs = []
     cols = corr.columns.tolist()
+    corr_values = corr.to_numpy()
     for i in range(len(cols)):
         for j in range(i + 1, len(cols)):
-            c = float(corr.iloc[i, j])
+            c = float(corr_values[i, j])
             if abs(c) > 0.7:
                 high_pairs.append((cols[i], cols[j], round(c, 2)))
 
@@ -475,7 +476,7 @@ def calc_correlation_risk(positions: list[dict]) -> dict:
 # Gesamt-Risk-Report
 # ---------------------------------------------------------------------------
 
-def calc_full_risk_report(current_prices: dict[str, float] = None) -> RiskMetrics:
+def calc_full_risk_report(current_prices: dict[str, float] | None = None) -> RiskMetrics:
     """Erstellt einen vollständigen Risiko-Report für das Portfolio."""
     from services.watchlist import get_open_positions
     from services.portfolio import calc_sector_allocation, calc_equity_curve

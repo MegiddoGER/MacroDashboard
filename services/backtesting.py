@@ -137,7 +137,7 @@ class BacktestEngine:
     def _strat_sma_cross(self) -> pd.Series:
         """Trendfolge: Kaufe wenn 50 crosses > 200."""
         long_cond = self.df["SMA_50"] > self.df["SMA_200"]
-        return np.where(long_cond, 1.0, 0.0)
+        return pd.Series(np.where(long_cond, 1.0, 0.0), index=self.df.index)
 
     def _strat_rsi_mean_reversion(self) -> pd.Series:
         """Oszillator: Kaufe bei starkem Oversold, halte bis Overbought oder Stop."""
@@ -154,7 +154,7 @@ class BacktestEngine:
     def _strat_macd_momentum(self) -> pd.Series:
         """Kauft, wenn MACD die Signallinie von unten nach oben kreuzt."""
         long_cond = self.df["MACD"] > self.df["MACD_Signal"]
-        return np.where(long_cond, 1.0, 0.0)
+        return pd.Series(np.where(long_cond, 1.0, 0.0), index=self.df.index)
         
     def _strat_bollinger_breakout(self) -> pd.Series:
         """Trendfolge-Momo: Kaufe den Ausbruch nach oben."""
@@ -287,7 +287,8 @@ class BacktestEngine:
                 # P&L = Verkaufserlös (nach Gebühr) − Kaufkosten (nach Gebühr)
                 trade_pnl_eur = revenue - entry_cost
                 trade_pnl_pct = (exec_price / entry_price - 1) * 100
-                
+
+                assert entry_date is not None  # garantiert durch in_trade-Invariante
                 trades.append({
                     "entry_date": entry_date.strftime("%Y-%m-%d"),
                     "exit_date": date.strftime("%Y-%m-%d"),
@@ -315,6 +316,7 @@ class BacktestEngine:
             capital = revenue
             trade_pnl_eur = revenue - entry_cost
             trade_pnl_pct = (exec_price / entry_price - 1) * 100
+            assert entry_date is not None  # garantiert durch in_trade-Invariante
             trades.append({
                 "entry_date": entry_date.strftime("%Y-%m-%d"),
                 "exit_date": df.index[-1].strftime("%Y-%m-%d"),
@@ -341,7 +343,7 @@ class BacktestEngine:
         max_dd = df["Drawdown"].min()
 
         # Tägliche Returns für risikoadjustierte Metriken
-        daily_returns = np.diff(equity_arr) / equity_arr[:-1]
+        daily_returns = np.diff(np.asarray(equity_arr)) / equity_arr[:-1]
         daily_returns = daily_returns[np.isfinite(daily_returns)]
 
         # Annualisierung

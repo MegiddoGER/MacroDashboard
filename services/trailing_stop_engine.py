@@ -106,7 +106,7 @@ def generate_stop_proposals(
 
         for multiplier, stop_type, suitability, explanation in atr_configs:
             if side == PositionSide.LONG:
-                stop_price = current_price - multiplier * atr_val
+                stop_price: Optional[float] = current_price - multiplier * atr_val
             else:
                 stop_price = current_price + multiplier * atr_val
 
@@ -135,7 +135,7 @@ def generate_stop_proposals(
     # ── Chandelier Exit ──────────────────────────────────────────
     if atr_val and atr_val > 0 and highest_high_22 is not None:
         if side == PositionSide.LONG:
-            chandelier_price = highest_high_22 - 3.0 * atr_val
+            chandelier_price: Optional[float] = highest_high_22 - 3.0 * atr_val
         else:
             # For short: LowestLow + 3*ATR (highest_high_22 should be lowest_low for short)
             chandelier_price = highest_high_22 + 3.0 * atr_val

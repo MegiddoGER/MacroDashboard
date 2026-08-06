@@ -13,6 +13,7 @@ import json
 import math
 import traceback
 from datetime import datetime
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -382,11 +383,11 @@ def _build_analysis_context(raw_input: str, time_filter: str) -> dict | str:
     eps_chart = "null"
     drift_chart = "null"
     opts = None
-    company_news = []
-    macro_events = []
-    quant_data = {}
-    signal_history = []
-    sum_data = {}
+    company_news: list[Any] = []
+    macro_events: list[Any] = []
+    quant_data: dict[str, Any] = {}
+    signal_history: list[Any] = []
+    sum_data: dict[str, Any] = {}
 
     def _fetch_dcf():
         return calc_dcf_valuation(info_data)
@@ -532,7 +533,7 @@ def _build_analysis_context(raw_input: str, time_filter: str) -> dict | str:
     # Save quick-score signal for tracking (like Streamlit version)
     try:
         if sum_data and sum_data.get("confidence") and stats.get("current_price"):
-            from models.signal import SignalStore
+            from models.signal import Signal, SignalStore
             confidence = sum_data["confidence"]
             if confidence >= 70:
                 sig_type = "buy"
@@ -540,12 +541,13 @@ def _build_analysis_context(raw_input: str, time_filter: str) -> dict | str:
                 sig_type = "sell"
             else:
                 sig_type = "hold"
-            SignalStore.create(
+            SignalStore.save(Signal(
                 ticker=ticker,
+                timestamp=datetime.now().isoformat(timespec="seconds"),
                 signal_type=sig_type,
                 confidence=confidence,
                 price_at_signal=stats["current_price"],
-            )
+            ))
     except Exception:
         pass
 
@@ -611,10 +613,10 @@ def _build_analysis_context(raw_input: str, time_filter: str) -> dict | str:
             import plotly.graph_objects as go
 
             # EPS chart: last 12 quarters, sorted chronologically
-            chart_events = sorted(earnings_profile.events, key=lambda e: e.date)[-12:]
-            quarters = [e.quarter for e in chart_events]
-            actuals = [e.eps_actual for e in chart_events]
-            estimates = [e.eps_estimate for e in chart_events]
+            chart_events = sorted(earnings_profile.events, key=lambda ev: ev.date)[-12:]
+            quarters = [ev.quarter for ev in chart_events]
+            actuals = [ev.eps_actual for ev in chart_events]
+            estimates = [ev.eps_estimate for ev in chart_events]
 
             fig_eps = go.Figure()
             fig_eps.add_trace(go.Bar(
@@ -623,9 +625,9 @@ def _build_analysis_context(raw_input: str, time_filter: str) -> dict | str:
                 marker_line_color="#64C8FF", marker_line_width=1,
             ))
             bar_colors = []
-            for e in chart_events:
-                if e.result == "Beat": bar_colors.append("#22c55e")
-                elif e.result == "Miss": bar_colors.append("#ef4444")
+            for ev in chart_events:
+                if ev.result == "Beat": bar_colors.append("#22c55e")
+                elif ev.result == "Miss": bar_colors.append("#ef4444")
                 else: bar_colors.append("#eab308")
             fig_eps.add_trace(go.Bar(
                 x=quarters, y=actuals, name="EPS Actual",

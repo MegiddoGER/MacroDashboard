@@ -11,6 +11,7 @@ Erweitert das bestehende Positions-Tracking (watchlist.py) um:
 import warnings
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -88,7 +89,7 @@ def determine_benchmark(positions: list[dict]) -> tuple[str, str]:
 # Equity-Kurve
 # ---------------------------------------------------------------------------
 
-def calc_equity_curve(current_prices: dict[str, float] = None) -> pd.DataFrame | None:
+def calc_equity_curve(current_prices: dict[str, float] | None = None) -> pd.DataFrame | None:
     """Berechnet eine historische Equity-Kurve des Portfolios.
 
     Nutzt die Kaufdaten der Positionen und historische Kursdaten.
@@ -223,14 +224,14 @@ def calc_equity_curve(current_prices: dict[str, float] = None) -> pd.DataFrame |
         cash_invested[mask] += buy_price_eur * qty
 
     # Nur Tage mit Werten > 0
-    mask = portfolio_values > 0
-    if not mask.any():
+    active_mask = portfolio_values > 0
+    if not active_mask.any():
         return None
 
-    portfolio_values = portfolio_values[mask]
-    cash_invested = cash_invested[mask]
-    daily_pnl = daily_pnl[mask]
-    
+    portfolio_values = portfolio_values[active_mask]
+    cash_invested = cash_invested[active_mask]
+    daily_pnl = daily_pnl[active_mask]
+
     # Echte TWRR-Berechnung (Isolierung der Cashflows)
     denom = portfolio_values - daily_pnl
     daily_returns = daily_pnl / denom
@@ -239,7 +240,7 @@ def calc_equity_curve(current_prices: dict[str, float] = None) -> pd.DataFrame |
 
     # Benchmark normalisieren auf gleichen Startwert
     if benchmark_ticker in price_df.columns:
-        bm_series = price_df[benchmark_ticker][mask]
+        bm_series = price_df[benchmark_ticker][active_mask]
         initial_invest = cash_invested.iloc[0] if cash_invested.iloc[0] > 0 else 1
         bm_start = bm_series.iloc[0] if bm_series.iloc[0] > 0 else 1
         bm_normalized = bm_series / bm_start * initial_invest
@@ -262,7 +263,7 @@ def calc_equity_curve(current_prices: dict[str, float] = None) -> pd.DataFrame |
 # Performance-Metriken
 # ---------------------------------------------------------------------------
 
-def calc_performance_metrics(current_prices: dict[str, float] = None) -> PerformanceMetrics:
+def calc_performance_metrics(current_prices: dict[str, float] | None = None) -> PerformanceMetrics:
     """Berechnet alle Portfolio-Performance-Kennzahlen."""
     from services.watchlist import get_open_positions, get_closed_positions, calc_position_pnl
 
@@ -308,7 +309,7 @@ def calc_performance_metrics(current_prices: dict[str, float] = None) -> Perform
         metrics.win_rate = round(wins / len(closed_pos) * 100, 1)
         metrics.best_trade_pct = round(best_pct, 2) if best_pct > -999 else 0.0
         metrics.worst_trade_pct = round(worst_pct, 2) if worst_pct < 999 else 0.0
-        metrics.avg_holding_days = round(np.mean(holding_days), 1) if holding_days else 0.0
+        metrics.avg_holding_days = round(float(np.mean(holding_days)), 1) if holding_days else 0.0
         metrics.profit_factor = round(total_gains / total_losses, 2) if total_losses > 0 else float("inf") if total_gains > 0 else 0.0
 
     # Equity-Kurve für Sharpe, Sortino, Max DD
@@ -320,6 +321,7 @@ def calc_performance_metrics(current_prices: dict[str, float] = None) -> Perform
             portfolio_series = equity["Portfolio"].values
 
         # Tägliche Returns
+        portfolio_series = np.asarray(portfolio_series)
         returns = np.diff(portfolio_series) / portfolio_series[:-1]
         returns = returns[np.isfinite(returns)]
 
@@ -362,7 +364,7 @@ def calc_performance_metrics(current_prices: dict[str, float] = None) -> Perform
 # Sektor-Allokation
 # ---------------------------------------------------------------------------
 
-def calc_sector_allocation(current_prices: dict[str, float] = None) -> list[dict]:
+def calc_sector_allocation(current_prices: dict[str, float] | None = None) -> list[dict]:
     """Berechnet die Sektor-Gewichtung des Portfolios.
 
     Returns:
@@ -377,7 +379,7 @@ def calc_sector_allocation(current_prices: dict[str, float] = None) -> list[dict
     if not open_pos:
         return []
 
-    sector_values = {}  # sector -> {value, tickers}
+    sector_values: dict[str, dict[str, Any]] = {}  # sector -> {value, tickers}
 
     for op in open_pos:
         ticker = op["ticker"]

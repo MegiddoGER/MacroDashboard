@@ -112,7 +112,7 @@ async def screener_scan(
 
     # Custom-Filter bauen — only add non-default values to avoid
     # overwriting preset filters (e.g. momentum's score_min=65)
-    custom_filters = {}
+    custom_filters: dict[str, int | str] = {}
     if score_min > 0:
         custom_filters["score_min"] = score_min
     if rsi_min > 0:

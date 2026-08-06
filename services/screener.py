@@ -13,6 +13,7 @@ Funktionalität:
 
 import warnings
 import os
+from typing import Any
 import pandas as pd
 import numpy as np
 import yfinance as yf
@@ -92,7 +93,7 @@ def get_dax_mdax_tickers() -> pd.DataFrame | None:
 # Vordefinierte Screener-Presets
 # ---------------------------------------------------------------------------
 
-PRESETS = {
+PRESETS: dict[str, dict[str, Any]] = {
     "all": {
         "name": "Alle scannen",
         "description": "Alle S&P 500 Aktien bewerten und nach Score sortieren.",
@@ -153,7 +154,7 @@ def _extract_single_ticker_hist(data: pd.DataFrame, ticker: str,
             # Nur 1 Ticker im Batch → einfache Columns
             sub = data
 
-        if sub is None or sub.empty:
+        if sub is None or not isinstance(sub, pd.DataFrame) or sub.empty:
             return None
 
         # Sicherstellen dass OHLCV vorhanden

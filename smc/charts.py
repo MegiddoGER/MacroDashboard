@@ -101,7 +101,7 @@ def plot_smc(df: pd.DataFrame, smc_data: dict, title: str = "SMC (Makro-Level)")
     layout["shapes"] = shapes
 
     # Rangebreaks für Krypto vs Aktien anwenden
-    has_weekends = (df.index.weekday >= 5).any() if not df.empty else False
+    has_weekends = (pd.DatetimeIndex(df.index).weekday >= 5).any() if not df.empty else False
     if not has_weekends:
         layout["xaxis"] = dict(rangebreaks=[dict(bounds=["sat", "mon"])])
         

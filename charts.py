@@ -2,6 +2,8 @@
 charts.py — Plotly-Chart-Builder (dark theme, clean design).
 """
 
+from typing import Any
+
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import pandas as pd
@@ -11,7 +13,7 @@ import numpy as np
 # Gemeinsame Layout-Defaults
 # ---------------------------------------------------------------------------
 
-LAYOUT_DEFAULTS = dict(
+LAYOUT_DEFAULTS: dict[str, Any] = dict(
     template="plotly_dark",
     paper_bgcolor="rgba(0,0,0,0)",
     plot_bgcolor="rgba(0,0,0,0)",
@@ -161,7 +163,7 @@ def plot_candlestick(df: pd.DataFrame, title: str,
     layout["margin"] = dict(t=50, b=30, l=60, r=10)
     
     # Rangebreaks logic (only apply if the data doesn't have weekends, i.e. stocks)
-    has_weekends = (df.index.weekday >= 5).any() if not df.empty else False
+    has_weekends = (pd.DatetimeIndex(df.index).weekday >= 5).any() if not df.empty else False
     layout["xaxis"] = dict(layout.get("xaxis", {}))
     
     if not has_weekends:
@@ -580,7 +582,7 @@ def plot_liquidity_sweeps(df: pd.DataFrame, sweeps: list[dict],
     layout["xaxis_rangeslider_visible"] = False
     layout["dragmode"] = "pan"
 
-    has_weekends = (df.index.weekday >= 5).any() if not df.empty else False
+    has_weekends = (pd.DatetimeIndex(df.index).weekday >= 5).any() if not df.empty else False
     if not has_weekends:
         layout["xaxis"] = dict(rangebreaks=[dict(bounds=["sat", "mon"])])
 

@@ -202,7 +202,7 @@ def detect_eqh_eql(df: pd.DataFrame, lookback: int = 10, tolerance_pct: float = 
         "eql": filter_redundant(eql_list)
     }
 
-def _analyze_tf(df: pd.DataFrame, label: str, min_gap_pct: float = 0.5) -> dict:
+def _analyze_tf(df: pd.DataFrame | None, label: str, min_gap_pct: float = 0.5) -> dict:
     """Analysiert einen einzelnen Timeframe und gibt Scores zurück.
 
     Returns:
@@ -275,8 +275,8 @@ def _analyze_tf(df: pd.DataFrame, label: str, min_gap_pct: float = 0.5) -> dict:
 
 
 def analyze_smc(df: pd.DataFrame,
-                htf_df: pd.DataFrame = None,
-                monthly_df: pd.DataFrame = None) -> dict:
+                htf_df: pd.DataFrame | None = None,
+                monthly_df: pd.DataFrame | None = None) -> dict:
     """Führt die komplette SMC-Analyse auf einem DataFrame durch.
 
     Args:

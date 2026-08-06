@@ -6,6 +6,7 @@ ausschließlich aus der Datenbank (kein yfinance-Aufruf).
 """
 
 from collections import defaultdict
+from typing import Any
 
 from sqlalchemy.orm import Session
 
@@ -26,7 +27,7 @@ def kennzahlen_berechnen(db: Session) -> dict:
         snapshots_ausstehend, snapshots_ausgewertet, top_ticker, flop_ticker,
         score_kalibrierung.
     """
-    ergebnis = {
+    ergebnis: dict[str, Any] = {
         "kauf_win_rate": None,
         "verkauf_win_rate": None,
         "avg_return_je_signal": {"KAUF": None, "NEUTRAL": None, "VERKAUF": None},
@@ -67,7 +68,7 @@ def kennzahlen_berechnen(db: Session) -> dict:
             signal_snapshots = [s for s in ausgewertet
                                 if s.richtungssignal == signal and s.outcome_return is not None]
             if signal_snapshots:
-                avg = sum(s.outcome_return for s in signal_snapshots) / len(signal_snapshots)
+                avg = sum(s.outcome_return or 0.0 for s in signal_snapshots) / len(signal_snapshots)
                 ergebnis["avg_return_je_signal"][signal] = round(avg, 2)
 
         # ── Top/Flop Ticker ────────────────────────────────────────
@@ -95,7 +96,7 @@ def kennzahlen_berechnen(db: Session) -> dict:
 
         # ── Score-Kalibrierung ─────────────────────────────────────
         # Ø outcome_return gruppiert nach Confidence-Ranges
-        ranges = [
+        ranges: list[dict[str, Any]] = [
             {"label": "0–39 (Schwach)", "min": 0, "max": 39},
             {"label": "40–59 (Neutral)", "min": 40, "max": 59},
             {"label": "60–74 (Gut)", "min": 60, "max": 74},
@@ -107,7 +108,7 @@ def kennzahlen_berechnen(db: Session) -> dict:
                       if s.outcome_return is not None
                       and r["min"] <= (s.confidence or 0) <= r["max"]]
             if gruppe:
-                avg = sum(s.outcome_return for s in gruppe) / len(gruppe)
+                avg = sum(s.outcome_return or 0.0 for s in gruppe) / len(gruppe)
                 ergebnis["score_kalibrierung"].append({
                     "range": r["label"],
                     "avg_return": round(avg, 2),

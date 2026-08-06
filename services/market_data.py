@@ -7,6 +7,7 @@ Alle Preise werden in EUR umgerechnet (via services/forex.py).
 
 import warnings
 import os
+from typing import Any
 import pandas as pd
 import numpy as np
 import yfinance as yf
@@ -86,7 +87,7 @@ def get_multi_quotes(tickers: list[str]) -> pd.DataFrame | None:
     Rückgabe: DataFrame mit Spalten [Ticker, Kurs (€), Veränderung %, RSI (14)].
     """
     try:
-        records = []
+        records: list[dict[str, Any]] = []
         from services.technical import calc_rsi
 
         for t in tickers:
@@ -143,7 +144,7 @@ def get_multi_quotes(tickers: list[str]) -> pd.DataFrame | None:
 # ---------------------------------------------------------------------------
 
 
-_cik_cache = {}
+_cik_cache: dict[str, str | None] = {}
 
 def _get_cik_for_ticker(ticker: str) -> str | None:
     """Holt die CIK für einen US-Ticker via SEC EDGAR company_tickers.json."""
@@ -388,7 +389,7 @@ def get_stock_details(ticker: str) -> dict | None:
                     cols = list(fin.columns)
                     cols.sort() # Älteste zuerst
                     
-                    prev_data = {} # Q -> (revenue, ebitda, ni)
+                    prev_data: dict[str, tuple] = {} # Q -> (revenue, ebitda, ni)
                     
                     for col in cols:
                         col_data = fin[col]
@@ -397,19 +398,19 @@ def get_stock_details(ticker: str) -> dict | None:
                         ebitda = float(col_data.get("EBITDA", 0)) if "EBITDA" in col_data and not pd.isna(col_data.get("EBITDA")) else None
                         ni = float(col_data.get("Net Income", 0)) if "Net Income" in col_data and not pd.isna(col_data.get("Net Income")) else None
                         
-                        year = col.year if hasattr(col, "year") else str(col)[:4]
+                        col_year = col.year if hasattr(col, "year") else str(col)[:4]
                         month = col.month if hasattr(col, "month") else 1
                         q = (month - 1) // 3 + 1
                         q_str = f"Q{q}"
-                        
+
                         prev_rev, prev_ebitda, prev_ni = prev_data.get(q_str, (None, None, None))
-                        
+
                         rev_yoy = ((rev - prev_rev) / abs(prev_rev) * 100) if rev is not None and prev_rev else None
                         ebitda_yoy = ((ebitda - prev_ebitda) / abs(prev_ebitda) * 100) if ebitda is not None and prev_ebitda else None
                         ni_yoy = ((ni - prev_ni) / abs(prev_ni) * 100) if ni is not None and prev_ni else None
-                        
+
                         financials_data.append({
-                            "year": f"{year} {q_str}", # Anzeige z.B. 2024 Q1
+                            "year": f"{col_year} {q_str}", # Anzeige z.B. 2024 Q1
                             "date": col,
                             "revenue": rev,
                             "revenue_yoy": rev_yoy,

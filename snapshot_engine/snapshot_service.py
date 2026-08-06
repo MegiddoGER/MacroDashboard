@@ -104,7 +104,9 @@ def alle_snapshots_ausfuehren(db: Session) -> dict:
     Returns:
         Dict mit Zusammenfassung: {"erfolgreich": n, "fehlgeschlagen": m, "ticker_fehler": [...]}
     """
-    ergebnis = {"erfolgreich": 0, "fehlgeschlagen": 0, "ticker_fehler": []}
+    erfolgreich = 0
+    fehlgeschlagen = 0
+    ticker_fehler: list[str] = []
 
     try:
         aktive_ticker = db.query(SnapshotKonfiguration).filter(
@@ -112,21 +114,21 @@ def alle_snapshots_ausfuehren(db: Session) -> dict:
         ).all()
     except Exception as e:
         print(f"[Snapshot] Fehler beim Laden der Konfiguration: {e}")
-        return ergebnis
+        return {"erfolgreich": erfolgreich, "fehlgeschlagen": fehlgeschlagen, "ticker_fehler": ticker_fehler}
 
     print(f"[Snapshot] Starte Snapshot-Run für {len(aktive_ticker)} Ticker...")
 
     for konfig in aktive_ticker:
         erfolg = snapshot_erstellen(konfig.ticker, db)
         if erfolg:
-            ergebnis["erfolgreich"] += 1
+            erfolgreich += 1
         else:
-            ergebnis["fehlgeschlagen"] += 1
-            ergebnis["ticker_fehler"].append(konfig.ticker)
+            fehlgeschlagen += 1
+            ticker_fehler.append(konfig.ticker)
 
-    print(f"[Snapshot] Run abgeschlossen: {ergebnis['erfolgreich']} OK, "
-          f"{ergebnis['fehlgeschlagen']} Fehler.")
-    return ergebnis
+    print(f"[Snapshot] Run abgeschlossen: {erfolgreich} OK, "
+          f"{fehlgeschlagen} Fehler.")
+    return {"erfolgreich": erfolgreich, "fehlgeschlagen": fehlgeschlagen, "ticker_fehler": ticker_fehler}
 
 
 # ---------------------------------------------------------------------------
@@ -155,7 +157,7 @@ def outcomes_nachtragen(db: Session) -> int:
 
     for snapshot in offene_snapshots:
         # Prüfe ob Zeitfenster abgelaufen
-        faellig_am = snapshot.snapshot_zeitpunkt + timedelta(days=snapshot.zeitfenster_tage)
+        faellig_am = snapshot.snapshot_zeitpunkt + timedelta(days=snapshot.zeitfenster_tage or 7)
         if faellig_am > jetzt:
             continue  # Noch nicht fällig
 

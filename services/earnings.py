@@ -111,19 +111,20 @@ def _calc_drift(hist: pd.DataFrame, earnings_date: datetime,
     """
     try:
         # Index auf Datum ohne Zeitzone normalisieren
-        if hist.index.tz is not None:
-            idx = hist.index.tz_localize(None)
+        dt_index = pd.DatetimeIndex(hist.index)
+        if dt_index.tz is not None:
+            idx = dt_index.tz_localize(None)
         else:
-            idx = hist.index
+            idx = dt_index
 
         ed = pd.Timestamp(earnings_date).tz_localize(None)
 
         # Nächster Handelstag nach/am Earnings-Datum finden
-        mask_after = idx >= ed
+        mask_after = np.asarray(idx >= ed)
         if not mask_after.any():
             return None
 
-        start_idx = mask_after.argmax()
+        start_idx = int(mask_after.argmax())
         end_idx = min(start_idx + days, len(hist) - 1)
 
         if start_idx >= len(hist) or end_idx >= len(hist):
@@ -143,10 +144,11 @@ def _calc_drift(hist: pd.DataFrame, earnings_date: datetime,
 def _get_price_at_date(hist: pd.DataFrame, date: datetime) -> float | None:
     """Holt den Schlusskurs am/nahe einem Datum."""
     try:
-        if hist.index.tz is not None:
-            idx = hist.index.tz_localize(None)
+        dt_index = pd.DatetimeIndex(hist.index)
+        if dt_index.tz is not None:
+            idx = dt_index.tz_localize(None)
         else:
-            idx = hist.index
+            idx = dt_index
 
         ed = pd.Timestamp(date).tz_localize(None)
         mask = idx >= ed
@@ -275,16 +277,16 @@ def get_earnings_history(ticker: str) -> EarningsProfile | None:
         beat_rate = round((beats / total) * 100, 1) if total > 0 else 0.0
 
         surprises = [e.surprise_pct for e in events if e.surprise_pct is not None]
-        avg_surprise = round(np.mean(surprises), 2) if surprises else 0.0
+        avg_surprise = float(round(np.mean(surprises), 2)) if surprises else 0.0
 
         # Drift-Durchschnitte
         drifts_1d = [e.drift_1d for e in events if e.drift_1d is not None]
         drifts_5d = [e.drift_5d for e in events if e.drift_5d is not None]
         drifts_20d = [e.drift_20d for e in events if e.drift_20d is not None]
 
-        avg_d1 = round(np.mean(drifts_1d), 2) if drifts_1d else None
-        avg_d5 = round(np.mean(drifts_5d), 2) if drifts_5d else None
-        avg_d20 = round(np.mean(drifts_20d), 2) if drifts_20d else None
+        avg_d1 = float(round(np.mean(drifts_1d), 2)) if drifts_1d else None
+        avg_d5 = float(round(np.mean(drifts_5d), 2)) if drifts_5d else None
+        avg_d20 = float(round(np.mean(drifts_20d), 2)) if drifts_20d else None
 
         # Drift nach Beats vs. Misses
         beat_drifts_1d = [e.drift_1d for e in events
@@ -292,8 +294,8 @@ def get_earnings_history(ticker: str) -> EarningsProfile | None:
         miss_drifts_1d = [e.drift_1d for e in events
                          if e.result == "Miss" and e.drift_1d is not None]
 
-        avg_beat_d1 = round(np.mean(beat_drifts_1d), 2) if beat_drifts_1d else None
-        avg_miss_d1 = round(np.mean(miss_drifts_1d), 2) if miss_drifts_1d else None
+        avg_beat_d1 = float(round(np.mean(beat_drifts_1d), 2)) if beat_drifts_1d else None
+        avg_miss_d1 = float(round(np.mean(miss_drifts_1d), 2)) if miss_drifts_1d else None
 
         return EarningsProfile(
             ticker=ticker,

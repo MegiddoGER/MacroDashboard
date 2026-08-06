@@ -13,7 +13,7 @@ Guards gegen NaN, Infinity und fehlende Werte.
 from __future__ import annotations
 
 import math
-from typing import Optional
+from typing import Optional, TypeGuard
 
 from services.position_types import (
     PositionSide, TargetStatus, StopStatus, Severity,
@@ -21,7 +21,7 @@ from services.position_types import (
 )
 
 
-def _is_valid_price(val: Optional[float]) -> bool:
+def _is_valid_price(val: Optional[float]) -> TypeGuard[float]:
     """Prüft ob ein Preiswert gültig ist (nicht None, NaN, Infinity, <= 0)."""
     if val is None:
         return False

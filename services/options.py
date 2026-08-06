@@ -17,6 +17,7 @@ import numpy as np
 import yfinance as yf
 from dataclasses import dataclass, field
 from datetime import datetime
+from typing import Any
 
 
 # ---------------------------------------------------------------------------
@@ -107,7 +108,7 @@ def _get_options_data(ticker: str, expiry: str | None = None) -> tuple:
 
 def _calc_put_call_ratio(calls: pd.DataFrame, puts: pd.DataFrame) -> dict:
     """Berechnet Put/Call Ratios (Volume und Open Interest)."""
-    result = {
+    result: dict[str, Any] = {
         "volume": None,
         "oi": None,
         "sentiment": "Neutral",
@@ -175,10 +176,10 @@ def _calc_max_pain(calls: pd.DataFrame, puts: pd.DataFrame) -> float | None:
         if len(all_strikes) == 0:
             return None
 
-        call_strikes = calls["strike"].values.astype(float)
-        call_oi = calls["openInterest"].fillna(0).values.astype(float)
-        put_strikes = puts["strike"].values.astype(float)
-        put_oi = puts["openInterest"].fillna(0).values.astype(float)
+        call_strikes = np.asarray(calls["strike"].values, dtype=float)
+        call_oi = np.asarray(calls["openInterest"].fillna(0).values, dtype=float)
+        put_strikes = np.asarray(puts["strike"].values, dtype=float)
+        put_oi = np.asarray(puts["openInterest"].fillna(0).values, dtype=float)
 
         # Broadcasting: test_prices (N,1) vs option_strikes (1,M)
         # Call Pain: max(0, test_price - strike) × OI  für jeden Strike × jede Call-Option
@@ -202,7 +203,7 @@ def _calc_iv_vs_hv(calls: pd.DataFrame, puts: pd.DataFrame,
                     current_price: float | None,
                     ticker: str) -> dict:
     """Vergleicht Implied Volatility (IV) mit Historical Volatility (HV)."""
-    result = {
+    result: dict[str, Any] = {
         "implied_vol": None,
         "historical_vol": None,
         "ratio": None,
@@ -264,7 +265,7 @@ def _calc_iv_vs_hv(calls: pd.DataFrame, puts: pd.DataFrame,
 def _detect_unusual_activity(df: pd.DataFrame, current_price: float | None,
                               option_type: str = "call") -> list[dict]:
     """Erkennt ungewöhnliche Options-Aktivität (große Volume-Spikes)."""
-    unusual = []
+    unusual: list[dict] = []
     try:
         if "volume" not in df.columns or "openInterest" not in df.columns:
             return unusual

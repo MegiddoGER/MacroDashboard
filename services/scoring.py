@@ -597,7 +597,7 @@ def _score_fundamental(info, ticker, result: ScoreResult):
 # Sentiment (News NLP)
 # ---------------------------------------------------------------------------
 
-def _score_sentiment(ticker: str, result: ScoreResult):
+def _score_sentiment(ticker: str | None, result: ScoreResult):
     """Bewertet das News-Sentiment mittels VADER NLP + Earnings Surprise.
 
     Zwei Signalquellen:
@@ -794,8 +794,8 @@ def calc_quick_score(hist: pd.DataFrame) -> ScoreResult | None:
     return result
 
 
-def calc_full_score(hist: pd.DataFrame, info: dict = None,
-                    ticker: str = None) -> ScoreResult | None:
+def calc_full_score(hist: pd.DataFrame, info: dict | None = None,
+                    ticker: str | None = None) -> ScoreResult | None:
     """Vollständige Score-Berechnung inkl. Fundamentaldaten, SMC und Sentiment."""
     if hist is None or hist.empty or len(hist) < 200:
         return None

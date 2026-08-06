@@ -232,8 +232,8 @@ def _new_position_id() -> str:
 
 
 def add_position(ticker: str, buy_price: float, quantity: float,
-                 buy_date: str = None, stop_loss: float = None,
-                 take_profit: float = None, fees: float = 0.0,
+                 buy_date: str | None = None, stop_loss: float | None = None,
+                 take_profit: float | None = None, fees: float = 0.0,
                  notes: str = "") -> dict | None:
     """Fügt eine neue Position zu einem Watchlist-Eintrag hinzu."""
     session = get_session()
@@ -267,7 +267,7 @@ def add_position(ticker: str, buy_price: float, quantity: float,
 
 
 def close_position(ticker: str, position_id: str, sell_price: float,
-                   sell_date: str = None, sell_fees: float = 0.0) -> dict | None:
+                   sell_date: str | None = None, sell_fees: float = 0.0) -> dict | None:
     """Schließt eine offene Position (Verkauf)."""
     session = get_session()
     try:
@@ -347,7 +347,7 @@ def delete_position(ticker: str, position_id: str) -> bool:
         session.close()
 
 
-def get_open_positions(ticker: str = None) -> list[dict]:
+def get_open_positions(ticker: str | None = None) -> list[dict]:
     """Gibt alle offenen (nicht verkauften) Positionen zurück."""
     session = get_session()
     try:
@@ -369,7 +369,7 @@ def get_open_positions(ticker: str = None) -> list[dict]:
         session.close()
 
 
-def get_closed_positions(ticker: str = None) -> list[dict]:
+def get_closed_positions(ticker: str | None = None) -> list[dict]:
     """Gibt alle geschlossenen (verkauften) Positionen zurück."""
     session = get_session()
     try:
@@ -391,7 +391,7 @@ def get_closed_positions(ticker: str = None) -> list[dict]:
         session.close()
 
 
-def calc_position_pnl(position: dict, current_price: float = None) -> dict:
+def calc_position_pnl(position: dict, current_price: float | None = None) -> dict:
     """Berechnet P&L für eine einzelne Position."""
     buy_price = position.get("buy_price", 0)
     quantity = position.get("quantity", 0)
@@ -435,7 +435,7 @@ def calc_position_pnl(position: dict, current_price: float = None) -> dict:
         }
 
 
-def calc_portfolio_summary(current_prices: dict[str, float] = None) -> dict:
+def calc_portfolio_summary(current_prices: dict[str, float] | None = None) -> dict:
     """Berechnet eine Gesamt-Portfolio-Übersicht.
 
     Hinweis: Mischt EUR- (.DE) und USD-Positionen OHNE Wechselkursumrechnung.

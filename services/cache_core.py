@@ -224,7 +224,7 @@ def cached_options_overview(ticker: str, expiry: str = ""):
     return get_options_overview(ticker, expiry or None)
 
 
-def cached_equity_curve(_prices_hash: str = "", current_prices: dict = None):
+def cached_equity_curve(_prices_hash: str = "", current_prices: dict | None = None):
     key = _prices_hash or "default"
     if key in _equity_cache:
         return _equity_cache[key]
@@ -233,7 +233,7 @@ def cached_equity_curve(_prices_hash: str = "", current_prices: dict = None):
     return val
 
 
-def cached_performance_metrics(_prices_hash: str = "", current_prices: dict = None):
+def cached_performance_metrics(_prices_hash: str = "", current_prices: dict | None = None):
     key = _prices_hash or "default"
     if key in _perf_cache:
         return _perf_cache[key]
@@ -242,7 +242,7 @@ def cached_performance_metrics(_prices_hash: str = "", current_prices: dict = No
     return val
 
 
-def cached_sector_allocation(_prices_hash: str = "", current_prices: dict = None):
+def cached_sector_allocation(_prices_hash: str = "", current_prices: dict | None = None):
     key = _prices_hash or "default"
     if key in _sector_alloc_cache:
         return _sector_alloc_cache[key]
@@ -251,7 +251,7 @@ def cached_sector_allocation(_prices_hash: str = "", current_prices: dict = None
     return val
 
 
-def cached_risk_report(_prices_hash: str = "", current_prices: dict = None):
+def cached_risk_report(_prices_hash: str = "", current_prices: dict | None = None):
     key = _prices_hash or "default"
     if key in _risk_cache:
         return _risk_cache[key]
