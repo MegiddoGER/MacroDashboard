@@ -13,13 +13,14 @@ Architektur:
 import json
 import os
 from datetime import datetime
+from typing import Optional
 
 from sqlalchemy import (
-    create_engine, Column, Integer, Float, Text, Boolean,
+    create_engine, Integer, Float, Text, Boolean,
     ForeignKey, event,
 )
 from sqlalchemy.orm import (
-    DeclarativeBase, sessionmaker, relationship,
+    DeclarativeBase, Mapped, mapped_column, sessionmaker, relationship,
 )
 
 
@@ -79,13 +80,14 @@ class Base(DeclarativeBase):
 class WatchlistItem(Base):
     __tablename__ = "watchlist"
 
-    ticker = Column(Text, primary_key=True)
-    name = Column(Text, nullable=False)
-    display = Column(Text)
-    status = Column(Text, default="Beobachtet")
+    ticker: Mapped[str] = mapped_column(Text, primary_key=True)
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    display: Mapped[Optional[str]] = mapped_column(Text)
+    status: Mapped[Optional[str]] = mapped_column(Text, default="Beobachtet")
 
-    positions = relationship("Position", back_populates="watchlist_item",
-                             cascade="all, delete-orphan", lazy="joined")
+    positions: Mapped[list["Position"]] = relationship(
+        "Position", back_populates="watchlist_item",
+        cascade="all, delete-orphan", lazy="joined")
 
     def to_dict(self) -> dict:
         return {
@@ -100,20 +102,20 @@ class WatchlistItem(Base):
 class Position(Base):
     __tablename__ = "positions"
 
-    id = Column(Text, primary_key=True)
-    ticker = Column(Text, ForeignKey("watchlist.ticker", ondelete="CASCADE"), nullable=False)
-    buy_date = Column(Text)
-    buy_price = Column(Float)
-    quantity = Column(Float)
-    stop_loss = Column(Float)
-    take_profit = Column(Float)
-    fees = Column(Float, default=0)
-    notes = Column(Text)
-    sell_date = Column(Text)
-    sell_price = Column(Float)
-    sell_fees = Column(Float)
+    id: Mapped[str] = mapped_column(Text, primary_key=True)
+    ticker: Mapped[str] = mapped_column(Text, ForeignKey("watchlist.ticker", ondelete="CASCADE"), nullable=False)
+    buy_date: Mapped[Optional[str]] = mapped_column(Text)
+    buy_price: Mapped[Optional[float]] = mapped_column(Float)
+    quantity: Mapped[Optional[float]] = mapped_column(Float)
+    stop_loss: Mapped[Optional[float]] = mapped_column(Float)
+    take_profit: Mapped[Optional[float]] = mapped_column(Float)
+    fees: Mapped[Optional[float]] = mapped_column(Float, default=0)
+    notes: Mapped[Optional[str]] = mapped_column(Text)
+    sell_date: Mapped[Optional[str]] = mapped_column(Text)
+    sell_price: Mapped[Optional[float]] = mapped_column(Float)
+    sell_fees: Mapped[Optional[float]] = mapped_column(Float)
 
-    watchlist_item = relationship("WatchlistItem", back_populates="positions")
+    watchlist_item: Mapped["WatchlistItem"] = relationship("WatchlistItem", back_populates="positions")
 
     def to_dict(self) -> dict:
         return {
@@ -134,73 +136,73 @@ class Position(Base):
 class JournalEntry(Base):
     __tablename__ = "journal"
 
-    id = Column(Text, primary_key=True)
-    ticker = Column(Text)
-    trade_type = Column(Text, default="Long")
-    setup_type = Column(Text)
-    entry_date = Column(Text)
-    entry_price = Column(Float)
-    conviction = Column(Integer, default=3)
-    entry_notes = Column(Text)
-    status = Column(Text, default="Offen")
-    exit_date = Column(Text)
-    exit_price = Column(Float)
-    pnl_eur = Column(Float)
-    pnl_pct = Column(Float)
-    review_notes = Column(Text)
+    id: Mapped[str] = mapped_column(Text, primary_key=True)
+    ticker: Mapped[Optional[str]] = mapped_column(Text)
+    trade_type: Mapped[Optional[str]] = mapped_column(Text, default="Long")
+    setup_type: Mapped[Optional[str]] = mapped_column(Text)
+    entry_date: Mapped[Optional[str]] = mapped_column(Text)
+    entry_price: Mapped[Optional[float]] = mapped_column(Float)
+    conviction: Mapped[Optional[int]] = mapped_column(Integer, default=3)
+    entry_notes: Mapped[Optional[str]] = mapped_column(Text)
+    status: Mapped[Optional[str]] = mapped_column(Text, default="Offen")
+    exit_date: Mapped[Optional[str]] = mapped_column(Text)
+    exit_price: Mapped[Optional[float]] = mapped_column(Float)
+    pnl_eur: Mapped[Optional[float]] = mapped_column(Float)
+    pnl_pct: Mapped[Optional[float]] = mapped_column(Float)
+    review_notes: Mapped[Optional[str]] = mapped_column(Text)
 
 
 class SignalRecord(Base):
     __tablename__ = "signals"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    ticker = Column(Text, index=True)
-    timestamp = Column(Text)
-    signal_type = Column(Text)
-    confidence = Column(Float)
-    score_label = Column(Text)
-    confidence_label = Column(Text)
-    cat_scores_json = Column(Text)       # JSON-String
-    cat_max_json = Column(Text)          # JSON-String
-    weights_json = Column(Text)          # JSON-String
-    price_at_signal = Column(Float)
-    rsi_at_signal = Column(Float)
-    volume_spike = Column(Boolean, default=False)
-    contributing_factors_json = Column(Text)  # JSON-String
-    macro_text = Column(Text)
-    actionable_text = Column(Text)
-    price_1w_later = Column(Float)
-    price_1m_later = Column(Float)
-    price_3m_later = Column(Float)
-    was_successful = Column(Boolean)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    ticker: Mapped[Optional[str]] = mapped_column(Text, index=True)
+    timestamp: Mapped[Optional[str]] = mapped_column(Text)
+    signal_type: Mapped[Optional[str]] = mapped_column(Text)
+    confidence: Mapped[Optional[float]] = mapped_column(Float)
+    score_label: Mapped[Optional[str]] = mapped_column(Text)
+    confidence_label: Mapped[Optional[str]] = mapped_column(Text)
+    cat_scores_json: Mapped[Optional[str]] = mapped_column(Text)       # JSON-String
+    cat_max_json: Mapped[Optional[str]] = mapped_column(Text)          # JSON-String
+    weights_json: Mapped[Optional[str]] = mapped_column(Text)          # JSON-String
+    price_at_signal: Mapped[Optional[float]] = mapped_column(Float)
+    rsi_at_signal: Mapped[Optional[float]] = mapped_column(Float)
+    volume_spike: Mapped[Optional[bool]] = mapped_column(Boolean, default=False)
+    contributing_factors_json: Mapped[Optional[str]] = mapped_column(Text)  # JSON-String
+    macro_text: Mapped[Optional[str]] = mapped_column(Text)
+    actionable_text: Mapped[Optional[str]] = mapped_column(Text)
+    price_1w_later: Mapped[Optional[float]] = mapped_column(Float)
+    price_1m_later: Mapped[Optional[float]] = mapped_column(Float)
+    price_3m_later: Mapped[Optional[float]] = mapped_column(Float)
+    was_successful: Mapped[Optional[bool]] = mapped_column(Boolean)
 
 
 class AlertRecord(Base):
     __tablename__ = "alerts"
 
-    id = Column(Text, primary_key=True)
-    ticker = Column(Text)
-    alert_type = Column(Text)
-    threshold = Column(Float)
-    status = Column(Text, default="active")
-    created_at = Column(Text)
-    triggered_at = Column(Text)
-    trigger_value = Column(Float)
+    id: Mapped[str] = mapped_column(Text, primary_key=True)
+    ticker: Mapped[Optional[str]] = mapped_column(Text)
+    alert_type: Mapped[Optional[str]] = mapped_column(Text)
+    threshold: Mapped[Optional[float]] = mapped_column(Float)
+    status: Mapped[Optional[str]] = mapped_column(Text, default="active")
+    created_at: Mapped[Optional[str]] = mapped_column(Text)
+    triggered_at: Mapped[Optional[str]] = mapped_column(Text)
+    trigger_value: Mapped[Optional[float]] = mapped_column(Float)
 
 
 class Setting(Base):
     """Key-Value-Store für Dashboard-Einstellungen (z.B. API-Keys)."""
     __tablename__ = "settings"
 
-    key = Column(Text, primary_key=True)
-    value = Column(Text)
+    key: Mapped[str] = mapped_column(Text, primary_key=True)
+    value: Mapped[Optional[str]] = mapped_column(Text)
 
 
 # ---------------------------------------------------------------------------
 # Settings-API (Key-Value)
 # ---------------------------------------------------------------------------
 
-def get_setting(key: str, default: str = None) -> str | None:
+def get_setting(key: str, default: Optional[str] = None) -> str | None:
     """Lädt eine Einstellung aus der Datenbank."""
     session = get_session()
     try:

@@ -8,9 +8,10 @@ Nutzt die bestehende Engine/Base aus database.py — erstellt keine zweite Verbi
 import json
 from datetime import datetime
 from pathlib import Path
+from typing import Optional
 
-from sqlalchemy import Column, Integer, Float, Text, Boolean, DateTime
-from sqlalchemy.orm import Session
+from sqlalchemy import Integer, Float, Text, Boolean, DateTime
+from sqlalchemy.orm import Mapped, mapped_column, Session
 
 from database import Base, engine, get_session
 
@@ -23,21 +24,21 @@ class AnalyseSnapshot(Base):
     """Eingefrorener Analyse-Zustand zu einem bestimmten Zeitpunkt."""
     __tablename__ = "analyse_snapshots"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    ticker = Column(Text, nullable=False, index=True)
-    snapshot_zeitpunkt = Column(DateTime, nullable=False)
-    kurs_bei_snapshot = Column(Float, nullable=False)
-    confidence = Column(Float, nullable=False)           # 0–100
-    confidence_label = Column(Text)                      # z.B. "Hohe Confidence"
-    richtungssignal = Column(Text, nullable=False)       # "KAUF" / "NEUTRAL" / "VERKAUF"
-    indikator_json = Column(Text)                        # JSON-serialisiertes cat_scores-Dict
-    zeitfenster_tage = Column(Integer, default=7)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    ticker: Mapped[str] = mapped_column(Text, nullable=False, index=True)
+    snapshot_zeitpunkt: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    kurs_bei_snapshot: Mapped[float] = mapped_column(Float, nullable=False)
+    confidence: Mapped[float] = mapped_column(Float, nullable=False)           # 0–100
+    confidence_label: Mapped[Optional[str]] = mapped_column(Text)              # z.B. "Hohe Confidence"
+    richtungssignal: Mapped[str] = mapped_column(Text, nullable=False)         # "KAUF" / "NEUTRAL" / "VERKAUF"
+    indikator_json: Mapped[Optional[str]] = mapped_column(Text)                # JSON-serialisiertes cat_scores-Dict
+    zeitfenster_tage: Mapped[Optional[int]] = mapped_column(Integer, default=7)
 
     # Outcome-Felder (werden nachträglich befüllt)
-    outcome_kurs = Column(Float, nullable=True)
-    outcome_return = Column(Float, nullable=True)        # in Prozent
-    outcome_zeitpunkt = Column(DateTime, nullable=True)
-    ausgewertet = Column(Boolean, default=False)
+    outcome_kurs: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    outcome_return: Mapped[Optional[float]] = mapped_column(Float, nullable=True)        # in Prozent
+    outcome_zeitpunkt: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    ausgewertet: Mapped[Optional[bool]] = mapped_column(Boolean, default=False)
 
     def to_dict(self) -> dict:
         return {
@@ -61,11 +62,11 @@ class SnapshotKonfiguration(Base):
     """Konfiguration: Welche Ticker sollen täglich analysiert werden."""
     __tablename__ = "snapshot_konfiguration"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    ticker = Column(Text, nullable=False, unique=True, index=True)
-    aktiv = Column(Boolean, default=True)
-    zeitfenster_tage = Column(Integer, default=7)
-    hinzugefuegt_am = Column(DateTime, default=datetime.utcnow)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    ticker: Mapped[str] = mapped_column(Text, nullable=False, unique=True, index=True)
+    aktiv: Mapped[Optional[bool]] = mapped_column(Boolean, default=True)
+    zeitfenster_tage: Mapped[Optional[int]] = mapped_column(Integer, default=7)
+    hinzugefuegt_am: Mapped[Optional[datetime]] = mapped_column(DateTime, default=datetime.utcnow)
 
     def to_dict(self) -> dict:
         return {

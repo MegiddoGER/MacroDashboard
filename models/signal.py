@@ -168,7 +168,7 @@ class SignalStore:
             session.close()
 
     @classmethod
-    def get_all(cls, ticker: str = None, limit: int = None) -> list[Signal]:
+    def get_all(cls, ticker: Optional[str] = None, limit: Optional[int] = None) -> list[Signal]:
         """Lädt Signale, optional gefiltert nach Ticker."""
         session = get_session()
         try:
@@ -189,7 +189,7 @@ class SignalStore:
         return signals[0] if signals else None
 
     @classmethod
-    def count(cls, ticker: str = None) -> int:
+    def count(cls, ticker: Optional[str] = None) -> int:
         """Zählt gespeicherte Signale."""
         session = get_session()
         try:
@@ -202,8 +202,8 @@ class SignalStore:
 
     @classmethod
     def update_outcome(cls, ticker: str, timestamp: str,
-                       price_1w: float = None, price_1m: float = None,
-                       price_3m: float = None) -> bool:
+                       price_1w: Optional[float] = None, price_1m: Optional[float] = None,
+                       price_3m: Optional[float] = None) -> bool:
         """Aktualisiert die Nachverfolgung eines Signals."""
         session = get_session()
         try:
