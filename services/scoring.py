@@ -783,6 +783,24 @@ def _finalize_score(result: ScoreResult):
     confidence = max(0.0, min(100.0, confidence))
     score = round(weighted_score * 10)
 
+    # Untere Bereiche bewusst als "meiden" statt als Verkaufssignal.
+    #
+    # Belegt über 86.926 historische Snapshots: als Verkaufssignal gelesen traf
+    # der untere Bereich nur in 38,8 % der Fälle zu (30 Tage) — die Kurse
+    # stiegen also mehrheitlich. Ein Verkaufssignal auszugeben, das häufiger
+    # falsch als richtig liegt, wäre eine Empfehlung ohne Deckung.
+    #
+    # Die Zahlen legen sogar das Gegenteil nahe (der unterste Bereich stieg mit
+    # +5,4 pp über der Basisrate am stärksten), aber genau dort schlägt die
+    # Überlebensverzerrung am härtesten zu: gemessen wird nur, was es bis heute
+    # in den Index geschafft hat — abgestürzte Titel fehlen. Die Umkehrung wäre
+    # daher nicht belegt, sondern ein Artefakt. Bezeichnend: bei 7 Tagen
+    # verschwindet der Effekt (-0,2 pp), er entsteht erst über längere Fristen.
+    #
+    # Deshalb: keine Kaufempfehlung, aber auch keine Verkaufsempfehlung —
+    # schlicht kein Einstieg. Die Messung selbst führt VERKAUF intern weiter
+    # (siehe snapshot_service.richtung_aus_confidence), damit sich eine
+    # spätere Verbesserung der bearishen Seite überhaupt noch nachweisen lässt.
     if confidence >= 75:
         score_label = "Starkes Kaufsignal "
         confidence_label = "Hohe Confidence"
@@ -793,11 +811,11 @@ def _finalize_score(result: ScoreResult):
         score_label = "Neutral "
         confidence_label = "Gemischte Signale"
     elif confidence >= 30:
-        score_label = "Verkaufstendenz ️"
-        confidence_label = "Schwache Confidence"
+        score_label = "Kein Einstieg"
+        confidence_label = "Schwache Confidence — kein Kaufsignal"
     else:
-        score_label = "Starkes Verkaufssignal "
-        confidence_label = "Sehr Schwache Confidence"
+        score_label = "Meiden"
+        confidence_label = "Sehr schwache Confidence — kein Kaufsignal"
 
     result.confidence = confidence
     result.score = score
