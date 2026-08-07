@@ -21,7 +21,9 @@ from services.economic_calendar import get_upcoming_events, get_calendar_summary
 from services.options import get_options_overview
 from services.portfolio import calc_equity_curve, calc_performance_metrics, calc_sector_allocation
 from services.risk import calc_full_risk_report
-from services.signal_history import get_signal_statistics, calc_hit_rate, calc_calibration_chart
+from snapshot_engine.auswertung_adapter import (
+    get_signal_statistics, calc_hit_rate, calc_calibration_chart,
+)
 
 
 # ---------------------------------------------------------------------------

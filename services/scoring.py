@@ -819,13 +819,75 @@ def calc_full_score(hist: pd.DataFrame, info: dict | None = None,
     
     _finalize_score(result)
 
-    if ticker:
-        try:
-            from services.signal_history import record_signal
-            current_price = float(close.iloc[-1])
-            record_signal(ticker, result, current_price)
-        except Exception as e:
-            print(f"Warning: Failed to record signal for {ticker} - {e}")
+    # Hinweis: calc_full_score ist bewusst seiteneffektfrei (keine DB-Schreibzugriffe).
+    # Die Signal-Erfassung erfolgt explizit im aufrufenden "Neue Position"-Pfad,
+    # siehe snapshot_engine/snapshot_service.py.
+    return result
+
+
+# ---------------------------------------------------------------------------
+# Technischer Score (Look-Ahead-Bias-frei — für Replay & Live-Gating)
+# ---------------------------------------------------------------------------
+
+# Kategorien, die sich ausschließlich aus dem OHLCV-Fenster berechnen lassen
+# und damit gefahrlos zu einem beliebigen historischen Zeitpunkt replaybar sind.
+TECHNISCHE_KATEGORIEN = ("trend", "volume", "oscillator")
+
+
+def _renormalisierte_gewichte(basis: dict, kategorien) -> dict:
+    """Verteilt die Gewichte der Basis-Konfiguration auf `kategorien` um.
+
+    Ohne Umverteilung würden nicht berechnete Kategorien in _finalize_score
+    zwar 0.0 beitragen, aber trotzdem ihren Gewichtsanteil verbrauchen — jeder
+    historische Score würde dadurch systematisch Richtung 50 (neutral)
+    gestaucht und wäre nicht mehr mit Live-Scores vergleichbar.
+    """
+    summe = sum(basis.get(k, 0.0) for k in kategorien)
+    if summe <= 0:
+        gleichverteilt = 1.0 / len(kategorien)
+        return {k: (gleichverteilt if k in kategorien else 0.0) for k in basis}
+    return {k: (basis.get(k, 0.0) / summe if k in kategorien else 0.0) for k in basis}
+
+
+def calc_technical_score(hist: pd.DataFrame, include_smc: bool = True) -> ScoreResult | None:
+    """Berechnet den Score ausschließlich aus OHLCV-Daten (kein Look-Ahead-Bias).
+
+    Verwendet dieselben Kategorie-Scorer wie calc_full_score, aber NUR die
+    technischen: trend (inkl. SMC), volume, oscillator. Die Gewichte aus
+    WEIGHTS_FULL werden auf diese Kategorien umverteilt, damit die relative
+    Bedeutung von Trend/Volumen/Oszillator identisch zur Live-Analyse bleibt.
+
+    WICHTIG: Diese Funktion darf NIEMALS _score_fundamental() oder
+    _score_sentiment() aufrufen. Beide beziehen ihre Daten über
+    get_stock_details()/News-APIs aus der *Gegenwart* — in einem historischen
+    Replay wäre das Look-Ahead-Bias und würde die Auswertung wertlos machen.
+
+    Args:
+        hist: OHLCV-DataFrame (mind. 200 Bars für SMA 200 / SMC)
+        include_smc: SMC-Analyse (FVG, EQH/EQL) einbeziehen — fließt in `trend`
+
+    Returns:
+        ScoreResult, oder None bei zu wenig Daten.
+    """
+    mindest_bars = 200 if include_smc else 50
+    if hist is None or hist.empty or len(hist) < mindest_bars:
+        return None
+
+    result = ScoreResult()
+    result.weights = _renormalisierte_gewichte(WEIGHTS_FULL, TECHNISCHE_KATEGORIEN)
+
+    close = hist["Close"]
+    high = hist["High"]
+    low = hist["Low"]
+    volume = hist["Volume"]
+
+    _score_trend(close, high, low, volume, result)
+    _score_oscillators(close, high, low, result)
+    _score_volume(high, low, close, volume, result)
+    if include_smc:
+        _score_smc(hist, result)
+
+    _finalize_score(result)
 
     return result
 

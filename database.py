@@ -153,6 +153,13 @@ class JournalEntry(Base):
 
 
 class SignalRecord(Base):
+    """DEPRECATED — abgelöst durch snapshot_engine (Signal-Qualitäts-Engine).
+
+    Die Daten werden einmalig nach analyse_snapshots/-outcomes migriert
+    (snapshot_engine/models.py::_migrate_legacy_signal_data). Tabelle bleibt
+    vorerst als Migrations-Absicherung bestehen und wird später entfernt.
+    Kein neuer Code darf hierauf schreiben.
+    """
     __tablename__ = "signals"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)

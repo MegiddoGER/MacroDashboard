@@ -1,57 +1,104 @@
 """
-snapshot_engine/scheduler.py — Täglicher Scheduler für Snapshot-Erstellung & Outcome-Nachtragung.
+snapshot_engine/scheduler.py — Hintergrund-Jobs der Signal-Qualitäts-Engine.
 
-Nutzt APScheduler (AsyncIOScheduler) mit einem täglichen CronJob.
-Die Uhrzeit ist leicht anpassbar über TAEGLICHER_LAUF_UHRZEIT.
+Drei Jobs auf einem gemeinsamen AsyncIOScheduler:
+
+  1. Gating (Cron, täglich nach Börsenschluss)
+     Ein günstiger Batch-Lauf über das gesamte Universum, der die fälligen
+     Ticker in die Warteschlange stellt.
+
+  2. Drain (Intervall)
+     Arbeitet die Live-Warteschlange in kleinen Häppchen ab, trägt fällige
+     Outcomes nach und schiebt laufende Backfill-Jobs weiter. Bewusst
+     intervallgesteuert statt als ein langer Lauf: so bleibt der Fortschritt
+     in der DB und übersteht einen Neustart der App.
+
+Alle Zeiten in Europe/Berlin.
 """
+
+import logging
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
+from apscheduler.triggers.interval import IntervalTrigger
 
 from database import get_session
+
+logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
 # Konfiguration
 # ---------------------------------------------------------------------------
 
-TAEGLICHER_LAUF_UHRZEIT = "18:30"  # CET, nach Börsenschluss — leicht anpassbar
+TAEGLICHER_LAUF_UHRZEIT = "18:30"   # CET, nach Xetra-Schluss
+DRAIN_INTERVALL_MINUTEN = 3         # Takt der Warteschlangen-Abarbeitung
+DRAIN_QUEUE_LIMIT = 8               # Ticker je Drain-Tick (Rate-Limit-Schonung)
+DRAIN_OUTCOME_LIMIT = 300           # Outcomes je Drain-Tick
 
-# Scheduler-Instanz (Modul-Singleton)
 _scheduler: AsyncIOScheduler | None = None
 
 
 # ---------------------------------------------------------------------------
-# Job-Funktion
+# Job 1 — tägliches Gating
 # ---------------------------------------------------------------------------
 
-def _taeglicher_snapshot_job():
-    """Führt sequentiell aus: 1) alle Snapshots erstellen, 2) Outcomes nachtragen.
-
-    Die Reihenfolge ist invariant: Erst Snapshot, dann Outcome.
-    Wird synchron in einem Thread ausgeführt (APScheduler default).
-    """
-    print("[Scheduler] ═══ Täglicher Snapshot-Job gestartet ═══")
-
+def _gating_job():
+    """Ermittelt einmal täglich, welche Ticker neu bewertet werden müssen."""
+    logger.info("═══ Gating-Lauf gestartet ═══")
     session = get_session()
     try:
-        # Schritt 1: Snapshots erstellen
-        from snapshot_engine.snapshot_service import alle_snapshots_ausfuehren
-        ergebnis = alle_snapshots_ausfuehren(session)
-        print(f"[Scheduler] Snapshots: {ergebnis['erfolgreich']} OK, "
-              f"{ergebnis['fehlgeschlagen']} Fehler")
-
-        # Schritt 2: Outcomes nachtragen (nach vollständigem Abschluss von Schritt 1)
-        from snapshot_engine.snapshot_service import outcomes_nachtragen
-        nachgetragen = outcomes_nachtragen(session)
-        print(f"[Scheduler] Outcomes nachgetragen: {nachgetragen}")
-
+        from snapshot_engine.snapshot_service import gating_lauf
+        ergebnis = gating_lauf(session)
+        logger.info("Gating-Lauf beendet: %d von %d Tickern eingereiht.",
+                    ergebnis["eingereiht"], ergebnis["geprueft"])
     except Exception as e:
-        print(f"[Scheduler] Fehler im täglichen Job: {e}")
+        logger.error("Gating-Lauf fehlgeschlagen: %s", e, exc_info=True)
     finally:
         session.close()
 
-    print("[Scheduler] ═══ Täglicher Snapshot-Job beendet ═══")
+
+# ---------------------------------------------------------------------------
+# Job 2 — Drain (Warteschlange, Outcomes, Backfill)
+# ---------------------------------------------------------------------------
+
+def _drain_job():
+    """Arbeitet offene Arbeit in begrenzten Häppchen ab.
+
+    Reihenfolge ist bewusst gewählt: erst neue Snapshots erzeugen, dann
+    Outcomes nachtragen (Outcomes setzen existierende Snapshots voraus),
+    zuletzt der historische Backfill als niedrigste Priorität.
+    """
+    session = get_session()
+    try:
+        from snapshot_engine.snapshot_service import (
+            outcomes_nachtragen, queue_abarbeiten,
+        )
+
+        queue = queue_abarbeiten(session, limit=DRAIN_QUEUE_LIMIT)
+        if queue["verarbeitet"]:
+            logger.info("Drain: %d Ticker verarbeitet (%d ok, %d Fehler, %d offen).",
+                        queue["verarbeitet"], queue["erfolgreich"],
+                        queue["fehlgeschlagen"], queue["offen"])
+
+        nachgetragen = outcomes_nachtragen(session, limit=DRAIN_OUTCOME_LIMIT)
+        if nachgetragen:
+            logger.info("Drain: %d Outcomes nachgetragen.", nachgetragen)
+
+    except Exception as e:
+        logger.error("Drain-Job fehlgeschlagen: %s", e, exc_info=True)
+    finally:
+        session.close()
+
+    # Backfill separat, damit ein Fehler dort die Live-Verarbeitung nicht stoppt
+    session = get_session()
+    try:
+        from snapshot_engine.backfill_service import backfill_schritt
+        backfill_schritt(session)
+    except Exception as e:
+        logger.error("Backfill-Schritt fehlgeschlagen: %s", e, exc_info=True)
+    finally:
+        session.close()
 
 
 # ---------------------------------------------------------------------------
@@ -59,46 +106,45 @@ def _taeglicher_snapshot_job():
 # ---------------------------------------------------------------------------
 
 def scheduler_starten():
-    """Startet den AsyncIO-Scheduler mit dem täglichen Snapshot-Job.
-
-    Wird vom lifespan-Handler in main.py aufgerufen.
-    """
+    """Startet alle Hintergrund-Jobs. Wird vom lifespan-Handler aufgerufen."""
     global _scheduler
 
     if _scheduler is not None:
-        print("[Scheduler] Bereits gestartet — überspringe.")
+        logger.info("Scheduler bereits gestartet — übersprungen.")
         return
 
     _scheduler = AsyncIOScheduler()
 
-    # Uhrzeit parsen
     stunde, minute = TAEGLICHER_LAUF_UHRZEIT.split(":")
-    trigger = CronTrigger(
-        hour=int(stunde),
-        minute=int(minute),
-        timezone="Europe/Berlin",  # CET/CEST
-    )
-
     _scheduler.add_job(
-        _taeglicher_snapshot_job,
-        trigger=trigger,
-        id="taeglicher_snapshot",
-        name="Täglicher Snapshot-Run",
+        _gating_job,
+        trigger=CronTrigger(hour=int(stunde), minute=int(minute),
+                            timezone="Europe/Berlin"),
+        id="signal_gating",
+        name="Tägliches Signal-Gating",
         replace_existing=True,
     )
 
+    _scheduler.add_job(
+        _drain_job,
+        trigger=IntervalTrigger(minutes=DRAIN_INTERVALL_MINUTEN),
+        id="signal_drain",
+        name="Warteschlange & Outcomes abarbeiten",
+        replace_existing=True,
+        max_instances=1,          # Überlappende Läufe verhindern
+        coalesce=True,            # Verpasste Läufe zusammenfassen, nicht nachholen
+    )
+
     _scheduler.start()
-    print(f"[Scheduler] Gestartet — täglicher Snapshot-Run um {TAEGLICHER_LAUF_UHRZEIT} CET.")
+    logger.info("Scheduler gestartet — Gating täglich %s CET, Drain alle %d Minuten.",
+                TAEGLICHER_LAUF_UHRZEIT, DRAIN_INTERVALL_MINUTEN)
 
 
 def scheduler_stoppen():
-    """Stoppt den Scheduler sauber.
-
-    Wird vom lifespan-Handler in main.py aufgerufen.
-    """
+    """Stoppt den Scheduler sauber."""
     global _scheduler
 
     if _scheduler is not None:
         _scheduler.shutdown(wait=False)
         _scheduler = None
-        print("[Scheduler] Gestoppt.")
+        logger.info("Scheduler gestoppt.")

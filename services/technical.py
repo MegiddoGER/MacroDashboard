@@ -559,19 +559,16 @@ def calc_position_sizing(current_price: float, atr_val: float,
     kelly_source = "default"
     if win_rate is None or avg_win_loss_ratio is None:
         try:
-            from services.signal_history import calc_hit_rate, get_signal_statistics
-            hr = calc_hit_rate(days=365)
-            # Mindestens 30 evaluierte Signale für statistische Relevanz
-            if hr["evaluated"] >= 30 and hr["overall_hit_rate"] is not None:
-                win_rate = hr["overall_hit_rate"] / 100.0
-                # Avg Win/Loss Ratio aus Top/Flop-Signalen
-                sig_stats = get_signal_statistics()
-                tops = sig_stats.get("top_signals", [])
-                flops = sig_stats.get("flop_signals", [])
-                avg_win = abs(sum(t["return_pct"] for t in tops) / len(tops)) if tops else 5.0
-                avg_loss = abs(sum(t["return_pct"] for t in flops) / len(flops)) if flops else 3.0
-                avg_win_loss_ratio = avg_win / avg_loss if avg_loss > 0 else 1.0
-                kelly_source = "signal_history"
+            # Kennzahlen aus der Signal-Qualitäts-Engine. Das Gewinn/Verlust-
+            # Verhältnis stammt jetzt aus der VOLLSTÄNDIGEN Verteilung — die
+            # frühere Schätzung über die Top-3/Flop-3-Signale nutzte nur die
+            # Extremwerte und überzeichnete beide Seiten erheblich.
+            from snapshot_engine.auswertung_adapter import kelly_kennzahlen
+            kennzahlen = kelly_kennzahlen()
+            if kennzahlen:
+                win_rate = kennzahlen["win_rate"]
+                avg_win_loss_ratio = kennzahlen["avg_win_loss_ratio"]
+                kelly_source = "signal_engine"
         except Exception:
             pass
 
@@ -761,6 +758,10 @@ def calc_technical_summary(stats: dict, hist: pd.DataFrame, info: dict | None = 
         "checklist": result.checklist,
         "macro": macro,
         "micro": micro,
-        "actionable": action
+        "actionable": action,
+        # Rohes ScoreResult für die Signal-Qualitäts-Engine (siehe
+        # routers/analysis.py). Templates lesen gezielt einzelne Schlüssel,
+        # der zusätzliche Eintrag stört dort nicht.
+        "score_result": result,
     }
 

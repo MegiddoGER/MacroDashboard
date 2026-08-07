@@ -126,7 +126,8 @@ from routers.journal import router as journal_router
 from routers.backtesting import router as backtesting_router
 from routers.settings import router as settings_router
 from routers.sources import router as sources_router
-from snapshot_engine.router import router as snapshot_router
+from snapshot_engine.router import alt_router as snapshot_alt_router
+from snapshot_engine.router import router as signals_router
 
 app.include_router(api_router)
 app.include_router(home_router)
@@ -141,6 +142,7 @@ app.include_router(journal_router)
 app.include_router(backtesting_router)
 app.include_router(settings_router)
 app.include_router(sources_router)
-app.include_router(snapshot_router)
+app.include_router(signals_router)
+app.include_router(snapshot_alt_router)   # Weiterleitung alter /snapshot-Links
 
 

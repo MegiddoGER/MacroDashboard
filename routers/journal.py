@@ -61,7 +61,9 @@ async def journal_page(request: Request):
     ai_stats = {}
     calib_chart_json = "null"
     try:
-        from services.signal_history import get_signal_statistics, calc_calibration_chart
+        from snapshot_engine.auswertung_adapter import (
+            get_signal_statistics, calc_calibration_chart,
+        )
         ai_stats = get_signal_statistics()
         calib = calc_calibration_chart()
         if calib:

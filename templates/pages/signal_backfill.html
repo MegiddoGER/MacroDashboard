@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}Historischer Backfill — Macro Dashboard{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>Historischer Backfill</h2>
+    <p class="caption">
+        Spielt die technische Analyse rückwirkend über die Kurshistorie ab und
+        erzeugt so sofort auswertbare Daten — statt wochenlang auf neue Signale
+        zu warten.
+    </p>
+</div>
+
+<div class="alert alert-warning" style="margin-bottom:16px;">
+    <strong>Was der Backfill bewusst NICHT tut.</strong>
+    <ul style="margin:6px 0 0 18px;">
+        <li>Er berechnet <strong>keine Fundamental- und Sentiment-Werte</strong>. DCF, Bilanz,
+            Insider-Daten, Analystenmeinungen und News-Sentiment liegen ausschließlich in ihrer
+            heutigen Fassung vor. Sie auf ein vergangenes Datum anzuwenden hieße, mit Wissen aus
+            der Zukunft zu rechnen — die Ergebnisse sähen hervorragend aus und wären wertlos.
+            Diese Kategorien lassen sich nur im laufenden Betrieb ehrlich messen.</li>
+        <li>Er kann die <strong>Überlebensverzerrung nicht beheben</strong>: das Universum ist die
+            heutige Index-Zusammensetzung. Firmen, die zwischenzeitlich delistet wurden oder aus
+            dem Index geflogen sind, fehlen — was die historischen Zahlen etwas zu optimistisch
+            ausfallen lässt.</li>
+    </ul>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+    <!-- Start-Formular -->
+    <div class="card">
+        <h3>Neuen Lauf starten</h3>
+        <form hx-post="/signals/backfill/start" hx-target="#backfill-aktion" hx-swap="innerHTML">
+            <div style="margin-bottom:12px;">
+                <label for="historie_jahre">Historie (Jahre)</label>
+                <input type="number" id="historie_jahre" name="historie_jahre"
+                       value="5" min="1" max="20" style="width:100%;">
+            </div>
+            <div style="margin-bottom:12px;">
+                <label for="include_smc">SMC-Analyse (FVG, Equal Highs/Lows)</label>
+                <select id="include_smc" name="include_smc" style="width:100%;">
+                    <option value="ja">Ja — deckungsgleich mit der Live-Analyse (langsamer)</option>
+                    <option value="nein">Nein — rund zehnmal schneller</option>
+                </select>
+                <p class="caption" style="margin-top:4px;">
+                    SMC kostet je Bewertung etwa das Zehnfache an Rechenzeit (~79 ms statt ~8 ms).
+                    Mit SMC entspricht der historische Trend-Score exakt dem der Live-Analyse.
+                </p>
+            </div>
+            <button type="submit" class="btn">Backfill starten</button>
+        </form>
+        <div id="backfill-aktion" style="margin-top:12px;"></div>
+    </div>
+
+    <!-- Fortschritt -->
+    <div>
+        <h3>Fortschritt</h3>
+        <div hx-get="/signals/backfill/status"
+             hx-trigger="load, every 5s"
+             hx-swap="innerHTML">
+            {% include "partials/signal_backfill_status.html" %}
+        </div>
+
+        <div class="card" style="margin-top:16px;">
+            <h4>Datenbestand</h4>
+            <div style="display:flex;justify-content:space-between;"><span>Snapshots gesamt</span><strong>{{ bestand.snapshots_gesamt }}</strong></div>
+            <div style="display:flex;justify-content:space-between;"><span>davon historisch</span><strong>{{ bestand.snapshots_historisch }}</strong></div>
+            <div style="display:flex;justify-content:space-between;"><span>davon live</span><strong>{{ bestand.snapshots_live }}</strong></div>
+            <div style="display:flex;justify-content:space-between;"><span>Outcomes ausgewertet</span><strong>{{ bestand.outcomes_ausgewertet }}</strong></div>
+            <div style="display:flex;justify-content:space-between;"><span>Outcomes offen</span><strong>{{ bestand.outcomes_offen }}</strong></div>
+        </div>
+    </div>
+</div>
+
+<p class="caption" style="margin-top:16px;">
+    Der Lauf arbeitet in kleinen Portionen im Hintergrund und schont damit sowohl
+    die Rate-Limits der Kursdaten-API als auch die Reaktionszeit des Dashboards.
+    Der Fortschritt liegt in der Datenbank — ein Neustart setzt ihn fort.
+</p>
+{% endblock %}

@@ -1,0 +1,236 @@
+"""
+snapshot_engine/auswertung/indikator_stats.py — Auswertung je Einzelindikator.
+
+Beantwortet die eigentliche Kernfrage der Engine: funktioniert RSI? Sagt ein
+bullisches FVG tatsächlich steigende Kurse voraus? Trägt der DCF-Wert etwas
+bei — oder ist er Rauschen?
+
+Ausgewertet wird nach Richtung des Indikator-Beitrags: ein Indikator, der zum
+Zeitpunkt X bullisch beigetragen hat (beitrag_numeric > 0), wird daran
+gemessen, ob der Kurs anschließend gestiegen ist — und umgekehrt.
+
+Rein informative Einträge (Beitrag "Info", z.B. ADX/MACD in scoring.py) haben
+beitrag_numeric = NULL und werden nicht als Prognose gewertet.
+"""
+
+import logging
+from collections import defaultdict
+
+from sqlalchemy.orm import Session
+
+from snapshot_engine.models import (
+    AnalyseModus, AnalyseSnapshot, AnalyseSnapshotIndikator,
+    AnalyseSnapshotOutcome, Granularitaet,
+)
+from snapshot_engine.auswertung.basis import (
+    MIN_STICHPROBE, STATUS_OK, kennzahlen_aus_returns,
+)
+
+logger = logging.getLogger(__name__)
+
+RICHTUNG_BULLISCH = "bullisch"
+RICHTUNG_BEARISCH = "bearisch"
+
+
+def basisrate(db: Session, horizont: int, datenmodus: str | None = None) -> dict:
+    """Unbedingte Vergleichsbasis: was passierte über ALLE Beobachtungen hinweg?
+
+    Ohne diesen Bezugspunkt ist keine Indikator-Zahl interpretierbar: wenn
+    Aktien in 55 % aller 7-Tage-Fenster ohnehin steigen, ist ein bullischer
+    Indikator mit 55 % Trefferquote wertlos — er misst nur die allgemeine
+    Aufwärtsdrift des Marktes, keine Prognosefähigkeit.
+    """
+    query = (
+        db.query(AnalyseSnapshotOutcome.outcome_return)
+        .join(AnalyseSnapshot,
+              AnalyseSnapshot.id == AnalyseSnapshotOutcome.snapshot_id)
+        .filter(AnalyseSnapshotOutcome.horizont_tage == horizont)
+        .filter(AnalyseSnapshotOutcome.ausgewertet.is_(True))
+        .filter(AnalyseSnapshotOutcome.outcome_return.isnot(None))
+        .filter(AnalyseSnapshot.analyse_modus == AnalyseModus.NEUE_POSITION)
+    )
+    if datenmodus:
+        query = query.filter(AnalyseSnapshot.datenmodus == datenmodus)
+
+    try:
+        returns = [r for (r,) in query.all()]
+    except Exception as e:
+        logger.error("Basisrate fehlgeschlagen: %s", e, exc_info=True)
+        return {"n": 0, "anteil_positiv": None, "avg_return": None}
+
+    if not returns:
+        return {"n": 0, "anteil_positiv": None, "avg_return": None}
+
+    positiv = sum(1 for r in returns if r > 0)
+    return {
+        "n": len(returns),
+        "anteil_positiv": round(positiv / len(returns) * 100, 1),
+        "avg_return": round(sum(returns) / len(returns), 2),
+    }
+
+
+def _vorsprung(kennzahlen: dict, basis: dict, richtung: str) -> dict:
+    """Vergleicht eine Indikator-Zeile mit der unbedingten Basisrate.
+
+    `vorsprung_pp` in Prozentpunkten: positiv bedeutet, der Indikator trifft
+    häufiger als der reine Zufall im selben Zeitraum. Werte nahe 0 heißen:
+    der Indikator sagt nichts, was der Markt nicht ohnehin getan hätte.
+    """
+    if basis.get("anteil_positiv") is None or kennzahlen.get("trefferquote") is None:
+        return {"basis_trefferquote": None, "vorsprung_pp": None}
+
+    # Für bearische Signale ist die Vergleichsbasis der Anteil FALLENDER Fenster.
+    basis_quote = (basis["anteil_positiv"] if richtung == RICHTUNG_BULLISCH
+                   else 100.0 - basis["anteil_positiv"])
+
+    return {
+        "basis_trefferquote": round(basis_quote, 1),
+        "vorsprung_pp": round(kennzahlen["trefferquote"] - basis_quote, 1),
+    }
+
+
+def indikator_leaderboard(db: Session, horizont: int = 7,
+                          datenmodus: str | None = None,
+                          minimum: int = MIN_STICHPROBE,
+                          nur_echte_indikatoren: bool = True) -> list[dict]:
+    """Bewertet jeden Einzelindikator getrennt nach bullischem/bearischem Signal.
+
+    Args:
+        horizont: Auswertungshorizont in Tagen
+        datenmodus: LIVE/HISTORISCH einschränken (None = alle)
+        minimum: Mindest-Stichprobe je Zeile
+        nur_echte_indikatoren: Migrierte Kategorie-Zeilen ausschließen
+
+    Returns:
+        Liste von Dicts, sortiert nach Erwartungswert (beste zuerst).
+        Zeilen unterhalb der Mindest-Stichprobe bleiben enthalten, sind aber
+        über `status` als unzureichend markiert — sie zu verschweigen würde
+        verbergen, wofür schlicht noch Daten fehlen.
+    """
+    query = (
+        db.query(AnalyseSnapshotIndikator, AnalyseSnapshotOutcome)
+        .join(AnalyseSnapshot,
+              AnalyseSnapshot.id == AnalyseSnapshotIndikator.snapshot_id)
+        .join(AnalyseSnapshotOutcome,
+              AnalyseSnapshotOutcome.snapshot_id == AnalyseSnapshot.id)
+        .filter(AnalyseSnapshotOutcome.horizont_tage == horizont)
+        .filter(AnalyseSnapshotOutcome.ausgewertet.is_(True))
+        .filter(AnalyseSnapshotOutcome.outcome_return.isnot(None))
+        .filter(AnalyseSnapshotIndikator.beitrag_numeric.isnot(None))
+        .filter(AnalyseSnapshotIndikator.beitrag_numeric != 0)
+        .filter(AnalyseSnapshot.analyse_modus == AnalyseModus.NEUE_POSITION)
+    )
+
+    if datenmodus:
+        query = query.filter(AnalyseSnapshot.datenmodus == datenmodus)
+    if nur_echte_indikatoren:
+        query = query.filter(
+            AnalyseSnapshotIndikator.granularitaet == Granularitaet.INDIKATOR)
+
+    try:
+        zeilen = query.all()
+    except Exception as e:
+        logger.error("Indikator-Leaderboard fehlgeschlagen: %s", e, exc_info=True)
+        return []
+
+    # Gruppieren nach (Indikator, Signalrichtung)
+    gruppen: dict[tuple, list] = defaultdict(list)
+    kategorien: dict[str, str] = {}
+
+    for indikator, outcome in zeilen:
+        richtung = (RICHTUNG_BULLISCH if indikator.beitrag_numeric > 0
+                    else RICHTUNG_BEARISCH)
+        schluessel = (indikator.indikator_name, richtung)
+        gruppen[schluessel].append(outcome.outcome_return)
+        if indikator.kategorie:
+            kategorien[indikator.indikator_name] = indikator.kategorie
+
+    basis = basisrate(db, horizont, datenmodus)
+
+    ergebnis = []
+    for (name, richtung), returns in gruppen.items():
+        # Ein bullischer Indikator "trifft", wenn der Kurs steigt;
+        # ein bearischer, wenn er fällt.
+        treffer = [(r > 0) if richtung == RICHTUNG_BULLISCH else (r < 0)
+                   for r in returns]
+
+        kennzahlen = kennzahlen_aus_returns(
+            returns, treffer, horizont_tage=horizont, minimum=minimum)
+
+        ergebnis.append({
+            "indikator": name,
+            "kategorie": kategorien.get(name),
+            "richtung": richtung,
+            "horizont_tage": horizont,
+            **kennzahlen,
+            **_vorsprung(kennzahlen, basis, richtung),
+        })
+
+    # Auswertbare Zeilen zuerst, darin nach Erwartungswert
+    ergebnis.sort(
+        key=lambda z: (
+            z["status"] == STATUS_OK,
+            z.get("erwartungswert") if z.get("erwartungswert") is not None else -999,
+        ),
+        reverse=True,
+    )
+    return ergebnis
+
+
+def kategorie_leaderboard(db: Session, horizont: int = 7,
+                          datenmodus: str | None = None,
+                          minimum: int = MIN_STICHPROBE) -> list[dict]:
+    """Wie indikator_leaderboard, aber auf Ebene der fünf Score-Kategorien."""
+    query = (
+        db.query(AnalyseSnapshotIndikator, AnalyseSnapshotOutcome)
+        .join(AnalyseSnapshot,
+              AnalyseSnapshot.id == AnalyseSnapshotIndikator.snapshot_id)
+        .join(AnalyseSnapshotOutcome,
+              AnalyseSnapshotOutcome.snapshot_id == AnalyseSnapshot.id)
+        .filter(AnalyseSnapshotOutcome.horizont_tage == horizont)
+        .filter(AnalyseSnapshotOutcome.ausgewertet.is_(True))
+        .filter(AnalyseSnapshotOutcome.outcome_return.isnot(None))
+        .filter(AnalyseSnapshotIndikator.beitrag_numeric.isnot(None))
+        .filter(AnalyseSnapshotIndikator.beitrag_numeric != 0)
+        .filter(AnalyseSnapshotIndikator.kategorie.isnot(None))
+        .filter(AnalyseSnapshot.analyse_modus == AnalyseModus.NEUE_POSITION)
+    )
+    if datenmodus:
+        query = query.filter(AnalyseSnapshot.datenmodus == datenmodus)
+
+    try:
+        zeilen = query.all()
+    except Exception as e:
+        logger.error("Kategorie-Leaderboard fehlgeschlagen: %s", e, exc_info=True)
+        return []
+
+    gruppen: dict[tuple, list] = defaultdict(list)
+    for indikator, outcome in zeilen:
+        richtung = (RICHTUNG_BULLISCH if indikator.beitrag_numeric > 0
+                    else RICHTUNG_BEARISCH)
+        gruppen[(indikator.kategorie, richtung)].append(outcome.outcome_return)
+
+    basis = basisrate(db, horizont, datenmodus)
+
+    ergebnis = []
+    for (kategorie, richtung), returns in gruppen.items():
+        treffer = [(r > 0) if richtung == RICHTUNG_BULLISCH else (r < 0)
+                   for r in returns]
+        kennzahlen = kennzahlen_aus_returns(returns, treffer,
+                                            horizont_tage=horizont, minimum=minimum)
+        ergebnis.append({
+            "kategorie": kategorie,
+            "richtung": richtung,
+            "horizont_tage": horizont,
+            **kennzahlen,
+            **_vorsprung(kennzahlen, basis, richtung),
+        })
+
+    ergebnis.sort(
+        key=lambda z: (
+            z["status"] == STATUS_OK,
+            z.get("erwartungswert") if z.get("erwartungswert") is not None else -999,
+        ),
+        reverse=True,
+    )
+    return ergebnis

@@ -1,0 +1,40 @@
+{# partials/signal_backfill_status.html — Fortschritt des Backfills (HTMX-Polling) #}
+{% if job %}
+<div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div>
+            <strong>Backfill #{{ job.id }}</strong>
+            <span class="badge badge-{{ 'info' if job.status == 'LAEUFT' else ('success' if job.status == 'FERTIG' else 'neutral') }}">
+                {{ job.status }}</span>
+        </div>
+        <div class="caption">{{ job.historie_jahre }} Jahre Historie</div>
+    </div>
+
+    <div style="background:var(--bg-alt,#eee);border-radius:4px;height:10px;margin:12px 0;overflow:hidden;">
+        <div style="width:{{ job.fortschritt_pct }}%;height:100%;background:var(--accent,#4a9);transition:width .4s;"></div>
+    </div>
+
+    <div style="display:flex;flex-wrap:wrap;gap:20px;">
+        <span>{{ job.fortschritt_pct }}%</span>
+        <span>{{ job.ticker_fertig }} / {{ job.ticker_gesamt }} Ticker</span>
+        <span>{{ job.snapshots_erstellt }} Snapshots</span>
+        {% if job.ticker_fehler %}<span class="negative">{{ job.ticker_fehler }} Fehler</span>{% endif %}
+    </div>
+
+    {% if job.letzter_fehler %}
+    <p class="caption negative" style="margin-top:8px;">Letzter Fehler: {{ job.letzter_fehler }}</p>
+    {% endif %}
+
+    {% if job.status == 'LAEUFT' %}
+    <p class="caption" style="margin-top:8px;">
+        Läuft im Hintergrund weiter — die Seite kann gefahrlos verlassen werden.
+        Ein Neustart der App setzt den Lauf fort.
+    </p>
+    <button class="btn btn-secondary" style="margin-top:8px;"
+            hx-post="/signals/backfill/abbrechen"
+            hx-target="#backfill-aktion" hx-swap="innerHTML">Abbrechen</button>
+    {% endif %}
+</div>
+{% else %}
+<p class="muted">Noch kein Backfill gestartet.</p>
+{% endif %}

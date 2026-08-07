@@ -12,6 +12,7 @@ GET  /api/analysis/position/recommendation → HTMX-Partial: Empfehlung re-rende
 import json
 import math
 import traceback
+import warnings
 from datetime import datetime
 from typing import Any
 
@@ -471,13 +472,28 @@ def _build_analysis_context(raw_input: str, time_filter: str) -> dict | str:
         return result_data
 
     def _fetch_signals():
-        from models.signal import SignalStore
-        from services.signal_history import update_stale_signals
+        """Lädt die letzten Snapshots dieses Tickers aus der Signal-Engine.
+
+        Das Nachtragen der Outcomes läuft ausschließlich über den Scheduler —
+        früher stieß jeder Seitenaufruf einen Kursabruf an, was die Ladezeit
+        unnötig an externe APIs koppelte.
+        """
+        from database import get_session
+        from snapshot_engine.models import AnalyseSnapshot
+        session = get_session()
         try:
-            update_stale_signals()
+            return [
+                s.to_dict() for s in (
+                    session.query(AnalyseSnapshot)
+                    .filter(AnalyseSnapshot.ticker == ticker.upper())
+                    .order_by(AnalyseSnapshot.snapshot_zeitpunkt.desc())
+                    .limit(5).all()
+                )
+            ]
         except Exception:
-            pass
-        return SignalStore.get_all(ticker=ticker, limit=5)
+            return []
+        finally:
+            session.close()
 
     def _fetch_correlation():
         benchmarks = ["SPY", "QQQ", "GLD"]
@@ -530,26 +546,29 @@ def _build_analysis_context(raw_input: str, time_filter: str) -> dict | str:
     signal_history = results_map.get("signals") or []
     div_data = results_map.get("dividend")
 
-    # Save quick-score signal for tracking (like Streamlit version)
+    # Signal-Erfassung für die Qualitätsmessung. Die Kadenz-Regel verhindert,
+    # dass wiederholte Seitenaufrufe desselben Tickers nahezu identische,
+    # überlappende Beobachtungen erzeugen und die Statistik aufblähen.
     try:
-        if sum_data and sum_data.get("confidence") and stats.get("current_price"):
-            from models.signal import Signal, SignalStore
-            confidence = sum_data["confidence"]
-            if confidence >= 70:
-                sig_type = "buy"
-            elif confidence <= 40:
-                sig_type = "sell"
-            else:
-                sig_type = "hold"
-            SignalStore.save(Signal(
-                ticker=ticker,
-                timestamp=datetime.now().isoformat(timespec="seconds"),
-                signal_type=sig_type,
-                confidence=confidence,
-                price_at_signal=stats["current_price"],
-            ))
-    except Exception:
-        pass
+        score_result = (sum_data or {}).get("score_result")
+        if score_result is not None and stats.get("current_price"):
+            from database import get_session
+            from snapshot_engine.models import ErstelltVon
+            from snapshot_engine.snapshot_service import (
+                ist_snapshot_faellig, signal_erfassen,
+            )
+            session = get_session()
+            try:
+                if ist_snapshot_faellig(session, ticker):
+                    signal_erfassen(
+                        session, ticker, score_result,
+                        kurs=stats["current_price"],
+                        erstellt_von=ErstelltVon.ANALYSE_SEITE,
+                    )
+            finally:
+                session.close()
+    except Exception as exc:
+        warnings.warn(f"Signal-Erfassung für {ticker} fehlgeschlagen: {exc}")
 
     # Post-process: margins chart
     try:

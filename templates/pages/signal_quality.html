@@ -1,0 +1,250 @@
+{% extends "base.html" %}
+{% block title %}Signal-Qualität — Macro Dashboard{% endblock %}
+
+{% macro quote(kz) -%}
+    {% if kz.status == 'ok' %}{{ kz.trefferquote }}%{% else %}<span class="muted">–</span>{% endif %}
+{%- endmacro %}
+
+{% block content %}
+<div class="page-header">
+    <h2>Signal-Qualität</h2>
+    <p class="caption">
+        Misst, ob die Empfehlungen des Dashboards eintreffen. Jede Analyse wird
+        eingefroren und nach 7, 30 und 90 Tagen gegen den tatsächlichen
+        Kursverlauf geprüft.
+    </p>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     Datenbestand & methodische Einordnung
+     ═══════════════════════════════════════════════════════════ -->
+{% set b = kennzahlen.bestand %}
+<div class="card" style="margin-bottom:16px;">
+    <div style="display:flex;flex-wrap:wrap;gap:24px;align-items:center;">
+        <div><strong>{{ b.snapshots_gesamt }}</strong> Snapshots
+            <span class="caption">({{ b.snapshots_live }} live, {{ b.snapshots_historisch }} historisch)</span></div>
+        <div><strong>{{ b.outcomes_ausgewertet }}</strong> ausgewertet
+            <span class="caption">({{ b.outcomes_offen }} offen)</span></div>
+        <div><strong>{{ b.ticker_abgedeckt }}</strong> Ticker</div>
+        <div style="margin-left:auto;display:flex;gap:8px;">
+            <button class="btn" hx-post="/signals/lauf/manuell"
+                    hx-target="#lauf-ergebnis" hx-swap="innerHTML"
+                    hx-indicator="#lauf-spinner">Lauf jetzt ausführen</button>
+            <a class="btn btn-secondary" href="/signals/export/csv">CSV-Export</a>
+        </div>
+    </div>
+    <div id="lauf-spinner" class="htmx-indicator caption">Läuft — das kann einige Minuten dauern…</div>
+    <div id="lauf-ergebnis"></div>
+</div>
+
+<div class="alert" style="margin-bottom:16px;">
+    <strong>Wie diese Zahlen zu lesen sind.</strong>
+    <ul style="margin:6px 0 0 18px;">
+        <li><strong>Historische</strong> Snapshots enthalten bewusst <em>keine</em> Fundamental-
+            und Sentiment-Bewertung: diese Daten liegen nur in ihrer heutigen Fassung vor und
+            wären im Rückblick Wissen aus der Zukunft. Live- und historische Werte werden
+            deshalb nie vermischt.</li>
+        <li><strong>Überlebensverzerrung:</strong> das Universum ist die heutige Index-Zusammensetzung.
+            Titel, die zwischenzeitlich aus dem Index geflogen oder delistet sind, fehlen —
+            historische Kennzahlen fallen dadurch etwas zu optimistisch aus.</li>
+        <li><strong>Effektive Stichprobe:</strong> Beobachtungen überlappen sich zeitlich. Bei
+            90-Tage-Horizonten messen benachbarte Snapshots weitgehend denselben Kursverlauf;
+            ausgewiesen wird deshalb zusätzlich die Zahl der unabhängigen Beobachtungen.</li>
+        <li>Unter {{ min_stichprobe }} Beobachtungen wird bewusst keine Quote angezeigt.</li>
+    </ul>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     Filter
+     ═══════════════════════════════════════════════════════════ -->
+<form method="get" action="/signals" class="card" style="margin-bottom:16px;display:flex;gap:16px;align-items:end;flex-wrap:wrap;">
+    <div>
+        <label for="horizont">Horizont</label>
+        <select id="horizont" name="horizont" onchange="this.form.submit()">
+            {% for h in horizonte %}
+            <option value="{{ h }}" {% if h == gewaehlter_horizont %}selected{% endif %}>{{ h }} Tage</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div>
+        <label for="datenmodus">Datenbasis</label>
+        <select id="datenmodus" name="datenmodus" onchange="this.form.submit()">
+            <option value="ALLE" {% if gewaehlter_datenmodus == 'ALLE' %}selected{% endif %}>Alle</option>
+            <option value="LIVE" {% if gewaehlter_datenmodus == 'LIVE' %}selected{% endif %}>Nur live</option>
+            <option value="HISTORISCH" {% if gewaehlter_datenmodus == 'HISTORISCH' %}selected{% endif %}>Nur historisch</option>
+        </select>
+    </div>
+    <a class="btn btn-secondary" href="/signals/indikatoren?horizont={{ gewaehlter_horizont }}&datenmodus={{ gewaehlter_datenmodus }}">
+        Zum Indikator-Leaderboard →</a>
+</form>
+
+<!-- ═══════════════════════════════════════════════════════════
+     Kennzahlen je Horizont
+     ═══════════════════════════════════════════════════════════ -->
+<h3>Ergebnisse je Horizont</h3>
+<div class="table-wrapper">
+<table>
+    <thead>
+        <tr>
+            <th>Horizont</th><th>Beobachtungen</th><th>davon unabhängig</th>
+            <th>Trefferquote</th><th>Ø Rendite</th><th>Erwartungswert</th><th>Profitfaktor</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for h, kz in kennzahlen.horizonte.items() %}
+        <tr>
+            <td><strong>{{ h }} Tage</strong></td>
+            <td>{{ kz.n }}</td>
+            <td>{{ kz.n_effektiv }}</td>
+            {% if kz.status == 'ok' %}
+                <td>{{ kz.trefferquote }}%</td>
+                <td class="{{ 'positive' if kz.avg_return > 0 else 'negative' }}">{{ kz.avg_return }}%</td>
+                <td class="{{ 'positive' if kz.erwartungswert > 0 else 'negative' }}">{{ kz.erwartungswert }}</td>
+                <td>{{ kz.profitfaktor if kz.profitfaktor is not none else '–' }}</td>
+            {% else %}
+                <td colspan="4" class="muted">Noch zu wenig Daten (mindestens {{ kz.min_erforderlich }})</td>
+            {% endif %}
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     Je Richtungssignal
+     ═══════════════════════════════════════════════════════════ -->
+<h3 style="margin-top:24px;">Nach Richtungssignal ({{ gewaehlter_horizont }} Tage)</h3>
+<div class="table-wrapper">
+<table>
+    <thead><tr><th>Signal</th><th>n</th><th>Trefferquote</th><th>Ø Rendite</th><th>Erwartungswert</th></tr></thead>
+    <tbody>
+        {% for signal, kz in (kennzahlen.je_signal[gewaehlter_horizont] or {}).items() %}
+        <tr>
+            <td><span class="badge badge-{{ 'success' if signal == 'KAUF' else ('danger' if signal == 'VERKAUF' else 'neutral') }}">{{ signal }}</span></td>
+            <td>{{ kz.n }}</td>
+            {% if kz.status == 'ok' %}
+                <td>{{ quote(kz) }}</td>
+                <td class="{{ 'positive' if kz.avg_return > 0 else 'negative' }}">{{ kz.avg_return }}%</td>
+                <td>{{ kz.erwartungswert if kz.erwartungswert is not none else '–' }}</td>
+            {% else %}
+                <td colspan="3" class="muted">zu wenig Daten</td>
+            {% endif %}
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+</div>
+<p class="caption">NEUTRAL wird nie als Treffer/Fehlschlag gewertet — es ist keine gerichtete Prognose.</p>
+
+<!-- ═══════════════════════════════════════════════════════════
+     Confidence-Kalibrierung
+     ═══════════════════════════════════════════════════════════ -->
+<h3 style="margin-top:24px;">Confidence-Kalibrierung ({{ gewaehlter_horizont }} Tage)</h3>
+<div class="alert alert-{{ 'success' if kalibrierung_fazit.status == 'kalibriert' else 'warning' }}">
+    <strong>{{ kalibrierung_fazit.status|capitalize }}:</strong> {{ kalibrierung_fazit.aussage }}
+</div>
+<div class="table-wrapper">
+<table>
+    <thead><tr><th>Confidence-Bereich</th><th>n</th><th>Trefferquote</th><th>Ø Rendite</th><th>Erwartungswert</th></tr></thead>
+    <tbody>
+        {% for z in kalibrierung %}
+        <tr>
+            <td>{{ z.bereich }}</td>
+            <td>{{ z.n }}</td>
+            {% if z.status == 'ok' %}
+                <td>{{ quote(z) }}</td>
+                <td class="{{ 'positive' if z.avg_return > 0 else 'negative' }}">{{ z.avg_return }}%</td>
+                <td>{{ z.erwartungswert if z.erwartungswert is not none else '–' }}</td>
+            {% else %}
+                <td colspan="3" class="muted">zu wenig Daten</td>
+            {% endif %}
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+</div>
+<p class="caption">
+    Eine funktionierende Engine zeigt hier steigende Werte: höhere Confidence → bessere Ergebnisse.
+    Ein flacher Verlauf bedeutet, dass die Confidence-Zahl nicht trennt.
+</p>
+
+<!-- ═══════════════════════════════════════════════════════════
+     Top / Flop Ticker
+     ═══════════════════════════════════════════════════════════ -->
+{% if kennzahlen.top_ticker %}
+<h3 style="margin-top:24px;">Beste und schlechteste Ticker (KAUF-Signale, {{ horizonte[0] }} Tage)</h3>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+    <div class="card">
+        <h4>Beste</h4>
+        {% for t in kennzahlen.top_ticker %}
+        <div style="display:flex;justify-content:space-between;">
+            <span>{{ t.ticker }} <span class="caption">({{ t.anzahl }})</span></span>
+            <span class="positive">{{ t.avg_return }}%</span>
+        </div>
+        {% endfor %}
+    </div>
+    <div class="card">
+        <h4>Schlechteste</h4>
+        {% for t in kennzahlen.flop_ticker %}
+        <div style="display:flex;justify-content:space-between;">
+            <span>{{ t.ticker }} <span class="caption">({{ t.anzahl }})</span></span>
+            <span class="negative">{{ t.avg_return }}%</span>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- ═══════════════════════════════════════════════════════════
+     Snapshot-Liste
+     ═══════════════════════════════════════════════════════════ -->
+<h3 style="margin-top:24px;">Snapshots ({{ gesamt_anzahl }})</h3>
+<div class="table-wrapper">
+<table>
+    <thead>
+        <tr>
+            <th>Ticker</th><th>Datum</th><th>Basis</th><th>Confidence</th><th>Signal</th><th>Kurs</th>
+            {% for h in horizonte %}<th>{{ h }}T</th>{% endfor %}
+        </tr>
+    </thead>
+    <tbody>
+        {% for zeile in snapshot_zeilen %}
+        {% set s = zeile.snapshot %}
+        <tr>
+            <td><strong>{{ s.ticker }}</strong></td>
+            <td>{{ s.snapshot_zeitpunkt.strftime('%Y-%m-%d') if s.snapshot_zeitpunkt else '' }}</td>
+            <td><span class="badge badge-{{ 'neutral' if s.datenmodus == 'HISTORISCH' else 'info' }}"
+                     title="{{ 'Nur technische Indikatoren (kein Look-Ahead-Bias)' if s.datenmodus == 'HISTORISCH' else 'Vollständige Analyse inkl. Fundamentals' }}">
+                {{ 'HIST' if s.datenmodus == 'HISTORISCH' else 'LIVE' }}</span></td>
+            <td>{{ '%.1f'|format(s.confidence) }}%</td>
+            <td><span class="badge badge-{{ 'success' if s.richtungssignal == 'KAUF' else ('danger' if s.richtungssignal == 'VERKAUF' else 'neutral') }}">{{ s.richtungssignal }}</span></td>
+            <td>{{ '%.2f'|format(s.kurs_bei_snapshot) }}</td>
+            {% for h in horizonte %}
+                {% set o = zeile.outcomes[h] %}
+                {% if o and o.ausgewertet %}
+                    <td class="{{ 'positive' if o.outcome_return > 0 else 'negative' }}">
+                        {{ '%+.2f'|format(o.outcome_return) }}%
+                        {% if o.war_erfolgreich is not none %}{{ '✓' if o.war_erfolgreich else '✗' }}{% endif %}
+                    </td>
+                {% else %}
+                    <td class="muted">offen</td>
+                {% endif %}
+            {% endfor %}
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+</div>
+
+{% if gesamt_seiten > 1 %}
+<div style="display:flex;gap:8px;align-items:center;margin-top:12px;">
+    {% if aktuelle_seite > 1 %}
+    <a class="btn btn-secondary" href="/signals?seite={{ aktuelle_seite - 1 }}&horizont={{ gewaehlter_horizont }}&datenmodus={{ gewaehlter_datenmodus }}">← Zurück</a>
+    {% endif %}
+    <span class="caption">Seite {{ aktuelle_seite }} von {{ gesamt_seiten }}</span>
+    {% if aktuelle_seite < gesamt_seiten %}
+    <a class="btn btn-secondary" href="/signals?seite={{ aktuelle_seite + 1 }}&horizont={{ gewaehlter_horizont }}&datenmodus={{ gewaehlter_datenmodus }}">Weiter →</a>
+    {% endif %}
+</div>
+{% endif %}
+{% endblock %}

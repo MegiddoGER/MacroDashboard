@@ -1,216 +1,313 @@
 """
-snapshot_engine/router.py — FastAPI-Router für die Snapshot Engine.
+snapshot_engine/router.py — FastAPI-Router der Signal-Qualitäts-Engine.
 
-Prefix /snapshot, Tag "Snapshot Engine".
-Bietet Dashboard, Ticker-Verwaltung, manuelle Ausführung und CSV-Export.
+Prefix /signals. Liefert die Übersicht, das Indikator-Leaderboard und die
+Steuerung des historischen Backfills.
 """
 
 import csv
 import io
+import logging
 from datetime import datetime
 
-from fastapi import APIRouter, Request, Form, Query
-from fastapi.responses import HTMLResponse, StreamingResponse
+from fastapi import APIRouter, Form, Query, Request
+from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
 
 from database import get_session
-from snapshot_engine.models import AnalyseSnapshot, SnapshotKonfiguration
-from snapshot_engine.auswertung import kennzahlen_berechnen
+from snapshot_engine.auswertung import (
+    MIN_STICHPROBE, bestand_ermitteln, indikator_leaderboard,
+    kalibrierung_berechnen, kalibrierung_bewerten, kategorie_leaderboard,
+    kennzahlen_berechnen,
+)
+from snapshot_engine.auswertung.indikator_stats import basisrate
+from snapshot_engine.models import (
+    HORIZONTE_TAGE, AnalyseSnapshot, AnalyseSnapshotOutcome, BackfillStatus,
+    Datenmodus, KonfigModus, SnapshotKonfiguration,
+)
 
-router = APIRouter(prefix="/snapshot", tags=["Snapshot Engine"])
+logger = logging.getLogger(__name__)
+
+router = APIRouter(prefix="/signals", tags=["Signal-Qualität"])
 
 
-# ---------------------------------------------------------------------------
-# Hilfsfunktionen
-# ---------------------------------------------------------------------------
-
-def _get_header_metrics():
+def _header_metrics():
     from main import get_header_metrics
     return get_header_metrics()
 
 
+def _basis_kontext(request: Request, pfad: str) -> dict:
+    return {
+        "current_path": pfad,
+        "header_metrics": _header_metrics(),
+        "horizonte": list(HORIZONTE_TAGE),
+        "min_stichprobe": MIN_STICHPROBE,
+    }
+
+
 # ---------------------------------------------------------------------------
-# Dashboard
+# Übersicht
 # ---------------------------------------------------------------------------
 
-@router.get("/dashboard", response_class=HTMLResponse)
-async def snapshot_dashboard(request: Request, seite: int = Query(1, ge=1)):
-    """Rendert das Snapshot-Dashboard mit Kennzahlen und paginierter Snapshot-Liste."""
+@router.get("", response_class=HTMLResponse)
+@router.get("/", response_class=HTMLResponse)
+async def uebersicht(request: Request,
+                     horizont: int = Query(30),
+                     datenmodus: str = Query("ALLE"),
+                     seite: int = Query(1, ge=1)):
+    """Hauptseite: Kennzahlen, Kalibrierung und jüngste Snapshots."""
     templates = request.app.state.templates
     session = get_session()
 
     try:
-        # Kennzahlen berechnen
-        kennzahlen = kennzahlen_berechnen(session)
+        modus = None if datenmodus == "ALLE" else datenmodus
+        if horizont not in HORIZONTE_TAGE:
+            horizont = HORIZONTE_TAGE[0]
 
-        # Paginierte Snapshot-Liste (50 pro Seite, neueste zuerst)
+        kennzahlen = kennzahlen_berechnen(session, datenmodus=modus)
+        kalibrierung = kalibrierung_berechnen(session, horizont=horizont, datenmodus=modus)
+        fazit = kalibrierung_bewerten(kalibrierung)
+
         pro_seite = 50
-        offset = (seite - 1) * pro_seite
-
-        gesamt_anzahl = session.query(AnalyseSnapshot).count()
-        snapshots_raw = (
-            session.query(AnalyseSnapshot)
-            .order_by(AnalyseSnapshot.snapshot_zeitpunkt.desc())
-            .offset(offset)
-            .limit(pro_seite)
-            .all()
+        query = session.query(AnalyseSnapshot)
+        if modus:
+            query = query.filter(AnalyseSnapshot.datenmodus == modus)
+        gesamt = query.count()
+        snapshots = (
+            query.order_by(AnalyseSnapshot.snapshot_zeitpunkt.desc())
+            .offset((seite - 1) * pro_seite).limit(pro_seite).all()
         )
-        snapshots = [s.to_dict() for s in snapshots_raw]
 
-        gesamt_seiten = max(1, (gesamt_anzahl + pro_seite - 1) // pro_seite)
+        # Outcomes je Snapshot für die Tabelle vorladen
+        snapshot_zeilen = []
+        for s in snapshots:
+            outcomes = {o.horizont_tage: o for o in (s.outcomes or [])}
+            snapshot_zeilen.append({
+                "snapshot": s,
+                "outcomes": {h: outcomes.get(h) for h in HORIZONTE_TAGE},
+            })
 
-        # Aktive Ticker laden
-        aktive_ticker = (
-            session.query(SnapshotKonfiguration)
-            .filter(SnapshotKonfiguration.aktiv == True)
-            .order_by(SnapshotKonfiguration.ticker)
-            .all()
-        )
-        ticker_liste = [t.to_dict() for t in aktive_ticker]
-
-        ctx = {
-            "current_path": "/snapshot/dashboard",
-            "header_metrics": _get_header_metrics(),
+        kontext = {
+            **_basis_kontext(request, "/signals"),
             "kennzahlen": kennzahlen,
-            "snapshots": snapshots,
+            "kalibrierung": kalibrierung,
+            "kalibrierung_fazit": fazit,
+            "basis": basisrate(session, horizont, modus),
+            "snapshot_zeilen": snapshot_zeilen,
+            "gesamt_anzahl": gesamt,
             "aktuelle_seite": seite,
-            "gesamt_seiten": gesamt_seiten,
-            "gesamt_anzahl": gesamt_anzahl,
-            "ticker_liste": ticker_liste,
+            "gesamt_seiten": max(1, (gesamt + pro_seite - 1) // pro_seite),
+            "gewaehlter_horizont": horizont,
+            "gewaehlter_datenmodus": datenmodus,
+            "backfill_job": _aktueller_backfill(session),
         }
 
         return templates.TemplateResponse(
-            request=request,
-            name="pages/snapshot_dashboard.html",
-            context=ctx,
-        )
+            request=request, name="pages/signal_quality.html", context=kontext)
 
     except Exception as e:
-        print(f"[Snapshot-Router] Dashboard-Fehler: {e}")
-        return HTMLResponse(f"<p>Fehler beim Laden des Snapshot-Dashboards: {e}</p>", status_code=500)
+        logger.error("Signal-Übersicht fehlgeschlagen: %s", e, exc_info=True)
+        return HTMLResponse(f"<p>Fehler beim Laden der Signal-Übersicht: {e}</p>",
+                            status_code=500)
     finally:
         session.close()
 
 
 # ---------------------------------------------------------------------------
-# Ticker-Verwaltung
+# Indikator-Leaderboard
+# ---------------------------------------------------------------------------
+
+@router.get("/indikatoren", response_class=HTMLResponse)
+async def indikatoren(request: Request,
+                      horizont: int = Query(30),
+                      datenmodus: str = Query("ALLE")):
+    """Bewertung jedes Einzelindikators gegen die unbedingte Basisrate."""
+    templates = request.app.state.templates
+    session = get_session()
+
+    try:
+        modus = None if datenmodus == "ALLE" else datenmodus
+        if horizont not in HORIZONTE_TAGE:
+            horizont = HORIZONTE_TAGE[0]
+
+        kontext = {
+            **_basis_kontext(request, "/signals/indikatoren"),
+            "indikatoren": indikator_leaderboard(session, horizont=horizont,
+                                                 datenmodus=modus),
+            "kategorien": kategorie_leaderboard(session, horizont=horizont,
+                                                datenmodus=modus),
+            "basis": basisrate(session, horizont, modus),
+            "gewaehlter_horizont": horizont,
+            "gewaehlter_datenmodus": datenmodus,
+            "bestand": bestand_ermitteln(session),
+        }
+
+        return templates.TemplateResponse(
+            request=request, name="pages/signal_indikatoren.html", context=kontext)
+
+    except Exception as e:
+        logger.error("Indikator-Seite fehlgeschlagen: %s", e, exc_info=True)
+        return HTMLResponse(f"<p>Fehler beim Laden des Leaderboards: {e}</p>",
+                            status_code=500)
+    finally:
+        session.close()
+
+
+# ---------------------------------------------------------------------------
+# Backfill
+# ---------------------------------------------------------------------------
+
+def _aktueller_backfill(session) -> dict | None:
+    from snapshot_engine.models import SignalBackfillJob
+    job = (session.query(SignalBackfillJob)
+           .order_by(SignalBackfillJob.id.desc()).first())
+    return job.to_dict() if job else None
+
+
+@router.get("/backfill", response_class=HTMLResponse)
+async def backfill_seite(request: Request):
+    """Steuerung und Fortschritt des historischen Replays."""
+    templates = request.app.state.templates
+    session = get_session()
+    try:
+        kontext = {
+            **_basis_kontext(request, "/signals/backfill"),
+            "job": _aktueller_backfill(session),
+            "bestand": bestand_ermitteln(session),
+        }
+        return templates.TemplateResponse(
+            request=request, name="pages/signal_backfill.html", context=kontext)
+    except Exception as e:
+        logger.error("Backfill-Seite fehlgeschlagen: %s", e, exc_info=True)
+        return HTMLResponse(f"<p>Fehler: {e}</p>", status_code=500)
+    finally:
+        session.close()
+
+
+@router.post("/backfill/start", response_class=HTMLResponse)
+async def backfill_start(request: Request,
+                         historie_jahre: int = Form(5),
+                         include_smc: str = Form("ja")):
+    """Startet einen historischen Backfill (läuft im Hintergrund weiter)."""
+    session = get_session()
+    try:
+        from snapshot_engine.backfill_service import backfill_starten
+        job = backfill_starten(session,
+                               historie_jahre=max(1, min(historie_jahre, 20)),
+                               include_smc=(include_smc == "ja"))
+        return HTMLResponse(
+            f'<div class="alert alert-success">Backfill #{job.id} gestartet — '
+            f'{job.ticker_gesamt} Ticker, {job.historie_jahre} Jahre. '
+            f'Der Fortschritt aktualisiert sich automatisch.</div>')
+    except Exception as e:
+        logger.error("Backfill-Start fehlgeschlagen: %s", e, exc_info=True)
+        return HTMLResponse(f'<div class="alert alert-danger">Fehler: {e}</div>')
+    finally:
+        session.close()
+
+
+@router.post("/backfill/abbrechen", response_class=HTMLResponse)
+async def backfill_abbrechen_route(request: Request):
+    """Bricht den laufenden Backfill ab (bereits erzeugte Daten bleiben)."""
+    session = get_session()
+    try:
+        from snapshot_engine.backfill_service import backfill_abbrechen
+        erfolg = backfill_abbrechen(session)
+        text = ("Backfill abgebrochen." if erfolg else "Kein laufender Backfill.")
+        return HTMLResponse(f'<div class="alert">{text}</div>')
+    finally:
+        session.close()
+
+
+@router.get("/backfill/status", response_class=HTMLResponse)
+async def backfill_status(request: Request):
+    """HTMX-Fragment mit dem aktuellen Fortschritt (wird gepollt)."""
+    templates = request.app.state.templates
+    session = get_session()
+    try:
+        return templates.TemplateResponse(
+            request=request, name="partials/signal_backfill_status.html",
+            context={"job": _aktueller_backfill(session)})
+    finally:
+        session.close()
+
+
+# ---------------------------------------------------------------------------
+# Manueller Lauf
+# ---------------------------------------------------------------------------
+
+@router.post("/lauf/manuell", response_class=HTMLResponse)
+async def manuell_ausfuehren(request: Request):
+    """Führt Gating, einen Teil der Warteschlange und die Outcomes aus."""
+    session = get_session()
+    try:
+        from snapshot_engine.snapshot_service import manueller_lauf
+        ergebnis = manueller_lauf(session)
+        return HTMLResponse(
+            f'<div class="alert alert-success">'
+            f'<strong>Lauf abgeschlossen</strong><br>'
+            f'{ergebnis["gating"]["eingereiht"]} von {ergebnis["gating"]["geprueft"]} '
+            f'Tickern fällig · {ergebnis["queue"]["erfolgreich"]} Snapshots erstellt '
+            f'({ergebnis["queue"]["offen"]} noch offen) · '
+            f'{ergebnis["outcomes_nachgetragen"]} Outcomes nachgetragen</div>')
+    except Exception as e:
+        logger.error("Manueller Lauf fehlgeschlagen: %s", e, exc_info=True)
+        return HTMLResponse(f'<div class="alert alert-danger">Fehler: {e}</div>')
+    finally:
+        session.close()
+
+
+# ---------------------------------------------------------------------------
+# Ticker-Overrides
 # ---------------------------------------------------------------------------
 
 @router.post("/ticker/hinzufuegen", response_class=HTMLResponse)
-async def ticker_hinzufuegen(request: Request, ticker: str = Form(...)):
-    """Fügt einen Ticker zur Snapshot-Konfiguration hinzu."""
+async def ticker_hinzufuegen(request: Request, ticker: str = Form(...),
+                             modus: str = Form(KonfigModus.EINSCHLIESSEN)):
+    """Nimmt einen Ticker zusätzlich auf oder schließt ihn aus."""
     session = get_session()
     try:
-        ticker = ticker.strip().upper()
-        if not ticker:
+        symbol = ticker.strip().upper()
+        if not symbol:
             return HTMLResponse(
-                "<script>showToast('Bitte einen Ticker eingeben', 'error');</script>"
-            )
+                "<script>showToast('Bitte einen Ticker eingeben', 'error');</script>")
 
-        # Prüfe ob bereits vorhanden
-        vorhandene = session.query(SnapshotKonfiguration).filter(
-            SnapshotKonfiguration.ticker == ticker
-        ).first()
+        vorhanden = session.query(SnapshotKonfiguration).filter(
+            SnapshotKonfiguration.ticker == symbol).first()
 
-        if vorhandene:
-            if not vorhandene.aktiv:
-                # Reaktivieren
-                vorhandene.aktiv = True
-                session.commit()
-                return HTMLResponse(
-                    f"<script>showToast('{ticker} reaktiviert!');setTimeout(()=>location.reload(),500);</script>"
-                )
-            return HTMLResponse(
-                f"<script>showToast('{ticker} ist bereits aktiv', 'error');</script>"
-            )
-
-        konfig = SnapshotKonfiguration(
-            ticker=ticker,
-            aktiv=True,
-            zeitfenster_tage=7,
-            hinzugefuegt_am=datetime.utcnow(),
-        )
-        session.add(konfig)
+        if vorhanden:
+            vorhanden.aktiv = True
+            vorhanden.modus = modus
+        else:
+            session.add(SnapshotKonfiguration(
+                ticker=symbol, aktiv=True, modus=modus,
+                hinzugefuegt_am=datetime.utcnow()))
         session.commit()
 
         return HTMLResponse(
-            f"<script>showToast('{ticker} hinzugefügt!');setTimeout(()=>location.reload(),500);</script>"
-        )
+            f"<script>showToast('{symbol} gespeichert');"
+            f"setTimeout(()=>location.reload(),500);</script>")
 
     except Exception as e:
         session.rollback()
-        print(f"[Snapshot-Router] Fehler beim Hinzufügen von {ticker}: {e}")
-        return HTMLResponse(
-            f"<script>showToast('Fehler: {e}', 'error');</script>"
-        )
+        logger.error("Ticker-Override fehlgeschlagen: %s", e, exc_info=True)
+        return HTMLResponse(f"<script>showToast('Fehler: {e}', 'error');</script>")
     finally:
         session.close()
 
 
-@router.post("/ticker/deaktivieren/{ticker}", response_class=HTMLResponse)
-async def ticker_deaktivieren(request: Request, ticker: str):
-    """Deaktiviert einen Ticker in der Snapshot-Konfiguration."""
+@router.post("/ticker/entfernen/{ticker}", response_class=HTMLResponse)
+async def ticker_entfernen(request: Request, ticker: str):
+    """Entfernt einen manuellen Override."""
     session = get_session()
     try:
-        konfig = session.query(SnapshotKonfiguration).filter(
-            SnapshotKonfiguration.ticker == ticker
-        ).first()
-
-        if not konfig:
-            return HTMLResponse(
-                f"<script>showToast('{ticker} nicht gefunden', 'error');</script>"
-            )
-
-        konfig.aktiv = False
-        session.commit()
-
+        eintrag = session.query(SnapshotKonfiguration).filter(
+            SnapshotKonfiguration.ticker == ticker.upper()).first()
+        if eintrag:
+            eintrag.aktiv = False
+            session.commit()
         return HTMLResponse(
-            f"<script>showToast('{ticker} deaktiviert');setTimeout(()=>location.reload(),500);</script>"
-        )
-
-    except Exception as e:
-        session.rollback()
-        print(f"[Snapshot-Router] Fehler beim Deaktivieren von {ticker}: {e}")
-        return HTMLResponse(
-            f"<script>showToast('Fehler: {e}', 'error');</script>"
-        )
-    finally:
-        session.close()
-
-
-# ---------------------------------------------------------------------------
-# Manueller Run
-# ---------------------------------------------------------------------------
-
-@router.post("/manuell-ausfuehren", response_class=HTMLResponse)
-async def manuell_ausfuehren(request: Request):
-    """Führt einen vollständigen Snapshot-Run manuell aus (Snapshot + Outcome)."""
-    session = get_session()
-    try:
-        from snapshot_engine.snapshot_service import alle_snapshots_ausfuehren, outcomes_nachtragen
-
-        # Schritt 1: Snapshots
-        ergebnis = alle_snapshots_ausfuehren(session)
-
-        # Schritt 2: Outcomes
-        nachgetragen = outcomes_nachtragen(session)
-
-        # Ergebnis als HTML-Fragment
-        html = f"""
-        <div class="alert alert-success" style="margin-top: 12px;">
-            <strong>Snapshot-Run abgeschlossen</strong><br>
-            ✓ {ergebnis['erfolgreich']} Snapshots erfolgreich erstellt<br>
-            {"✗ " + str(ergebnis['fehlgeschlagen']) + " fehlgeschlagen (" + ", ".join(ergebnis['ticker_fehler']) + ")<br>" if ergebnis['fehlgeschlagen'] > 0 else ""}
-            ↻ {nachgetragen} Outcomes nachgetragen
-        </div>
-        """
-        return HTMLResponse(html)
-
-    except Exception as e:
-        print(f"[Snapshot-Router] Manueller Run fehlgeschlagen: {e}")
-        return HTMLResponse(
-            f'<div class="alert alert-danger" style="margin-top: 12px;">'
-            f'<strong>Fehler:</strong> {e}</div>'
-        )
+            f"<script>showToast('{ticker} entfernt');"
+            f"setTimeout(()=>location.reload(),500);</script>")
     finally:
         session.close()
 
@@ -221,54 +318,63 @@ async def manuell_ausfuehren(request: Request):
 
 @router.get("/export/csv")
 async def export_csv(request: Request):
-    """Exportiert alle ausgewerteten Snapshots als CSV-Datei."""
+    """Exportiert alle ausgewerteten Beobachtungen (eine Zeile je Horizont)."""
     session = get_session()
     try:
-        snapshots = (
-            session.query(AnalyseSnapshot)
-            .filter(AnalyseSnapshot.ausgewertet == True)
+        zeilen = (
+            session.query(AnalyseSnapshot, AnalyseSnapshotOutcome)
+            .join(AnalyseSnapshotOutcome,
+                  AnalyseSnapshotOutcome.snapshot_id == AnalyseSnapshot.id)
+            .filter(AnalyseSnapshotOutcome.ausgewertet.is_(True))
             .order_by(AnalyseSnapshot.snapshot_zeitpunkt.desc())
             .all()
         )
 
-        output = io.StringIO()
-        writer = csv.writer(output, delimiter=";")
-
-        # Header
+        puffer = io.StringIO()
+        writer = csv.writer(puffer, delimiter=";")
         writer.writerow([
-            "Ticker", "Snapshot-Zeitpunkt", "Kurs bei Snapshot",
-            "Confidence (%)", "Confidence-Label", "Signal",
-            "Zeitfenster (Tage)", "Outcome-Kurs", "Outcome-Return (%)",
-            "Outcome-Zeitpunkt", "Indikatoren (JSON)",
+            "Ticker", "Snapshot-Zeitpunkt", "Datenmodus", "Erstellt von",
+            "Kurs bei Snapshot", "Confidence", "Signal", "Horizont (Tage)",
+            "Outcome-Kurs", "Outcome-Return (%)", "Fällig am",
+            "War erfolgreich", "Kategorie-Scores",
         ])
 
-        # Daten
-        for s in snapshots:
+        for s, o in zeilen:
             writer.writerow([
                 s.ticker,
                 s.snapshot_zeitpunkt.strftime("%Y-%m-%d %H:%M") if s.snapshot_zeitpunkt else "",
+                s.datenmodus, s.erstellt_von or "",
                 f"{s.kurs_bei_snapshot:.2f}" if s.kurs_bei_snapshot else "",
-                f"{s.confidence:.1f}" if s.confidence else "",
-                s.confidence_label or "",
-                s.richtungssignal or "",
-                s.zeitfenster_tage,
-                f"{s.outcome_kurs:.2f}" if s.outcome_kurs else "",
-                f"{s.outcome_return:.2f}" if s.outcome_return is not None else "",
-                s.outcome_zeitpunkt.strftime("%Y-%m-%d %H:%M") if s.outcome_zeitpunkt else "",
+                f"{s.confidence:.1f}" if s.confidence is not None else "",
+                s.richtungssignal, o.horizont_tage,
+                f"{o.outcome_kurs:.2f}" if o.outcome_kurs else "",
+                f"{o.outcome_return:.2f}" if o.outcome_return is not None else "",
+                o.faellig_am.strftime("%Y-%m-%d") if o.faellig_am else "",
+                "" if o.war_erfolgreich is None else ("ja" if o.war_erfolgreich else "nein"),
                 s.indikator_json or "",
             ])
 
-        output.seek(0)
-        dateiname = f"snapshots_export_{datetime.now().strftime('%Y%m%d_%H%M')}.csv"
-
+        puffer.seek(0)
+        dateiname = f"signalqualitaet_{datetime.now().strftime('%Y%m%d_%H%M')}.csv"
         return StreamingResponse(
-            iter([output.getvalue()]),
-            media_type="text/csv",
-            headers={"Content-Disposition": f"attachment; filename={dateiname}"},
-        )
+            iter([puffer.getvalue()]), media_type="text/csv",
+            headers={"Content-Disposition": f"attachment; filename={dateiname}"})
 
     except Exception as e:
-        print(f"[Snapshot-Router] CSV-Export fehlgeschlagen: {e}")
+        logger.error("CSV-Export fehlgeschlagen: %s", e, exc_info=True)
         return HTMLResponse(f"Fehler beim Export: {e}", status_code=500)
     finally:
         session.close()
+
+
+# ---------------------------------------------------------------------------
+# Weiterleitung der alten Pfade
+# ---------------------------------------------------------------------------
+
+alt_router = APIRouter(prefix="/snapshot", tags=["Signal-Qualität"], include_in_schema=False)
+
+
+@alt_router.get("/dashboard")
+async def alte_dashboard_url():
+    """Leitet Lesezeichen der früheren Snapshot-Engine auf /signals um."""
+    return RedirectResponse("/signals", status_code=301)

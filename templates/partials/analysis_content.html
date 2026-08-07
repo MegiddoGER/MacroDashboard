@@ -1047,15 +1047,21 @@ function filterCongress(type, btn) {
 <p class="caption">Das Dashboard speichert automatisch Bewertungssignale, um die eigene Trefferquote zu messen.</p>
 <div class="table-container">
   <table class="data-table">
-    <thead><tr><th>Datum</th><th>Signal</th><th>Score</th><th>Kurs (damals)</th><th>Ergebnis (1M)</th></tr></thead>
+    <thead><tr><th>Datum</th><th>Signal</th><th>Score</th><th>Kurs (damals)</th><th>7 Tage</th><th>30 Tage</th><th>90 Tage</th></tr></thead>
     <tbody>
     {% for s in signal_history %}
     <tr>
-      <td>{{ s.timestamp[:16] if s.timestamp else '—' }}</td>
-      <td>{% if s.signal_type == 'buy' %}KAUFEN {% elif s.signal_type == 'sell' %}VERKAUFEN {% else %}NEUTRAL {% endif %}</td>
+      <td>{{ s.snapshot_zeitpunkt[:16] if s.snapshot_zeitpunkt else '—' }}</td>
+      <td>{% if s.richtungssignal == 'KAUF' %}KAUFEN{% elif s.richtungssignal == 'VERKAUF' %}VERKAUFEN{% else %}NEUTRAL{% endif %}</td>
       <td>{{ "%.0f"|format(s.confidence) if s.confidence else '—' }}</td>
-      <td>{{ "{:,.2f} €".format(s.price_at_signal) if s.price_at_signal else '—' }}</td>
-      <td>{% if s.was_successful is true %}Gewonnen{% elif s.was_successful is false %}Verloren{% else %}Ausstehend{% endif %}</td>
+      <td>{{ "{:,.2f} €".format(s.kurs_bei_snapshot) if s.kurs_bei_snapshot else '—' }}</td>
+      {% for o in s.outcomes %}
+        {% if o.ausgewertet and o.outcome_return is not none %}
+          <td class="{{ 'positive' if o.outcome_return > 0 else 'negative' }}">{{ "%+.2f"|format(o.outcome_return) }}%</td>
+        {% else %}
+          <td class="muted">offen</td>
+        {% endif %}
+      {% endfor %}
     </tr>
     {% endfor %}
     </tbody>

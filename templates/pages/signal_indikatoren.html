@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+{% block title %}Indikator-Leaderboard — Macro Dashboard{% endblock %}
+
+{% macro vorsprung_zelle(z) -%}
+    {% if z.vorsprung_pp is none %}
+        <td class="muted">–</td>
+    {% else %}
+        <td class="{{ 'positive' if z.vorsprung_pp > 0 else 'negative' }}">
+            <strong>{{ '%+.1f'|format(z.vorsprung_pp) }} pp</strong>
+        </td>
+    {% endif %}
+{%- endmacro %}
+
+{% block content %}
+<div class="page-header">
+    <h2>Indikator-Leaderboard</h2>
+    <p class="caption">
+        Bewertet jeden einzelnen Indikator getrennt danach, ob er bullisch oder
+        bearisch ausschlug — und vergleicht ihn mit dem, was der Markt im selben
+        Zeitraum ohnehin getan hat.
+    </p>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     Die entscheidende Bezugsgröße
+     ═══════════════════════════════════════════════════════════ -->
+<div class="alert" style="margin-bottom:16px;">
+    <strong>Der Vorsprung ist die entscheidende Spalte — nicht die Trefferquote.</strong><br>
+    Im ausgewerteten Zeitraum waren <strong>{{ basis.anteil_positiv }}%</strong> aller
+    {{ gewaehlter_horizont }}-Tage-Fenster positiv (Ø {{ basis.avg_return }}%, n = {{ basis.n }}).
+    Ein bullischer Indikator mit {{ basis.anteil_positiv }}% Trefferquote hat also
+    <em>nichts</em> vorhergesagt — er hat lediglich die allgemeine Marktbewegung
+    mitgemacht. Aussagekraft hat nur, was deutlich darüber liegt.
+</div>
+
+<form method="get" action="/signals/indikatoren" class="card"
+      style="margin-bottom:16px;display:flex;gap:16px;align-items:end;flex-wrap:wrap;">
+    <div>
+        <label for="horizont">Horizont</label>
+        <select id="horizont" name="horizont" onchange="this.form.submit()">
+            {% for h in horizonte %}
+            <option value="{{ h }}" {% if h == gewaehlter_horizont %}selected{% endif %}>{{ h }} Tage</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div>
+        <label for="datenmodus">Datenbasis</label>
+        <select id="datenmodus" name="datenmodus" onchange="this.form.submit()">
+            <option value="ALLE" {% if gewaehlter_datenmodus == 'ALLE' %}selected{% endif %}>Alle</option>
+            <option value="LIVE" {% if gewaehlter_datenmodus == 'LIVE' %}selected{% endif %}>Nur live</option>
+            <option value="HISTORISCH" {% if gewaehlter_datenmodus == 'HISTORISCH' %}selected{% endif %}>Nur historisch</option>
+        </select>
+    </div>
+    <a class="btn btn-secondary" href="/signals?horizont={{ gewaehlter_horizont }}&datenmodus={{ gewaehlter_datenmodus }}">← Zur Übersicht</a>
+</form>
+
+<!-- ═══════════════════════════════════════════════════════════
+     Einzelindikatoren
+     ═══════════════════════════════════════════════════════════ -->
+<h3>Einzelindikatoren</h3>
+<div class="table-wrapper">
+<table>
+    <thead>
+        <tr>
+            <th>Indikator</th><th>Kategorie</th><th>Signal</th>
+            <th>n</th><th>unabhängig</th>
+            <th>Trefferquote</th><th>Basis</th><th>Vorsprung</th>
+            <th>Ø Rendite</th><th>Erwartungswert</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for z in indikatoren %}
+        <tr>
+            <td><strong>{{ z.indikator }}</strong></td>
+            <td class="caption">{{ z.kategorie or '–' }}</td>
+            <td><span class="badge badge-{{ 'success' if z.richtung == 'bullisch' else 'danger' }}">{{ z.richtung }}</span></td>
+            <td>{{ z.n }}</td>
+            <td>{{ z.n_effektiv }}</td>
+            {% if z.status == 'ok' %}
+                <td>{{ z.trefferquote }}%</td>
+                <td class="muted">{{ z.basis_trefferquote }}%</td>
+                {{ vorsprung_zelle(z) }}
+                <td class="{{ 'positive' if z.avg_return > 0 else 'negative' }}">{{ z.avg_return }}%</td>
+                <td>{{ z.erwartungswert if z.erwartungswert is not none else '–' }}</td>
+            {% else %}
+                <td colspan="5" class="muted">Noch zu wenig Daten (mindestens {{ min_stichprobe }})</td>
+            {% endif %}
+        </tr>
+        {% endfor %}
+        {% if not indikatoren %}
+        <tr><td colspan="10" class="muted">
+            Noch keine auswertbaren Indikator-Daten. Starte einen
+            <a href="/signals/backfill">historischen Backfill</a>, um sofort Daten zu erzeugen.
+        </td></tr>
+        {% endif %}
+    </tbody>
+</table>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     Kategorien
+     ═══════════════════════════════════════════════════════════ -->
+<h3 style="margin-top:24px;">Score-Kategorien</h3>
+<div class="table-wrapper">
+<table>
+    <thead>
+        <tr><th>Kategorie</th><th>Signal</th><th>n</th><th>Trefferquote</th>
+            <th>Basis</th><th>Vorsprung</th><th>Erwartungswert</th></tr>
+    </thead>
+    <tbody>
+        {% for z in kategorien %}
+        <tr>
+            <td><strong>{{ z.kategorie }}</strong></td>
+            <td><span class="badge badge-{{ 'success' if z.richtung == 'bullisch' else 'danger' }}">{{ z.richtung }}</span></td>
+            <td>{{ z.n }}</td>
+            {% if z.status == 'ok' %}
+                <td>{{ z.trefferquote }}%</td>
+                <td class="muted">{{ z.basis_trefferquote }}%</td>
+                {{ vorsprung_zelle(z) }}
+                <td>{{ z.erwartungswert if z.erwartungswert is not none else '–' }}</td>
+            {% else %}
+                <td colspan="4" class="muted">zu wenig Daten</td>
+            {% endif %}
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+</div>
+
+<p class="caption" style="margin-top:16px;">
+    Fundamental- und Sentiment-Indikatoren erscheinen ausschließlich in
+    <strong>Live</strong>-Daten. Im historischen Replay werden sie bewusst nicht
+    berechnet, weil ihre Datenquellen nur den heutigen Stand kennen und im
+    Rückblick Wissen aus der Zukunft wären.
+</p>
+{% endblock %}
