@@ -7,9 +7,9 @@
 <!-- ═══ Macro Event Warnings ═══ -->
 {% if macro_events %}
 {% for ev in macro_events %}
-<div style="background:linear-gradient(90deg, rgba(234,179,8,0.13) 0%, rgba(15,23,42,0) 100%);border-left:4px solid #eab308;border-radius:6px;padding:10px 16px;margin-bottom:8px;">
-  <span style="font-size:0.9rem;"><b>{{ ev.name }}</b> — {{ ev.countdown_label }}{% if ev.date %} ({{ ev.date.strftime('%d.%m.%Y') if ev.date is not string else ev.date }}){% endif %}</span>
-  {% if ev.description %}<br><span style="color:var(--text-dim);font-size:0.78rem;">{{ ev.description }}</span>{% endif %}
+<div class="event-item event-item-medium">
+  <span class="event-item-name"><b>{{ ev.name }}</b> — {{ ev.countdown_label }}{% if ev.date %} ({{ ev.date.strftime('%d.%m.%Y') if ev.date is not string else ev.date }}){% endif %}</span>
+  {% if ev.description %}<div class="event-item-desc">{{ ev.description }}</div>{% endif %}
 </div>
 {% endfor %}
 {% endif %}

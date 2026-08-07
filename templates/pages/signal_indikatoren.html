@@ -24,7 +24,7 @@
 <!-- ═══════════════════════════════════════════════════════════
      Die entscheidende Bezugsgröße
      ═══════════════════════════════════════════════════════════ -->
-<div class="alert" style="margin-bottom:16px;">
+<div class="alert mb-4">
     <strong>Der Vorsprung ist die entscheidende Spalte — nicht die Trefferquote.</strong><br>
     Im ausgewerteten Zeitraum waren <strong>{{ basis.anteil_positiv }}%</strong> aller
     {{ gewaehlter_horizont }}-Tage-Fenster positiv (Ø {{ basis.avg_return }}%, n = {{ basis.n }}).
@@ -33,25 +33,26 @@
     mitgemacht. Aussagekraft hat nur, was deutlich darüber liegt.
 </div>
 
-<form method="get" action="/signals/indikatoren" class="card"
-      style="margin-bottom:16px;display:flex;gap:16px;align-items:end;flex-wrap:wrap;">
-    <div>
-        <label for="horizont">Horizont</label>
-        <select id="horizont" name="horizont" onchange="this.form.submit()">
+<form method="get" action="/signals/indikatoren" class="card toolbar mb-4">
+    <div class="field">
+        <label class="form-label" for="horizont">Horizont</label>
+        <select id="horizont" name="horizont" class="form-select" onchange="this.form.submit()">
             {% for h in horizonte %}
             <option value="{{ h }}" {% if h == gewaehlter_horizont %}selected{% endif %}>{{ h }} Tage</option>
             {% endfor %}
         </select>
     </div>
-    <div>
-        <label for="datenmodus">Datenbasis</label>
-        <select id="datenmodus" name="datenmodus" onchange="this.form.submit()">
+    <div class="field">
+        <label class="form-label" for="datenmodus">Datenbasis</label>
+        <select id="datenmodus" name="datenmodus" class="form-select" onchange="this.form.submit()">
             <option value="ALLE" {% if gewaehlter_datenmodus == 'ALLE' %}selected{% endif %}>Alle</option>
             <option value="LIVE" {% if gewaehlter_datenmodus == 'LIVE' %}selected{% endif %}>Nur live</option>
             <option value="HISTORISCH" {% if gewaehlter_datenmodus == 'HISTORISCH' %}selected{% endif %}>Nur historisch</option>
         </select>
     </div>
-    <a class="btn btn-secondary" href="/signals?horizont={{ gewaehlter_horizont }}&datenmodus={{ gewaehlter_datenmodus }}">← Zur Übersicht</a>
+    <div class="toolbar-end">
+        <a class="btn btn-secondary" href="/signals?horizont={{ gewaehlter_horizont }}&datenmodus={{ gewaehlter_datenmodus }}">← Zur Übersicht</a>
+    </div>
 </form>
 
 <!-- ═══════════════════════════════════════════════════════════
@@ -59,7 +60,7 @@
      ═══════════════════════════════════════════════════════════ -->
 <h3>Einzelindikatoren</h3>
 <div class="table-wrapper">
-<table>
+<table class="data-table">
     <thead>
         <tr>
             <th>Indikator</th><th>Kategorie</th><th>Signal</th>
@@ -100,9 +101,9 @@
 <!-- ═══════════════════════════════════════════════════════════
      Kategorien
      ═══════════════════════════════════════════════════════════ -->
-<h3 style="margin-top:24px;">Score-Kategorien</h3>
+<h3 class="section-head">Score-Kategorien</h3>
 <div class="table-wrapper">
-<table>
+<table class="data-table">
     <thead>
         <tr><th>Kategorie</th><th>Signal</th><th>n</th><th>Trefferquote</th>
             <th>Basis</th><th>Vorsprung</th><th>Erwartungswert</th></tr>
@@ -127,7 +128,7 @@
 </table>
 </div>
 
-<p class="caption" style="margin-top:16px;">
+<p class="caption mt-4">
     Fundamental- und Sentiment-Indikatoren erscheinen ausschließlich in
     <strong>Live</strong>-Daten. Im historischen Replay werden sie bewusst nicht
     berechnet, weil ihre Datenquellen nur den heutigen Stand kennen und im

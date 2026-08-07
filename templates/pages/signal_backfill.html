@@ -11,9 +11,9 @@
     </p>
 </div>
 
-<div class="alert alert-warning" style="margin-bottom:16px;">
+<div class="alert alert-warning mb-4">
     <strong>Was der Backfill bewusst NICHT tut.</strong>
-    <ul style="margin:6px 0 0 18px;">
+    <ul>
         <li>Er berechnet <strong>keine Fundamental- und Sentiment-Werte</strong>. DCF, Bilanz,
             Insider-Daten, Analystenmeinungen und News-Sentiment liegen ausschließlich in ihrer
             heutigen Fassung vor. Sie auf ein vergangenes Datum anzuwenden hieße, mit Wissen aus
@@ -26,30 +26,30 @@
     </ul>
 </div>
 
-<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+<div class="grid-2">
     <!-- Start-Formular -->
     <div class="card">
         <h3>Neuen Lauf starten</h3>
         <form hx-post="/signals/backfill/start" hx-target="#backfill-aktion" hx-swap="innerHTML">
-            <div style="margin-bottom:12px;">
-                <label for="historie_jahre">Historie (Jahre)</label>
+            <div class="form-group">
+                <label class="form-label" for="historie_jahre">Historie (Jahre)</label>
                 <input type="number" id="historie_jahre" name="historie_jahre"
-                       value="5" min="1" max="20" style="width:100%;">
+                       class="form-input" value="5" min="1" max="20">
             </div>
-            <div style="margin-bottom:12px;">
-                <label for="include_smc">SMC-Analyse (FVG, Equal Highs/Lows)</label>
-                <select id="include_smc" name="include_smc" style="width:100%;">
+            <div class="form-group">
+                <label class="form-label" for="include_smc">SMC-Analyse (FVG, Equal Highs/Lows)</label>
+                <select id="include_smc" name="include_smc" class="form-select">
                     <option value="ja">Ja — deckungsgleich mit der Live-Analyse (langsamer)</option>
                     <option value="nein">Nein — rund zehnmal schneller</option>
                 </select>
-                <p class="caption" style="margin-top:4px;">
+                <p class="form-hint">
                     SMC kostet je Bewertung etwa das Zehnfache an Rechenzeit (~79 ms statt ~8 ms).
                     Mit SMC entspricht der historische Trend-Score exakt dem der Live-Analyse.
                 </p>
             </div>
-            <button type="submit" class="btn">Backfill starten</button>
+            <button type="submit" class="btn btn-primary">Backfill starten</button>
         </form>
-        <div id="backfill-aktion" style="margin-top:12px;"></div>
+        <div id="backfill-aktion" class="mt-3"></div>
     </div>
 
     <!-- Fortschritt -->
@@ -61,18 +61,20 @@
             {% include "partials/signal_backfill_status.html" %}
         </div>
 
-        <div class="card" style="margin-top:16px;">
+        <div class="card mt-4">
             <h4>Datenbestand</h4>
-            <div style="display:flex;justify-content:space-between;"><span>Snapshots gesamt</span><strong>{{ bestand.snapshots_gesamt }}</strong></div>
-            <div style="display:flex;justify-content:space-between;"><span>davon historisch</span><strong>{{ bestand.snapshots_historisch }}</strong></div>
-            <div style="display:flex;justify-content:space-between;"><span>davon live</span><strong>{{ bestand.snapshots_live }}</strong></div>
-            <div style="display:flex;justify-content:space-between;"><span>Outcomes ausgewertet</span><strong>{{ bestand.outcomes_ausgewertet }}</strong></div>
-            <div style="display:flex;justify-content:space-between;"><span>Outcomes offen</span><strong>{{ bestand.outcomes_offen }}</strong></div>
+            <div class="stat-list">
+                <div class="stat-item"><span>Snapshots gesamt</span><strong>{{ bestand.snapshots_gesamt }}</strong></div>
+                <div class="stat-item"><span>davon historisch</span><strong>{{ bestand.snapshots_historisch }}</strong></div>
+                <div class="stat-item"><span>davon live</span><strong>{{ bestand.snapshots_live }}</strong></div>
+                <div class="stat-item"><span>Outcomes ausgewertet</span><strong>{{ bestand.outcomes_ausgewertet }}</strong></div>
+                <div class="stat-item"><span>Outcomes offen</span><strong>{{ bestand.outcomes_offen }}</strong></div>
+            </div>
         </div>
     </div>
 </div>
 
-<p class="caption" style="margin-top:16px;">
+<p class="caption mt-4">
     Der Lauf arbeitet in kleinen Portionen im Hintergrund und schont damit sowohl
     die Rate-Limits der Kursdaten-API als auch die Reaktionszeit des Dashboards.
     Der Fortschritt liegt in der Datenbank — ein Neustart setzt ihn fort.

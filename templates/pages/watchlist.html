@@ -20,8 +20,8 @@
         <tr>
           <td><strong>{{ r.ticker }}</strong></td>
           <td>{{ r.price }} €</td>
-          <td style="color:{{ '#22c55e' if r.change >= 0 else '#ef4444' }}; font-weight:600;">{{ "%.2f"|format(r.change) }}%</td>
-          <td>{% if r.rsi %}<span style="color:{{ '#22c55e' if r.rsi < 30 else ('#ef4444' if r.rsi > 70 else 'var(--text-secondary)') }}">{{ "%.1f"|format(r.rsi) }}</span>{% else %}—{% endif %}</td>
+          <td class="{{ 'positive' if r.change >= 0 else 'negative' }}">{{ "%.2f"|format(r.change) }}%</td>
+          <td>{% if r.rsi %}<span class="{{ 'positive' if r.rsi < 30 else ('negative' if r.rsi > 70 else '') }}">{{ "%.1f"|format(r.rsi) }}</span>{% else %}<span class="muted">—</span>{% endif %}</td>
         </tr>
         {% endfor %}
       </tbody>
@@ -50,12 +50,12 @@
   </div>
   <div class="metric-card">
     <div class="metric-label">Unrealisiert</div>
-    <div class="metric-value" style="color:{{ '#22c55e' if summary.unrealized_pnl >= 0 else '#ef4444' }}">{{ "{:+,.2f}".format(summary.unrealized_pnl) }} €</div>
+    <div class="metric-value {{ 'positive' if summary.unrealized_pnl >= 0 else 'negative' }}">{{ "{:+,.2f}".format(summary.unrealized_pnl) }} €</div>
     <div class="metric-delta {{ 'positive' if summary.total_pnl_pct >= 0 else 'negative' }}">{{ "{:+.1f}".format(summary.total_pnl_pct) }}%</div>
   </div>
   <div class="metric-card">
     <div class="metric-label">Realisiert</div>
-    <div class="metric-value" style="color:{{ '#22c55e' if summary.realized_pnl >= 0 else '#ef4444' }}">{{ "{:+,.2f}".format(summary.realized_pnl) }} €</div>
+    <div class="metric-value {{ 'positive' if summary.realized_pnl >= 0 else 'negative' }}">{{ "{:+,.2f}".format(summary.realized_pnl) }} €</div>
     <div class="metric-delta neutral">{{ summary.open_positions_count }} offen / {{ summary.closed_positions_count }} geschlossen</div>
   </div>
 </div>
@@ -76,8 +76,8 @@
         <td>{{ "{:,.2f}".format(p.buy_price) }} €</td>
         <td>{{ "{:,.2f}".format(p.quantity) }}</td>
         <td>{{ "{:,.2f}".format(p.current) }} €</td>
-        <td style="color:{{ '#22c55e' if p.pnl_eur >= 0 else '#ef4444' }}; font-weight:600;">{{ "{:+,.2f}".format(p.pnl_eur) }} €</td>
-        <td style="color:{{ '#22c55e' if p.pnl_pct >= 0 else '#ef4444' }}; font-weight:600;">{{ "{:+.1f}".format(p.pnl_pct) }}%</td>
+        <td class="{{ 'positive' if p.pnl_eur >= 0 else 'negative' }}">{{ "{:+,.2f}".format(p.pnl_eur) }} €</td>
+        <td class="{{ 'positive' if p.pnl_pct >= 0 else 'negative' }}">{{ "{:+.1f}".format(p.pnl_pct) }}%</td>
         <td>{{ "{:,.2f}".format(p.sl) if p.sl else "—" }}</td>
         <td>{{ "{:,.2f}".format(p.tp) if p.tp else "—" }}</td>
       </tr>
@@ -168,9 +168,5 @@
 <div id="sell-result"></div>
 {% endif %}
 
-<style>
-.form-range { width:100%; height:6px; border-radius:3px; background:var(--border); outline:none; appearance:none; cursor:pointer; }
-.form-range::-webkit-slider-thumb { appearance:none; width:18px; height:18px; border-radius:50%; background:var(--accent); cursor:pointer; }
-textarea.form-input { resize: vertical; min-height: 60px; }
-</style>
+{# .form-range und textarea.form-input sind jetzt global in components.css #}
 {% endblock %}

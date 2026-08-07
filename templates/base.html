@@ -7,11 +7,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Macro Dashboard{% endblock %}</title>
 
-    <!-- CSS -->
+    <!-- CSS — Reihenfolge ist bedeutsam: tokens → layout → components → sidebar → motion -->
     <link rel="stylesheet" href="/static/css/tokens.css">
     <link rel="stylesheet" href="/static/css/layout.css">
     <link rel="stylesheet" href="/static/css/components.css">
     <link rel="stylesheet" href="/static/css/sidebar.css">
+    <link rel="stylesheet" href="/static/css/motion.css">
 
     <!-- HTMX -->
     <script src="https://unpkg.com/htmx.org@2.0.4"
@@ -178,35 +179,6 @@
             }
         });
     </script>
-    <style>
-        .autocomplete-dropdown {
-            position: absolute;
-            top: 100%;
-            left: 0;
-            right: 0;
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: var(--radius-md);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-            max-height: 250px;
-            overflow-y: auto;
-            z-index: 1000;
-            display: none;
-            margin-top: 4px;
-        }
-        .autocomplete-item {
-            padding: 8px 12px;
-            cursor: pointer;
-            border-bottom: 1px solid var(--border-subtle);
-            color: var(--text);
-            font-size: 0.9rem;
-        }
-        .autocomplete-item:last-child {
-            border-bottom: none;
-        }
-        .autocomplete-item:hover {
-            background: rgba(255,255,255,0.05);
-        }
-    </style>
+    <!-- Autocomplete-Styles liegen jetzt in static/css/components.css -->
 </body>
 </html>

@@ -1,78 +1,255 @@
 /*
- * tokens.css — Zentrale Design-Tokens (portiert aus styles/theme.py).
+ * tokens.css — Zentrale Design-Tokens des MacroDashboards.
  *
- * Alle Farben, Fonts, Abstände und Transitions als CSS Custom Properties.
- * Änderungen hier wirken sich auf das gesamte Dashboard aus.
+ * Einzige Quelle der Wahrheit für Farben, Flächen, Typografie, Abstände,
+ * Radien, Elevation und Motion. Änderungen hier wirken auf das gesamte
+ * Dashboard. Reihenfolge der Stylesheets: tokens → layout → components →
+ * sidebar → motion.
+ *
+ * Grundsätze:
+ *   - Dichte Datenoberfläche: Lesbarkeit schlägt Dekoration.
+ *   - Alles baut auf einem 4px-Raster auf.
+ *   - Farben sind auf Plotlys "plotly_dark" abgestimmt (transparente
+ *     Chart-Hintergründe, Slate-Achsen, Türkis als Akzent).
  */
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
 :root {
-    /* ── Hintergrund ────────────────────────────────────────── */
-    --bg-app-start:       #0a0f1a;
-    --bg-app-mid:         #0f172a;
-    --bg-app-end:         #111827;
-    --bg-card:            rgba(15, 23, 42, 0.55);
-    --bg-sidebar:         rgba(10, 15, 26, 0.95);
-    --bg-sidebar-solid:   rgba(10, 15, 26, 1);
+    /* ═══════════════════════════════════════════════════════════
+       1. Flächen & Hintergrund
+       Drei Ebenen: App-Grund → Karte → hervorgehobene Fläche.
+       ═══════════════════════════════════════════════════════════ */
+    --bg-app-start:       #070c16;
+    --bg-app-mid:         #0b1220;
+    --bg-app-end:         #101a2c;
+    --bg-app-dark:        #05080f;   /* tiefster Ton (Overlays, Code) */
 
-    /* ── Bordüren ──────────────────────────────────────────── */
+    /* Flächen-Ebenen (Elevation über Helligkeit, nicht nur Schatten) */
+    --surface-0:          rgba(9, 14, 25, 0.72);    /* eingelassen  */
+    --surface-1:          rgba(17, 25, 42, 0.62);   /* Karte        */
+    --surface-2:          rgba(24, 34, 54, 0.72);   /* angehoben    */
+    --surface-3:          rgba(30, 42, 66, 0.94);   /* Popover      */
+    --surface-hover:      rgba(148, 163, 184, 0.06);
+    --surface-active:     rgba(148, 163, 184, 0.10);
+
+    --bg-card:            var(--surface-1);
+    --bg-sidebar:         rgba(7, 12, 22, 0.94);
+    --bg-sidebar-solid:   #070c16;
+
+    /* Kompatibilitäts-Aliase (werden in Templates direkt referenziert) */
+    --bg-primary:         var(--bg-app-mid);
+    --bg-alt:             var(--surface-0);
+    --card-bg:            var(--surface-1);
+
+    /* ═══════════════════════════════════════════════════════════
+       2. Ränder
+       ═══════════════════════════════════════════════════════════ */
     --border:             rgba(148, 163, 184, 0.10);
-    --border-subtle:      rgba(148, 163, 184, 0.15);
+    --border-subtle:      rgba(148, 163, 184, 0.17);
+    --border-strong:      rgba(148, 163, 184, 0.28);
+    --border-accent:      rgba(0, 212, 170, 0.40);
+    /* Feine Oberkante: lässt Flächen wie beleuchtetes Glas wirken */
+    --edge-highlight:     rgba(255, 255, 255, 0.05);
 
-    /* ── Text ──────────────────────────────────────────────── */
-    --text:               #e2e8f0;
-    --text-secondary:     #cbd5e1;
-    --text-dim:           #94a3b8;
-    --text-muted:         #64748b;
+    /* ═══════════════════════════════════════════════════════════
+       3. Text
+       ═══════════════════════════════════════════════════════════ */
+    --text:               #e8eef7;   /* Überschriften, Zahlenwerte    */
+    --text-secondary:     #c6d2e2;   /* Fließtext, Tabellenzellen     */
+    --text-dim:           #93a3b8;   /* Labels, sekundäre Angaben     */
+    /* #74859c statt vormals #64748b: hebt Captions auf ~5:1 Kontrast
+       gegen den App-Hintergrund und damit über die WCAG-AA-Schwelle. */
+    --text-muted:         #74859c;   /* Captions, deaktivierte Werte  */
+    --text-on-accent:     #04121c;   /* Text auf gefüllten Akzenten   */
 
-    /* ── Akzent ────────────────────────────────────────────── */
+    /* ═══════════════════════════════════════════════════════════
+       4. Akzent
+       ═══════════════════════════════════════════════════════════ */
     --accent:             #00d4aa;
-    --accent-glow:        rgba(0, 212, 170, 0.6);
-    --accent-hover:       #00ffcc;
+    --accent-hover:       #2fe8c4;
+    --accent-dim:         #0f9b80;
+    --accent-glow:        rgba(0, 212, 170, 0.60);
+    --accent-soft:        rgba(0, 212, 170, 0.12);
+    --accent-softer:      rgba(0, 212, 170, 0.07);
 
-    /* ── Status ────────────────────────────────────────────── */
+    /* ═══════════════════════════════════════════════════════════
+       5. Status- und Datenfarben (auf plotly_dark abgestimmt)
+       ═══════════════════════════════════════════════════════════ */
     --green:              #22c55e;
     --red:                #ef4444;
     --yellow:             #eab308;
     --blue:               #3b82f6;
     --purple:             #a855f7;
-    --sky:                #87CEEB;
+    --sky:                #87ceeb;
 
-    /* ── Semantisch ────────────────────────────────────────── */
+    /* Aufgehellte Varianten für Text auf dunklen Flächen (Kontrast) */
+    --green-text:         #4ade80;
+    --red-text:           #f87171;
+    --yellow-text:        #facc15;
+    --blue-text:          #60a5fa;
+    --purple-text:        #c084fc;
+
+    /* Flächen-/Randtöne für Badges, Alerts, Tags */
+    --green-soft:         rgba(34, 197, 94, 0.13);
+    --green-line:         rgba(34, 197, 94, 0.32);
+    --red-soft:           rgba(239, 68, 68, 0.13);
+    --red-line:           rgba(239, 68, 68, 0.32);
+    --yellow-soft:        rgba(234, 179, 8, 0.13);
+    --yellow-line:        rgba(234, 179, 8, 0.30);
+    --blue-soft:          rgba(59, 130, 246, 0.13);
+    --blue-line:          rgba(59, 130, 246, 0.32);
+    --purple-soft:        rgba(168, 85, 247, 0.13);
+    --purple-line:        rgba(168, 85, 247, 0.32);
+    --neutral-soft:       rgba(148, 163, 184, 0.11);
+    --neutral-line:       rgba(148, 163, 184, 0.22);
+
+    /* ── Semantisch ── */
     --danger:             #e11d48;
     --danger-hover:       #be123c;
     --success:            #22c55e;
 
-    /* ── Typography ────────────────────────────────────────── */
-    --font-family:        'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-    --font-weight-regular: 400;
-    --font-weight-medium:  500;
+    /* ═══════════════════════════════════════════════════════════
+       6. Typografie
+       Skala mit Faktor ~1.125 auf 16px-Basis. Zahlen laufen über
+       --font-mono bzw. tabular-nums, damit Spalten optisch fluchten.
+       ═══════════════════════════════════════════════════════════ */
+    --font-family:        'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --font-mono:          ui-monospace, 'SF Mono', 'Cascadia Mono', Consolas,
+                          'Roboto Mono', monospace;
+
+    --font-weight-regular:  400;
+    --font-weight-medium:   500;
     --font-weight-semibold: 600;
-    --font-weight-bold:    700;
+    --font-weight-bold:     700;
 
-    /* ── Spacing & Radien ──────────────────────────────────── */
-    --radius-sm:          8px;
-    --radius-md:          10px;
-    --radius-lg:          12px;
-    --padding-card:       14px 18px;
-    --padding-nav:        12px 16px;
-    --sidebar-width:      260px;
+    --fs-3xs:  0.625rem;    /* 10px — Mikro-Label                    */
+    --fs-2xs:  0.6875rem;   /* 11px — Tabellenkopf, Badges           */
+    --fs-xs:   0.75rem;     /* 12px — Captions                       */
+    --fs-sm:   0.8125rem;   /* 13px — dichte Tabellen, Sidebar       */
+    --fs-base: 0.875rem;    /* 14px — Standard-Fließtext             */
+    --fs-md:   0.9375rem;   /* 15px — hervorgehobener Text           */
+    --fs-lg:   1.0625rem;   /* 17px — h4/Kartentitel                 */
+    --fs-xl:   1.25rem;     /* 20px — h3, Metrik-Werte               */
+    --fs-2xl:  1.5rem;      /* 24px — h2 / Seitentitel               */
+    --fs-3xl:  1.875rem;    /* 30px — h1                             */
 
-    /* ── Transitions ───────────────────────────────────────── */
-    --transition-fast:    all 0.2s ease;
-    --transition-normal:  all 0.3s ease;
-    --transition-slow:    all 0.4s ease;
+    --lh-tight:   1.2;
+    --lh-snug:    1.4;
+    --lh-normal:  1.6;
 
-    /* ── Nav Glow Colors ───────────────────────────────────── */
-    --nav-1:  #3b82f6;   /* Startseite — Blau */
-    --nav-2:  #10b981;   /* Gesamtwirtschaft — Grün */
-    --nav-3:  #f59e0b;   /* Watchlist — Amber */
-    --nav-4:  #a855f7;   /* Screener — Violett */
-    --nav-5:  #ec4899;   /* Analyse — Pink */
-    --nav-6:  #f97316;   /* Backtesting — Orange */
-    --nav-7:  #eab308;   /* Trade-Journal — Gelb */
-    --nav-8:  #14b8a6;   /* Sektoren — Teal */
-    --nav-9:  #06b6d4;   /* Analyse-Lexikon — Cyan */
-    --nav-10: #94a3b8;   /* Aktien-Verzeichnis — Grau */
+    --ls-tight:  -0.011em;   /* große Headlines enger setzen          */
+    --ls-normal:  0;
+    --ls-wide:    0.04em;
+    --ls-caps:    0.085em;   /* Versalien-Label                       */
+
+    /* ═══════════════════════════════════════════════════════════
+       7. Abstandsrhythmus (4px-Raster)
+       ═══════════════════════════════════════════════════════════ */
+    --space-0:  0;
+    --space-1:  4px;
+    --space-2:  8px;
+    --space-3:  12px;
+    --space-4:  16px;
+    --space-5:  20px;
+    --space-6:  24px;
+    --space-7:  32px;
+    --space-8:  40px;
+    --space-9:  56px;
+
+    /* Rhythmus-Aliase: --gap ist der Standardabstand zwischen Blöcken */
+    --gap:      20px;
+    --gap-xs:   8px;
+    --gap-sm:   12px;
+    --gap-lg:   28px;
+    --section-gap: 28px;    /* vertikaler Abstand zwischen Abschnitten */
+
+    /* ═══════════════════════════════════════════════════════════
+       8. Radien
+       ═══════════════════════════════════════════════════════════ */
+    --radius-xs:   4px;
+    --radius-sm:   6px;
+    --radius-md:   9px;
+    --radius-lg:   12px;
+    --radius-xl:   16px;
+    --radius-pill: 999px;
+    --radius:      var(--radius-md);   /* Alias für Templates */
+
+    /* ── Komponenten-Maße ── */
+    --padding-card:  var(--space-4) var(--space-5);
+    --padding-nav:   10px 14px;
+    --sidebar-width: 264px;
+    --content-max:   1640px;
+    --control-h:     34px;      /* einheitliche Höhe für Buttons/Inputs */
+    --control-h-sm:  28px;
+
+    /* ═══════════════════════════════════════════════════════════
+       9. Elevation
+       Schatten sind kühl und tief gefärbt, damit sie auf dem
+       Navy-Verlauf nicht grau ausbleichen.
+       ═══════════════════════════════════════════════════════════ */
+    --shadow-xs:  0 1px 2px rgba(2, 6, 23, 0.40);
+    --shadow-sm:  0 1px 3px rgba(2, 6, 23, 0.45),
+                  0 1px 2px -1px rgba(2, 6, 23, 0.50);
+    --shadow-md:  0 4px 14px -4px rgba(2, 6, 23, 0.55),
+                  0 2px 6px -2px rgba(2, 6, 23, 0.40);
+    --shadow-lg:  0 14px 36px -10px rgba(2, 6, 23, 0.65),
+                  0 5px 14px -6px rgba(2, 6, 23, 0.45);
+    --shadow-xl:  0 28px 64px -18px rgba(2, 6, 23, 0.75),
+                  0 10px 24px -10px rgba(2, 6, 23, 0.50);
+
+    /* Fokus- und Akzentringe */
+    --ring-accent: 0 0 0 3px rgba(0, 212, 170, 0.20);
+    --ring-danger: 0 0 0 3px rgba(225, 29, 72, 0.22);
+    --glow-accent: 0 6px 20px -8px rgba(0, 212, 170, 0.55);
+
+    /* ═══════════════════════════════════════════════════════════
+       10. Motion
+       Kurz, zweckgebunden, ausschließlich transform/opacity.
+       Nichts darf das Ablesen einer Zahl verzögern.
+       ═══════════════════════════════════════════════════════════ */
+    --dur-instant: 90ms;    /* Farbwechsel, Fokusringe               */
+    --dur-fast:    140ms;   /* Hover-Feedback                        */
+    --dur-base:    190ms;   /* Eintritt von Inhalten                 */
+    --dur-slow:    240ms;   /* Aus-/Einklappen, Overlays             */
+
+    --ease-standard: cubic-bezier(0.2, 0, 0, 1);      /* Standardweg */
+    --ease-out:      cubic-bezier(0.16, 1, 0.3, 1);   /* Eintritt    */
+    --ease-in:       cubic-bezier(0.4, 0, 1, 1);      /* Austritt    */
+
+    /* Kompatibilitäts-Aliase (in Templates/Altcode referenziert) */
+    --transition-fast:   all var(--dur-fast) var(--ease-standard);
+    --transition-normal: all var(--dur-base) var(--ease-standard);
+    --transition-slow:   all var(--dur-slow) var(--ease-standard);
+
+    /* ═══════════════════════════════════════════════════════════
+       11. Navigations-Akzente
+       ═══════════════════════════════════════════════════════════ */
+    --nav-1:  #3b82f6;   /* Startseite — Blau        */
+    --nav-2:  #10b981;   /* Gesamtwirtschaft — Grün  */
+    --nav-3:  #f59e0b;   /* Watchlist — Amber        */
+    --nav-4:  #a855f7;   /* Screener — Violett       */
+    --nav-5:  #ec4899;   /* Analyse — Pink           */
+    --nav-6:  #f97316;   /* Backtesting — Orange     */
+    --nav-7:  #eab308;   /* Trade-Journal — Gelb     */
+    --nav-8:  #14b8a6;   /* Sektoren — Teal          */
+    --nav-9:  #06b6d4;   /* Analyse-Lexikon — Cyan   */
+    --nav-10: #94a3b8;   /* Aktien-Verzeichnis — Grau*/
+}
+
+/*
+ * Bewegungsarmut respektieren: sämtliche Dauern werden global auf
+ * praktisch null gesetzt. Damit greift die Reduktion auch dort, wo
+ * Templates die Transition-Aliase direkt verwenden.
+ */
+@media (prefers-reduced-motion: reduce) {
+    :root {
+        --dur-instant: 1ms;
+        --dur-fast:    1ms;
+        --dur-base:    1ms;
+        --dur-slow:    1ms;
+        --transition-fast:   none;
+        --transition-normal: none;
+        --transition-slow:   none;
+    }
 }

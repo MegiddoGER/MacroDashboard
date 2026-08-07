@@ -1,19 +1,49 @@
 /*
- * layout.css — App-Grundlayout (Sidebar + Main Grid, Typografie).
+ * layout.css — App-Grundlayout, Typografie, Raster und Layout-Utilities.
+ *
+ * Verantwortlich für den räumlichen Rhythmus: Seitenränder, vertikale
+ * Abstände zwischen Abschnitten, Spaltenraster und die Grundtypografie.
  */
 
 *, *::before, *::after {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
-    font-family: var(--font-family);
+}
+
+html {
+    -webkit-text-size-adjust: 100%;
 }
 
 html, body {
     height: 100%;
     overflow: hidden;
-    background: linear-gradient(160deg, var(--bg-app-start) 0%, var(--bg-app-mid) 40%, var(--bg-app-end) 100%);
+}
+
+/* Hintergrund nur einmal (auf <body>) malen: zwei sehr weiche Lichtquellen
+   über dem Navy-Verlauf geben Tiefe, ohne Kontrast zu kosten. */
+body {
+    font-family: var(--font-family);
+    background:
+        radial-gradient(1200px 800px at 18% -10%, rgba(0, 212, 170, 0.055), transparent 60%),
+        radial-gradient(900px 700px at 100% 0%, rgba(59, 130, 246, 0.045), transparent 55%),
+        linear-gradient(165deg,
+            var(--bg-app-start) 0%,
+            var(--bg-app-mid) 45%,
+            var(--bg-app-end) 100%);
+    background-attachment: fixed;
     color: var(--text-secondary);
+    font-size: var(--fs-base);
+    line-height: var(--lh-normal);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+}
+
+/* Formularelemente erben die Schrift nicht automatisch */
+button, input, select, textarea {
+    font-family: inherit;
+    font-size: inherit;
 }
 
 /* ── App Shell: Sidebar + Main ──────────────────────────── */
@@ -33,86 +63,358 @@ html, body {
     overflow-x: hidden;
     background: var(--bg-sidebar);
     border-right: 1px solid var(--border);
+    box-shadow: 1px 0 0 rgba(0, 0, 0, 0.25);
     display: flex;
     flex-direction: column;
-    padding: 0 16px 16px 16px;
+    padding: 0 var(--space-3) var(--space-4) var(--space-3);
+    scrollbar-gutter: stable;
 }
 
-/* ── Main Content ───────────────────────────────────────── */
+/* ── Main Content ───────────────────────────────────────────
+   Der Inhalt bekommt eine maximale Breite und zentriert sich auf
+   sehr breiten Monitoren, damit Tabellenzeilen nicht ins Endlose
+   laufen und die Blickführung erhalten bleibt.
+   ─────────────────────────────────────────────────────────── */
 .main-content {
     flex: 1;
+    min-width: 0;
     overflow-y: auto;
     overflow-x: hidden;
-    padding: 24px 32px 32px 32px;
+    padding: var(--space-6) var(--space-7) var(--space-9) var(--space-7);
+    scrollbar-gutter: stable;
+}
+.main-content > * {
+    max-width: var(--content-max);
+    margin-left: auto;
+    margin-right: auto;
 }
 
-/* ── Typography ─────────────────────────────────────────── */
-h1, h2, h3, h4, h5 {
+@media (max-width: 1280px) {
+    .main-content { padding: var(--space-5) var(--space-5) var(--space-8) var(--space-5); }
+}
+@media (max-width: 860px) {
+    .main-content { padding: var(--space-4) var(--space-4) var(--space-7) var(--space-4); }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   Typografie
+   ═══════════════════════════════════════════════════════════ */
+h1, h2, h3, h4, h5, h6 {
     color: var(--text);
     font-weight: var(--font-weight-semibold);
-    margin-bottom: 0.5em;
+    line-height: var(--lh-tight);
+    letter-spacing: var(--ls-tight);
+    text-wrap: balance;
 }
-h1 { font-size: 1.8rem; }
-h2 { font-size: 1.5rem; }
-h3 { font-size: 1.2rem; }
-h4 { font-size: 1.05rem; }
-h5 { font-size: 0.9rem; }
 
-p, span, li { color: var(--text-secondary); }
+h1 { font-size: var(--fs-3xl); margin-bottom: var(--space-3); }
+h2 { font-size: var(--fs-2xl); margin-bottom: var(--space-2); }
+h3 { font-size: var(--fs-xl);  margin-bottom: var(--space-3); margin-top: var(--space-2); }
+h4 { font-size: var(--fs-lg);  margin-bottom: var(--space-3); margin-top: var(--space-2); }
+/* h5 dient im Bestand als Karten-/Abschnittslabel — als Versalien-Zeile
+   gesetzt, wie in professionellen Terminals üblich. */
+h5 {
+    font-size: var(--fs-sm);
+    font-weight: var(--font-weight-semibold);
+    letter-spacing: var(--ls-caps);
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: var(--space-2);
+}
+h6 { font-size: var(--fs-sm); margin-bottom: var(--space-2); }
+
+/* Erste Überschrift eines Blocks nie zusätzlich abgesetzt */
+.card > h3:first-child,
+.card > h4:first-child,
+.card > h5:first-child { margin-top: 0; }
+
+p, span, li, td, th, label { color: inherit; }
+p  { color: var(--text-secondary); }
+li { color: var(--text-secondary); }
+
+strong, b { color: var(--text); font-weight: var(--font-weight-semibold); }
+small { font-size: var(--fs-xs); }
 
 a {
     color: var(--accent);
     text-decoration: none;
-    transition: var(--transition-fast);
+    text-underline-offset: 0.2em;
+    transition: color var(--dur-fast) var(--ease-standard);
 }
 a:hover {
     color: var(--accent-hover);
     text-decoration: underline;
 }
 
+code, kbd, pre, samp, .mono {
+    font-family: var(--font-mono);
+    font-size: 0.92em;
+}
+
+/* Zahlen fluchten spaltenweise — der wichtigste Lesbarkeitsgewinn
+   einer Zahlenoberfläche. */
+.tabular, .metric-value, .data-table td, .data-table th,
+.table-wrapper td, .table-wrapper th {
+    font-variant-numeric: tabular-nums;
+}
+
+/* ── Trennlinie: Abschnittsrhythmus ──────────────────────── */
 hr {
     border: none;
-    border-top: 1px solid var(--border);
-    margin: 1.5rem 0;
+    height: 1px;
+    background: linear-gradient(90deg,
+        var(--border-subtle) 0%,
+        var(--border) 45%,
+        transparent 100%);
+    margin: var(--section-gap) 0;
 }
 
+/* ── Textrollen ─────────────────────────────────────────── */
 .caption {
-    font-size: 0.78rem;
+    font-size: var(--fs-xs);
+    line-height: var(--lh-snug);
     color: var(--text-muted);
-    margin-top: 4px;
+    margin-top: var(--space-1);
+}
+.muted    { color: var(--text-muted); }
+.dim      { color: var(--text-dim); }
+.positive { color: var(--green-text); }
+.negative { color: var(--red-text); }
+.neutral  { color: var(--text-muted); }
+.accent   { color: var(--accent); }
+.warning  { color: var(--yellow-text); }
+
+/* Kleines Versalien-Label, überall wiederverwendbar */
+.label-caps {
+    font-size: var(--fs-2xs);
+    font-weight: var(--font-weight-medium);
+    letter-spacing: var(--ls-caps);
+    text-transform: uppercase;
+    color: var(--text-dim);
 }
 
-/* ── Scrollbar Styling ──────────────────────────────────── */
-::-webkit-scrollbar {
-    width: 6px;
+/* ═══════════════════════════════════════════════════════════
+   Fokus — durchgängig sichtbar, ohne Layoutsprung
+   ═══════════════════════════════════════════════════════════ */
+:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: var(--radius-xs);
 }
-::-webkit-scrollbar-track {
-    background: transparent;
+:focus:not(:focus-visible) { outline: none; }
+
+::selection {
+    background: rgba(0, 212, 170, 0.28);
+    color: var(--text);
 }
+
+/* ═══════════════════════════════════════════════════════════
+   Scrollbars
+   ═══════════════════════════════════════════════════════════ */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(148, 163, 184, 0.22) transparent;
+}
+::-webkit-scrollbar        { width: 9px; height: 9px; }
+::-webkit-scrollbar-track  { background: transparent; }
+::-webkit-scrollbar-corner { background: transparent; }
 ::-webkit-scrollbar-thumb {
-    background: rgba(148, 163, 184, 0.2);
-    border-radius: 3px;
+    background: rgba(148, 163, 184, 0.20);
+    border-radius: var(--radius-pill);
+    border: 2px solid transparent;
+    background-clip: padding-box;
 }
 ::-webkit-scrollbar-thumb:hover {
-    background: rgba(148, 163, 184, 0.35);
+    background: rgba(148, 163, 184, 0.38);
+    background-clip: padding-box;
 }
 
-/* ── Grid Helpers ───────────────────────────────────────── */
-.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: var(--radius-lg); }
-.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--radius-lg); }
-.grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--radius-lg); }
-.grid-5 { display: grid; grid-template-columns: repeat(5, 1fr); gap: var(--radius-lg); }
+/* ═══════════════════════════════════════════════════════════
+   Raster
+   Feste Spaltenzahl (kein auto-fit — sonst brechen Vierer-Raster
+   auf breiten Monitoren in acht Spalten auf), dafür definierte
+   Umbruchpunkte. minmax(0,1fr) verhindert, dass breite Tabellen
+   die Spalte aufblähen.
+   ═══════════════════════════════════════════════════════════ */
+.grid-2, .grid-3, .grid-4, .grid-5, .grid-auto {
+    display: grid;
+    gap: var(--gap);
+    align-items: start;
+}
+.grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.grid-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.grid-5 { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+/* Frei fließendes Raster für Kachelmengen unbekannter Länge */
+.grid-auto { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
 
-.flex-row { display: flex; gap: 16px; align-items: center; }
-.flex-between { display: flex; justify-content: space-between; align-items: center; }
+@media (max-width: 1400px) {
+    .grid-5 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 1180px) {
+    .grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .grid-5 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 980px) {
+    .grid-2, .grid-3 { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 720px) {
+    .grid-4, .grid-5 { grid-template-columns: minmax(0, 1fr); }
+}
 
-/* ── Page Header ────────────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════════
+   Layout-Utilities
+   Ersetzen die verstreuten Inline-Styles (display:flex; gap:…).
+   ═══════════════════════════════════════════════════════════ */
+.flex-row {
+    display: flex;
+    gap: var(--space-4);
+    align-items: center;
+}
+.flex-between {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: var(--space-4);
+}
+
+/* Vertikaler Fluss mit gleichmäßigem Abstand */
+.stack        { display: flex; flex-direction: column; gap: var(--space-4); }
+.stack-sm     { display: flex; flex-direction: column; gap: var(--space-2); }
+.stack-lg     { display: flex; flex-direction: column; gap: var(--space-6); }
+
+/* Horizontale Gruppe, die umbrechen darf */
+.cluster {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-3);
+}
+.cluster-lg { gap: var(--space-6); }
+.cluster-sm { gap: var(--space-2); }
+
+/* Zeile mit Label links, Wert rechts (Datenbestand, Kennzahlenlisten) */
+.split-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: var(--space-4);
+    padding: 5px 0;
+}
+.split-row + .split-row { border-top: 1px solid rgba(148, 163, 184, 0.07); }
+.split-row > span:first-child { color: var(--text-dim); font-size: var(--fs-sm); }
+
+/* Werkzeugleiste: Steuerelemente links, Aktionen rechts */
+.toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: var(--space-4);
+}
+.toolbar-end { margin-left: auto; display: flex; gap: var(--space-2); align-items: center; }
+
+.push-right { margin-left: auto; }
+.text-center { text-align: center; }
+.text-right  { text-align: right; }
+.nowrap      { white-space: nowrap; }
+.full-width  { width: 100%; }
+
+/* Abstands-Utilities für den Blockrhythmus */
+.mt-0 { margin-top: 0; }
+.mt-2 { margin-top: var(--space-2); }
+.mt-3 { margin-top: var(--space-3); }
+.mt-4 { margin-top: var(--space-4); }
+.mt-6 { margin-top: var(--space-6); }
+.mb-0 { margin-bottom: 0; }
+.mb-2 { margin-bottom: var(--space-2); }
+.mb-3 { margin-bottom: var(--space-3); }
+.mb-4 { margin-bottom: var(--space-4); }
+.mb-6 { margin-bottom: var(--space-6); }
+.gap-0 { gap: 0; }
+
+/* Inhaltsbreiten für zentrierte Blöcke */
+.measure     { max-width: 72ch; }
+.container-md { max-width: 900px; margin-inline: auto; }
+.container-sm { max-width: 640px; margin-inline: auto; }
+
+/* ═══════════════════════════════════════════════════════════
+   Page Header
+   Seitentitel, Beschreibung und optionale Aktionen in einer Zeile.
+   ═══════════════════════════════════════════════════════════ */
+/* Titel (und optionale Aktionen) in einer Zeile, Beschreibung darunter.
+   Der Umbruch entsteht über flex-basis:100% der Beschreibung — so bleibt
+   das bestehende Markup <h2> + <p class="caption"> unverändert gültig. */
 .page-header {
-    margin-bottom: 8px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    column-gap: var(--space-4);
+    row-gap: var(--space-2);
+    padding-bottom: var(--space-4);
+    margin-bottom: var(--space-5);
+    border-bottom: 1px solid var(--border);
+    position: relative;
 }
+.page-header > h1,
+.page-header > h2,
+.page-header > h3 { flex: 0 0 auto; order: 0; }
+.page-header > p,
+.page-header > .caption { flex: 1 0 100%; order: 2; }
+/* Akzentuierte Anlaufkante — ordnet den Titel visuell ein */
+.page-header::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    bottom: -1px;
+    width: 56px;
+    height: 2px;
+    border-radius: var(--radius-pill);
+    background: linear-gradient(90deg, var(--accent), transparent);
+}
+.page-header h1,
 .page-header h2 {
     margin-bottom: 0;
+    letter-spacing: var(--ls-tight);
 }
 .page-header .caption {
-    margin-top: 2px;
+    margin-top: var(--space-2);
+    max-width: 78ch;
+    font-size: var(--fs-sm);
+    color: var(--text-dim);
 }
+.page-header-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin-left: auto;
+    order: 1;
+}
+/* Zentrierte Variante (Analyse-Landing) */
+.page-header.is-centered {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+}
+.page-header.is-centered::after {
+    left: 50%;
+    transform: translateX(-50%);
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    width: 120px;
+}
+
+/* Überschrift, die einen neuen Abschnitt eröffnet (ersetzt die vielen
+   Inline-`style="margin-top:24px"` der Signal-Seiten) */
+.section-head {
+    margin-top: var(--section-gap);
+    margin-bottom: var(--space-3);
+}
+
+/* Abschnittsüberschrift innerhalb einer Seite */
+.section-title {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-3);
+    margin: var(--section-gap) 0 var(--space-4) 0;
+}
+.section-title > h3, .section-title > h4 { margin: 0; }
+.section-title .caption { margin: 0; }

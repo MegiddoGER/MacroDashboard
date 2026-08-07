@@ -29,14 +29,13 @@
   <div id="{{ tab_id }}" class="tab-content {{ 'active' if active else '' }}">
     {% if events %}
       {% for e in events %}
-      {% set impact_color = '#ef4444' if e.impact == 'high' else ('#f59e0b' if e.impact == 'medium' else '#22c55e') %}
-      <div style="background:linear-gradient(135deg,#1e293b 0%,#0f172a 100%);border-left:4px solid {{ impact_color }};border-radius:8px;padding:12px 16px;margin-bottom:8px;">
-        <div style="display:flex;justify-content:space-between;align-items:center;">
-          <span style="font-weight:600;color:#e2e8f0;font-size:0.9rem;">{{ e.name }}</span>
+      <div class="event-item event-item-{{ 'high' if e.impact == 'high' else ('medium' if e.impact == 'medium' else 'low') }}">
+        <div class="event-item-head">
+          <span class="event-item-name">{{ e.name }}</span>
           <span class="badge {{ 'badge-red' if e.impact=='high' else ('badge-yellow' if e.impact=='medium' else 'badge-green') }}">{{ e.countdown_label }}</span>
         </div>
-        <div style="color:#64748b;font-size:0.78rem;margin-top:4px;">{{ e.date.strftime('%a, %d. %b %Y') }}{% if e.time_cet %} · {{ e.time_cet }} CET{% endif %}</div>
-        {% if e.description %}<div style="color:#94a3b8;font-size:0.78rem;margin-top:4px;">{{ e.description }}</div>{% endif %}
+        <div class="event-item-meta">{{ e.date.strftime('%a, %d. %b %Y') }}{% if e.time_cet %} · {{ e.time_cet }} CET{% endif %}</div>
+        {% if e.description %}<div class="event-item-desc">{{ e.description }}</div>{% endif %}
       </div>
       {% endfor %}
     {% else %}

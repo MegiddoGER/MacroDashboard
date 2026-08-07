@@ -7,15 +7,15 @@
 </div>
 
 <div class="card" style="margin-bottom:var(--gap);">
-  <form method="get" action="/sectors" style="display:flex;gap:12px;align-items:end;flex-wrap:wrap;">
-    <div>
+  <form method="get" action="/sectors" class="toolbar">
+    <div class="field">
       <label class="form-label">Markt</label>
-      <select name="region" class="form-input" style="width:200px;">
+      <select name="region" class="form-select">
         <option value="us" {{ 'selected' if region=='us' }}>🇺🇸 S&P 500</option>
         <option value="eu" {{ 'selected' if region=='eu' }}>🇪🇺 STOXX Europe 600</option>
       </select>
     </div>
-    <div style="display:flex;gap:4px;">
+    <div class="cluster-sm">
       {% for k, v in period_labels.items() %}
       <a href="/sectors?region={{ region }}&period={{ k }}" class="btn btn-sm {{ 'btn-primary' if k==period else 'btn-secondary' }}">{{ v }}</a>
       {% endfor %}
@@ -44,7 +44,7 @@
       <td>{{ r.sector }}</td>
       <td>{{ r.ticker }}</td>
       <td>{{ r.price }}</td>
-      <td style="color:{{ '#22c55e' if r.change > 0 else ('#ef4444' if r.change < 0 else 'var(--text-muted)') }};">{{ "%+.2f %%"|format(r.change) }}</td>
+      <td class="{{ 'positive' if r.change > 0 else ('negative' if r.change < 0 else 'muted') }}">{{ "%+.2f %%"|format(r.change) }}</td>
     </tr>
     {% endfor %}
     </tbody>

@@ -43,20 +43,15 @@
         <!-- Preset-Auswahl -->
         <div class="card">
             <h5> Screener-Typ</h5>
-            <div class="preset-list" style="margin-top: 12px;">
+            <div class="preset-list mt-3">
                 {% for key, cfg in presets.items() %}
-                <label class="preset-option {{ 'active' if loop.first else '' }}"
-                       style="display: block; padding: 10px 14px; border-radius: var(--radius);
-                              cursor: pointer; transition: all 0.2s;
-                              border: 1px solid var(--border);
-                              margin-bottom: 6px;">
+                <label class="preset-option {{ 'active' if loop.first else '' }}">
                     <input type="radio" name="preset" value="{{ key }}"
                            {{ 'checked' if loop.first else '' }}
-                           onchange="this.closest('.preset-list').querySelectorAll('.preset-option').forEach(l=>l.classList.remove('active'));this.parentElement.classList.add('active');"
-                           style="margin-right: 8px;">
+                           onchange="this.closest('.preset-list').querySelectorAll('.preset-option').forEach(l=>l.classList.remove('active'));this.parentElement.classList.add('active');">
                     <strong>{{ cfg.name }}</strong>
                     <br>
-                    <span class="caption" style="margin-left: 22px;">{{ cfg.description }}</span>
+                    <span class="caption preset-desc">{{ cfg.description }}</span>
                 </label>
                 {% endfor %}
             </div>
@@ -115,10 +110,9 @@
     </div>
 
     <!-- Spinner -->
-    <div id="scan-spinner" class="htmx-indicator"
-         style="text-align: center; padding: 24px;">
-        <div class="spinner"></div>
-        <p class="caption" style="margin-top: 12px;">Scanne Aktien... Dies kann 30–60 Sekunden dauern.</p>
+    <div id="scan-spinner" class="htmx-indicator loading-block">
+        <div class="spinner spinner-lg"></div>
+        <p class="caption">Scanne Aktien... Dies kann 30–60 Sekunden dauern.</p>
     </div>
 </form>
 
@@ -126,83 +120,11 @@
 
 <!-- Ergebnis-Container (wird via HTMX befuellt) -->
 <div id="screener-results">
-    <div class="card" style="text-align: center; padding: 48px;">
-        <div style="font-size: 3rem; margin-bottom: 12px;"></div>
+    <div class="card empty-state">
         <p>Wähle einen Screener-Typ und klicke <strong>Scan starten</strong>.</p>
     </div>
 </div>
 
-<style>
-    .btn-group {
-        display: inline-flex;
-        gap: 0;
-        border-radius: var(--radius);
-        overflow: hidden;
-    }
-    .btn-group label {
-        border-radius: 0;
-        border: 1px solid var(--border);
-        margin: 0;
-        padding: 8px 20px;
-        cursor: pointer;
-        transition: all 0.2s;
-    }
-    .btn-group label:first-child { border-radius: var(--radius) 0 0 var(--radius); }
-    .btn-group label:last-child { border-radius: 0 var(--radius) var(--radius) 0; }
-    .btn-group label.active {
-        background: var(--accent);
-        color: var(--bg-primary);
-        border-color: var(--accent);
-    }
-    .btn-group input[type="radio"] { display: none; }
-
-    .preset-option.active {
-        background: rgba(0, 212, 170, 0.08) !important;
-        border-color: var(--accent) !important;
-    }
-    .preset-option:hover {
-        background: rgba(255, 255, 255, 0.03);
-    }
-    .preset-option input[type="radio"] {
-        accent-color: var(--accent);
-    }
-
-    .form-range {
-        width: 100%;
-        height: 6px;
-        border-radius: 3px;
-        background: var(--border);
-        outline: none;
-        appearance: none;
-        cursor: pointer;
-    }
-    .form-range::-webkit-slider-thumb {
-        appearance: none;
-        width: 18px;
-        height: 18px;
-        border-radius: 50%;
-        background: var(--accent);
-        cursor: pointer;
-    }
-
-    .htmx-indicator {
-        opacity: 0;
-        transition: opacity 0.2s ease-in;
-    }
-    .htmx-request .htmx-indicator,
-    .htmx-request.htmx-indicator {
-        opacity: 1;
-    }
-
-    .spinner {
-        width: 32px;
-        height: 32px;
-        border: 3px solid var(--border);
-        border-top-color: var(--accent);
-        border-radius: 50%;
-        animation: spin 0.8s linear infinite;
-        margin: 0 auto;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-</style>
+{# .btn-group, .preset-option, .form-range, .htmx-indicator und .spinner
+   sind jetzt global definiert (components.css / motion.css). #}
 {% endblock %}

@@ -19,27 +19,30 @@
      Datenbestand & methodische Einordnung
      ═══════════════════════════════════════════════════════════ -->
 {% set b = kennzahlen.bestand %}
-<div class="card" style="margin-bottom:16px;">
-    <div style="display:flex;flex-wrap:wrap;gap:24px;align-items:center;">
-        <div><strong>{{ b.snapshots_gesamt }}</strong> Snapshots
+<div class="card mb-4">
+    <div class="fact-bar">
+        <div class="fact"><strong>{{ b.snapshots_gesamt }}</strong> Snapshots
             <span class="caption">({{ b.snapshots_live }} live, {{ b.snapshots_historisch }} historisch)</span></div>
-        <div><strong>{{ b.outcomes_ausgewertet }}</strong> ausgewertet
+        <div class="fact"><strong>{{ b.outcomes_ausgewertet }}</strong> ausgewertet
             <span class="caption">({{ b.outcomes_offen }} offen)</span></div>
-        <div><strong>{{ b.ticker_abgedeckt }}</strong> Ticker</div>
-        <div style="margin-left:auto;display:flex;gap:8px;">
-            <button class="btn" hx-post="/signals/lauf/manuell"
+        <div class="fact"><strong>{{ b.ticker_abgedeckt }}</strong> Ticker</div>
+        <div class="toolbar-end">
+            <button class="btn btn-primary" hx-post="/signals/lauf/manuell"
                     hx-target="#lauf-ergebnis" hx-swap="innerHTML"
                     hx-indicator="#lauf-spinner">Lauf jetzt ausführen</button>
             <a class="btn btn-secondary" href="/signals/export/csv">CSV-Export</a>
         </div>
     </div>
-    <div id="lauf-spinner" class="htmx-indicator caption">Läuft — das kann einige Minuten dauern…</div>
+    <div id="lauf-spinner" class="htmx-indicator loading-block">
+        <span class="spinner"></span>
+        <span class="caption">Läuft — das kann einige Minuten dauern…</span>
+    </div>
     <div id="lauf-ergebnis"></div>
 </div>
 
-<div class="alert" style="margin-bottom:16px;">
+<div class="alert mb-4">
     <strong>Wie diese Zahlen zu lesen sind.</strong>
-    <ul style="margin:6px 0 0 18px;">
+    <ul>
         <li><strong>Historische</strong> Snapshots enthalten bewusst <em>keine</em> Fundamental-
             und Sentiment-Bewertung: diese Daten liegen nur in ihrer heutigen Fassung vor und
             wären im Rückblick Wissen aus der Zukunft. Live- und historische Werte werden
@@ -57,25 +60,27 @@
 <!-- ═══════════════════════════════════════════════════════════
      Filter
      ═══════════════════════════════════════════════════════════ -->
-<form method="get" action="/signals" class="card" style="margin-bottom:16px;display:flex;gap:16px;align-items:end;flex-wrap:wrap;">
-    <div>
-        <label for="horizont">Horizont</label>
-        <select id="horizont" name="horizont" onchange="this.form.submit()">
+<form method="get" action="/signals" class="card toolbar mb-4">
+    <div class="field">
+        <label class="form-label" for="horizont">Horizont</label>
+        <select id="horizont" name="horizont" class="form-select" onchange="this.form.submit()">
             {% for h in horizonte %}
             <option value="{{ h }}" {% if h == gewaehlter_horizont %}selected{% endif %}>{{ h }} Tage</option>
             {% endfor %}
         </select>
     </div>
-    <div>
-        <label for="datenmodus">Datenbasis</label>
-        <select id="datenmodus" name="datenmodus" onchange="this.form.submit()">
+    <div class="field">
+        <label class="form-label" for="datenmodus">Datenbasis</label>
+        <select id="datenmodus" name="datenmodus" class="form-select" onchange="this.form.submit()">
             <option value="ALLE" {% if gewaehlter_datenmodus == 'ALLE' %}selected{% endif %}>Alle</option>
             <option value="LIVE" {% if gewaehlter_datenmodus == 'LIVE' %}selected{% endif %}>Nur live</option>
             <option value="HISTORISCH" {% if gewaehlter_datenmodus == 'HISTORISCH' %}selected{% endif %}>Nur historisch</option>
         </select>
     </div>
-    <a class="btn btn-secondary" href="/signals/indikatoren?horizont={{ gewaehlter_horizont }}&datenmodus={{ gewaehlter_datenmodus }}">
-        Zum Indikator-Leaderboard →</a>
+    <div class="toolbar-end">
+        <a class="btn btn-secondary" href="/signals/indikatoren?horizont={{ gewaehlter_horizont }}&datenmodus={{ gewaehlter_datenmodus }}">
+            Zum Indikator-Leaderboard →</a>
+    </div>
 </form>
 
 <!-- ═══════════════════════════════════════════════════════════
@@ -83,7 +88,7 @@
      ═══════════════════════════════════════════════════════════ -->
 <h3>Ergebnisse je Horizont</h3>
 <div class="table-wrapper">
-<table>
+<table class="data-table">
     <thead>
         <tr>
             <th>Horizont</th><th>Beobachtungen</th><th>davon unabhängig</th>
@@ -113,9 +118,9 @@
 <!-- ═══════════════════════════════════════════════════════════
      Je Richtungssignal
      ═══════════════════════════════════════════════════════════ -->
-<h3 style="margin-top:24px;">Nach Richtungssignal ({{ gewaehlter_horizont }} Tage)</h3>
+<h3 class="section-head">Nach Richtungssignal ({{ gewaehlter_horizont }} Tage)</h3>
 <div class="table-wrapper">
-<table>
+<table class="data-table">
     <thead><tr><th>Signal</th><th>n</th><th>Trefferquote</th><th>Ø Rendite</th><th>Erwartungswert</th></tr></thead>
     <tbody>
         {% for signal, kz in (kennzahlen.je_signal[gewaehlter_horizont] or {}).items() %}
@@ -139,12 +144,12 @@
 <!-- ═══════════════════════════════════════════════════════════
      Confidence-Kalibrierung
      ═══════════════════════════════════════════════════════════ -->
-<h3 style="margin-top:24px;">Confidence-Kalibrierung ({{ gewaehlter_horizont }} Tage)</h3>
+<h3 class="section-head">Confidence-Kalibrierung ({{ gewaehlter_horizont }} Tage)</h3>
 <div class="alert alert-{{ 'success' if kalibrierung_fazit.status == 'kalibriert' else 'warning' }}">
     <strong>{{ kalibrierung_fazit.status|capitalize }}:</strong> {{ kalibrierung_fazit.aussage }}
 </div>
 <div class="table-wrapper">
-<table>
+<table class="data-table">
     <thead><tr><th>Confidence-Bereich</th><th>n</th><th>Trefferquote</th><th>Ø Rendite</th><th>Erwartungswert</th></tr></thead>
     <tbody>
         {% for z in kalibrierung %}
@@ -172,25 +177,29 @@
      Top / Flop Ticker
      ═══════════════════════════════════════════════════════════ -->
 {% if kennzahlen.top_ticker %}
-<h3 style="margin-top:24px;">Beste und schlechteste Ticker (KAUF-Signale, {{ horizonte[0] }} Tage)</h3>
-<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+<h3 class="section-head">Beste und schlechteste Ticker (KAUF-Signale, {{ horizonte[0] }} Tage)</h3>
+<div class="grid-2">
     <div class="card">
         <h4>Beste</h4>
+        <div class="stat-list">
         {% for t in kennzahlen.top_ticker %}
-        <div style="display:flex;justify-content:space-between;">
+        <div class="stat-item">
             <span>{{ t.ticker }} <span class="caption">({{ t.anzahl }})</span></span>
-            <span class="positive">{{ t.avg_return }}%</span>
+            <span class="stat-value positive">{{ t.avg_return }}%</span>
         </div>
         {% endfor %}
+        </div>
     </div>
     <div class="card">
         <h4>Schlechteste</h4>
+        <div class="stat-list">
         {% for t in kennzahlen.flop_ticker %}
-        <div style="display:flex;justify-content:space-between;">
+        <div class="stat-item">
             <span>{{ t.ticker }} <span class="caption">({{ t.anzahl }})</span></span>
-            <span class="negative">{{ t.avg_return }}%</span>
+            <span class="stat-value negative">{{ t.avg_return }}%</span>
         </div>
         {% endfor %}
+        </div>
     </div>
 </div>
 {% endif %}
@@ -198,9 +207,9 @@
 <!-- ═══════════════════════════════════════════════════════════
      Snapshot-Liste
      ═══════════════════════════════════════════════════════════ -->
-<h3 style="margin-top:24px;">Snapshots ({{ gesamt_anzahl }})</h3>
+<h3 class="section-head">Snapshots ({{ gesamt_anzahl }})</h3>
 <div class="table-wrapper">
-<table>
+<table class="data-table">
     <thead>
         <tr>
             <th>Ticker</th><th>Datum</th><th>Basis</th><th>Confidence</th><th>Signal</th><th>Kurs</th>
@@ -237,11 +246,11 @@
 </div>
 
 {% if gesamt_seiten > 1 %}
-<div style="display:flex;gap:8px;align-items:center;margin-top:12px;">
+<div class="pagination">
     {% if aktuelle_seite > 1 %}
     <a class="btn btn-secondary" href="/signals?seite={{ aktuelle_seite - 1 }}&horizont={{ gewaehlter_horizont }}&datenmodus={{ gewaehlter_datenmodus }}">← Zurück</a>
     {% endif %}
-    <span class="caption">Seite {{ aktuelle_seite }} von {{ gesamt_seiten }}</span>
+    <span class="caption page-info">Seite {{ aktuelle_seite }} von {{ gesamt_seiten }}</span>
     {% if aktuelle_seite < gesamt_seiten %}
     <a class="btn btn-secondary" href="/signals?seite={{ aktuelle_seite + 1 }}&horizont={{ gewaehlter_horizont }}&datenmodus={{ gewaehlter_datenmodus }}">Weiter →</a>
     {% endif %}

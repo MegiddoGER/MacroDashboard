@@ -10,43 +10,39 @@
 <!-- ═══════════════════════════════════════════════════════════
      0. Börsen-Uhren (Xetra & NASDAQ)
      ═══════════════════════════════════════════════════════════ -->
-<div class="grid-2" style="gap: 16px; margin-bottom: var(--gap);">
+<div class="grid-2">
     <!-- Xetra -->
-    <div class="card" style="padding: 16px 20px;">
-        <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
-            <span style="font-size:1.3rem;">🇩🇪</span>
-            <span style="color:var(--text); font-weight:600; font-size:0.95rem;">Deutsche Börse (Xetra)</span>
-            <span id="xetra-status" class="badge" style="margin-left:auto;"></span>
+    <div class="card clock-card">
+        <div class="clock-head">
+            <span class="clock-flag">🇩🇪</span>
+            <span class="clock-name">Deutsche Börse (Xetra)</span>
+            <span id="xetra-status" class="badge push-right"></span>
         </div>
-        <div style="display:flex; align-items:baseline; gap:12px;">
-            <span id="de-time" style="color:var(--text); font-size:1.5rem; font-weight:700; font-variant-numeric:tabular-nums;"></span>
-            <span style="color:var(--text-muted); font-size:0.75rem;">MEZ</span>
+        <div class="clock-time-row">
+            <span id="de-time" class="clock-time"></span>
+            <span class="clock-zone">MEZ</span>
         </div>
-        <div style="margin-top:8px; display:flex; align-items:center; gap:8px;">
-            <span style="color:var(--text-muted); font-size:0.75rem;">Handelszeiten: 09:00 – 17:30</span>
-        </div>
-        <div style="margin-top:6px; display:flex; align-items:center; gap:6px;">
-            <span id="xetra-countdown-label" style="color:var(--text-dim); font-size:0.78rem;"></span>
-            <span id="xetra-countdown" style="color:var(--accent); font-size:0.95rem; font-weight:600; font-variant-numeric:tabular-nums;"></span>
+        <div class="clock-meta">Handelszeiten: 09:00 – 17:30</div>
+        <div class="clock-meta">
+            <span id="xetra-countdown-label"></span>
+            <span id="xetra-countdown" class="clock-countdown"></span>
         </div>
     </div>
     <!-- NASDAQ -->
-    <div class="card" style="padding: 16px 20px;">
-        <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
-            <span style="font-size:1.3rem;">🇺🇸</span>
-            <span style="color:var(--text); font-weight:600; font-size:0.95rem;">NASDAQ (New York)</span>
-            <span id="nasdaq-status" class="badge" style="margin-left:auto;"></span>
+    <div class="card clock-card">
+        <div class="clock-head">
+            <span class="clock-flag">🇺🇸</span>
+            <span class="clock-name">NASDAQ (New York)</span>
+            <span id="nasdaq-status" class="badge push-right"></span>
         </div>
-        <div style="display:flex; align-items:baseline; gap:12px;">
-            <span id="ny-time" style="color:var(--text); font-size:1.5rem; font-weight:700; font-variant-numeric:tabular-nums;"></span>
-            <span style="color:var(--text-muted); font-size:0.75rem;">ET</span>
+        <div class="clock-time-row">
+            <span id="ny-time" class="clock-time"></span>
+            <span class="clock-zone">ET</span>
         </div>
-        <div style="margin-top:8px; display:flex; align-items:center; gap:8px;">
-            <span style="color:var(--text-muted); font-size:0.75rem;">Handelszeiten: 09:30 – 16:00</span>
-        </div>
-        <div style="margin-top:6px; display:flex; align-items:center; gap:6px;">
-            <span id="nasdaq-countdown-label" style="color:var(--text-dim); font-size:0.78rem;"></span>
-            <span id="nasdaq-countdown" style="color:var(--accent); font-size:0.95rem; font-weight:600; font-variant-numeric:tabular-nums;"></span>
+        <div class="clock-meta">Handelszeiten: 09:30 – 16:00</div>
+        <div class="clock-meta">
+            <span id="nasdaq-countdown-label"></span>
+            <span id="nasdaq-countdown" class="clock-countdown"></span>
         </div>
     </div>
 </div>
@@ -110,14 +106,12 @@
 
         if (xetraOpen) {
             xetraStatusEl.textContent = 'OFFEN';
-            xetraStatusEl.style.background = 'rgba(34,197,94,0.15)';
-            xetraStatusEl.style.color = '#22c55e';
+            xetraStatusEl.className = 'badge badge-green push-right';
             xetraLabelEl.textContent = 'Schließt in:';
             xetraCountEl.textContent = formatCountdown(getMsUntil(deTZ, 17, 30));
         } else {
             xetraStatusEl.textContent = 'GESCHLOSSEN';
-            xetraStatusEl.style.background = 'rgba(239,68,68,0.15)';
-            xetraStatusEl.style.color = '#ef4444';
+            xetraStatusEl.className = 'badge badge-muted push-right';
             xetraLabelEl.textContent = 'Öffnet in:';
             var daysToMon = daysUntilMonday(deTZ);
             if (!deWeekday) {
@@ -148,14 +142,12 @@
 
         if (nasdaqOpen) {
             nasdaqStatusEl.textContent = 'OPEN';
-            nasdaqStatusEl.style.background = 'rgba(34,197,94,0.15)';
-            nasdaqStatusEl.style.color = '#22c55e';
+            nasdaqStatusEl.className = 'badge badge-green push-right';
             nasdaqLabelEl.textContent = 'Schließt in:';
             nasdaqCountEl.textContent = formatCountdown(getMsUntil(nyTZ, 16, 0));
         } else {
             nasdaqStatusEl.textContent = 'CLOSED';
-            nasdaqStatusEl.style.background = 'rgba(239,68,68,0.15)';
-            nasdaqStatusEl.style.color = '#ef4444';
+            nasdaqStatusEl.className = 'badge badge-muted push-right';
             nasdaqLabelEl.textContent = 'Öffnet in:';
             var nyDaysToMon = daysUntilMonday(nyTZ);
             if (!nyWeekday) {
@@ -200,7 +192,7 @@
     <div class="metric-card">
         {% if unack_alerts %}
         <div class="metric-label">Signal-Wachhunde</div>
-        <div class="metric-value" style="color: var(--red);">{{ unack_alerts|length }} Alarme!</div>
+        <div class="metric-value negative">{{ unack_alerts|length }} Alarme!</div>
         {% else %}
         <div class="metric-label">Signal-Wachhunde</div>
         <div class="metric-value">{{ active_alerts|length }} aktiv</div>
@@ -355,11 +347,9 @@
 <!-- ═══════════════════════════════════════════════════════════
      4. Alert Archiv (History)
      ═══════════════════════════════════════════════════════════ -->
-<details style="margin-top: var(--gap); background: var(--bg-card); border-radius: var(--radius); border: 1px solid var(--border);">
-    <summary style="padding: 16px; font-weight: 600; cursor: pointer; user-select: none;">
-        ️ Alert-Archiv (Historie)
-    </summary>
-    <div style="padding: 16px; border-top: 1px solid var(--border);">
+<details class="disclosure">
+    <summary>Alert-Archiv (Historie)</summary>
+    <div class="disclosure-body">
         {% if ach_alerts %}
         <div class="table-container">
             <table class="data-table">
@@ -383,9 +373,9 @@
                 </tbody>
             </table>
         </div>
-        <form hx-post="/home/clear_archive" hx-swap="none" style="margin-top: 16px;">
-            <button type="submit" class="btn btn-outline" style="color: var(--red); border-color: var(--red);">
-                ️ Archiv leeren
+        <form hx-post="/home/clear_archive" hx-swap="none" class="mt-4">
+            <button type="submit" class="btn btn-outline btn-danger-ghost">
+                Archiv leeren
             </button>
         </form>
         {% else %}

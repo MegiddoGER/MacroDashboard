@@ -37,19 +37,16 @@
       </p>
 
       {% if quiver_token_set %}
-      <div style="margin-bottom:8px;padding:8px 12px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;font-family:monospace;font-size:0.85rem;color:var(--text-dim);">
-        {{ quiver_token_masked }}
-      </div>
+      <div class="code-box mb-2">{{ quiver_token_masked }}</div>
       {% endif %}
 
       <div style="display:flex;gap:12px;align-items:center;">
         <input type="text"
                name="quiver_token"
                id="quiver_token"
-               class="form-input"
+               class="form-input mono-input"
                placeholder="{{ 'Neuen Token eingeben zum Überschreiben...' if quiver_token_set else 'Bearer-Token hier einfügen...' }}"
-               autocomplete="off"
-               style="font-family:monospace;">
+               autocomplete="off">
         {% if quiver_token_set %}
         <button type="button" class="btn btn-danger btn-sm"
                 hx-post="/settings/api-keys"
@@ -83,19 +80,16 @@
       </p>
 
       {% if finnhub_token_set %}
-      <div style="margin-bottom:8px;padding:8px 12px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;font-family:monospace;font-size:0.85rem;color:var(--text-dim);">
-        {{ finnhub_token_masked }}
-      </div>
+      <div class="code-box mb-2">{{ finnhub_token_masked }}</div>
       {% endif %}
 
       <div style="display:flex;gap:12px;align-items:center;">
         <input type="text"
                name="finnhub_token"
                id="finnhub_token"
-               class="form-input"
+               class="form-input mono-input"
                placeholder="{{ 'Neuen Token eingeben zum Überschreiben...' if finnhub_token_set else 'API-Token hier einfügen...' }}"
-               autocomplete="off"
-               style="font-family:monospace;">
+               autocomplete="off">
         {% if finnhub_token_set %}
         <button type="button" class="btn btn-danger btn-sm"
                 hx-post="/settings/api-keys"

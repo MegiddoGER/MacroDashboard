@@ -69,20 +69,20 @@
           hx-post="/api/watchlist/add"
           hx-target="#watchlist-items"
           hx-swap="innerHTML"
-          hx-indicator=".wl-spinner"
-          style="margin-bottom:6px;">
+          hx-indicator=".wl-spinner">
         <input type="text" name="query" class="form-input"
                placeholder="Ticker oder Name" autocomplete="off">
-        <button type="submit" class="btn btn-success btn-sm"></button>
+        <button type="submit" class="btn btn-success btn-sm">+</button>
     </form>
-    <span class="wl-spinner spinner" style="display:none;"></span>
+    <!-- Ladeanzeige: Sichtbarkeit steuert .htmx-indicator (motion.css) -->
+    <span class="wl-spinner spinner htmx-indicator"></span>
 
     <button class="wl-toggle-btn nav-category-btn"
             onclick="var b=document.getElementById('wl-body');b.style.display=b.style.display==='none'?'block':'none';this.classList.toggle('expanded');">
           Watchlist
         <span class="chevron">▾</span>
     </button>
-    <div id="wl-body" style="display:none;padding:4px 0;">
+    <div id="wl-body" class="wl-body" style="display:none;">
         <div id="watchlist-items"
              hx-get="/api/watchlist/items"
              hx-trigger="load"
@@ -103,7 +103,6 @@
             onclick="showToast('Cache geleert — Seite wird aktualisiert.'); setTimeout(() => location.reload(), 500);">
         Alle Daten Aktualisieren
     </button>
-    <div style="height: 12px;"></div>
     <button class="btn btn-danger btn-block btn-sm"
             onclick="if(confirm('Dashboard wirklich beenden?')) fetch('/api/shutdown', {method:'POST'});">
         System Beenden
