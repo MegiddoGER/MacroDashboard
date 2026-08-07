@@ -25,9 +25,17 @@ logger = logging.getLogger(__name__)
 
 def _ausgewertete_paare(db: Session, datenmodus: str | None = None,
                         horizont: int | None = None) -> list[tuple]:
-    """Lädt (Snapshot, Outcome)-Paare aller ausgewerteten Beobachtungen."""
+    """Lädt die ausgewerteten Beobachtungen als schlanke Tupel.
+
+    Rückgabe je Zeile: (ticker, richtungssignal, outcome_return, war_erfolgreich).
+    Bewusst keine ORM-Objekte — bei sechsstelligen Zeilenzahlen wäre das
+    Hydrieren ganzer Entitäten der Flaschenhals der ganzen Seite.
+    """
     query = (
-        db.query(AnalyseSnapshot, AnalyseSnapshotOutcome)
+        db.query(AnalyseSnapshot.ticker,
+                 AnalyseSnapshot.richtungssignal,
+                 AnalyseSnapshotOutcome.outcome_return,
+                 AnalyseSnapshotOutcome.war_erfolgreich)
         .join(AnalyseSnapshotOutcome,
               AnalyseSnapshotOutcome.snapshot_id == AnalyseSnapshot.id)
         .filter(AnalyseSnapshotOutcome.ausgewertet.is_(True))
@@ -60,20 +68,20 @@ def kennzahlen_berechnen(db: Session, datenmodus: str | None = None,
 
     try:
         for horizont in HORIZONTE_TAGE:
-            paare = _ausgewertete_paare(db, datenmodus, horizont)
-            returns = [o.outcome_return for _, o in paare]
-            treffer = [o.war_erfolgreich for _, o in paare]
+            zeilen = _ausgewertete_paare(db, datenmodus, horizont)
 
             ergebnis["horizonte"][horizont] = kennzahlen_aus_returns(
-                returns, treffer, horizont_tage=horizont, minimum=minimum)
+                [r for _, _, r, _ in zeilen],
+                [t for _, _, _, t in zeilen],
+                horizont_tage=horizont, minimum=minimum)
 
             # Aufschlüsselung je Richtungssignal
             je_signal: dict = {}
             for signal in ("KAUF", "NEUTRAL", "VERKAUF"):
-                gefiltert = [(s, o) for s, o in paare if s.richtungssignal == signal]
+                gefiltert = [z for z in zeilen if z[1] == signal]
                 je_signal[signal] = kennzahlen_aus_returns(
-                    [o.outcome_return for _, o in gefiltert],
-                    [o.war_erfolgreich for _, o in gefiltert],
+                    [r for _, _, r, _ in gefiltert],
+                    [t for _, _, _, t in gefiltert],
                     horizont_tage=horizont, minimum=minimum)
             ergebnis["je_signal"][horizont] = je_signal
 
@@ -120,12 +128,12 @@ def _top_flop_ticker(db: Session, datenmodus: str | None, horizont: int,
                      minimum: int = MIN_STICHPROBE,
                      min_pro_ticker: int = 5) -> tuple[list, list]:
     """Ermittelt die besten und schlechtesten Ticker (nur KAUF-Signale)."""
-    paare = _ausgewertete_paare(db, datenmodus, horizont)
+    zeilen = _ausgewertete_paare(db, datenmodus, horizont)
 
     je_ticker = defaultdict(list)
-    for snapshot, outcome in paare:
-        if snapshot.richtungssignal == "KAUF":
-            je_ticker[snapshot.ticker].append(outcome.outcome_return)
+    for ticker, richtungssignal, outcome_return, _ in zeilen:
+        if richtungssignal == "KAUF":
+            je_ticker[ticker].append(outcome_return)
 
     bewertet = []
     for ticker, returns in je_ticker.items():

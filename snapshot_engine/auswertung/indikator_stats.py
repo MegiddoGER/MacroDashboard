@@ -108,7 +108,14 @@ def indikator_leaderboard(db: Session, horizont: int = 7,
         verbergen, wofür schlicht noch Daten fehlen.
     """
     query = (
-        db.query(AnalyseSnapshotIndikator, AnalyseSnapshotOutcome)
+        # Bewusst nur die benötigten Spalten statt ganzer ORM-Objekte: bei
+        # ~700k Indikator-Zeilen ist der Unterschied zwischen Tupeln und
+        # hydrierten Entitäten der zwischen einer schnellen und einer
+        # unbenutzbaren Seite.
+        db.query(AnalyseSnapshotIndikator.indikator_name,
+                 AnalyseSnapshotIndikator.kategorie,
+                 AnalyseSnapshotIndikator.beitrag_numeric,
+                 AnalyseSnapshotOutcome.outcome_return)
         .join(AnalyseSnapshot,
               AnalyseSnapshot.id == AnalyseSnapshotIndikator.snapshot_id)
         .join(AnalyseSnapshotOutcome,
@@ -137,13 +144,11 @@ def indikator_leaderboard(db: Session, horizont: int = 7,
     gruppen: dict[tuple, list] = defaultdict(list)
     kategorien: dict[str, str] = {}
 
-    for indikator, outcome in zeilen:
-        richtung = (RICHTUNG_BULLISCH if indikator.beitrag_numeric > 0
-                    else RICHTUNG_BEARISCH)
-        schluessel = (indikator.indikator_name, richtung)
-        gruppen[schluessel].append(outcome.outcome_return)
-        if indikator.kategorie:
-            kategorien[indikator.indikator_name] = indikator.kategorie
+    for name, kategorie, beitrag, outcome_return in zeilen:
+        richtung = RICHTUNG_BULLISCH if beitrag > 0 else RICHTUNG_BEARISCH
+        gruppen[(name, richtung)].append(outcome_return)
+        if kategorie:
+            kategorien[name] = kategorie
 
     basis = basisrate(db, horizont, datenmodus)
 
@@ -182,7 +187,14 @@ def kategorie_leaderboard(db: Session, horizont: int = 7,
                           minimum: int = MIN_STICHPROBE) -> list[dict]:
     """Wie indikator_leaderboard, aber auf Ebene der fünf Score-Kategorien."""
     query = (
-        db.query(AnalyseSnapshotIndikator, AnalyseSnapshotOutcome)
+        # Bewusst nur die benötigten Spalten statt ganzer ORM-Objekte: bei
+        # ~700k Indikator-Zeilen ist der Unterschied zwischen Tupeln und
+        # hydrierten Entitäten der zwischen einer schnellen und einer
+        # unbenutzbaren Seite.
+        db.query(AnalyseSnapshotIndikator.indikator_name,
+                 AnalyseSnapshotIndikator.kategorie,
+                 AnalyseSnapshotIndikator.beitrag_numeric,
+                 AnalyseSnapshotOutcome.outcome_return)
         .join(AnalyseSnapshot,
               AnalyseSnapshot.id == AnalyseSnapshotIndikator.snapshot_id)
         .join(AnalyseSnapshotOutcome,
@@ -205,10 +217,9 @@ def kategorie_leaderboard(db: Session, horizont: int = 7,
         return []
 
     gruppen: dict[tuple, list] = defaultdict(list)
-    for indikator, outcome in zeilen:
-        richtung = (RICHTUNG_BULLISCH if indikator.beitrag_numeric > 0
-                    else RICHTUNG_BEARISCH)
-        gruppen[(indikator.kategorie, richtung)].append(outcome.outcome_return)
+    for _name, kategorie, beitrag, outcome_return in zeilen:
+        richtung = RICHTUNG_BULLISCH if beitrag > 0 else RICHTUNG_BEARISCH
+        gruppen[(kategorie, richtung)].append(outcome_return)
 
     basis = basisrate(db, horizont, datenmodus)
 

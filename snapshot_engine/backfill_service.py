@@ -62,6 +62,9 @@ MAX_TICKER_JE_SCHRITT = 15
 # Ticker je Netzwerk-Call (mehrjährige Historie → kleinere Chunks als beim Live-Lauf)
 BACKFILL_CHUNK_SIZE = 20
 
+# Fehlversuche beim Kursabruf, bevor ein Ticker endgültig aufgegeben wird.
+MAX_TICKER_VERSUCHE = 3
+
 
 # ---------------------------------------------------------------------------
 # Job-Verwaltung
@@ -84,8 +87,26 @@ def backfill_starten(db: Session, historie_jahre: int = 5,
         .first()
     )
     if laufender is not None:
-        logger.info("Backfill: Lauf #%d ist bereits aktiv.", laufender.id)
-        return laufender
+        # Ein Job gilt nur dann als aktiv, wenn er noch offene Ticker hat. Der
+        # Übergang auf FERTIG passiert erst beim nächsten Drain-Schritt — ohne
+        # diese Prüfung würde ein längst abgearbeiteter Lauf jeden neuen Start
+        # blockieren und stattdessen sich selbst zurückgeben.
+        offen = (
+            db.query(SignalBackfillTickerStatus)
+            .filter(SignalBackfillTickerStatus.job_id == laufender.id)
+            .filter(SignalBackfillTickerStatus.status == BackfillStatus.AUSSTEHEND)
+            .count()
+        )
+        if offen > 0:
+            logger.info("Backfill: Lauf #%d ist bereits aktiv (%d Ticker offen).",
+                        laufender.id, offen)
+            return laufender
+
+        laufender.status = BackfillStatus.FERTIG
+        laufender.beendet_am = laufender.beendet_am or datetime.utcnow()
+        db.commit()
+        logger.info("Backfill: abgearbeiteten Lauf #%d abgeschlossen — starte neuen Lauf.",
+                    laufender.id)
 
     if tickers is None:
         tickers = aktives_universum(db)
@@ -168,6 +189,10 @@ def backfill_schritt(db: Session,
         db.query(SignalBackfillTickerStatus)
         .filter(SignalBackfillTickerStatus.job_id == job.id)
         .filter(SignalBackfillTickerStatus.status == BackfillStatus.AUSSTEHEND)
+        # Noch unversuchte Ticker zuerst; wiederholt gescheiterte rutschen nach
+        # hinten, statt die Warteschlange in einer engen Schleife zu blockieren.
+        .order_by(SignalBackfillTickerStatus.versuche.asc(),
+                  SignalBackfillTickerStatus.id.asc())
         .limit(max_ticker)
         .all()
     )
@@ -199,11 +224,25 @@ def backfill_schritt(db: Session,
 
         hist = kursdaten.get(eintrag.ticker)
         if hist is None:
-            eintrag.status = BackfillStatus.ZU_WENIG_HISTORIE
-            eintrag.fehlermeldung = "keine ausreichende Kurshistorie"
+            # Fehlende Kursdaten können zwei Ursachen haben: der Ticker hat
+            # tatsächlich zu wenig Historie — oder der Batch-Download ist
+            # vorübergehend gescheitert (Rate-Limit, Netzwerk). Erst nach
+            # mehreren Versuchen endgültig aufgeben, sonst verliert ein
+            # einzelner Aussetzer einen ganzen Chunk aus dem Lauf.
+            eintrag.versuche = (eintrag.versuche or 0) + 1
             eintrag.bearbeitet_am = datetime.utcnow()
-            job.ticker_fehler = (job.ticker_fehler or 0) + 1
-            verarbeitet += 1
+            if eintrag.versuche >= MAX_TICKER_VERSUCHE:
+                eintrag.status = BackfillStatus.ZU_WENIG_HISTORIE
+                eintrag.fehlermeldung = (
+                    f"keine Kursdaten nach {eintrag.versuche} Versuchen")
+                job.ticker_fehler = (job.ticker_fehler or 0) + 1
+                verarbeitet += 1
+                logger.warning("Backfill: %s endgültig ohne Kursdaten (%d Versuche).",
+                               eintrag.ticker, eintrag.versuche)
+            else:
+                # Bleibt AUSSTEHEND; die Sortierung nach `versuche` schiebt den
+                # Ticker ans Ende der Warteschlange statt ihn sofort erneut zu ziehen.
+                eintrag.fehlermeldung = f"Kursabruf fehlgeschlagen (Versuch {eintrag.versuche})"
             db.commit()
             continue
 

@@ -29,9 +29,21 @@ KELLY_HORIZONT_TAGE = 30
 
 def _paare(db: Session, horizont: int, datenmodus: str | None = None,
            nur_gerichtete: bool = True) -> list[tuple]:
-    """Lädt ausgewertete (Snapshot, Outcome)-Paare."""
+    """Lädt ausgewertete Beobachtungen als schlanke Tupel.
+
+    Rückgabe je Zeile:
+        (ticker, richtungssignal, confidence, zeitpunkt, outcome_return, war_erfolgreich)
+
+    Keine ORM-Objekte — diese Funktion wird u.a. bei jeder Positionsgrößen-
+    Berechnung aufgerufen und darf mit wachsendem Datenbestand nicht langsamer werden.
+    """
     query = (
-        db.query(AnalyseSnapshot, AnalyseSnapshotOutcome)
+        db.query(AnalyseSnapshot.ticker,
+                 AnalyseSnapshot.richtungssignal,
+                 AnalyseSnapshot.confidence,
+                 AnalyseSnapshot.snapshot_zeitpunkt,
+                 AnalyseSnapshotOutcome.outcome_return,
+                 AnalyseSnapshotOutcome.war_erfolgreich)
         .join(AnalyseSnapshotOutcome,
               AnalyseSnapshotOutcome.snapshot_id == AnalyseSnapshot.id)
         .filter(AnalyseSnapshotOutcome.horizont_tage == horizont)
@@ -64,11 +76,9 @@ def kelly_parameter(db: Session, horizont: int = KELLY_HORIZONT_TAGE,
         if len(paare) < minimum:
             return None
 
-        returns = [o.outcome_return for _, o in paare]
-        treffer = [o.war_erfolgreich for _, o in paare]
-
         kennzahlen = kennzahlen_aus_returns(
-            returns, treffer, horizont_tage=horizont, minimum=minimum)
+            [z[4] for z in paare], [z[5] for z in paare],
+            horizont_tage=horizont, minimum=minimum)
 
         if kennzahlen.get("status") != STATUS_OK:
             return None
@@ -122,16 +132,15 @@ def signal_statistik(db: Session, horizont: int = 30,
         if not paare:
             return ergebnis
 
-        confidences = [s.confidence for s, _ in paare if s.confidence is not None]
+        confidences = [z[2] for z in paare if z[2] is not None]
         if confidences:
             ergebnis["avg_confidence"] = round(statistics.fmean(confidences), 1)
 
         # Trefferquote je Ticker (nur gerichtete Signale)
         je_ticker = defaultdict(list)
-        for snapshot, outcome in paare:
-            if snapshot.richtungssignal in ("KAUF", "VERKAUF") \
-                    and outcome.war_erfolgreich is not None:
-                je_ticker[snapshot.ticker].append(outcome.war_erfolgreich)
+        for ticker, richtung, _conf, _zeit, _ret, erfolg in paare:
+            if richtung in ("KAUF", "VERKAUF") and erfolg is not None:
+                je_ticker[ticker].append(erfolg)
 
         bewertet = [
             {
@@ -149,19 +158,18 @@ def signal_statistik(db: Session, horizont: int = 30,
             ergebnis["schlechtester_ticker"] = sortiert[-1]
 
         # Einzelne Extremwerte (rein illustrativ, keine statistische Aussage)
-        nach_return = sorted(paare, key=lambda p: p[1].outcome_return, reverse=True)
-        ergebnis["top_signale"] = [
-            {"ticker": s.ticker, "return_pct": o.outcome_return,
-             "confidence": s.confidence,
-             "datum": s.snapshot_zeitpunkt.strftime("%Y-%m-%d") if s.snapshot_zeitpunkt else None}
-            for s, o in nach_return[:3]
-        ]
-        ergebnis["flop_signale"] = [
-            {"ticker": s.ticker, "return_pct": o.outcome_return,
-             "confidence": s.confidence,
-             "datum": s.snapshot_zeitpunkt.strftime("%Y-%m-%d") if s.snapshot_zeitpunkt else None}
-            for s, o in nach_return[-3:][::-1]
-        ]
+        def _als_signal(zeile) -> dict:
+            ticker, _richtung, confidence, zeitpunkt, outcome_return, _erfolg = zeile
+            return {
+                "ticker": ticker,
+                "return_pct": outcome_return,
+                "confidence": confidence,
+                "datum": zeitpunkt.strftime("%Y-%m-%d") if zeitpunkt else None,
+            }
+
+        nach_return = sorted(paare, key=lambda z: z[4], reverse=True)
+        ergebnis["top_signale"] = [_als_signal(z) for z in nach_return[:3]]
+        ergebnis["flop_signale"] = [_als_signal(z) for z in nach_return[-3:][::-1]]
 
     except Exception as e:
         logger.error("Signal-Statistik fehlgeschlagen: %s", e, exc_info=True)
@@ -173,9 +181,8 @@ def trefferquote(db: Session, horizont: int = 30,
                  datenmodus: str | None = None) -> dict:
     """Kompakte Trefferquote (Ersatz für signal_history.calc_hit_rate)."""
     paare = _paare(db, horizont, datenmodus)
-    returns = [o.outcome_return for _, o in paare]
-    treffer = [o.war_erfolgreich for _, o in paare]
-    kennzahlen = kennzahlen_aus_returns(returns, treffer, horizont_tage=horizont)
+    kennzahlen = kennzahlen_aus_returns(
+        [z[4] for z in paare], [z[5] for z in paare], horizont_tage=horizont)
 
     return {
         "horizont_tage": horizont,

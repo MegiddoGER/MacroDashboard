@@ -45,8 +45,12 @@ def kalibrierung_berechnen(db: Session, horizont: int = 7,
     ergebnis = []
 
     try:
+        # Nur die drei benötigten Spalten statt ganzer ORM-Objekte (Performance
+        # bei sechsstelligen Zeilenzahlen).
         paare = (
-            db.query(AnalyseSnapshot, AnalyseSnapshotOutcome)
+            db.query(AnalyseSnapshot.confidence,
+                     AnalyseSnapshotOutcome.outcome_return,
+                     AnalyseSnapshotOutcome.war_erfolgreich)
             .join(AnalyseSnapshotOutcome,
                   AnalyseSnapshotOutcome.snapshot_id == AnalyseSnapshot.id)
             .filter(AnalyseSnapshotOutcome.horizont_tage == horizont)
@@ -63,12 +67,12 @@ def kalibrierung_berechnen(db: Session, horizont: int = 7,
         return []
 
     for bereich in CONFIDENCE_BEREICHE:
-        gruppe = [(s, o) for s, o in alle
-                  if bereich["min"] <= (s.confidence or 0) <= bereich["max"]]
+        gruppe = [z for z in alle
+                  if bereich["min"] <= (z[0] or 0) <= bereich["max"]]
 
         kennzahlen = kennzahlen_aus_returns(
-            [o.outcome_return for _, o in gruppe],
-            [o.war_erfolgreich for _, o in gruppe],
+            [r for _, r, _ in gruppe],
+            [t for _, _, t in gruppe],
             horizont_tage=horizont,
             minimum=minimum,
         )

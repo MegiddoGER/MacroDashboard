@@ -362,6 +362,10 @@ class SignalBackfillTickerStatus(Base):
     snapshots_erstellt: Mapped[Optional[int]] = mapped_column(Integer, default=0)
     fehlermeldung: Mapped[Optional[str]] = mapped_column(Text)
     bearbeitet_am: Mapped[Optional[datetime]] = mapped_column(DateTime)
+    # Fehlversuche beim Kursabruf. Ein einzelner fehlgeschlagener Batch-Download
+    # (Rate-Limit, Netzwerkaussetzer) darf einen Ticker nicht dauerhaft aus dem
+    # Lauf werfen — bei ~700 Tickern in 35 Chunks passiert das sonst regelmäßig.
+    versuche: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
 
 # ---------------------------------------------------------------------------
@@ -479,6 +483,9 @@ def _schema_migrieren():
         },
         "signal_backfill_jobs": {
             "include_smc": "BOOLEAN DEFAULT 1",
+        },
+        "signal_backfill_ticker_status": {
+            "versuche": "INTEGER DEFAULT 0",
         },
     }
     for tabelle, spalten_definitionen in additive_spalten.items():
