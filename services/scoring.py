@@ -18,12 +18,48 @@ from dataclasses import dataclass, field
 # Gewichtung der Kategorien
 # ---------------------------------------------------------------------------
 
+# Datengrundlage der technischen Gewichte (Stand: 2026-08-07)
+# ---------------------------------------------------------------------------
+# Aus dem historischen Replay der Signal-Qualitäts-Engine: 86.926 Snapshots über
+# 593 Titel (S&P 500 + DAX/MDAX), 5 Jahre, gemessen gegen die unbedingte
+# Basisrate des jeweiligen Zeitraums (siehe /signals/indikatoren).
+#
+# Vorsprung gegenüber der Basisrate, 7-Tage-Horizont (überlappungsfrei):
+#     RSI (14) überverkauft     +4,5 pp   p < 0,0001   ← einziger klarer Vorteil
+#     Bollinger unteres Band    +4,2 pp   p < 0,0001   ← einziger klarer Vorteil
+#     MACD / FVG / SMA 200       ±0,0 pp   nicht signifikant
+#     VWMA / POC / OBV          -0,2…-0,7 pp
+#     SMA-Cross (20/50)         -1,0…-2,5 pp  p < 0,02  ← messbar SCHLECHTER als Zufall
+#
+# Beide Vorteile stammen aus Mean-Reversion-Signalen und halten einer strengen
+# Bonferroni-Korrektur über alle 54 getesteten Kombinationen stand. Die
+# Trendfolge-Indikatoren zeigen dagegen keinen bis negativen Vorsprung.
+#
+# WEIGHTS_QUICK war bereits oszillator-dominant — der Replay bestätigt diese
+# Gewichtung unabhängig. WEIGHTS_FULL war nie entsprechend angepasst worden.
+#
+# Bewusst NICHT verändert:
+#   * fundamental/sentiment behalten ihren Anteil. Beide wurden nie gemessen:
+#     ihre Datenquellen kennen nur den heutigen Stand, ein historischer Replay
+#     wäre Look-Ahead-Bias. Fehlende Evidenz ist kein Gegenbeweis — sie ohne
+#     Datenlage umzugewichten wäre geraten, nicht belegt.
+#   * trend/volume werden reduziert, aber nicht auf null. Gemessen wurde die
+#     ISOLIERTE Prognosekraft je Indikator, nicht das Zusammenspiel: ob ein
+#     überverkaufter RSI IM Aufwärtstrend besser abschneidet als allein, ist
+#     ungetestet. Trendkontext kann außerdem für Stopps und Positionsgrößen
+#     relevant sein, ohne selbst Richtung zu prognostizieren.
+#
+# Grenzen: ein Universum, ein Fünfjahreszeitraum, ein Marktregime. Der Effekt
+# ist mit ~4 pp real, aber moderat, und die beiden Signale feuern selten
+# (rund 3.500 von 86.926 Fenstern).
+# ---------------------------------------------------------------------------
+
 WEIGHTS_FULL = {
-    "trend": 0.30,        # SMC, Trend & Marktstruktur
-    "volume": 0.25,       # OBV, Order Flow
-    "fundamental": 0.30,  # DCF, Value, Margins, Insider, Analysten
-    "sentiment": 0.05,    # News NLP Sentiment (reduziert — VADER hat begrenzte Prognosekraft)
-    "oscillator": 0.10,   # RSI, Timing
+    "trend": 0.18,        # war 0.30 — kein messbarer Vorsprung (SMA-Cross sogar negativ)
+    "volume": 0.12,       # war 0.25 — kein messbarer Vorsprung
+    "fundamental": 0.30,  # unverändert — nie gemessen (siehe oben)
+    "sentiment": 0.05,    # unverändert — nie gemessen (siehe oben)
+    "oscillator": 0.35,   # war 0.10 — einzige Kategorie mit belegtem Vorsprung
 }
 
 WEIGHTS_QUICK = {
@@ -32,7 +68,7 @@ WEIGHTS_QUICK = {
     "fundamental": 0.0,
     "sentiment": 0.0,     # Zuviel API-Last für Screener
     "oscillator": 0.65,   # Dominant für Quick-Score Forward Returns (Mean Reversion)
-}
+}                         # Durch den Replay unabhängig bestätigt — unverändert.
 
 
 # ---------------------------------------------------------------------------
