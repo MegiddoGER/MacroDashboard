@@ -79,7 +79,7 @@ def open_browser():
     user_data_dir = os.path.join(tempfile.gettempdir(), "macro_dashboard_browser")
     os.makedirs(user_data_dir, exist_ok=True)
 
-    print(f"️  Öffne natives Fenster mit: {os.path.basename(browser)}")
+    print(f"  Öffne natives Fenster mit: {os.path.basename(browser)}")
     proc = subprocess.Popen([
         browser,
         f"--app={URL}",
