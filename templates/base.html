@@ -7,11 +7,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Macro Dashboard{% endblock %}</title>
 
-    <!-- CSS — Reihenfolge ist bedeutsam: tokens → layout → components → sidebar → motion -->
+    <!-- CSS — Reihenfolge ist bedeutsam: tokens → layout → components → topnav → motion -->
     <link rel="stylesheet" href="/static/css/tokens.css">
     <link rel="stylesheet" href="/static/css/layout.css">
     <link rel="stylesheet" href="/static/css/components.css">
-    <link rel="stylesheet" href="/static/css/sidebar.css">
+    <link rel="stylesheet" href="/static/css/topnav.css">
     <link rel="stylesheet" href="/static/css/motion.css">
 
     <!-- HTMX -->
@@ -24,24 +24,11 @@
 </head>
 <body>
     <div class="app-shell">
-        <!-- ═══ Sidebar ═══ -->
-        <aside class="sidebar" id="sidebar">
-            {% include "partials/sidebar.html" %}
-        </aside>
+        <!-- ═══ Top-Navigation ═══ -->
+        {% include "partials/topnav.html" %}
 
         <!-- ═══ Main Content ═══ -->
         <main class="main-content" id="main-content">
-            <!-- Top Metrics Header -->
-            <div id="top-metrics"
-                 hx-get="/api/header"
-                 hx-trigger="every 300s"
-                 hx-swap="innerHTML">
-                {% include "partials/header.html" %}
-            </div>
-
-            <hr>
-
-            <!-- Page Content -->
             {% block content %}{% endblock %}
         </main>
     </div>
@@ -77,16 +64,50 @@
             header.closest('.expander').classList.toggle('open');
         });
 
-        // ── Nav Category Toggle ──
-        document.addEventListener('click', function(e) {
-            const btn = e.target.closest('.nav-category-btn');
-            if (!btn || btn.classList.contains('wl-toggle-btn')) return;
-            btn.classList.toggle('expanded');
-            const pages = btn.nextElementSibling;
-            if (pages && pages.classList.contains('nav-pages')) {
-                pages.classList.toggle('expanded');
+        // ── Top-Navigation: Dropdowns ──
+        // Ein einziger delegierter Handler bedient Navigation, Watchlist und
+        // System-Menue. Die Panels werden ausschliesslich per Klasse ein- und
+        // ausgeblendet und nie aus dem DOM entfernt — sonst ginge der per
+        // hx-trigger="load" bereits geladene Watchlist-Inhalt verloren.
+        (function() {
+            function closeAll(except) {
+                document.querySelectorAll('.topnav-item.open').forEach(function(item) {
+                    if (item === except) return;
+                    item.classList.remove('open');
+                    const t = item.querySelector('.topnav-trigger');
+                    if (t) t.setAttribute('aria-expanded', 'false');
+                });
             }
-        });
+
+            document.addEventListener('click', function(e) {
+                const trigger = e.target.closest('.topnav-trigger');
+
+                if (trigger) {
+                    const item = trigger.closest('.topnav-item');
+                    if (!item) return;
+                    const willOpen = !item.classList.contains('open');
+                    closeAll(item);
+                    item.classList.toggle('open', willOpen);
+                    trigger.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+                    return;
+                }
+
+                // Klicks innerhalb eines Panels duerfen nicht schliessen,
+                // sonst bricht das Watchlist-Formular mitten in der Eingabe ab.
+                if (e.target.closest('.topnav-panel')) return;
+
+                closeAll(null);
+            });
+
+            document.addEventListener('keydown', function(e) {
+                if (e.key !== 'Escape') return;
+                const open = document.querySelector('.topnav-item.open');
+                if (!open) return;
+                const trigger = open.querySelector('.topnav-trigger');
+                closeAll(null);
+                if (trigger) trigger.focus();
+            });
+        })();
 
         // ── Toast Utility ──
         function showToast(message, type = 'success') {

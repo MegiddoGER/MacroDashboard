@@ -1,0 +1,427 @@
+/*
+ * topnav.css — Kopfleisten-Navigation des MacroDashboards.
+ *
+ * Ersetzt die frühere linke Sidebar. Die Leiste ist ständig sichtbar
+ * (kein Scroll-Kontext) und darf deshalb nicht um Aufmerksamkeit
+ * konkurrieren: ruhige Flächen, ein einziger Akzent für "aktiv",
+ * kleine präzise Typografie. Ausschließlich Tokens aus tokens.css,
+ * ausschließlich transform/opacity animiert (motion.css schaltet
+ * das bei prefers-reduced-motion global ab — hier nichts umgehen).
+ *
+ * Aufbau:
+ *   1. Leiste & drei Zonen (Marke / Navigation / Werkzeuge)
+ *   2. Marke
+ *   3. Dropdown-Mechanik: Item, Auslöser, Chevron, Panel
+ *   4. Seiteneinträge (.nav-link)
+ *   5. Watchlist-Widget
+ *   6. Schmale Fenster (Burger-Menü, < 980px)
+ */
+
+/* ═══════════════════════════════════════════════════════════
+   1. Leiste
+   Flex-Kind von .app-shell (siehe layout.css), schrumpft nie.
+   Drei Zonen: Marke fix links, Navigation nimmt den Rest und
+   zentriert sich darin, Werkzeuge fix rechts.
+   ═══════════════════════════════════════════════════════════ */
+.topbar {
+    position: relative;
+    /* Muss ueber den Inhaltsflaechen liegen: .autocomplete-dropdown in
+       components.css steht auf z-index 1000 und konkurriert mangels
+       Stapelkontext in .main-content direkt mit dieser Leiste. Bewusst
+       unterhalb von .chart-fullscreen-overlay (9999) und den Toasts
+       (10000) — die duerfen die Navigation weiterhin verdecken. */
+    z-index: 1100;
+    flex-shrink: 0;
+    display: flex;
+    align-items: stretch;
+    gap: var(--space-4);
+    height: var(--topbar-height);
+    padding: 0 var(--space-6);
+    background: var(--bg-topbar);
+    backdrop-filter: blur(20px) saturate(140%);
+    -webkit-backdrop-filter: blur(20px) saturate(140%);
+    border-bottom: 1px solid var(--border);
+    box-shadow: var(--shadow-xs);
+}
+
+.topnav {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    align-items: stretch;
+    justify-content: center;
+    gap: 2px;
+}
+
+.topbar-utils {
+    flex-shrink: 0;
+    display: flex;
+    align-items: stretch;
+    gap: var(--space-2);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   2. Marke
+   Zwei Zeilen: Produktname, darunter gedämpfter Untertitel in
+   Versalien. Beide vertikal in der Leistenhöhe zentriert.
+   ═══════════════════════════════════════════════════════════ */
+.topbar-brand {
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 2px;
+    line-height: var(--lh-tight);
+    font-size: var(--fs-lg);
+    font-weight: var(--font-weight-bold);
+    letter-spacing: var(--ls-tight);
+    color: var(--text);
+    text-decoration: none;
+    transition: color var(--dur-fast) var(--ease-standard);
+}
+.topbar-brand:hover {
+    color: var(--accent);
+    text-decoration: none;
+}
+
+.topbar-brand-sub {
+    display: block;
+    font-size: var(--fs-3xs);
+    font-weight: var(--font-weight-medium);
+    letter-spacing: var(--ls-caps);
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   3. Dropdown-Mechanik
+   Die Öffnen/Schließen-Logik liegt in base.html (Klasse `.open`
+   auf .topnav-item, `aria-expanded` am Auslöser). Hier wird nur
+   gestaltet: das Panel bleibt immer im DOM, es wird ausschließlich
+   über Deckkraft/Sichtbarkeit/Transform geschaltet.
+   ═══════════════════════════════════════════════════════════ */
+.topnav-item {
+    position: relative;
+    display: flex;
+}
+
+.topnav-trigger {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    height: 100%;
+    padding: 0 var(--space-3);
+    background: transparent;
+    border: none;
+    border-radius: var(--radius-sm);
+    color: var(--text-dim);
+    font-family: inherit;
+    font-size: var(--fs-xs);
+    font-weight: var(--font-weight-semibold);
+    letter-spacing: var(--ls-caps);
+    text-transform: uppercase;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: color var(--dur-fast) var(--ease-standard),
+                background-color var(--dur-fast) var(--ease-standard);
+}
+.topnav-trigger:hover {
+    color: var(--text);
+    background: var(--surface-hover);
+}
+.topnav-trigger:focus-visible {
+    outline: none;
+    box-shadow: var(--ring-accent);
+}
+/* Eine Seite dieser Kategorie ist gerade offen */
+.topnav-trigger.is-active {
+    color: var(--accent);
+    background: var(--accent-soft);
+}
+/* Panel dieser Kategorie ist gerade geöffnet */
+.topnav-item.open .topnav-trigger {
+    color: var(--text);
+    background: var(--surface-hover);
+}
+.topnav-item.open .topnav-trigger.is-active {
+    color: var(--accent);
+    background: var(--accent-soft);
+}
+
+/* Reine Symbol-Variante (Zahnrad): quadratisch, kein Label */
+.topnav-trigger-icon {
+    width: var(--topbar-height);
+    padding: 0;
+    justify-content: center;
+    font-size: var(--fs-md);
+    text-transform: none;
+    letter-spacing: normal;
+}
+
+.chevron {
+    display: inline-block;
+    font-size: 0.7em;
+    color: var(--text-muted);
+    transition: transform var(--dur-fast) var(--ease-standard),
+                color var(--dur-fast) var(--ease-standard);
+}
+.topnav-item.open .chevron {
+    transform: rotate(180deg);
+    color: var(--accent);
+}
+
+/* Panel: standardmäßig unsichtbar, aber stets im DOM vorhanden.
+   Eintritt kommt ruhig von leicht oben (wenige Pixel), kein Federn. */
+.topnav-panel {
+    position: absolute;
+    top: calc(100% + var(--space-2));
+    left: 0;
+    z-index: 60;
+    min-width: 210px;
+    padding: var(--space-2);
+    background: var(--surface-3);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-xl);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transform: translate3d(0, -6px, 0);
+    transition: opacity var(--dur-fast) var(--ease-standard),
+                transform var(--dur-fast) var(--ease-out),
+                visibility 0s linear var(--dur-fast);
+}
+.topnav-item.open .topnav-panel {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transform: translate3d(0, 0, 0);
+    transition: opacity var(--dur-fast) var(--ease-standard),
+                transform var(--dur-fast) var(--ease-out),
+                visibility 0s;
+}
+
+/* Panels, die aus der rechten Werkzeugzone öffnen, sollen rechts
+   fluchten statt links — sonst hängen sie über den Bildschirmrand. */
+.topbar-utils .topnav-panel {
+    left: auto;
+    right: 0;
+}
+
+.topnav-panel-wide { width: 320px; }
+
+.topnav-panel-head {
+    padding: var(--space-1) var(--space-2) var(--space-2);
+    margin-bottom: var(--space-1);
+    border-bottom: 1px solid var(--border);
+    font-size: var(--fs-2xs);
+    font-weight: var(--font-weight-semibold);
+    letter-spacing: var(--ls-caps);
+    text-transform: uppercase;
+    color: var(--text-dim);
+}
+
+.topnav-panel-note {
+    padding: 0 var(--space-2);
+    margin-bottom: var(--space-3);
+    font-size: var(--fs-xs);
+    line-height: var(--lh-snug);
+    color: var(--text-muted);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   4. Seiteneinträge
+   Ehemals in sidebar.css definiert, hier neu für die Panels.
+   ═══════════════════════════════════════════════════════════ */
+.nav-link {
+    display: block;
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-sm);
+    font-size: var(--fs-sm);
+    font-weight: var(--font-weight-medium);
+    color: var(--text-secondary);
+    white-space: nowrap;
+    text-decoration: none;
+    transition: color var(--dur-fast) var(--ease-standard),
+                background-color var(--dur-fast) var(--ease-standard);
+}
+.nav-link:hover {
+    color: var(--text);
+    background: var(--surface-hover);
+    text-decoration: none;
+}
+.nav-link:focus-visible {
+    outline: none;
+    box-shadow: var(--ring-accent);
+}
+.nav-link.active {
+    color: var(--accent);
+    background: var(--accent-soft);
+    font-weight: var(--font-weight-semibold);
+    box-shadow: inset 2px 0 0 var(--accent);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   5. Watchlist-Widget
+   Ehemals in sidebar.css definiert, hier neu für das Panel.
+   ═══════════════════════════════════════════════════════════ */
+.wl-add-form {
+    display: flex;
+    align-items: stretch;
+    gap: var(--space-2);
+    padding: 0 var(--space-2);
+    margin-bottom: var(--space-1);
+}
+.wl-add-form .form-input {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+.wl-add-form .btn {
+    flex-shrink: 0;
+    padding-inline: var(--space-3);
+}
+
+.wl-spinner {
+    display: block;
+    margin: var(--space-1) auto var(--space-2);
+}
+
+/* Eigener Scroll-Kontext: bei vielen Tickern wächst das Panel nicht
+   unbegrenzt weiter. */
+#watchlist-items {
+    max-height: 340px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    margin-top: var(--space-1);
+    padding-right: 2px;
+}
+
+.wl-group-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-2) var(--space-1);
+    margin-top: var(--space-2);
+}
+.wl-group-header:first-child { margin-top: 0; }
+
+.wl-group-dot {
+    width: 6px;
+    height: 6px;
+    flex-shrink: 0;
+    border-radius: 50%;
+}
+.wl-group-title {
+    flex: 1 1 auto;
+    font-size: var(--fs-2xs);
+    font-weight: var(--font-weight-semibold);
+    letter-spacing: var(--ls-caps);
+    text-transform: uppercase;
+    color: var(--text-dim);
+}
+.wl-group-count {
+    font-size: var(--fs-3xs);
+    font-weight: var(--font-weight-medium);
+    color: var(--text-muted);
+    background: var(--surface-2);
+    border-radius: var(--radius-pill);
+    padding: 1px 7px;
+}
+
+.wl-card-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    padding: var(--space-1) var(--space-2);
+    border-radius: var(--radius-sm);
+    transition: background-color var(--dur-fast) var(--ease-standard);
+}
+.wl-card-row:hover { background: var(--surface-hover); }
+
+.wl-card {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-width: 0;
+}
+.wl-card-dot {
+    width: 8px;
+    height: 8px;
+    flex-shrink: 0;
+    border-radius: 50%;
+}
+.wl-card-info {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    line-height: var(--lh-tight);
+}
+.wl-card-ticker {
+    font-size: var(--fs-sm);
+    font-weight: var(--font-weight-semibold);
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+}
+.wl-card-name {
+    font-size: var(--fs-2xs);
+    color: var(--text-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   6. Schmale Fenster
+   Unterhalb 980px ersetzt ein einziger Auslöser die fünf
+   Kategorien; Marke und Werkzeuge bleiben unverändert sichtbar.
+   ═══════════════════════════════════════════════════════════ */
+.topnav-burger { display: none; }
+.topnav-burger-icon {
+    position: relative;
+    display: inline-block;
+    width: 16px;
+    height: 2px;
+    background: currentColor;
+    border-radius: var(--radius-pill);
+}
+.topnav-burger-icon::before,
+.topnav-burger-icon::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    width: 16px;
+    height: 2px;
+    background: currentColor;
+    border-radius: var(--radius-pill);
+}
+.topnav-burger-icon::before { top: -5px; }
+.topnav-burger-icon::after  { top: 5px; }
+
+.topnav-panel-burger {
+    min-width: 240px;
+    max-height: min(72vh, 560px);
+    overflow-y: auto;
+}
+
+.topnav-burger-group { margin-bottom: var(--space-3); }
+.topnav-burger-group:last-child { margin-bottom: 0; }
+
+.topnav-group-label {
+    display: block;
+    padding: var(--space-1) var(--space-2);
+    font-size: var(--fs-2xs);
+    font-weight: var(--font-weight-semibold);
+    letter-spacing: var(--ls-caps);
+    text-transform: uppercase;
+    color: var(--text-dim);
+}
+
+@media (max-width: 980px) {
+    .topbar { padding: 0 var(--space-4); }
+    .topnav { justify-content: flex-start; }
+    .topnav-cat { display: none; }
+    .topnav-burger { display: flex; }
+}

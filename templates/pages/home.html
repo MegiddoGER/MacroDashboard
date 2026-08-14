@@ -8,6 +8,20 @@
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════
+     Markt-Kopfzeile (S&P 500 Futures, Gold, Dollar Index)
+     Steht bewusst nur hier — nicht in base.html, also nicht auf
+     jeder Seite. Der 300-Sekunden-Refresh laeuft ueber /api/header.
+     ═══════════════════════════════════════════════════════════ -->
+<div id="top-metrics"
+     hx-get="/api/header"
+     hx-trigger="every 300s"
+     hx-swap="innerHTML">
+    {% include "partials/header.html" %}
+</div>
+
+<hr>
+
+<!-- ═══════════════════════════════════════════════════════════
      0. Börsen-Uhren (Xetra & NASDAQ)
      ═══════════════════════════════════════════════════════════ -->
 <div class="grid-2">

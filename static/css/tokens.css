@@ -34,8 +34,8 @@
     --surface-active:     rgba(148, 163, 184, 0.10);
 
     --bg-card:            var(--surface-1);
-    --bg-sidebar:         rgba(7, 12, 22, 0.94);
-    --bg-sidebar-solid:   #070c16;
+    --bg-topbar:          rgba(7, 12, 22, 0.94);
+    --bg-topbar-solid:    #070c16;
 
     /* Kompatibilitäts-Aliase (werden in Templates direkt referenziert) */
     --bg-primary:         var(--bg-app-mid);
@@ -178,7 +178,7 @@
     /* ── Komponenten-Maße ── */
     --padding-card:  var(--space-4) var(--space-5);
     --padding-nav:   10px 14px;
-    --sidebar-width: 264px;
+    --topbar-height: 56px;
     --content-max:   1640px;
     --control-h:     34px;      /* einheitliche Höhe für Buttons/Inputs */
     --control-h-sm:  28px;

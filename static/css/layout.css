@@ -46,28 +46,16 @@ button, input, select, textarea {
     font-size: inherit;
 }
 
-/* ── App Shell: Sidebar + Main ──────────────────────────── */
+/* ── App Shell: Kopfleiste + Main ────────────────────────
+   Spalte statt Zeile: die Navigation liegt oben und bleibt stehen,
+   gescrollt wird ausschliesslich im Hauptbereich. Die Gestaltung der
+   Leiste selbst steht in topnav.css.
+   ─────────────────────────────────────────────────────────── */
 .app-shell {
     display: flex;
+    flex-direction: column;
     height: 100vh;
     overflow: hidden;
-}
-
-/* ── Sidebar ────────────────────────────────────────────── */
-.sidebar {
-    width: var(--sidebar-width);
-    min-width: var(--sidebar-width);
-    max-width: var(--sidebar-width);
-    height: 100vh;
-    overflow-y: auto;
-    overflow-x: hidden;
-    background: var(--bg-sidebar);
-    border-right: 1px solid var(--border);
-    box-shadow: 1px 0 0 rgba(0, 0, 0, 0.25);
-    display: flex;
-    flex-direction: column;
-    padding: 0 var(--space-3) var(--space-4) var(--space-3);
-    scrollbar-gutter: stable;
 }
 
 /* ── Main Content ───────────────────────────────────────────
