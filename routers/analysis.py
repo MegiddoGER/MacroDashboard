@@ -38,21 +38,10 @@ from services.fundamental import (
     get_sector_peers, calc_dividend_analysis, get_insider_institutional,
     get_analyst_consensus,
 )
-from services.scoring import calc_quick_score, calc_position_score, generate_position_relevance
+from services.scoring import generate_position_relevance
+from charts import fig_to_json
 
 router = APIRouter(tags=["pages"])
-
-
-def _get_header_metrics():
-    from main import get_header_metrics
-    return get_header_metrics()
-
-
-def _fig_to_json(fig) -> str:
-    """Serialisiert eine Plotly Figure zu JSON fuer clientseitiges Rendering."""
-    if fig is None:
-        return "null"
-    return fig.to_json()
 
 
 def _safe_float(val, default=None):
@@ -93,7 +82,6 @@ async def analysis_landing(request: Request):
     templates = request.app.state.templates
     ctx = {
         "current_path": "/analysis",
-        "header_metrics": _get_header_metrics(),
     }
     return templates.TemplateResponse(
         request=request,
@@ -112,7 +100,6 @@ async def analysis_new_page(request: Request):
     wl_items = load_watchlist()
     ctx = {
         "current_path": "/analysis",
-        "header_metrics": _get_header_metrics(),
         "watchlist_items": wl_items,
     }
     return templates.TemplateResponse(
@@ -220,7 +207,7 @@ def _build_analysis_context(raw_input: str, time_filter: str) -> dict | str:
 
     # --- Charts (CPU-bound, fast) ---
     try:
-        charts["candlestick"] = _fig_to_json(plot_candlestick(
+        charts["candlestick"] = fig_to_json(plot_candlestick(
             selected_hist, f"{ticker} — Candlestick ({time_filter})",
             sma_20=sma_20_sel, sma_50=sma_50_sel,
             sma_200=sma_200_sel,
@@ -231,7 +218,7 @@ def _build_analysis_context(raw_input: str, time_filter: str) -> dict | str:
     try:
         rsi_series = calc_rsi(selected_close, 14) if len(selected_close) >= 14 else None
         if rsi_series is not None:
-            charts["rsi"] = _fig_to_json(plot_rsi(rsi_series, f"RSI (14) — {ticker}"))
+            charts["rsi"] = fig_to_json(plot_rsi(rsi_series, f"RSI (14) — {ticker}"))
         else:
             charts["rsi"] = "null"
     except Exception:
@@ -241,7 +228,7 @@ def _build_analysis_context(raw_input: str, time_filter: str) -> dict | str:
     macd_bullish = None
     try:
         macd_line, signal_line, histogram = calc_macd(selected_close)
-        charts["macd"] = _fig_to_json(plot_macd_chart(
+        charts["macd"] = fig_to_json(plot_macd_chart(
             macd_line, signal_line, histogram, f"MACD — {ticker}"
         ))
         last_macd = float(macd_line.dropna().iloc[-1]) if not macd_line.dropna().empty else 0
@@ -253,7 +240,7 @@ def _build_analysis_context(raw_input: str, time_filter: str) -> dict | str:
     boll_signal = None
     try:
         upper, middle, lower = calc_bollinger(selected_close)
-        charts["bollinger"] = _fig_to_json(plot_boll_chart(
+        charts["bollinger"] = fig_to_json(plot_boll_chart(
             selected_close, upper, middle, lower, f"Bollinger Baender — {ticker}"
         ))
         last_close = float(selected_close.iloc[-1]) if not selected_close.empty else 0
@@ -271,7 +258,7 @@ def _build_analysis_context(raw_input: str, time_filter: str) -> dict | str:
     last_k = None
     try:
         k_line, d_line = calc_stochastic(selected_hist["High"], selected_hist["Low"], selected_close)
-        charts["stochastic"] = _fig_to_json(plot_stoch_chart(
+        charts["stochastic"] = fig_to_json(plot_stoch_chart(
             k_line, d_line, f"Stochastic — {ticker}"
         ))
         last_k = float(k_line.dropna().iloc[-1]) if not k_line.dropna().empty else 50
@@ -282,7 +269,7 @@ def _build_analysis_context(raw_input: str, time_filter: str) -> dict | str:
     returns_stats = {}
     try:
         if returns is not None and not returns.empty:
-            charts["returns"] = _fig_to_json(plot_returns_distribution(
+            charts["returns"] = fig_to_json(plot_returns_distribution(
                 returns, f"Taegliche Renditen — {ticker}"
             ))
             returns_stats = {
@@ -299,7 +286,7 @@ def _build_analysis_context(raw_input: str, time_filter: str) -> dict | str:
     hist_5y = details.get("hist_5y")
     try:
         if hist_5y is not None and not hist_5y.empty:
-            charts["hist5y"] = _fig_to_json(plot_timeseries(
+            charts["hist5y"] = fig_to_json(plot_timeseries(
                 hist_5y, f"{ticker} — 5-Jahres-Uebersicht", color="#a855f7", height=400
             ))
         else:
@@ -310,7 +297,7 @@ def _build_analysis_context(raw_input: str, time_filter: str) -> dict | str:
     fin_data = details.get("financials", [])
     try:
         if fin_data:
-            charts["financials"] = _fig_to_json(plot_financials_chart(fin_data))
+            charts["financials"] = fig_to_json(plot_financials_chart(fin_data))
         else:
             charts["financials"] = "null"
     except Exception:
@@ -321,7 +308,7 @@ def _build_analysis_context(raw_input: str, time_filter: str) -> dict | str:
     try:
         sweeps = detect_liquidity_sweeps(hist["High"], hist["Low"], close) or []
         if sweeps:
-            charts["liquidity"] = _fig_to_json(plot_liq_chart(
+            charts["liquidity"] = fig_to_json(plot_liq_chart(
                 hist, sweeps, f"Liquidity Sweeps — {display_ticker}"
             ))
         else:
@@ -337,7 +324,7 @@ def _build_analysis_context(raw_input: str, time_filter: str) -> dict | str:
         htf_monthly = details.get("hist_monthly")
         smc_data = analyze_smc(hist, htf_df=htf_weekly, monthly_df=htf_monthly)
         if smc_data and "fvgs" in smc_data:
-            charts["smc"] = _fig_to_json(plot_smc(
+            charts["smc"] = fig_to_json(plot_smc(
                 hist, smc_data, f"SMC & Liquiditaetszonen — {display_ticker}"
             ))
         else:
@@ -349,7 +336,7 @@ def _build_analysis_context(raw_input: str, time_filter: str) -> dict | str:
     try:
         swing = calc_swing_signals(hist["High"], hist["Low"], close, hist["Volume"])
         if swing:
-            charts["swing"] = _fig_to_json(plot_swing_chart(
+            charts["swing"] = fig_to_json(plot_swing_chart(
                 hist, swing, f"Swing Trading — {display_ticker}"
             ))
         else:
@@ -361,7 +348,7 @@ def _build_analysis_context(raw_input: str, time_filter: str) -> dict | str:
     try:
         flow = calc_order_flow(hist["High"], hist["Low"], close, hist["Volume"])
         if flow:
-            charts["orderflow"] = _fig_to_json(plot_flow_chart(
+            charts["orderflow"] = fig_to_json(plot_flow_chart(
                 hist, flow, f"Order Flow — {display_ticker}"
             ))
         else:
@@ -594,7 +581,7 @@ def _build_analysis_context(raw_input: str, time_filter: str) -> dict | str:
                 legend=dict(orientation="h", yanchor="bottom", y=1.02),
                 margin=dict(l=40, r=20, t=30, b=40),
             )
-            margins_chart = _fig_to_json(fig_m)
+            margins_chart = fig_to_json(fig_m)
     except Exception:
         pass
 
@@ -622,7 +609,7 @@ def _build_analysis_context(raw_input: str, time_filter: str) -> dict | str:
                 yaxis_title="Dividende (EUR)", xaxis_title="Jahr",
                 margin=dict(l=40, r=20, t=20, b=40),
             )
-            div_chart = _fig_to_json(fig_div)
+            div_chart = fig_to_json(fig_div)
     except Exception:
         pass
 
@@ -660,7 +647,7 @@ def _build_analysis_context(raw_input: str, time_filter: str) -> dict | str:
                 margin=dict(l=50, r=20, t=30, b=50), xaxis_tickangle=-45,
                 font=dict(family="Inter, sans-serif", size=12, color="#cbd5e1"),
             )
-            eps_chart = _fig_to_json(fig_eps)
+            eps_chart = fig_to_json(fig_eps)
 
             # Drift chart
             drift_events = sorted(
@@ -690,7 +677,7 @@ def _build_analysis_context(raw_input: str, time_filter: str) -> dict | str:
                     margin=dict(l=50, r=20, t=30, b=50), xaxis_tickangle=-45,
                     font=dict(family="Inter, sans-serif", size=12, color="#cbd5e1"),
                 )
-                drift_chart = _fig_to_json(fig_drift)
+                drift_chart = fig_to_json(fig_drift)
     except Exception:
         pass
 
@@ -707,7 +694,7 @@ def _build_analysis_context(raw_input: str, time_filter: str) -> dict | str:
         corr_df = results_map.get("correlation")
         if corr_df is not None and not corr_df.empty:
             from charts import plot_correlation_matrix
-            corr_chart = _fig_to_json(plot_correlation_matrix(
+            corr_chart = fig_to_json(plot_correlation_matrix(
                 corr_df, f"Korrelation — {display_ticker} vs. Benchmarks"
             ))
     except Exception:
@@ -811,7 +798,6 @@ async def analysis_position_page(request: Request):
 
     ctx = {
         "current_path": "/analysis",
-        "header_metrics": _get_header_metrics(),
         "open_positions": open_positions,
     }
     return templates.TemplateResponse(

@@ -18,8 +18,9 @@ from snapshot_engine.models import (
     AnalyseModus, AnalyseSnapshot, AnalyseSnapshotOutcome,
 )
 from snapshot_engine.auswertung.basis import (
-    MIN_STICHPROBE, kennzahlen_aus_returns,
+    MIN_STICHPROBE, anteil_steigend, kennzahlen_aus_returns, mit_basis,
 )
+from snapshot_engine.auswertung.kennzahlen import RICHTUNG_JE_SIGNAL
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +51,8 @@ def kalibrierung_berechnen(db: Session, horizont: int = 7,
         paare = (
             db.query(AnalyseSnapshot.confidence,
                      AnalyseSnapshotOutcome.outcome_return,
-                     AnalyseSnapshotOutcome.war_erfolgreich)
+                     AnalyseSnapshotOutcome.war_erfolgreich,
+                     AnalyseSnapshot.richtungssignal)
             .join(AnalyseSnapshotOutcome,
                   AnalyseSnapshotOutcome.snapshot_id == AnalyseSnapshot.id)
             .filter(AnalyseSnapshotOutcome.horizont_tage == horizont)
@@ -66,16 +68,27 @@ def kalibrierung_berechnen(db: Session, horizont: int = 7,
         logger.error("Kalibrierung fehlgeschlagen: %s", e, exc_info=True)
         return []
 
+    # Vergleichsbasis über den gesamten Zeitraum, nicht je Band — sie soll
+    # unabhängig von der Confidence sein, gegen die sie verglichen wird.
+    anteil = anteil_steigend([r for _, r, _, _ in alle])
+
     for bereich in CONFIDENCE_BEREICHE:
         gruppe = [z for z in alle
                   if bereich["min"] <= (z[0] or 0) <= bereich["max"]]
 
-        kennzahlen = kennzahlen_aus_returns(
-            [r for _, r, _ in gruppe],
-            [t for _, _, t in gruppe],
-            horizont_tage=horizont,
-            minimum=minimum,
-        )
+        # Die Bänder mischen KAUF und VERKAUF (niedrige Confidence = Verkauf).
+        # Ohne Richtung würde ein erfolgreiches Verkaufssignal als Verlust zählen.
+        richtungen = [RICHTUNG_JE_SIGNAL.get(s) for _, _, _, s in gruppe]
+
+        kennzahlen = mit_basis(
+            kennzahlen_aus_returns(
+                [r for _, r, _, _ in gruppe],
+                [t for _, _, t, _ in gruppe],
+                horizont_tage=horizont,
+                minimum=minimum,
+                richtungen=richtungen,
+            ),
+            anteil, richtungen)
 
         ergebnis.append({
             "bereich": bereich["label"],

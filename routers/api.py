@@ -24,15 +24,16 @@ router = APIRouter(prefix="/api", tags=["api"])
 
 @router.get("/header", response_class=HTMLResponse)
 async def header_metrics(request: Request):
-    """Liefert die Top-3-Metriken als HTML-Partial (fuer HTMX-Refresh)."""
-    from main import get_header_metrics
-    metrics = get_header_metrics()
+    """Liefert die Top-3-Metriken als HTML-Partial (fuer HTMX-Refresh).
 
+    Das Template holt die Werte selbst ueber den Jinja2-Global
+    `header_metrics_fn` — hier ist kein Kontext noetig.
+    """
     templates = request.app.state.templates
     return templates.TemplateResponse(
         request=request,
         name="partials/header.html",
-        context={"header_metrics": metrics},
+        context={},
     )
 
 

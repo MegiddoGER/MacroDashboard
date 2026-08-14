@@ -17,10 +17,16 @@ from snapshot_engine.models import (
     Datenmodus,
 )
 from snapshot_engine.auswertung.basis import (
-    MIN_STICHPROBE, kennzahlen_aus_returns,
+    MIN_STICHPROBE, anteil_steigend, kennzahlen_aus_returns, mit_basis,
 )
 
 logger = logging.getLogger(__name__)
+
+# Richtung des Signals für die Ertragsrechnung: bei VERKAUF ist ein fallender
+# Kurs ein Gewinn. NEUTRAL ist keine gerichtete Prognose und bleibt None.
+RICHTUNG_JE_SIGNAL: dict[str, int | None] = {
+    "KAUF": 1, "VERKAUF": -1, "NEUTRAL": None,
+}
 
 
 def _ausgewertete_paare(db: Session, datenmodus: str | None = None,
@@ -70,19 +76,30 @@ def kennzahlen_berechnen(db: Session, datenmodus: str | None = None,
         for horizont in HORIZONTE_TAGE:
             zeilen = _ausgewertete_paare(db, datenmodus, horizont)
 
-            ergebnis["horizonte"][horizont] = kennzahlen_aus_returns(
-                [r for _, _, r, _ in zeilen],
-                [t for _, _, _, t in zeilen],
-                horizont_tage=horizont, minimum=minimum)
+            # Einmal je Horizont aus denselben Zeilen — kostet keine Extraabfrage.
+            anteil = anteil_steigend([r for _, _, r, _ in zeilen])
+            richtungen = [RICHTUNG_JE_SIGNAL.get(s) for _, s, _, _ in zeilen]
+
+            ergebnis["horizonte"][horizont] = mit_basis(
+                kennzahlen_aus_returns(
+                    [r for _, _, r, _ in zeilen],
+                    [t for _, _, _, t in zeilen],
+                    horizont_tage=horizont, minimum=minimum,
+                    richtungen=richtungen),
+                anteil, richtungen)
 
             # Aufschlüsselung je Richtungssignal
             je_signal: dict = {}
             for signal in ("KAUF", "NEUTRAL", "VERKAUF"):
                 gefiltert = [z for z in zeilen if z[1] == signal]
-                je_signal[signal] = kennzahlen_aus_returns(
-                    [r for _, _, r, _ in gefiltert],
-                    [t for _, _, _, t in gefiltert],
-                    horizont_tage=horizont, minimum=minimum)
+                signal_richtungen = [RICHTUNG_JE_SIGNAL.get(signal)] * len(gefiltert)
+                je_signal[signal] = mit_basis(
+                    kennzahlen_aus_returns(
+                        [r for _, _, r, _ in gefiltert],
+                        [t for _, _, _, t in gefiltert],
+                        horizont_tage=horizont, minimum=minimum,
+                        richtungen=signal_richtungen),
+                    anteil, signal_richtungen)
             ergebnis["je_signal"][horizont] = je_signal
 
         # Top-/Flop-Ticker auf dem kürzesten Horizont (meiste Daten)
@@ -104,9 +121,18 @@ def bestand_ermitteln(db: Session) -> dict:
         "outcomes_ausgewertet": 0,
         "outcomes_offen": 0,
         "ticker_abgedeckt": 0,
+        "zeitraum_von": None,
+        "zeitraum_bis": None,
     }
 
     try:
+        # Welchen Zeitraum die Zahlen abdecken, war bisher nirgends ablesbar —
+        # ohne diese Angabe ist nicht erkennbar, aus welcher Marktphase eine
+        # Trefferquote stammt.
+        from sqlalchemy import func
+        spanne = db.query(func.min(AnalyseSnapshot.snapshot_zeitpunkt),
+                          func.max(AnalyseSnapshot.snapshot_zeitpunkt)).one()
+        bestand["zeitraum_von"], bestand["zeitraum_bis"] = spanne
         bestand["snapshots_gesamt"] = db.query(AnalyseSnapshot).count()
         bestand["snapshots_live"] = db.query(AnalyseSnapshot).filter(
             AnalyseSnapshot.datenmodus == Datenmodus.LIVE).count()
@@ -126,8 +152,13 @@ def bestand_ermitteln(db: Session) -> dict:
 
 def _top_flop_ticker(db: Session, datenmodus: str | None, horizont: int,
                      minimum: int = MIN_STICHPROBE,
-                     min_pro_ticker: int = 5) -> tuple[list, list]:
-    """Ermittelt die besten und schlechtesten Ticker (nur KAUF-Signale)."""
+                     min_pro_ticker: int = MIN_STICHPROBE) -> tuple[list, list]:
+    """Ermittelt die besten und schlechtesten Ticker (nur KAUF-Signale).
+
+    `min_pro_ticker` folgt bewusst der allgemeinen Mindeststichprobe: hier
+    werden die Ränder einer Verteilung gezeigt, und genau dort produziert eine
+    zu kleine Stichprobe zuverlässig Rauschen, das nach Erkenntnis aussieht.
+    """
     zeilen = _ausgewertete_paare(db, datenmodus, horizont)
 
     je_ticker = defaultdict(list)
@@ -140,7 +171,8 @@ def _top_flop_ticker(db: Session, datenmodus: str | None, horizont: int,
         if len(returns) < min_pro_ticker:
             continue
         kennzahlen = kennzahlen_aus_returns(
-            returns, horizont_tage=horizont, minimum=min_pro_ticker)
+            returns, horizont_tage=horizont, minimum=min_pro_ticker,
+            richtungen=[1] * len(returns))
         bewertet.append({
             "ticker": ticker,
             "anzahl": len(returns),

@@ -12,15 +12,21 @@ Kursabrufe). Öffentliche API:
     kalibrierung_bewerten()   — Kurzfazit zur Aussagekraft der Confidence
     kelly_parameter()         — Trefferquote/CRV für die Positionsgrößen-Rechnung
 
-Drei Grundsätze gelten überall:
+Fünf Grundsätze gelten überall:
   1. LIVE und HISTORISCH werden nie vermischt (unterschiedliche Datenbasis).
-  2. Unterhalb der Mindest-Stichprobe wird keine Quote ausgewiesen.
+  2. Unterhalb der Mindest-Stichprobe wird keine Quote ausgewiesen — geprüft
+     gegen die EFFEKTIVE Stichprobe, nicht gegen die rohe Zeilenzahl.
   3. Neben der Trefferquote steht immer eine risikoadjustierte Kennzahl.
+  4. Neben jeder Trefferquote steht ihre Basisrate: ohne Bezugspunkt ist eine
+     Quote nicht interpretierbar, weil sie überwiegend die Marktrichtung misst.
+  5. Ertragskennzahlen sind richtungsbewusst — bei VERKAUF ist ein fallender
+     Kurs ein Gewinn.
 """
 
 from snapshot_engine.auswertung.basis import (
     MIN_STICHPROBE, STATUS_OK, STATUS_ZU_WENIG_DATEN,
-    effektive_stichprobe, kennzahlen_aus_returns,
+    anteil_steigend, basis_trefferquote, effektive_stichprobe,
+    kennzahlen_aus_returns, mit_basis,
 )
 from snapshot_engine.auswertung.kennzahlen import (
     bestand_ermitteln, kennzahlen_berechnen,
@@ -39,8 +45,11 @@ __all__ = [
     "MIN_STICHPROBE",
     "STATUS_OK",
     "STATUS_ZU_WENIG_DATEN",
+    "anteil_steigend",
+    "basis_trefferquote",
     "bestand_ermitteln",
     "effektive_stichprobe",
+    "mit_basis",
     "indikator_leaderboard",
     "kalibrierung_berechnen",
     "kalibrierung_bewerten",

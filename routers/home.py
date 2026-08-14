@@ -17,27 +17,6 @@ from services.economic_calendar import get_upcoming_events
 router = APIRouter(tags=["pages"])
 
 
-def _header_metrics():
-    """Berechnet die Top-3-Header-Metriken."""
-    from services.cache_core import cached_quote
-    metrics = []
-    for label, ticker in [
-        ("S&P 500 Futures", "ES=F"),
-        ("Gold", "GC=F"),
-        ("US Dollar Index", "DX-Y.NYB"),
-    ]:
-        q = cached_quote(ticker)
-        if q:
-            metrics.append({
-                "label": label,
-                "value": f"{q['price']:,.2f}",
-                "change_pct": q.get("change_pct"),
-            })
-        else:
-            metrics.append({"label": label, "value": "---", "change_pct": None})
-    return metrics
-
-
 @router.get("/", response_class=HTMLResponse)
 async def home_page(request: Request):
     """Rendert die Cockpit-Startseite."""
@@ -103,7 +82,6 @@ async def home_page(request: Request):
     ctx = {
         "request": request,
         "current_path": "/",
-        "header_metrics": _header_metrics(),
         "portfolio": portfolio,
         "unack_alerts": unack_alerts,
         "active_alerts": active_alerts,

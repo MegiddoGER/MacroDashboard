@@ -66,7 +66,7 @@
             <th>Indikator</th><th>Kategorie</th><th>Signal</th>
             <th>n</th><th>unabhängig</th>
             <th>Trefferquote</th><th>Basis</th><th>Vorsprung</th>
-            <th>Ø Rendite</th><th>Erwartungswert</th>
+            <th>Ø Ertrag</th><th>Erwartungswert</th>
         </tr>
     </thead>
     <tbody>
@@ -78,13 +78,15 @@
             <td>{{ z.n }}</td>
             <td>{{ z.n_effektiv }}</td>
             {% if z.status == 'ok' %}
-                <td>{{ z.trefferquote }}%</td>
-                <td class="muted">{{ z.basis_trefferquote }}%</td>
+                <td>{{ z.trefferquote if z.trefferquote is not none else '–' }}{% if z.trefferquote is not none %}%{% endif %}</td>
+                <td class="muted">{{ z.basis_trefferquote if z.basis_trefferquote is not none else '–' }}{% if z.basis_trefferquote is not none %}%{% endif %}</td>
                 {{ vorsprung_zelle(z) }}
-                <td class="{{ 'positive' if z.avg_return > 0 else 'negative' }}">{{ z.avg_return }}%</td>
+                {# Richtungsbewusst: bei einem bearischen Indikator ist ein
+                   fallender Kurs der Erfolgsfall und wird als Gewinn gezeigt. #}
+                <td class="{{ 'positive' if z.avg_ertrag > 0 else 'negative' }}">{{ z.avg_ertrag }}%</td>
                 <td>{{ z.erwartungswert if z.erwartungswert is not none else '–' }}</td>
             {% else %}
-                <td colspan="5" class="muted">Noch zu wenig Daten (mindestens {{ min_stichprobe }})</td>
+                <td colspan="5" class="muted">Noch zu wenig unabhängige Beobachtungen (mindestens {{ min_stichprobe }})</td>
             {% endif %}
         </tr>
         {% endfor %}
@@ -115,12 +117,12 @@
             <td><span class="badge badge-{{ 'success' if z.richtung == 'bullisch' else 'danger' }}">{{ z.richtung }}</span></td>
             <td>{{ z.n }}</td>
             {% if z.status == 'ok' %}
-                <td>{{ z.trefferquote }}%</td>
-                <td class="muted">{{ z.basis_trefferquote }}%</td>
+                <td>{{ z.trefferquote if z.trefferquote is not none else '–' }}{% if z.trefferquote is not none %}%{% endif %}</td>
+                <td class="muted">{{ z.basis_trefferquote if z.basis_trefferquote is not none else '–' }}{% if z.basis_trefferquote is not none %}%{% endif %}</td>
                 {{ vorsprung_zelle(z) }}
                 <td>{{ z.erwartungswert if z.erwartungswert is not none else '–' }}</td>
             {% else %}
-                <td colspan="4" class="muted">zu wenig Daten</td>
+                <td colspan="4" class="muted">zu wenig unabhängige Beobachtungen</td>
             {% endif %}
         </tr>
         {% endfor %}

@@ -19,7 +19,7 @@ from collections import defaultdict
 from sqlalchemy.orm import Session
 
 from snapshot_engine.models import (
-    AnalyseModus, AnalyseSnapshot, AnalyseSnapshotIndikator,
+    MIN_BEWEGUNG_PCT, AnalyseModus, AnalyseSnapshot, AnalyseSnapshotIndikator,
     AnalyseSnapshotOutcome, Granularitaet,
 )
 from snapshot_engine.auswertung.basis import (
@@ -30,6 +30,20 @@ logger = logging.getLogger(__name__)
 
 RICHTUNG_BULLISCH = "bullisch"
 RICHTUNG_BEARISCH = "bearisch"
+
+
+def _treffer(outcome_return: float, richtung: str) -> bool | None:
+    """Trefferbewertung eines Indikator-Signals — identisch zu `erfolg_bewerten`.
+
+    Zuvor galt hier schlicht `r > 0` bzw. `r < 0`, während die Übersichtsseite
+    Bewegungen unter MIN_BEWEGUNG_PCT als Rauschen ausschloss. Beide Seiten
+    wiesen damit Trefferquoten aus, die nicht vergleichbar waren, ohne dass das
+    irgendwo stand. `outcome_return` IST die prozentuale Veränderung gegen den
+    Einstiegskurs, die Schwelle lässt sich also direkt anlegen.
+    """
+    if outcome_return is None or abs(outcome_return) < MIN_BEWEGUNG_PCT:
+        return None
+    return outcome_return > 0 if richtung == RICHTUNG_BULLISCH else outcome_return < 0
 
 
 def basisrate(db: Session, horizont: int, datenmodus: str | None = None) -> dict:
@@ -59,13 +73,24 @@ def basisrate(db: Session, horizont: int, datenmodus: str | None = None) -> dict
         return {"n": 0, "anteil_positiv": None, "avg_return": None}
 
     if not returns:
-        return {"n": 0, "anteil_positiv": None, "avg_return": None}
+        return {"n": 0, "anteil_positiv": None, "avg_return": None,
+                "n_bewertbar": 0, "anteil_positiv_bewertbar": None}
 
     positiv = sum(1 for r in returns if r > 0)
+
+    # Vergleichsbasis unter derselben Mindestbewegung, die auch die
+    # Trefferbewertung anlegt — sonst werden ungleiche Grundgesamtheiten
+    # verglichen und der ausgewiesene Vorsprung ist systematisch verschoben.
+    bewegt = [r for r in returns if abs(r) >= MIN_BEWEGUNG_PCT]
+    positiv_bewegt = sum(1 for r in bewegt if r > 0)
+
     return {
         "n": len(returns),
         "anteil_positiv": round(positiv / len(returns) * 100, 1),
         "avg_return": round(sum(returns) / len(returns), 2),
+        "n_bewertbar": len(bewegt),
+        "anteil_positiv_bewertbar": (round(positiv_bewegt / len(bewegt) * 100, 1)
+                                     if bewegt else None),
     }
 
 
@@ -76,12 +101,12 @@ def _vorsprung(kennzahlen: dict, basis: dict, richtung: str) -> dict:
     häufiger als der reine Zufall im selben Zeitraum. Werte nahe 0 heißen:
     der Indikator sagt nichts, was der Markt nicht ohnehin getan hätte.
     """
-    if basis.get("anteil_positiv") is None or kennzahlen.get("trefferquote") is None:
+    anteil = basis.get("anteil_positiv_bewertbar")
+    if anteil is None or kennzahlen.get("trefferquote") is None:
         return {"basis_trefferquote": None, "vorsprung_pp": None}
 
     # Für bearische Signale ist die Vergleichsbasis der Anteil FALLENDER Fenster.
-    basis_quote = (basis["anteil_positiv"] if richtung == RICHTUNG_BULLISCH
-                   else 100.0 - basis["anteil_positiv"])
+    basis_quote = anteil if richtung == RICHTUNG_BULLISCH else 100.0 - anteil
 
     return {
         "basis_trefferquote": round(basis_quote, 1),
@@ -155,12 +180,14 @@ def indikator_leaderboard(db: Session, horizont: int = 7,
     ergebnis = []
     for (name, richtung), returns in gruppen.items():
         # Ein bullischer Indikator "trifft", wenn der Kurs steigt;
-        # ein bearischer, wenn er fällt.
-        treffer = [(r > 0) if richtung == RICHTUNG_BULLISCH else (r < 0)
-                   for r in returns]
+        # ein bearischer, wenn er fällt. Bewegungen unterhalb der
+        # Mindestschwelle gelten als Rauschen und bleiben unbewertet.
+        treffer = [_treffer(r, richtung) for r in returns]
+        richtungen = [1 if richtung == RICHTUNG_BULLISCH else -1] * len(returns)
 
         kennzahlen = kennzahlen_aus_returns(
-            returns, treffer, horizont_tage=horizont, minimum=minimum)
+            returns, treffer, horizont_tage=horizont, minimum=minimum,
+            richtungen=richtungen)
 
         ergebnis.append({
             "indikator": name,
@@ -225,10 +252,11 @@ def kategorie_leaderboard(db: Session, horizont: int = 7,
 
     ergebnis = []
     for (kategorie, richtung), returns in gruppen.items():
-        treffer = [(r > 0) if richtung == RICHTUNG_BULLISCH else (r < 0)
-                   for r in returns]
+        treffer = [_treffer(r, richtung) for r in returns]
+        richtungen = [1 if richtung == RICHTUNG_BULLISCH else -1] * len(returns)
         kennzahlen = kennzahlen_aus_returns(returns, treffer,
-                                            horizont_tage=horizont, minimum=minimum)
+                                            horizont_tage=horizont, minimum=minimum,
+                                            richtungen=richtungen)
         ergebnis.append({
             "kategorie": kategorie,
             "richtung": richtung,

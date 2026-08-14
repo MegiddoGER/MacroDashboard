@@ -1,18 +1,10 @@
 """routers/sectors.py — Sektor-Performance (Heatmap, Drilldown)."""
-import json
 from fastapi import APIRouter, Request, Query
 from fastapi.responses import HTMLResponse
 
+from charts import fig_to_json
+
 router = APIRouter(tags=["pages"])
-
-def _get_header_metrics():
-    from main import get_header_metrics
-    return get_header_metrics()
-
-def _fig_to_json(fig):
-    if fig is None:
-        return "null"
-    return json.dumps(fig.to_dict(), default=str)
 
 @router.get("/sectors", response_class=HTMLResponse)
 async def sectors_page(
@@ -38,7 +30,7 @@ async def sectors_page(
     if sector_df is not None and not sector_df.empty:
         try:
             fig = plot_sector_heatmap(sector_df, f"{region_title} — {period_labels.get(period, period)}")
-            heatmap_json = _fig_to_json(fig)
+            heatmap_json = fig_to_json(fig)
         except Exception:
             pass
         best = {"name": sector_df.iloc[0]["Sektor"], "pct": float(sector_df.iloc[0]["Veränderung %"])}
@@ -53,7 +45,6 @@ async def sectors_page(
 
     ctx = {
         "current_path": "/sectors",
-        "header_metrics": _get_header_metrics(),
         "region": region,
         "period": period,
         "period_labels": period_labels,

@@ -4,10 +4,6 @@ from fastapi.responses import HTMLResponse
 
 router = APIRouter(tags=["pages"])
 
-def _get_header_metrics():
-    from main import get_header_metrics
-    return get_header_metrics()
-
 @router.get("/directory", response_class=HTMLResponse)
 async def directory_page(
     request: Request,
@@ -40,7 +36,6 @@ async def directory_page(
 
     ctx = {
         "current_path": "/directory",
-        "header_metrics": _get_header_metrics(),
         "rows": rows,
         "total": total,
         "exchanges": exchanges,

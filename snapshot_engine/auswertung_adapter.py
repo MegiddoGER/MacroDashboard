@@ -82,7 +82,10 @@ def calc_calibration_chart() -> list[dict]:
                 "bucket": z["bereich"],
                 "hit_rate": z.get("trefferquote") if z.get("status") == STATUS_OK else None,
                 "count": z.get("n", 0),
-                "avg_return": z.get("avg_return"),
+                # Richtungsbewusst: die Verkaufs-Bänder zeigen sonst die reine
+                # Kursbewegung, ein treffendes Verkaufssignal sähe dort wie ein
+                # Gewinn aus. Schlüsselname bleibt für die Aufrufer unverändert.
+                "avg_return": z.get("avg_ertrag", z.get("avg_return")),
             }
             for z in zeilen
         ]

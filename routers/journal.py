@@ -1,20 +1,10 @@
 """routers/journal.py — Trade-Journal (Lernmaschine)."""
-import json
 from fastapi import APIRouter, Request, Form
 from fastapi.responses import HTMLResponse
 
+from charts import fig_to_json
+
 router = APIRouter(tags=["pages"])
-
-
-def _get_header_metrics():
-    from main import get_header_metrics
-    return get_header_metrics()
-
-
-def _fig_to_json(fig):
-    if fig is None:
-        return "null"
-    return json.dumps(fig.to_dict(), default=str)
 
 
 @router.get("/journal", response_class=HTMLResponse)
@@ -53,7 +43,7 @@ async def journal_page(request: Request):
                     xaxis=dict(range=[0, 100]),
                     yaxis=dict(categoryorder="total ascending"),
                 )
-                setup_chart_json = _fig_to_json(fig)
+                setup_chart_json = fig_to_json(fig)
         except Exception:
             pass
 
@@ -81,7 +71,7 @@ async def journal_page(request: Request):
                     template="plotly_dark", paper_bgcolor="rgba(0,0,0,0)",
                     plot_bgcolor="rgba(0,0,0,0)", yaxis=dict(range=[0, 100]),
                 )
-                calib_chart_json = _fig_to_json(fig_cal)
+                calib_chart_json = fig_to_json(fig_cal)
     except Exception:
         pass
 
@@ -108,7 +98,6 @@ async def journal_page(request: Request):
 
     ctx = {
         "current_path": "/journal",
-        "header_metrics": _get_header_metrics(),
         "open_trades": open_data,
         "closed_trades": closed_data,
         "open_count": len(open_trades),

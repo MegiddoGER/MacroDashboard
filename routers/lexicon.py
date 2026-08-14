@@ -5,10 +5,6 @@ from fastapi.responses import HTMLResponse
 
 router = APIRouter(tags=["pages"])
 
-def _get_header_metrics():
-    from main import get_header_metrics
-    return get_header_metrics()
-
 @router.get("/lexicon", response_class=HTMLResponse)
 async def lexicon_page(request: Request):
     templates = request.app.state.templates
@@ -24,7 +20,6 @@ async def lexicon_page(request: Request):
                 manual_html = f"<pre>{f.read()}</pre>"
     ctx = {
         "current_path": "/lexicon",
-        "header_metrics": _get_header_metrics(),
         "manual_html": manual_html,
     }
     return templates.TemplateResponse(request=request, name="pages/lexicon.html", context=ctx)

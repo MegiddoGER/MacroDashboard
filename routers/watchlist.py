@@ -1,20 +1,8 @@
 """routers/watchlist.py — Watchlist + Portfolio-Management."""
-import json
 from fastapi import APIRouter, Request, Form
 from fastapi.responses import HTMLResponse
 
 router = APIRouter(tags=["pages"])
-
-
-def _get_header_metrics():
-    from main import get_header_metrics
-    return get_header_metrics()
-
-
-def _fig_to_json(fig):
-    if fig is None:
-        return "null"
-    return json.dumps(fig.to_dict(), default=str)
 
 
 @router.get("/watchlist", response_class=HTMLResponse)
@@ -120,7 +108,6 @@ async def watchlist_page(request: Request):
 
     ctx = {
         "current_path": "/watchlist",
-        "header_metrics": _get_header_metrics(),
         "groups": groups,
         "summary": summary,
         "pos_rows": pos_rows,

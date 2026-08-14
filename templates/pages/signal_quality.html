@@ -2,7 +2,20 @@
 {% block title %}Signal-Qualität — Macro Dashboard{% endblock %}
 
 {% macro quote(kz) -%}
-    {% if kz.status == 'ok' %}{{ kz.trefferquote }}%{% else %}<span class="muted">–</span>{% endif %}
+    {% if kz.status == 'ok' and kz.trefferquote is not none %}{{ kz.trefferquote }}%{% else %}<span class="muted">–</span>{% endif %}
+{%- endmacro %}
+
+{# Die entscheidende Spalte: eine Trefferquote ohne ihre Basisrate misst
+   überwiegend die allgemeine Marktrichtung, nicht Prognosefähigkeit. #}
+{% macro vorsprung(kz) -%}
+    {% if kz.vorsprung_pp is not none %}
+        <span class="{{ 'positive' if kz.vorsprung_pp > 0 else ('negative' if kz.vorsprung_pp < 0 else 'muted') }}">
+            {{ '%+.1f'|format(kz.vorsprung_pp) }} pp</span>
+    {% else %}<span class="muted">–</span>{% endif %}
+{%- endmacro %}
+
+{% macro basisquote(kz) -%}
+    {% if kz.basis_trefferquote is not none %}{{ kz.basis_trefferquote }}%{% else %}<span class="muted">–</span>{% endif %}
 {%- endmacro %}
 
 {% block content %}
@@ -26,6 +39,10 @@
         <div class="fact"><strong>{{ b.outcomes_ausgewertet }}</strong> ausgewertet
             <span class="caption">({{ b.outcomes_offen }} offen)</span></div>
         <div class="fact"><strong>{{ b.ticker_abgedeckt }}</strong> Ticker</div>
+        {% if b.zeitraum_von %}
+        <div class="fact"><strong>{{ b.zeitraum_von.strftime('%m/%Y') }} – {{ b.zeitraum_bis.strftime('%m/%Y') }}</strong>
+            <span class="caption">Zeitraum</span></div>
+        {% endif %}
         <div class="toolbar-end">
             <button class="btn btn-primary" hx-post="/signals/lauf/manuell"
                     hx-target="#lauf-ergebnis" hx-swap="innerHTML"
@@ -53,7 +70,13 @@
         <li><strong>Effektive Stichprobe:</strong> Beobachtungen überlappen sich zeitlich. Bei
             90-Tage-Horizonten messen benachbarte Snapshots weitgehend denselben Kursverlauf;
             ausgewiesen wird deshalb zusätzlich die Zahl der unabhängigen Beobachtungen.</li>
-        <li>Unter {{ min_stichprobe }} Beobachtungen wird bewusst keine Quote angezeigt.</li>
+        <li><strong>Basisrate:</strong> jede Trefferquote steht neben der Quote, die dieselbe
+            Richtungsmischung ohne jede Prognosefähigkeit erreicht hätte. Nur die Differenz
+            (<em>Vorsprung</em>) ist eine Aussage über die Engine — die Trefferquote allein
+            misst überwiegend die allgemeine Marktrichtung.</li>
+        <li>Unter {{ min_stichprobe }} <strong>unabhängigen</strong> Beobachtungen wird bewusst
+            keine Quote angezeigt. Geprüft wird gegen die effektive, nicht die rohe Zeilenzahl:
+            20 Zeilen auf 90 Tage sind rund 2 unabhängige Beobachtungen und tragen keine Aussage.</li>
     </ul>
 </div>
 
@@ -92,7 +115,8 @@
     <thead>
         <tr>
             <th>Horizont</th><th>Beobachtungen</th><th>davon unabhängig</th>
-            <th>Trefferquote</th><th>Ø Rendite</th><th>Erwartungswert</th><th>Profitfaktor</th>
+            <th>Trefferquote</th><th>Basisrate</th><th>Vorsprung</th>
+            <th>Ø Ertrag</th><th>Erwartungswert</th><th>Profitfaktor</th>
         </tr>
     </thead>
     <tbody>
@@ -102,12 +126,15 @@
             <td>{{ kz.n }}</td>
             <td>{{ kz.n_effektiv }}</td>
             {% if kz.status == 'ok' %}
-                <td>{{ kz.trefferquote }}%</td>
-                <td class="{{ 'positive' if kz.avg_return > 0 else 'negative' }}">{{ kz.avg_return }}%</td>
-                <td class="{{ 'positive' if kz.erwartungswert > 0 else 'negative' }}">{{ kz.erwartungswert }}</td>
+                <td>{{ quote(kz) }}</td>
+                <td class="muted">{{ basisquote(kz) }}</td>
+                <td><strong>{{ vorsprung(kz) }}</strong></td>
+                <td class="{{ 'positive' if kz.avg_ertrag > 0 else 'negative' }}">{{ kz.avg_ertrag }}%</td>
+                <td class="{{ 'positive' if kz.erwartungswert and kz.erwartungswert > 0 else 'negative' }}">
+                    {{ kz.erwartungswert if kz.erwartungswert is not none else '–' }}</td>
                 <td>{{ kz.profitfaktor if kz.profitfaktor is not none else '–' }}</td>
             {% else %}
-                <td colspan="4" class="muted">Noch zu wenig Daten (mindestens {{ kz.min_erforderlich }})</td>
+                <td colspan="6" class="muted">Noch zu wenig unabhängige Beobachtungen (mindestens {{ kz.min_erforderlich }})</td>
             {% endif %}
         </tr>
         {% endfor %}
@@ -121,7 +148,7 @@
 <h3 class="section-head">Nach Richtungssignal ({{ gewaehlter_horizont }} Tage)</h3>
 <div class="table-wrapper">
 <table class="data-table">
-    <thead><tr><th>Signal</th><th>n</th><th>Trefferquote</th><th>Ø Rendite</th><th>Erwartungswert</th></tr></thead>
+    <thead><tr><th>Signal</th><th>n</th><th>Trefferquote</th><th>Basisrate</th><th>Vorsprung</th><th>Ø Ertrag</th><th>Erwartungswert</th></tr></thead>
     <tbody>
         {% for signal, kz in (kennzahlen.je_signal[gewaehlter_horizont] or {}).items() %}
         <tr>
@@ -129,17 +156,25 @@
             <td>{{ kz.n }}</td>
             {% if kz.status == 'ok' %}
                 <td>{{ quote(kz) }}</td>
-                <td class="{{ 'positive' if kz.avg_return > 0 else 'negative' }}">{{ kz.avg_return }}%</td>
+                <td class="muted">{{ basisquote(kz) }}</td>
+                <td><strong>{{ vorsprung(kz) }}</strong></td>
+                <td class="{{ 'positive' if kz.avg_ertrag > 0 else 'negative' }}">{{ kz.avg_ertrag }}%</td>
                 <td>{{ kz.erwartungswert if kz.erwartungswert is not none else '–' }}</td>
             {% else %}
-                <td colspan="3" class="muted">zu wenig Daten</td>
+                <td colspan="5" class="muted">zu wenig unabhängige Beobachtungen</td>
             {% endif %}
         </tr>
         {% endfor %}
     </tbody>
 </table>
 </div>
-<p class="caption">NEUTRAL wird nie als Treffer/Fehlschlag gewertet — es ist keine gerichtete Prognose.</p>
+<p class="caption">
+    NEUTRAL wird nie als Treffer/Fehlschlag gewertet — es ist keine gerichtete Prognose und hat
+    deshalb weder Basisrate noch Vorsprung. <strong>Der Vorsprung ist die entscheidende Spalte:</strong>
+    er sagt, um wie viele Prozentpunkte das Signal die Quote schlägt, die dieselbe Richtungsmischung
+    ohne jede Prognosefähigkeit erreicht hätte. Werte um 0 heißen: das Signal trägt nichts bei.
+    <strong>Ø Ertrag</strong> ist richtungsbewusst — bei VERKAUF zählt ein fallender Kurs als Gewinn.
+</p>
 
 <!-- ═══════════════════════════════════════════════════════════
      Confidence-Kalibrierung
@@ -150,7 +185,7 @@
 </div>
 <div class="table-wrapper">
 <table class="data-table">
-    <thead><tr><th>Confidence-Bereich</th><th>n</th><th>Trefferquote</th><th>Ø Rendite</th><th>Erwartungswert</th></tr></thead>
+    <thead><tr><th>Confidence-Bereich</th><th>n</th><th>Trefferquote</th><th>Basisrate</th><th>Vorsprung</th><th>Ø Ertrag</th><th>Erwartungswert</th></tr></thead>
     <tbody>
         {% for z in kalibrierung %}
         <tr>
@@ -158,10 +193,12 @@
             <td>{{ z.n }}</td>
             {% if z.status == 'ok' %}
                 <td>{{ quote(z) }}</td>
-                <td class="{{ 'positive' if z.avg_return > 0 else 'negative' }}">{{ z.avg_return }}%</td>
+                <td class="muted">{{ basisquote(z) }}</td>
+                <td><strong>{{ vorsprung(z) }}</strong></td>
+                <td class="{{ 'positive' if z.avg_ertrag > 0 else 'negative' }}">{{ z.avg_ertrag }}%</td>
                 <td>{{ z.erwartungswert if z.erwartungswert is not none else '–' }}</td>
             {% else %}
-                <td colspan="3" class="muted">zu wenig Daten</td>
+                <td colspan="5" class="muted">zu wenig unabhängige Beobachtungen</td>
             {% endif %}
         </tr>
         {% endfor %}

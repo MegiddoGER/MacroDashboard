@@ -1,18 +1,10 @@
 """routers/economy.py — Gesamtwirtschaft (Kalender, Rohstoffe, Zinsen, Inflation, News)."""
-import json
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 
+from charts import fig_to_json
+
 router = APIRouter(tags=["pages"])
-
-def _get_header_metrics():
-    from main import get_header_metrics
-    return get_header_metrics()
-
-def _fig_to_json(fig):
-    if fig is None:
-        return "null"
-    return fig.to_json()
 
 @router.get("/economy", response_class=HTMLResponse)
 async def economy_page(request: Request):
@@ -34,12 +26,12 @@ async def economy_page(request: Request):
     charts = {}
     try:
         gold = cached_history("GC=F", "5y")
-        charts["gold"] = _fig_to_json(plot_timeseries(gold, "Gold (GC=F)", color="#f59e0b")) if gold is not None else "null"
+        charts["gold"] = fig_to_json(plot_timeseries(gold, "Gold (GC=F)", color="#f59e0b")) if gold is not None else "null"
     except Exception:
         charts["gold"] = "null"
     try:
         oil = cached_history("CL=F", "5y")
-        charts["oil"] = _fig_to_json(plot_timeseries(oil, "Rohöl (CL=F)", color="#3b82f6")) if oil is not None else "null"
+        charts["oil"] = fig_to_json(plot_timeseries(oil, "Rohöl (CL=F)", color="#3b82f6")) if oil is not None else "null"
     except Exception:
         charts["oil"] = "null"
 
@@ -50,7 +42,7 @@ async def economy_page(request: Request):
     try:
         spread = cached_yield_spread()
         if spread is not None:
-            charts["yield"] = _fig_to_json(plot_yield_spread(spread))
+            charts["yield"] = fig_to_json(plot_yield_spread(spread))
             spread_val = float(spread["Spread"].iloc[-1])
             ten_y = float(spread["10Y"].iloc[-1])
             spread_status = "Normal" if spread_val > 0 else "Invertiert — Rezessionswarnung"
@@ -64,7 +56,7 @@ async def economy_page(request: Request):
     try:
         inflation = cached_inflation()
         if inflation is not None and not inflation.empty:
-            charts["inflation"] = _fig_to_json(plot_inflation(inflation))
+            charts["inflation"] = fig_to_json(plot_inflation(inflation))
             infl_val = float(inflation["Inflation %"].iloc[-1])
         else:
             charts["inflation"] = "null"
@@ -78,7 +70,6 @@ async def economy_page(request: Request):
 
     ctx = {
         "current_path": "/economy",
-        "header_metrics": _get_header_metrics(),
         "summary": summary,
         "events_all": events_all,
         "events_us": events_us,

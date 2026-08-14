@@ -7,7 +7,6 @@ from typing import Any
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import pandas as pd
-import numpy as np
 
 # ---------------------------------------------------------------------------
 # Gemeinsame Layout-Defaults
@@ -56,6 +55,17 @@ def _base_layout(**overrides):
     layout = {k: v for k, v in LAYOUT_DEFAULTS.items()}
     layout.update(overrides)
     return layout
+
+
+def fig_to_json(fig) -> str:
+    """Serialisiert eine Plotly Figure zu JSON fuer clientseitiges Rendering.
+
+    Nutzt Plotlys eigenen Encoder — der behandelt numpy-Arrays und Timestamps
+    korrekt (im Gegensatz zu json.dumps(..., default=str)).
+    """
+    if fig is None:
+        return "null"
+    return fig.to_json()
 
 
 # ---------------------------------------------------------------------------

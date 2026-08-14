@@ -30,15 +30,9 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/signals", tags=["Signal-Qualität"])
 
 
-def _header_metrics():
-    from main import get_header_metrics
-    return get_header_metrics()
-
-
 def _basis_kontext(request: Request, pfad: str) -> dict:
     return {
         "current_path": pfad,
-        "header_metrics": _header_metrics(),
         "horizonte": list(HORIZONTE_TAGE),
         "min_stichprobe": MIN_STICHPROBE,
     }

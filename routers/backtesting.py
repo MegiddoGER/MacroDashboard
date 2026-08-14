@@ -5,23 +5,14 @@ import json
 from fastapi import APIRouter, Request, Form
 from fastapi.responses import HTMLResponse
 
+from charts import fig_to_json
+
 router = APIRouter(tags=["pages"])
 
 _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _DATA_DIR = os.path.join(_PROJECT_ROOT, "data")
 _XETRA_CSV = os.path.join(_DATA_DIR, "xetra_stocks.csv")
 _MARKET_CACHE = None
-
-
-def _get_header_metrics():
-    from main import get_header_metrics
-    return get_header_metrics()
-
-
-def _fig_to_json(fig):
-    if fig is None:
-        return "null"
-    return json.dumps(fig.to_dict(), default=str)
 
 
 def _load_market_presets() -> dict[str, list[dict]]:
@@ -100,7 +91,6 @@ async def backtesting_page(request: Request):
 
     ctx = {
         "current_path": "/backtesting",
-        "header_metrics": _get_header_metrics(),
         "market_names": market_names,
         "tickers": tickers,
         "strategies": STRATEGIES,
@@ -170,7 +160,7 @@ async def backtesting_run(
         paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
         height=400, hovermode="x unified",
     )
-    equity_json = _fig_to_json(fig_eq)
+    equity_json = fig_to_json(fig_eq)
 
     # Drawdown chart
     dd_json = "null"
@@ -185,7 +175,7 @@ async def backtesting_run(
             title="Drawdown", yaxis_title="Drawdown (%)", template="plotly_dark",
             paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", height=300,
         )
-        dd_json = _fig_to_json(fig_dd)
+        dd_json = fig_to_json(fig_dd)
 
     ctx = {
         "display_name": display_name,
