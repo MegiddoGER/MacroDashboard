@@ -11,8 +11,10 @@ Kursabrufe). Öffentliche API:
     kalibrierung_berechnen()  — Ergebnis je Confidence-Bereich
     kalibrierung_bewerten()   — Kurzfazit zur Aussagekraft der Confidence
     kelly_parameter()         — Trefferquote/CRV für die Positionsgrößen-Rechnung
+    grenze_festlegen()        — Train/Holdout-Grenze einmalig festlegen
+    split_status()            — Belegung der drei Mengen (Anzeige/Diagnose)
 
-Fünf Grundsätze gelten überall:
+Sechs Grundsätze gelten überall:
   1. LIVE und HISTORISCH werden nie vermischt (unterschiedliche Datenbasis).
   2. Unterhalb der Mindest-Stichprobe wird keine Quote ausgewiesen — geprüft
      gegen die EFFEKTIVE Stichprobe, nicht gegen die rohe Zeilenzahl.
@@ -21,6 +23,9 @@ Fünf Grundsätze gelten überall:
      Quote nicht interpretierbar, weil sie überwiegend die Marktrichtung misst.
   5. Ertragskennzahlen sind richtungsbewusst — bei VERKAUF ist ein fallender
      Kurs ein Gewinn.
+  6. Eine Zahl, die eine Änderung rechtfertigen soll, gehört auf den Holdout
+     (`teil=HOLDOUT`, siehe holdout.py). Ohne Trennung gerechnete Zahlen sind
+     in-sample und belegen nur die Konsistenz der Umsetzung.
 """
 
 from snapshot_engine.auswertung.basis import (
@@ -41,17 +46,27 @@ from snapshot_engine.auswertung.risk_adjusted import (
     kelly_parameter, signal_statistik,
 )
 from snapshot_engine.auswertung.gate import gate_wirkung
+from snapshot_engine.auswertung.holdout import (
+    EMBARGO, HOLDOUT, TRAIN, grenze_festlegen, grenze_lesen,
+    holdout_zugriffe, split_filter, split_status, split_zuordnen,
+)
 
 __all__ = [
+    "EMBARGO",
+    "HOLDOUT",
     "MIN_STICHPROBE",
     "STATUS_OK",
     "STATUS_ZU_WENIG_DATEN",
+    "TRAIN",
     "anteil_steigend",
     "basis_trefferquote",
     "bestand_ermitteln",
     "effektive_stichprobe",
     "fehlerspanne_pp",
     "gate_wirkung",
+    "grenze_festlegen",
+    "grenze_lesen",
+    "holdout_zugriffe",
     "mit_basis",
     "vermischung_pruefen",
     "vorsprung_signifikant",
@@ -63,4 +78,7 @@ __all__ = [
     "kennzahlen_aus_returns",
     "kennzahlen_berechnen",
     "signal_statistik",
+    "split_filter",
+    "split_status",
+    "split_zuordnen",
 ]

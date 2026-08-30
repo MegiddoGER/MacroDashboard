@@ -213,9 +213,48 @@
     (sie entsteht dann rein aus Trend und Volumen), und er <em>befördert</em> ein
     Mean-Reversion-Setup, das die Confidence sonst verwerfen würde.
     <br>
-    <span class="caption">Die Schwelle stammt aus denselben Daten, an denen sie hier geprüft wird.
-    Belastbar wird der Vergleich erst mit Beobachtungen ab Score-Version 2.0.0.</span>
+    <span class="caption">Die Schwelle stammt aus denselben Daten, an denen sie hier geprüft wird —
+    diese Zahlen sind in-sample und belegen nur die Konsistenz der Umsetzung.
+    {% if not (split and split.aktiv) %}Eine Train/Holdout-Trennung ist noch nicht
+    festgelegt.{% elif gate.holdout_rueckwirkend %}Die Train/Holdout-Grenze steht seit
+    dem {{ split.festgelegt_am.strftime('%d.%m.%Y') if split.festgelegt_am else '–' }} —
+    für diese Schwelle wirkt sie rückwirkend und belegt daher nichts, weil die Schwelle
+    älter ist als die Grenze. Sauber wird der Vergleich erst, wenn die Schwelle allein
+    auf dem Trainingsteil neu bestimmt wird.{% else %}Die Schwelle wurde nach dem Ziehen
+    der Grenze bestimmt — eine Messung auf dem Holdout ist für sie ein echter
+    Out-of-Sample-Beleg.{% endif %}</span>
 </div>
+{% if split and split.aktiv %}
+<div class="table-wrapper mb-4">
+<table class="data-table">
+    <thead><tr><th>Train/Holdout</th><th>Zeitraum</th><th>Snapshots</th><th>Verwendung</th></tr></thead>
+    <tbody>
+        <tr>
+            <td>Training</td>
+            <td class="muted">bis {{ split.grenze.strftime('%d.%m.%Y') }}</td>
+            <td>{{ '{:,}'.format(split.anzahl.train).replace(',', '.') }}</td>
+            <td class="muted">Schwellen und Gewichte hier bestimmen</td>
+        </tr>
+        <tr>
+            <td>Sperrzone</td>
+            <td class="muted">{{ split.embargo_tage }} Tage</td>
+            <td>{{ '{:,}'.format(split.anzahl.embargo).replace(',', '.') }}</td>
+            <td class="muted">verworfen — ihre Ergebnisse reichen in den Holdout</td>
+        </tr>
+        <tr>
+            <td>Holdout</td>
+            <td class="muted">ab {{ split.holdout_start.strftime('%d.%m.%Y') }}</td>
+            <td>{{ '{:,}'.format(split.anzahl.holdout).replace(',', '.') }}</td>
+            <td>
+                {% if split.zugriffe == 0 %}<span class="positive">unangetastet</span>
+                {% else %}<span class="{{ 'negative' if split.zugriffe > 3 else 'muted' }}"
+                    title="Wer nach jeder Änderung erneut auf dem Holdout misst und die beste Variante behält, hat ihn zum Trainingsset gemacht.">{{ split.zugriffe }}× befragt</span>{% endif %}
+            </td>
+        </tr>
+    </tbody>
+</table>
+</div>
+{% endif %}
 <div class="table-wrapper">
 <table class="data-table">
     <thead><tr><th>Gruppe</th><th>n</th><th>eff. n</th><th>Trefferquote</th><th>Basisrate</th><th>Vorsprung</th></tr></thead>

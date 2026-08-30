@@ -20,6 +20,7 @@ from snapshot_engine.auswertung import (
     kennzahlen_berechnen, vermischung_pruefen,
 )
 from snapshot_engine.auswertung.gate import gate_wirkung
+from snapshot_engine.auswertung.holdout import split_status
 from snapshot_engine.auswertung.indikator_stats import basisrate
 from snapshot_engine.models import (
     HORIZONTE_TAGE, AnalyseModus, AnalyseSnapshot, AnalyseSnapshotOutcome,
@@ -100,6 +101,9 @@ async def uebersicht(request: Request,
             "basis": basisrate(session, horizont, modus),
             "vermischung": vermischung_pruefen(session, modus),
             "gate": gate_wirkung(session, horizont=horizont, datenmodus=modus),
+            # Legt KEINE Grenze an — das ist eine bewusste Entscheidung und
+            # darf nicht Nebenwirkung eines Seitenaufrufs sein.
+            "split": split_status(session, datenmodus=modus),
             "snapshot_zeilen": snapshot_zeilen,
             "gesamt_anzahl": gesamt,
             "aktuelle_seite": seite,

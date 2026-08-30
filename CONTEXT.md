@@ -1,6 +1,6 @@
 # CONTEXT.md — Arbeitsstand Signal-Engine
 
-_Stand: 2026-08-30 · HEAD `52f5795` · Branch `main`_
+_Stand: 2026-08-30 · HEAD `c7eec1e`+ · Branch `main`_
 
 Übergabedatei für eine frische Claude-Session. Sie beantwortet drei Fragen:
 **Was ist erledigt, was ist offen, und was darf nicht noch einmal neu hergeleitet
@@ -131,6 +131,7 @@ Der Vorteil ist **long-only**. Die Short-Seite ist auf jeder Schwelle Rauschen.
 | PC-02 `data_quality` als Qualifier | `services/scoring_engine_v2.py` |
 | PC-03 RSI-Klippe entfernt | `services/scoring_engine_v2.py` |
 | **P3-03 Positionspfad instrumentiert** | `snapshot_engine/position_snapshot.py` |
+| **P1-05 Train/Holdout-Trennung** | `snapshot_engine/auswertung/holdout.py` |
 
 **Wichtig:** Es existiert **noch kein einziger Snapshot mit `score_version` 2.0.0**
 — alle 88.033 tragen 1.0.0. Die Out-of-Sample-Prüfung des Gates beginnt erst mit
@@ -141,7 +142,16 @@ dem nächsten Scheduler-Lauf (18:30). Bis dahin sind alle Gate-Zahlen in-sample.
 ## 4. Offen — nach Wirkung geordnet
 
 ### A. Blockiert das eigentliche Ziel (automatische Verbesserung)
-- **P1-05** kein Train/Holdout-Split — jede Gewichtsanpassung wäre in-sample. **Härteste Vorbedingung.**
+- ~~**P1-05** kein Train/Holdout-Split~~ → erledigt, siehe §3. Grenze steht fest
+  auf **2025-04-20**, Sperrzone 90 Tage, Holdout ab **2025-07-19**. Belegung
+  (HISTORISCH): Training 59.065 · Sperrzone 5.332 · Holdout 22.529. Die Grenze
+  liegt in der `Setting`-Tabelle und wandert nicht mit dem Bestand mit.
+- **P1-07 (neu)** die Oszillator-Schwelle ist **älter als die Grenze** und hat
+  die Holdout-Zeilen bereits gesehen — der Holdout ist für sie rückwirkend und
+  belegt nichts. `gate.SCHWELLE_BESTIMMT_AM` steht deshalb auf `None`, und
+  `gate_wirkung` weist `holdout_rueckwirkend: True` aus. Sauber wird es erst,
+  wenn die Schwelle allein auf `teil=TRAIN` neu bestimmt und der Zeitpunkt dort
+  eingetragen wird. **Erster Posten, der den Holdout tatsächlich nutzt.**
 - **P1-04** keine Benchmark-Rendite je Outcome — Trefferquoten sind absolut, kein Alpha
 - **P1-06** ein 30-Tage-Takt für alle Kategorien, unabhängig von der Signal-Halbwertszeit
 - **P1-03** Backfill kennt kein Sentiment, misst also ein anderes System als das laufende (Designentscheidung offen)
@@ -186,18 +196,25 @@ Arbeit inline erledigt, was sie langsam und einmalig statt wiederholbar macht.
 
 ## 5. Empfohlener nächster Schritt
 
-**P1-05 — Train/Holdout-Split.** Ohne Holdout bleibt jede Gewichtsanpassung
-wertlos, weil sie sich gegen sich selbst validiert. Das gilt jetzt für beide
-Pfade: der Positionspfad sammelt seit P3-03 Evidenz, und die erste Auswertung
-soll nicht in dieselbe In-sample-Falle laufen wie die Gate-Zahlen.
+**P1-07 — die Oszillator-Schwelle allein auf dem Trainingsteil neu bestimmen.**
+Der Apparat steht seit P1-05, benutzt hat ihn noch nichts. Solange die Schwelle
+älter ist als die Grenze, liefert auch `teil=HOLDOUT` keinen Beleg, sondern nur
+eine Zahl, die danach aussieht. Vorgehen: Schwelle über `teil=TRAIN` neu
+bestimmen, `gate.SCHWELLE_BESTIMMT_AM` setzen, **einmal** auf dem Holdout
+prüfen — und das Ergebnis stehen lassen, auch wenn es enttäuscht.
 
-P1-05 hat außerdem den richtigen Zeitpunkt: er braucht keine neuen Daten,
-während P3-05 (Auswertungsfläche Positionspfad) ohnehin warten muss, bis die
-ersten Positions-Outcomes fällig geworden sind.
+Zur Einordnung: die Zahlen aus dem ersten (rückwirkenden) Durchlauf lagen auf
+dem Holdout deutlich besser als auf dem Training (durchgelassen +8,7 pp gegen
+−0,3 pp). Das ist **kein Befund**, sondern genau der Grund für P1-07 — ein
+Unterschied dieser Größe zwischen zwei Zeiträumen ist eher ein Hinweis auf
+verschiedene Marktphasen als auf einen Effekt.
 
 **Nicht** mit dem Vorschlagspanel für Gewichte anfangen: DX-01 zeigt, dass
-Gewichtstuning an dieser Architektur eine Decke hat, und ohne P1-05 validiert es
-sich gegen sich selbst.
+Gewichtstuning an dieser Architektur eine Decke hat.
+
+**Den Holdout nicht mehrfach befragen.** Der Zähler steht auf `/signals`; wer
+nach jeder Änderung erneut misst und die beste Variante behält, hat ihn zum
+Trainingsset gemacht — nur langsamer.
 
 ---
 
@@ -224,6 +241,10 @@ Alle Routen müssen 200 liefern. Skills unter `.claude/skills/`: `ship-check`,
   davon: `scoring.SCORE_VERSION` (Einstieg) und
   `scoring_engine_v2.POSITION_SCORE_VERSION` (Position). Beide landen im Feld
   `score_version`; unterschieden werden sie über `analyse_modus`.
+- **Zahlen, die eine Änderung rechtfertigen sollen, gehören auf den Holdout**
+  (`teil=HOLDOUT`). Und: rückwirkend gilt nicht — ein Parameter, der älter ist
+  als die Grenze, hat die Holdout-Zeilen gesehen. `holdout_rueckwirkend()`
+  benennt diesen Fall; er darf nie als Out-of-Sample-Beleg auftreten.
 - **Nach `analyse_modus` filtern**, sobald eine Abfrage Trefferquoten,
   Kalibrierung oder Indikator-Statistik berechnet. `NEUE_POSITION` und
   `BESTEHENDE_POSITION` sind zwei Bewertungssysteme in einer Tabelle: andere
