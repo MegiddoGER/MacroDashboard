@@ -2,6 +2,12 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+> **Read `CONTEXT.md` first.** It carries the current state of the signal-engine work: what is
+> already shipped (so it is not rebuilt), the measured findings (so they are not re-derived), what
+> is open and in what order, and three failure modes that have already cost real work — a working
+> tree that sat behind HEAD, a broken `.gitignore` that commits a 37 MB WAL file, and the standing
+> instruction that pushes go to `main`.
+
 ## What this is
 
 MacroDashboard is a self-hosted, local-first trading/investing terminal: FastAPI + Jinja2 + HTMX

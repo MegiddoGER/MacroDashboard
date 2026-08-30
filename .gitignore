@@ -82,6 +82,13 @@ coverage.xml
 # ==============================
 *.sqlite3
 *.db
+# SQLite im WAL-Modus legt zwei Begleitdateien an. `*.db` greift bei ihnen
+# NICHT — die Endung lautet .db-wal bzw. .db-shm. Ohne diese Regeln landet die
+# WAL-Datei im Repo und wächst dort mit jedem Start um zweistellige Megabyte.
+# Einmal entfernt worden (Commit 6f2f3db), Folge: 37,3 MB Binärdaten in der
+# Historie. Nicht wieder löschen.
+*.db-wal
+*.db-shm
 
 # ==============================
 # IDEs / Editors
