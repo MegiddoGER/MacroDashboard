@@ -1,6 +1,6 @@
 # CONTEXT.md — Arbeitsstand Signal-Engine
 
-_Stand: 2026-08-30 · HEAD `1a61cf5` · Branch `signal-engine-overhaul` (= `main`)_
+_Stand: 2026-08-30 · HEAD `52f5795` · Branch `main`_
 
 Übergabedatei für eine frische Claude-Session. Sie beantwortet drei Fragen:
 **Was ist erledigt, was ist offen, und was darf nicht noch einmal neu hergeleitet
@@ -41,19 +41,22 @@ Historie umschreiben nie ungefragt.
 Vor jedem Commit trotzdem prüfen, dass die beiden Regeln noch in `.gitignore`
 stehen: sie sind schon einmal unbemerkt verschwunden.
 
-### c) Pushes gehen auf `main`
+### c) Es wird direkt auf `main` gearbeitet — keinen Zweig anlegen
 
-Stehende Anweisung des Besitzers. Vom Feature-Branch aus ohne Branch-Wechsel:
+Stehende Anweisung des Besitzers: Pushes gehen auf `main`. Seit `52f5795` ist
+das auch der ausgecheckte Zweig, `git push` genügt.
 
-```
-git merge-base --is-ancestor main <branch>      # Fast-Forward prüfen
-git push origin <branch>:main
-git fetch origin && git branch -f main origin/main
-```
+**Keinen Feature-Branch anlegen.** Eine frühere Session hatte
+`signal-engine-overhaul` erzeugt und dafür die Umleitung
+`git push origin <branch>:main` gebraucht. Das hat den Besitzer wiederholt in
+die Irre geführt: Commits landeten auf dem Zweig statt auf `main`, und Gits
+Fehlermeldung schlug jedes Mal `--set-upstream origin signal-engine-overhaul`
+vor. Der Zweig existierte nie auf GitHub und ist gelöscht.
 
-Kein `checkout main` — der Arbeitsbaum trägt meist unzusammenhängende gestagte
-Arbeit (`config.py`, `.env.example`, `SNAPSHOT_RUN_TIME`-Verdrahtung), die dabei
-gestört würde. Nur die Dateien der jeweiligen Änderung committen.
+Der damalige Grund für die Umleitung — ein Arbeitsbaum voller fremder gestagter
+Arbeit, der einen `checkout main` gestört hätte — besteht nicht mehr. Vor einem
+Zweigwechsel trotzdem `git status` prüfen und nur die Dateien der jeweiligen
+Änderung committen.
 
 ---
 
