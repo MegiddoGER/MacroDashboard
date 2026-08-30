@@ -26,6 +26,7 @@ from typing import Optional
 
 from sqlalchemy.orm import Session
 
+from services.scoring import SCORE_VERSION
 from snapshot_engine.models import (
     HORIZONTE_TAGE, AnalyseModus, AnalyseSnapshot, AnalyseSnapshotIndikator,
     AnalyseSnapshotOutcome, BackfillStatus, Datenmodus, ErstelltVon,
@@ -187,25 +188,36 @@ def _earnings_richtung(signals: dict) -> Optional[int]:
     return None
 
 
+def _stochastic_richtung(signals: dict) -> Optional[int]:
+    """Mean-Reversion wie beim RSI: überverkauft = bullisch, überkauft = bearisch."""
+    return _aus_gegensatz(signals, "stoch_oversold", "stoch_overbought")
+
+
 # ADX fehlt hier bewusst: er misst Trendstärke, nicht Trendrichtung — als
 # Prognose "steigt/fällt" ist er nicht auswertbar (scoring.py führt ihn
 # konsequenterweise ebenfalls nur als Info-Indikator).
+# Vierter Eintrag: zaehlt der Indikator in den Score? MACD wird in
+# scoring.py bewusst NICHT gewertet (Redundanz mit dem SMA-Cross), erzeugte
+# hier aber Zeilen mit beitrag_numeric ±1 und erschien im Leaderboard, als
+# wäre er Teil des Systems. Er wird weiter gemessen — aber als INFO markiert,
+# damit keine Gewichtungsentscheidung über einen wirkungslosen Indikator fällt.
 _SIGNAL_INDIKATOREN: tuple = (
     ("Trend (SMA 200)", "trend",
      lambda s: _aus_gegensatz(s, "trend_macro_bullish", "trend_macro_bearish"),
-     "sma200_val"),
+     "sma200_val", True),
     ("SMA-Cross (20/50)", "trend",
-     lambda s: _aus_gegensatz(s, "cross_bullish", "cross_bearish"), "sma50_val"),
+     lambda s: _aus_gegensatz(s, "cross_bullish", "cross_bearish"), "sma50_val", True),
     ("MACD", "trend",
-     lambda s: _aus_gegensatz(s, "macd_bullish", "macd_bearish"), None),
-    ("FVG (Fair Value Gap)", "trend", _fvg_richtung, "unmitigated_bull"),
-    ("RSI (14)", "oscillator", _rsi_richtung, "rsi_val"),
-    ("Bollinger Bänder", "oscillator", _bollinger_richtung, "bollinger_state"),
-    ("OBV Trend", "volume", lambda s: _aus_bool(s, "obv_bullish"), None),
-    ("VWMA (20T)", "volume", lambda s: _aus_bool(s, "vwap_bullish"), None),
-    ("Volumen-Cluster (POC)", "volume", lambda s: _aus_bool(s, "poc_bullish"), None),
-    ("News Sentiment", "sentiment", _sentiment_richtung, "sentiment_avg"),
-    ("Earnings Surprise", "sentiment", _earnings_richtung, "last_earnings_surprise"),
+     lambda s: _aus_gegensatz(s, "macd_bullish", "macd_bearish"), None, False),
+    ("FVG (Fair Value Gap)", "trend", _fvg_richtung, "unmitigated_bull", True),
+    ("RSI (14)", "oscillator", _rsi_richtung, "rsi_val", True),
+    ("Stochastic (14)", "oscillator", _stochastic_richtung, "stoch_val", True),
+    ("Bollinger Bänder", "oscillator", _bollinger_richtung, "bollinger_state", True),
+    ("OBV Trend", "volume", lambda s: _aus_bool(s, "obv_bullish"), None, True),
+    ("VWMA (20T)", "volume", lambda s: _aus_bool(s, "vwap_bullish"), None, True),
+    ("Volumen-Cluster (POC)", "volume", lambda s: _aus_bool(s, "poc_bullish"), None, True),
+    ("News Sentiment", "sentiment", _sentiment_richtung, "sentiment_avg", True),
+    ("Earnings Surprise", "sentiment", _earnings_richtung, "last_earnings_surprise", True),
 )
 
 
@@ -223,7 +235,7 @@ def indikatoren_schreiben(db: Session, snapshot: AnalyseSnapshot, score_result) 
     signals = getattr(score_result, "signals", None) or {}
     geschrieben = 0
 
-    for name, kategorie, richtung_fn, wert_schluessel in _SIGNAL_INDIKATOREN:
+    for name, kategorie, richtung_fn, wert_schluessel, zaehlt_im_score in _SIGNAL_INDIKATOREN:
         try:
             richtung = richtung_fn(signals)
         except Exception:
@@ -241,7 +253,8 @@ def indikatoren_schreiben(db: Session, snapshot: AnalyseSnapshot, score_result) 
             signal_text="bullisch" if richtung > 0 else "bearisch",
             beitrag_raw=str(richtung),
             beitrag_numeric=float(richtung),
-            granularitaet=Granularitaet.INDIKATOR,
+            granularitaet=(Granularitaet.INDIKATOR if zaehlt_im_score
+                           else Granularitaet.INFO),
         ))
         geschrieben += 1
 
@@ -329,6 +342,7 @@ def signal_erfassen(
         cat_max_json=json.dumps(score_result.cat_max),
         weights_json=json.dumps(score_result.weights),
         checklist_json=json.dumps(score_result.checklist, ensure_ascii=False),
+        score_version=SCORE_VERSION,
         analyse_modus=AnalyseModus.NEUE_POSITION,
         datenmodus=datenmodus,
         erstellt_von=erstellt_von,
@@ -582,6 +596,95 @@ def queue_abarbeiten(db: Session, limit: int = 10,
 # Outcomes nachtragen
 # ---------------------------------------------------------------------------
 
+# Ab dieser Abweichung zwischen gespeichertem und rückbereinigtem Kurs liegt
+# ein Kapitalereignis (Split, Reverse Split) nahe. Gewöhnliche Unterschiede —
+# Intraday-Kurs vs. Tagesschluss, Dividendenbereinigung — bleiben klar darunter.
+SPLIT_VERDACHT_SCHWELLE = 0.25
+
+
+# Toleranz, um Wochenenden und Feiertage vor dem ersten Bar zu erlauben.
+_ABDECKUNG_TOLERANZ_TAGE = 7
+
+
+def _deckt_stichtag_ab(hist, stichtag: datetime) -> bool:
+    """Prüft, ob die Kursreihe den Stichtag tatsächlich umfasst.
+
+    Notwendig, weil `kurs_am_stichtag` für Daten VOR dem ersten Bar den ersten
+    verfügbaren Kurs zurückgibt statt None — als Return-Basis wäre das ein
+    falscher Startkurs ohne erkennbaren Fehler.
+    """
+    try:
+        import pandas as pd
+
+        if hist is None or hist.empty:
+            return False
+
+        erster = hist.index[0]
+        ziel = pd.Timestamp(stichtag)
+        if getattr(hist.index, "tz", None) is not None:
+            ziel = (ziel.tz_localize(hist.index.tz) if ziel.tzinfo is None
+                    else ziel.tz_convert(hist.index.tz))
+        elif ziel.tzinfo is not None:
+            ziel = ziel.tz_localize(None)
+
+        return erster <= ziel + pd.Timedelta(days=_ABDECKUNG_TOLERANZ_TAGE)
+
+    except (TypeError, ValueError, IndexError) as e:
+        logger.debug("Abdeckungsprüfung fehlgeschlagen (%s): %s", stichtag, e)
+        return False
+
+
+def _basis_kurs_bestimmen(hist, snapshot) -> Optional[float]:
+    """Basiskurs für die Return-Berechnung, aus derselben Reihe wie der Endkurs.
+
+    Start- und Endkurs MÜSSEN aus einer gemeinsamen, einheitlich bereinigten
+    Kursreihe stammen. Sonst vergleicht der Return zwei verschiedene
+    Anpassungsbasen, und ein Split zwischen Snapshot und Fälligkeit erzeugt
+    einen Scheinverlust in Höhe des Split-Verhältnisses.
+
+    Fällt auf den gespeicherten Snapshot-Kurs zurück, wenn die Historie den
+    Snapshot-Tag nicht hergibt — dann gilt die alte, split-anfällige Semantik,
+    was protokolliert wird.
+    """
+    from services.market_data_batch import kurs_am_stichtag
+
+    gespeichert = snapshot.kurs_bei_snapshot
+
+    basis = None
+    if hist is not None and snapshot.snapshot_zeitpunkt is not None:
+        # `kurs_am_stichtag` sucht den nächsten Handelstag NACH dem Stichtag.
+        # Liegt der Stichtag vor dem ersten Bar (späte IPO, lückenhafter
+        # Download), liefert searchsorted Position 0 — also den ersten
+        # verfügbaren Kurs, ohne dass die Lücke erkennbar wäre. Als Basis wäre
+        # das ein stillschweigend falscher Startkurs, deshalb hier prüfen.
+        if _deckt_stichtag_ab(hist, snapshot.snapshot_zeitpunkt):
+            basis = kurs_am_stichtag(hist, snapshot.snapshot_zeitpunkt)
+
+    if basis is None or basis <= 0:
+        if not gespeichert or gespeichert <= 0:
+            return None
+        logger.warning(
+            "Outcome %s: kein Kurs zum Snapshot-Tag %s in der Historie — "
+            "nutze gespeicherten Kurs %.4f (split-anfällig).",
+            snapshot.ticker,
+            snapshot.snapshot_zeitpunkt.date() if snapshot.snapshot_zeitpunkt else "?",
+            gespeichert)
+        return float(gespeichert)
+
+    # Große Abweichung meldet ein Kapitalereignis — der rückbereinigte Wert
+    # ist der richtige, aber es soll sichtbar sein, dass er abweicht.
+    if gespeichert and gespeichert > 0:
+        abweichung = abs(basis - gespeichert) / gespeichert
+        if abweichung >= SPLIT_VERDACHT_SCHWELLE:
+            logger.warning(
+                "Outcome %s: Basiskurs %.4f weicht um %.0f %% vom gespeicherten "
+                "Kurs %.4f ab — vermutlich Split/Kapitalmaßnahme. Rückbereinigter "
+                "Kurs wird verwendet.",
+                snapshot.ticker, basis, abweichung * 100, gespeichert)
+
+    return float(basis)
+
+
 def outcomes_nachtragen(db: Session, limit: int = 500) -> int:
     """Trägt Kursergebnisse für fällige Outcomes nach.
 
@@ -624,8 +727,14 @@ def outcomes_nachtragen(db: Session, limit: int = 500) -> int:
     if not tickers:
         return 0
 
-    # Zeitfenster so wählen, dass es alle Fälligkeiten abdeckt
-    frueheste = min(o.faellig_am for o in faellige)
+    # Zeitfenster muss auch die SNAPSHOT-Zeitpunkte abdecken, nicht nur die
+    # Fälligkeiten: der Basiskurs für den Return wird aus derselben
+    # split-/dividendenbereinigten Reihe gelesen wie der Fälligkeitskurs
+    # (siehe unten). Ohne den früheren Startpunkt fehlt diese Basis.
+    frueheste = min(
+        [s.snapshot_zeitpunkt for s in snapshots.values() if s.snapshot_zeitpunkt]
+        or [min(o.faellig_am for o in faellige)]
+    )
     start = frueheste - timedelta(days=10)
 
     logger.info("Outcomes: %d fällige Einträge für %d Ticker (ab %s).",
@@ -658,13 +767,23 @@ def outcomes_nachtragen(db: Session, limit: int = 500) -> int:
                     outcome.faellig_am.date(), outcome.versuche)
             continue
 
+        # Basiskurs aus DERSELBEN Reihe wie der Fälligkeitskurs lesen.
+        # `snapshot.kurs_bei_snapshot` wurde live gespeichert und liegt auf der
+        # damaligen Anpassungsbasis; der frische Download ist auf HEUTE
+        # rückbereinigt. Ein Split dazwischen (z.B. 4:1) ließe den Return sonst
+        # als −75 % erscheinen und würde als Signal-Fehlschlag verbucht.
+        basis = _basis_kurs_bestimmen(hist, snapshot)
+        if basis is None:
+            outcome.versuche = (outcome.versuche or 0) + 1
+            continue
+
         outcome.outcome_kurs = kurs
-        outcome.outcome_return = round(
-            (kurs - snapshot.kurs_bei_snapshot) / snapshot.kurs_bei_snapshot * 100, 2)
+        outcome.basis_kurs = basis
+        outcome.outcome_return = round((kurs - basis) / basis * 100, 2)
         outcome.outcome_zeitpunkt = outcome.faellig_am
         outcome.ausgewertet = True
         outcome.war_erfolgreich = erfolg_bewerten(
-            snapshot.richtungssignal, snapshot.kurs_bei_snapshot, kurs)
+            snapshot.richtungssignal, basis, kurs)
         nachgetragen += 1
 
     db.commit()

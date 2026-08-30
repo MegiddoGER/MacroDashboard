@@ -44,9 +44,14 @@ def calc_position_scores(
 
     # ── 1. TrendHealthScore ──────────────────────────────────────
     trend_score = 50.0
+    # Beide Flags False heißt "SMA 200 nicht berechenbar" (Historie < 200 Tage),
+    # nicht "Abwärtstrend". Der frühere else-Zweig zog dafür die vollen 20
+    # Punkte ab — eine Aktie ohne ausreichende Historie war damit von einem
+    # echten Abwärtstrend nicht zu unterscheiden. Fehlende Daten gehören in
+    # den data_quality-Score, nicht in eine Trendaussage.
     if signals.get("trend_macro_bullish"):
         trend_score += 20
-    else:
+    elif signals.get("trend_macro_bearish"):
         trend_score -= 20
 
     if signals.get("cross_bullish"):
@@ -256,6 +261,12 @@ def calc_position_scores(
         missing += 1
     if s.relative_strength is None:
         dq_score -= 5
+        missing += 1
+    # Fehlende SMA 200 (Historie < 200 Tage) schlägt nicht mehr als
+    # Trendaussage durch, muss aber sichtbar bleiben — sonst verschwände die
+    # Unsicherheit vollständig, statt dort zu landen, wo sie hingehört.
+    if not signals.get("trend_macro_bullish") and not signals.get("trend_macro_bearish"):
+        dq_score -= 10
         missing += 1
 
     s.data_quality = _clamp(dq_score)

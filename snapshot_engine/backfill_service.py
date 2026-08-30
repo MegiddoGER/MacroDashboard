@@ -30,6 +30,7 @@ from typing import Optional
 
 from sqlalchemy.orm import Session
 
+from services.scoring import SCORE_VERSION
 from snapshot_engine.models import (
     HORIZONTE_TAGE, AnalyseModus, AnalyseSnapshot, AnalyseSnapshotIndikator,
     AnalyseSnapshotOutcome, BackfillStatus, Datenmodus, ErstelltVon,
@@ -345,6 +346,7 @@ def _ticker_replayen(db: Session, ticker: str, hist, job: SignalBackfillJob) -> 
             cat_max_json=json.dumps(ergebnis.cat_max),
             weights_json=json.dumps(ergebnis.weights),
             checklist_json=json.dumps(ergebnis.checklist, ensure_ascii=False),
+            score_version=SCORE_VERSION,
             analyse_modus=AnalyseModus.NEUE_POSITION,
             datenmodus=Datenmodus.HISTORISCH,
             erstellt_von=ErstelltVon.BACKFILL,
@@ -367,6 +369,10 @@ def _ticker_replayen(db: Session, ticker: str, hist, job: SignalBackfillJob) -> 
                 outcome_kurs = kurs_am_stichtag(hist, faellig)
                 if outcome_kurs is not None:
                     outcome.outcome_kurs = outcome_kurs
+                    # Split-sicher ohne Zusatzaufwand: `kurs` und `outcome_kurs`
+                    # stammen beide aus `hist`, also aus einem einzigen
+                    # einheitlich bereinigten Download.
+                    outcome.basis_kurs = kurs
                     outcome.outcome_return = round((outcome_kurs - kurs) / kurs * 100, 2)
                     outcome.outcome_zeitpunkt = faellig
                     outcome.ausgewertet = True

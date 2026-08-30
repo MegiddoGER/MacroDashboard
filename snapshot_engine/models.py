@@ -63,8 +63,13 @@ class ErstelltVon:
 
 class Granularitaet:
     """Detailgrad eines Indikator-Datensatzes."""
-    INDIKATOR = "INDIKATOR"      # Echter Einzelindikator (RSI, MACD, FVG, ...)
+    INDIKATOR = "INDIKATOR"      # Einzelindikator, der in den Score einfließt
     KATEGORIE = "KATEGORIE"      # Nur Kategorie-Ebene (migrierte Altdaten)
+    # Gemessen, aber ohne Score-Wirkung (z.B. MACD — in scoring.py bewusst
+    # nicht gewertet). Muss aus Leaderboards herausgehalten werden, die eine
+    # Gewichtungsentscheidung stützen sollen: ein Vorsprung ohne Score-Wirkung
+    # lässt sich nicht in eine Gewichtung übersetzen.
+    INFO = "INFO"
 
 
 class BackfillStatus:
@@ -89,6 +94,11 @@ HORIZONTE_TAGE: tuple[int, ...] = (7, 30, 90)
 # gewertet wird (deckt Transaktionskosten + Slippage ab; aus signal_history
 # übernommen, damit migrierte und neue Daten identisch bewertet werden).
 MIN_BEWEGUNG_PCT = 0.3
+
+# Score-Version, mit der Bestandszeilen beim Einführen der Versionierung
+# nachgetragen werden. Absichtlich ein festes Literal — siehe Kommentar in
+# _schema_migrieren().
+_BESTAND_SCORE_VERSION = "1.0.0"
 
 
 # ---------------------------------------------------------------------------
@@ -122,6 +132,12 @@ class AnalyseSnapshot(Base):
     weights_json: Mapped[Optional[str]] = mapped_column(Text)
     checklist_json: Mapped[Optional[str]] = mapped_column(Text)                # volle Checkliste
 
+    # Version der Scoring-Formel, die diesen Snapshot erzeugt hat
+    # (services.scoring.SCORE_VERSION). Ohne dieses Feld wären Snapshots vor
+    # und nach einer Formeländerung nicht unterscheidbar, und jede
+    # Trefferquote würde zwei verschiedene Bewertungssysteme mitteln.
+    score_version: Mapped[Optional[str]] = mapped_column(Text, index=True)
+
     # Klassifizierung
     analyse_modus: Mapped[str] = mapped_column(
         Text, nullable=False, default=AnalyseModus.NEUE_POSITION, index=True)
@@ -148,6 +164,7 @@ class AnalyseSnapshot(Base):
             "confidence_label": self.confidence_label,
             "richtungssignal": self.richtungssignal,
             "indikator_json": self.indikator_json,
+            "score_version": self.score_version,
             "analyse_modus": self.analyse_modus,
             "datenmodus": self.datenmodus,
             "erstellt_von": self.erstellt_von,
@@ -216,6 +233,12 @@ class AnalyseSnapshotOutcome(Base):
     faellig_am: Mapped[datetime] = mapped_column(DateTime, nullable=False)
 
     outcome_kurs: Mapped[Optional[float]] = mapped_column(Float)
+    # Basiskurs, gegen den outcome_return gerechnet wurde. Muss aus DERSELBEN
+    # (split-/dividendenbereinigten) Kursreihe stammen wie outcome_kurs —
+    # sonst liegen Start- und Endkurs auf verschiedenen Anpassungsbasen und
+    # ein Split dazwischen erzeugt einen Scheinverlust in Split-Höhe.
+    # None bei Altzeilen: dort wurde snapshot.kurs_bei_snapshot verwendet.
+    basis_kurs: Mapped[Optional[float]] = mapped_column(Float)
     outcome_return: Mapped[Optional[float]] = mapped_column(Float)      # in Prozent
     outcome_zeitpunkt: Mapped[Optional[datetime]] = mapped_column(DateTime)
     ausgewertet: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
@@ -233,6 +256,7 @@ class AnalyseSnapshotOutcome(Base):
             "horizont_tage": self.horizont_tage,
             "faellig_am": self.faellig_am.isoformat() if self.faellig_am else None,
             "outcome_kurs": self.outcome_kurs,
+            "basis_kurs": self.basis_kurs,
             "outcome_return": self.outcome_return,
             "outcome_zeitpunkt": self.outcome_zeitpunkt.isoformat() if self.outcome_zeitpunkt else None,
             "ausgewertet": self.ausgewertet,
@@ -441,6 +465,7 @@ def init_snapshot_db():
     _schema_migrieren()
     Base.metadata.create_all(engine)
     logger.info("Signal-Engine: Tabellen geprüft/erstellt.")
+    _granularitaet_korrigieren()
     _konfiguration_initialisieren()
     _migrate_legacy_signal_data()
 
@@ -480,6 +505,15 @@ def _schema_migrieren():
         },
         "analyse_snapshot_outcomes": {
             "versuche": "INTEGER DEFAULT 0",
+            # NULL für Altzeilen — dort war die Basis snapshot.kurs_bei_snapshot.
+            "basis_kurs": "REAL",
+        },
+        "analyse_snapshots": {
+            # Bestandszeilen stammen aus der Formel, die bei Einführung der
+            # Versionierung aktiv war. Bewusst als Literal und NICHT als
+            # SCORE_VERSION eingetragen: nach einer späteren Erhöhung würde
+            # SCORE_VERSION sonst Altzeilen fälschlich als neue Formel stempeln.
+            "score_version": f"TEXT DEFAULT '{_BESTAND_SCORE_VERSION}'",
         },
         "signal_backfill_jobs": {
             "include_smc": "BOOLEAN DEFAULT 1",
@@ -498,6 +532,30 @@ def _schema_migrieren():
                     conn.execute(text(
                         f"ALTER TABLE {tabelle} ADD COLUMN {name} {definition}"))
                     logger.info("Signal-Engine: Spalte %s zu %s ergänzt.", name, tabelle)
+
+
+def _granularitaet_korrigieren():
+    """Stuft MACD-Zeilen auf INFO herab.
+
+    MACD wird in services/scoring.py bewusst nicht gewertet (Redundanz mit dem
+    SMA-Cross), war hier aber als INDIKATOR erfasst und erschien damit im
+    Leaderboard, als stützte er eine Gewichtungsentscheidung. Die Zeilen
+    bleiben erhalten — nur ihre Einstufung wird korrigiert.
+
+    Idempotent: nach dem ersten Lauf findet die Abfrage nichts mehr.
+    """
+    from sqlalchemy import text as _text
+    try:
+        with engine.begin() as conn:
+            anzahl = conn.execute(_text(
+                "UPDATE analyse_snapshot_indikatoren SET granularitaet = :info "
+                "WHERE indikator_name = 'MACD' AND granularitaet = :ind"
+            ), {"info": Granularitaet.INFO, "ind": Granularitaet.INDIKATOR}).rowcount
+        if anzahl:
+            logger.info("Signal-Engine: %d MACD-Zeilen auf INFO herabgestuft "
+                        "(zählt nicht im Score).", anzahl)
+    except Exception as e:
+        logger.error("Granularitäts-Korrektur fehlgeschlagen: %s", e, exc_info=True)
 
 
 def _konfiguration_initialisieren():
@@ -629,6 +687,8 @@ def _migrate_legacy_signal_data():
                 cat_max_json=alt.cat_max_json,
                 weights_json=alt.weights_json,
                 checklist_json=alt.contributing_factors_json,
+                # Wie alle Bestandsdaten: Formel vor Einführung der Versionierung.
+                score_version=_BESTAND_SCORE_VERSION,
                 analyse_modus=AnalyseModus.NEUE_POSITION,
                 datenmodus=Datenmodus.LIVE,   # Altdaten stammen aus Live-Läufen
                 erstellt_von=ErstelltVon.MIGRATION,

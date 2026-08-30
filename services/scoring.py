@@ -15,6 +15,105 @@ from dataclasses import dataclass, field
 
 
 # ---------------------------------------------------------------------------
+# Version der Scoring-Formel
+# ---------------------------------------------------------------------------
+#
+# Wird in jeden AnalyseSnapshot geschrieben (`score_version`), damit die
+# Auswertung Snapshots verschiedener Scoring-Stände nicht vermischt.
+#
+# WANN ERHÖHEN — immer dann, wenn aus denselben Kursdaten ein anderer
+# cat_score entstehen würde:
+#     * ein Indikator kommt hinzu, entfällt oder wird umbenannt
+#     * ein Schwellenwert oder Beitrag ändert sich (RSI < 30 → < 25)
+#     * die Berechnung eines Indikators wird korrigiert
+#     * eine Kategorie kommt hinzu oder wird umdefiniert
+#     * _finalize_score ändert seine Logik (z.B. Euphorie-Falle)
+#
+# WANN NICHT ERHÖHEN — reine Gewichtsänderungen in WEIGHTS_FULL/WEIGHTS_QUICK.
+# Die Gewichte liegen je Snapshot in `weights_json`, und
+# `snapshot_engine/neugewichtung.py` kann die Confidence aus den gespeicherten
+# cat_scores exakt neu berechnen. Die cat_scores selbst bleiben gültig.
+#
+# Eine Erhöhung ohne Anpassung der Auswertung führt dazu, dass Trefferquoten
+# über zwei verschiedene Bewertungssysteme gemittelt werden — genau die stille
+# Verfälschung, die die Signal-Engine aufdecken soll.
+#
+# Änderungshistorie:
+#   2.0.0 — Oszillator-Gate: eine Kaufempfehlung wird nur noch ausgegeben,
+#           wenn der Oszillator sie trägt (siehe OSZILLATOR_GATE_SCHWELLE).
+#           Die Confidence-Zahl selbst bleibt unverändert.
+#   1.1.0 — VWMA und POC vergeben kein Bearish-Signal mehr, wenn gar keine
+#           Richtungsaussage vorliegt (VWMA ohne berechenbaren VWAP, Kurs exakt
+#           auf dem POC). Beide zählten diese Fälle zuvor als volles
+#           Verkaufssignal UND in cat_max, verschoben also Score und
+#           Normalisierung. Betrifft nur die volume-Kategorie.
+#           Stochastic ist unverändert bewertet, wird aber jetzt in signals und
+#           Checkliste geführt — messbar, ohne Score-Wirkung.
+#   1.0.0 — Stand bei Einführung der Versionierung.
+SCORE_VERSION = "2.0.0"
+
+
+# ---------------------------------------------------------------------------
+# Oszillator-Gate
+# ---------------------------------------------------------------------------
+#
+# Belegt über 83.606 auswertbare historische Beobachtungen (30-Tage-Horizont,
+# gemessen gegen die Basisrate desselben Zeitraums, Signifikanz über die
+# EFFEKTIVE Stichprobe):
+#
+#     Oszillator normiert >= +0.50   n=5.154   eff=1.683   +3,2 pp  ±2,4   belegt
+#     Oszillator normiert >= +0.75   n=1.041   eff=  340   +5,4 pp  ±5,2   belegt
+#     >= +0.50 UND Trend <= -0.50    n=2.452   eff=  800   +4,8 pp  ±3,4   belegt
+#     Gesamtes Universum (Kontrolle) n=83.606  eff=27.311  ±0,0 pp  ±0,6   Rauschen
+#
+# Warum ein Gate und nicht eine Umgewichtung: die Gewichte sagen bereits
+# oscillator 0,538 — wirksam ist das nicht, weil Trend- und Volumen-Indikatoren
+# auf JEDEM Snapshot ±1 liefern, während RSI und Bollinger nur in rund 11 % der
+# Fälle überhaupt ausschlagen. Eine Kategorie, die meistens 0 ist, kann eine
+# gewichtete Summe nicht bewegen, egal wie hoch sie gewichtet wird. Die
+# Umgewichtung vom 07.08.2026 hat das bereits erfolglos versucht.
+#
+# Das Gate greift deshalb an der Empfehlung an, nicht an der Zahl: die
+# Confidence bleibt als zusammengesetzte Messgröße unverändert und
+# vergleichbar — aber eine KAUFempfehlung wird nur ausgegeben, wenn der
+# Oszillator sie trägt.
+#
+# Die Gegenrichtung bleibt bewusst ungenutzt: auf der Short-Seite ist der
+# Vorsprung bei jeder Schwelle Rauschen (>= -0.50: +0,7 pp ±1,8).
+OSZILLATOR_GATE_SCHWELLE = 0.5
+
+
+# ---------------------------------------------------------------------------
+# Mean-Reversion-Setup
+# ---------------------------------------------------------------------------
+#
+# Das Gate allein filtert nur — es kann eine Empfehlung verhindern, aber keine
+# erzeugen. Damit blieb ausgerechnet die am besten belegte Konstellation
+# unerreichbar: ein überverkaufter Oszillator GEGEN den Trend. Genau dort ist
+# die zusammengesetzte Confidence am niedrigsten, weil Trend und Volumen sie
+# nach unten ziehen — und genau dort ist der Vorsprung am größten.
+#
+# Gemessen an den Beobachtungen, die die Confidence bisher verworfen hätte
+# (Oszillator >= 0.50 UND Confidence < 60):
+#
+#                                7 Tage           30 Tage          90 Tage
+#     neu befördert          +4,2 pp ±1,8     +3,9 pp ±3,1     +3,6 pp ±5,3
+#       davon gegen Trend    +5,4 pp ±2,0     +4,8 pp ±3,4     +5,0 pp ±5,9
+#     Vergleich: Gate-Käufe  +3,9 pp ±2,1     +2,1 pp ±3,7     +5,2 pp ±6,2
+#
+# Bemerkenswert bei 30 Tagen: die neu beförderte Gruppe ist belegt, die vom
+# Composite durchgelassene nicht. Die Signale, die die Confidence ablehnt,
+# sind besser als die, die sie annimmt.
+#
+# Die Confidence bleibt auch hier unverändert — die Empfehlung entsteht
+# daneben, nicht durch Verbiegen der Messgröße.
+MEAN_REVERSION_SCHWELLE = 0.5
+# Ab diesem normierten Trend-Score gilt das Setup als "gegen den Trend" —
+# die klassische Mean-Reversion-Konstellation mit dem größten Vorsprung.
+MEAN_REVERSION_TREND_SCHWELLE = -0.5
+
+
+# ---------------------------------------------------------------------------
 # Gewichtung der Kategorien
 # ---------------------------------------------------------------------------
 
@@ -237,14 +336,31 @@ def _score_oscillators(close, high, low, result: ScoreResult):
             result.checklist.append({"Indikator": "RSI (14)", "Wert": f"{rsi_val:.1f}",
                 "Signal": "Neutraler Bereich", "Beitrag": "0"})
 
+    # Stochastic floss bisher in cat_scores und cat_max ein, ohne jemals in
+    # signals oder der Checkliste zu erscheinen — er war damit für das
+    # Indikator-Leaderboard unsichtbar und belegte trotzdem ein Drittel des
+    # Oszillator-Nenners. Bewertung unverändert, nur jetzt nachvollziehbar.
+    stoch_overbought = False
+    stoch_oversold = False
+    stoch_val = None
     k_line, _ = calc_stochastic(high, low, close)
     if not k_line.dropna().empty:
         last_k = float(k_line.dropna().iloc[-1])
+        stoch_val = last_k
         result.cat_max["oscillator"] += 1
         if last_k > 80:
             result.cat_scores["oscillator"] -= 1
+            stoch_overbought = True
+            result.checklist.append({"Indikator": "Stochastic (14)", "Wert": f"{last_k:.1f}",
+                "Signal": "Überkauft (Erhöhtes Rückschlagrisiko)"})
         elif last_k < 20:
             result.cat_scores["oscillator"] += 1
+            stoch_oversold = True
+            result.checklist.append({"Indikator": "Stochastic (14)", "Wert": f"{last_k:.1f}",
+                "Signal": "Überverkauft (Chance auf Rebound)"})
+        else:
+            result.checklist.append({"Indikator": "Stochastic (14)", "Wert": f"{last_k:.1f}",
+                "Signal": "Neutraler Bereich", "Beitrag": "0"})
 
     upper, middle, lower = calc_bollinger(close)
     bollinger_state = "Neutral"
@@ -271,6 +387,9 @@ def _score_oscillators(close, high, low, result: ScoreResult):
         "rsi_oversold": rsi_oversold,
         "rsi_val": rsi_val,
         "bollinger_state": bollinger_state,
+        "stoch_overbought": stoch_overbought,
+        "stoch_oversold": stoch_oversold,
+        "stoch_val": stoch_val,
     })
 
 
@@ -304,29 +423,43 @@ def _score_volume(high, low, close, volume, result: ScoreResult):
             result.checklist.append({"Indikator": "OBV Trend", "Wert": "Neutral",
                 "Signal": "Kein klarer Volumentrend"})
 
-        result.cat_max["volume"] += 1
-        if flow.get("vwap_signal") == "bullish":
+        # VWMA: "nicht bullisch" ist nicht dasselbe wie "bearisch". Ohne
+        # VWAP-Wert liefert calc_order_flow "neutral" — das floss bisher über
+        # den else-Zweig als volles Verkaufssignal in den Score ein und zählte
+        # zugleich in cat_max, verschob also auch die Normalisierung.
+        vwap_signal = flow.get("vwap_signal")
+        if vwap_signal == "bullish":
+            result.cat_max["volume"] += 1
             result.cat_scores["volume"] += 1
             vwap_bullish = True
             result.checklist.append({"Indikator": "VWMA (20T)", "Wert": "Kurs > VWMA",
                 "Signal": "Käufer dominieren den Durchschnitt"})
-        else:
+        elif vwap_signal == "bearish":
+            result.cat_max["volume"] += 1
             result.cat_scores["volume"] -= 1
             result.checklist.append({"Indikator": "VWMA (20T)", "Wert": "Kurs < VWMA",
                 "Signal": "Verkäufer dominieren den Durchschnitt"})
+        else:
+            result.checklist.append({"Indikator": "VWMA (20T)", "Wert": "—",
+                "Signal": "Kein VWMA berechenbar", "Beitrag": "0"})
 
         poc = flow.get("poc_price")
         if poc:
-            result.cat_max["volume"] += 1
             if current_price > poc:
+                result.cat_max["volume"] += 1
                 result.cat_scores["volume"] += 1
                 poc_bullish = True
                 result.checklist.append({"Indikator": "Volumen-Cluster (POC)", "Wert": f"{poc:,.2f}",
                     "Signal": "Kurs oberhalb des stärksten Volumens"})
-            else:
+            elif current_price < poc:
+                result.cat_max["volume"] += 1
                 result.cat_scores["volume"] -= 1
                 result.checklist.append({"Indikator": "Volumen-Cluster (POC)", "Wert": f"{poc:,.2f}",
                     "Signal": "Kurs unterhalb des stärksten Volumens"})
+            else:
+                # Kurs exakt auf dem POC — keine Richtungsaussage.
+                result.checklist.append({"Indikator": "Volumen-Cluster (POC)", "Wert": f"{poc:,.2f}",
+                    "Signal": "Kurs exakt am stärksten Volumen", "Beitrag": "0"})
 
     result.signals.update({
         "obv_bullish": obv_bullish,
@@ -816,6 +949,73 @@ def _finalize_score(result: ScoreResult):
     else:
         score_label = "Meiden"
         confidence_label = "Sehr schwache Confidence — kein Kaufsignal"
+
+    # ── Oszillator entscheidet über die Empfehlung ───────────────
+    # Der Oszillator ist die einzige Kategorie mit belegtem Vorsprung, also
+    # richtet sich die Empfehlung nach ihm — in beide Richtungen:
+    #
+    #   sperrt  — hohe Confidence ohne Oszillator-Deckung entsteht rein aus
+    #             Trend und Volumen; diese Kombination schnitt messbar
+    #             schlechter ab als Zufall (Band 60–74: -1,4 pp).
+    #   befördert — ein tragender Oszillator bei niedriger Confidence ist die
+    #             Mean-Reversion-Konstellation; sie war bisher unerreichbar,
+    #             weil Trend und Volumen die Confidence nach unten ziehen.
+    #
+    # Die Confidence bleibt in beiden Fällen unangetastet. Sie ist die
+    # Messgröße, an der sich diese Logik überprüfen lassen muss — sie zu
+    # verbiegen würde den Maßstab zerstören, an dem sie zu bewerten ist.
+    osz_max = result.cat_max.get("oscillator", 0)
+    osz_normiert = (result.cat_scores.get("oscillator", 0) / osz_max) if osz_max > 0 else None
+    osz_traegt = (osz_normiert is not None
+                  and osz_normiert >= OSZILLATOR_GATE_SCHWELLE)
+
+    trend_max = result.cat_max.get("trend", 0)
+    trend_normiert = (result.cat_scores.get("trend", 0) / trend_max) if trend_max > 0 else None
+    gegen_trend = (trend_normiert is not None
+                   and trend_normiert <= MEAN_REVERSION_TREND_SCHWELLE)
+
+    mean_reversion = False
+
+    if confidence >= 60 and not osz_traegt:
+        # Gesperrt: Confidence ohne Oszillator-Deckung.
+        score_label = "Kein Einstieg"
+        if osz_normiert is None:
+            confidence_label = (f"Confidence {confidence:.0f} — Oszillator nicht "
+                                "berechenbar, keine Kaufempfehlung")
+        else:
+            confidence_label = (f"Confidence {confidence:.0f}, aber vom Oszillator "
+                                "nicht getragen — kein Kaufsignal")
+        result.checklist.append({
+            "Indikator": "Oszillator-Gate",
+            "Wert": ("—" if osz_normiert is None else f"{osz_normiert:+.2f}"),
+            "Signal": ("Trend/Volumen tragen die Confidence, der Oszillator nicht — "
+                       "ohne ihn ist kein Vorsprung belegt"),
+            "Beitrag": "Info",
+        })
+
+    elif confidence < 60 and osz_traegt:
+        # Befördert: Mean-Reversion-Setup trotz niedriger Confidence.
+        mean_reversion = True
+        score_label = "Mean-Reversion-Setup"
+        confidence_label = (
+            f"Confidence {confidence:.0f} — vom Oszillator getragen"
+            + (" und gegen den Trend" if gegen_trend else ""))
+        result.checklist.append({
+            "Indikator": "Mean-Reversion-Setup",
+            "Wert": f"{osz_normiert:+.2f}",
+            "Signal": ("Überverkauft gegen den Trend — stärkster belegter Vorsprung"
+                       if gegen_trend else
+                       "Oszillator trägt trotz niedriger Gesamt-Confidence"),
+            "Beitrag": "Info",
+        })
+
+    result.signals.update({
+        "oscillator_normiert": osz_normiert,
+        "oscillator_gate_offen": osz_traegt,
+        "trend_normiert": trend_normiert,
+        "mean_reversion_setup": mean_reversion,
+        "mean_reversion_gegen_trend": mean_reversion and gegen_trend,
+    })
 
     result.confidence = confidence
     result.score = score

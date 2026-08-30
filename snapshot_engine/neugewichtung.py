@@ -111,7 +111,11 @@ def outcomes_neu_bewerten(db: Session, block: int = 10000) -> int:
     for index, (outcome, richtungssignal, kurs_start) in enumerate(zeilen, start=1):
         if outcome.outcome_kurs is None:
             continue
-        neu = erfolg_bewerten(richtungssignal, kurs_start, outcome.outcome_kurs)
+        # Gegen dieselbe Basis bewerten, gegen die outcome_return gerechnet
+        # wurde. Sonst könnten Treffer-Flag und Return einander widersprechen,
+        # wenn zwischen Snapshot und Fälligkeit ein Split lag.
+        basis = outcome.basis_kurs if outcome.basis_kurs else kurs_start
+        neu = erfolg_bewerten(richtungssignal, basis, outcome.outcome_kurs)
         if neu != outcome.war_erfolgreich:
             outcome.war_erfolgreich = neu
             geaendert += 1
