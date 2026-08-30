@@ -1,6 +1,6 @@
 # CONTEXT.md — Arbeitsstand Signal-Engine
 
-_Stand: 2026-08-30 · HEAD `6f2f3db` · Branch `signal-engine-overhaul` (= `main`)_
+_Stand: 2026-08-30 · HEAD `1a61cf5` · Branch `signal-engine-overhaul` (= `main`)_
 
 Übergabedatei für eine frische Claude-Session. Sie beantwortet drei Fragen:
 **Was ist erledigt, was ist offen, und was darf nicht noch einmal neu hergeleitet
@@ -26,20 +26,20 @@ Liegt der Baum zurück: **nicht eigenmächtig wiederherstellen.** Erst fragen.
 `git stash push -- <pfade>` ist rücknehmbar, `git checkout HEAD -- <pfade>` nicht.
 Der damalige Rollback liegt in `stash@{0}`.
 
-### b) `.gitignore` ist beschädigt — WAL-Dateien landen im Repo
+### b) `.gitignore` — repariert, Historie noch belastet
 
-Commit `6f2f3db` hat die Regeln `*.db-wal` und `*.db-shm` aus `.gitignore`
-entfernt und im selben Zug eine **37,3 MB große WAL-Datei** eingecheckt. Der
-gelöschte Kommentar hatte genau davor gewarnt. Folgen:
+Commit `6f2f3db` hatte die Regeln `*.db-wal` und `*.db-shm` aus `.gitignore`
+entfernt und im selben Zug eine **37,3 MB große WAL-Datei** eingecheckt.
+`1a61cf5` hat beide Regeln wiederhergestellt und die Dateien aus dem Index
+genommen — **laufende Commits sind wieder sicher.**
 
-- 37,3 MB Binärdaten dauerhaft in der Git-Historie
-- der Fehler wiederholt sich bei **jedem weiteren Commit**, solange die Regeln fehlen
-- `SIGNAL_ENGINE.md` (220 Zeilen Doku) wurde im selben Commit gelöscht
+Offen bleibt: die 37,3 MB liegen dauerhaft in der Git-Historie, und
+`SIGNAL_ENGINE.md` (220 Zeilen Doku) wurde in `6f2f3db` gelöscht. Ob die
+Historie bereinigt wird (`filter-repo`), ist eine Entscheidung des Besitzers —
+Historie umschreiben nie ungefragt.
 
-**Vor dem nächsten Commit die beiden Regeln in `.gitignore` wiederherstellen**
-und `git rm --cached data/macrodashboard.db-wal data/macrodashboard.db-shm`
-ausführen. Ob die Historie bereinigt wird (`filter-repo`), ist eine Entscheidung
-des Besitzers — Historie umschreiben nie ungefragt.
+Vor jedem Commit trotzdem prüfen, dass die beiden Regeln noch in `.gitignore`
+stehen: sie sind schon einmal unbemerkt verschwunden.
 
 ### c) Pushes gehen auf `main`
 
@@ -127,6 +127,7 @@ Der Vorteil ist **long-only**. Die Short-Seite ist auf jeder Schwelle Rauschen.
 | PC-01 Trend-Guard bei fehlender SMA 200 | `services/scoring_engine_v2.py` |
 | PC-02 `data_quality` als Qualifier | `services/scoring_engine_v2.py` |
 | PC-03 RSI-Klippe entfernt | `services/scoring_engine_v2.py` |
+| **P3-03 Positionspfad instrumentiert** | `snapshot_engine/position_snapshot.py` |
 
 **Wichtig:** Es existiert **noch kein einziger Snapshot mit `score_version` 2.0.0**
 — alle 88.033 tragen 1.0.0. Die Out-of-Sample-Prüfung des Gates beginnt erst mit
@@ -145,8 +146,15 @@ dem nächsten Scheduler-Lauf (18:30). Bis dahin sind alle Gate-Zahlen in-sample.
 ### B. Die strukturelle Ursache (Gate umgeht sie, löst sie nicht)
 - **BC-01/02/03 + P2-04** sechs korrelierte Momentum-Messungen dominieren drei meist stille Oszillator-Slots. Das Gate filtert obenauf; der Composite darunter bleibt fehlkomponiert. **Größter offener Posten, architektonisch.**
 
-### C. Positionspfad — kaum begonnen
-- **P3-03** erzeugt keine Snapshots → seine zwölf Gewichte sind nicht validierbar. **Gatekeeper für B, C und D unten.**
+### C. Positionspfad — Messung läuft, Auswertung fehlt
+- ~~**P3-03** erzeugt keine Snapshots~~ → erledigt, siehe §3. Ab jetzt schreibt
+  jede Positionsanalyse einen Snapshot mit `analyse_modus = BESTEHENDE_POSITION`.
+  **Der Bestand ist aber leer:** die ersten Outcomes werden erst 7 Tage nach dem
+  ersten erfassten Aufruf fällig, belastbare Zahlen dauern entsprechend länger.
+- **P3-05 (neu)** keine Auswertungsfläche für `BESTEHENDE_POSITION`. Die Daten
+  laufen auf, gelesen werden sie noch nirgends — `/signals` und alle Abfragen in
+  `auswertung/` filtern bewusst auf `NEUE_POSITION`. Nächster Schritt, sobald
+  genug Zeilen fällig geworden sind.
 - **P3-01** keine Stop-Historie → Ratchet wirkungslos, R-Multiple/MAE/MFE unberechenbar
 - **P3-02** SHORT-Pfad unerreichbar (`side = PositionSide.LONG` fest verdrahtet)
 - **PC-04** ADX wird hier gerichtet gewertet — genau umgekehrt zur Entry-Engine, die ihn als Info führt
@@ -175,11 +183,14 @@ Arbeit inline erledigt, was sie langsam und einmalig statt wiederholbar macht.
 
 ## 5. Empfohlener nächster Schritt
 
-**P3-03 — den Positionspfad instrumentieren.** Als einziger Posten schaltet er
-eine ganze Phase frei, und jeder Tag ohne ihn ist ein Tag ohne Evidenz.
-Messungen lassen sich für bereits getroffene Entscheidungen nicht nachholen.
+**P1-05 — Train/Holdout-Split.** Ohne Holdout bleibt jede Gewichtsanpassung
+wertlos, weil sie sich gegen sich selbst validiert. Das gilt jetzt für beide
+Pfade: der Positionspfad sammelt seit P3-03 Evidenz, und die erste Auswertung
+soll nicht in dieselbe In-sample-Falle laufen wie die Gate-Zahlen.
 
-Danach **P1-05**, weil ohne Holdout jede Gewichtsanpassung wertlos bleibt.
+P1-05 hat außerdem den richtigen Zeitpunkt: er braucht keine neuen Daten,
+während P3-05 (Auswertungsfläche Positionspfad) ohnehin warten muss, bis die
+ersten Positions-Outcomes fällig geworden sind.
 
 **Nicht** mit dem Vorschlagspanel für Gewichte anfangen: DX-01 zeigt, dass
 Gewichtstuning an dieser Architektur eine Decke hat, und ohne P1-05 validiert es
@@ -206,6 +217,16 @@ Alle Routen müssen 200 liefern. Skills unter `.claude/skills/`: `ship-check`,
 
 - **Score-Version erhöhen**, wenn aus denselben Kursdaten ein anderer `cat_score`
   entstünde. **Nicht** bei reinen Gewichtsänderungen — `neugewichtung.py` kann
-  die Confidence aus gespeicherten `cat_scores` exakt neu rechnen.
+  die Confidence aus gespeicherten `cat_scores` exakt neu rechnen. Es gibt zwei
+  davon: `scoring.SCORE_VERSION` (Einstieg) und
+  `scoring_engine_v2.POSITION_SCORE_VERSION` (Position). Beide landen im Feld
+  `score_version`; unterschieden werden sie über `analyse_modus`.
+- **Nach `analyse_modus` filtern**, sobald eine Abfrage Trefferquoten,
+  Kalibrierung oder Indikator-Statistik berechnet. `NEUE_POSITION` und
+  `BESTEHENDE_POSITION` sind zwei Bewertungssysteme in einer Tabelle: andere
+  Confidence-Bedeutung, andere Herkunft des Richtungssignals, andere Einheit in
+  `beitrag_numeric`. Ungefiltert mitteln sie beides zusammen. Einzige gewollte
+  Ausnahme ist `outcomes_nachtragen` — der Nachtrag ist reine Kursarbeit und
+  gilt für jede fällige Zeile.
 - **Kommentare und Commits auf Deutsch.** Diese Datei und `CLAUDE.md` sind die
   Ausnahme (Meta-Dokumentation, wie `REVIEW.md`).

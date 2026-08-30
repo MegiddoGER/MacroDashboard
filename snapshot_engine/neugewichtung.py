@@ -17,6 +17,17 @@ Einschränkung — nur HISTORISCH:
     daher nicht exakt reproduzierbar. HISTORISCH-Snapshots enthalten kein
     Sentiment, dort kann die Regel nie ausgelöst haben — die Neuberechnung ist
     dort exakt.
+
+Einschränkung — nur NEUE_POSITION:
+    Alle Abfragen filtern zusätzlich auf den Einstiegspfad. Der Positionspfad
+    (BESTEHENDE_POSITION) speichert zwölf Teilscores statt fünf
+    Kategorie-Scores und leitet sein Richtungssignal aus der Empfehlung ab,
+    nicht aus der Confidence — `confidence_berechnen` und
+    `richtung_aus_confidence` sind auf ihn schlicht nicht anwendbar.
+    Rechnerisch greift dieser Filter heute nie (Positions-Snapshots sind immer
+    LIVE), er steht bewusst trotzdem da: `richtung_neu_bewerten` SCHREIBT, und
+    ein stillschweigend über den Datenmodus mitgeschützter Schreibpfad ist
+    eine Falle für die erste Änderung, die diese Kopplung löst.
 """
 
 import json
@@ -25,7 +36,7 @@ from typing import Optional
 
 from sqlalchemy.orm import Session
 
-from snapshot_engine.models import AnalyseSnapshot, Datenmodus
+from snapshot_engine.models import AnalyseModus, AnalyseSnapshot, Datenmodus
 
 logger = logging.getLogger(__name__)
 
@@ -67,6 +78,7 @@ def neugewichtung_pruefen(db: Session, stichprobe: int = 3000) -> dict:
         db.query(AnalyseSnapshot.confidence, AnalyseSnapshot.indikator_json,
                  AnalyseSnapshot.cat_max_json, AnalyseSnapshot.weights_json)
         .filter(AnalyseSnapshot.datenmodus == Datenmodus.HISTORISCH)
+        .filter(AnalyseSnapshot.analyse_modus == AnalyseModus.NEUE_POSITION)
         .limit(stichprobe).all()
     )
 
@@ -103,6 +115,7 @@ def outcomes_neu_bewerten(db: Session, block: int = 10000) -> int:
                  AnalyseSnapshot.kurs_bei_snapshot)
         .join(AnalyseSnapshot, AnalyseSnapshot.id == AnalyseSnapshotOutcome.snapshot_id)
         .filter(AnalyseSnapshot.datenmodus == Datenmodus.HISTORISCH)
+        .filter(AnalyseSnapshot.analyse_modus == AnalyseModus.NEUE_POSITION)
         .filter(AnalyseSnapshotOutcome.ausgewertet.is_(True))
         .all()
     )
@@ -157,6 +170,7 @@ def historische_snapshots_neu_gewichten(
     snapshots = (
         db.query(AnalyseSnapshot)
         .filter(AnalyseSnapshot.datenmodus == Datenmodus.HISTORISCH)
+        .filter(AnalyseSnapshot.analyse_modus == AnalyseModus.NEUE_POSITION)
         .all()
     )
 

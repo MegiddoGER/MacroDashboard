@@ -22,8 +22,8 @@ from snapshot_engine.auswertung import (
 from snapshot_engine.auswertung.gate import gate_wirkung
 from snapshot_engine.auswertung.indikator_stats import basisrate
 from snapshot_engine.models import (
-    HORIZONTE_TAGE, AnalyseSnapshot, AnalyseSnapshotOutcome, BackfillStatus,
-    Datenmodus, KonfigModus, SnapshotKonfiguration,
+    HORIZONTE_TAGE, AnalyseModus, AnalyseSnapshot, AnalyseSnapshotOutcome,
+    BackfillStatus, Datenmodus, KonfigModus, SnapshotKonfiguration,
 )
 
 logger = logging.getLogger(__name__)
@@ -67,7 +67,14 @@ async def uebersicht(request: Request,
         fazit = kalibrierung_bewerten(kalibrierung)
 
         pro_seite = 50
-        query = session.query(AnalyseSnapshot)
+        # Diese Seite wertet ausschließlich den Einstiegspfad aus — alle
+        # Kennzahlen-, Kalibrierungs- und Gate-Abfragen darüber filtern
+        # ebenso auf NEUE_POSITION. Die Snapshots des Positionspfads
+        # (BESTEHENDE_POSITION) tragen eine andere Confidence-Bedeutung und
+        # eine eigene Score-Version; sie brauchen eine eigene Auswertung und
+        # dürfen hier nicht mitgezählt werden.
+        query = session.query(AnalyseSnapshot).filter(
+            AnalyseSnapshot.analyse_modus == AnalyseModus.NEUE_POSITION)
         if modus:
             query = query.filter(AnalyseSnapshot.datenmodus == modus)
         gesamt = query.count()
@@ -328,6 +335,7 @@ async def export_csv(request: Request):
             .join(AnalyseSnapshotOutcome,
                   AnalyseSnapshotOutcome.snapshot_id == AnalyseSnapshot.id)
             .filter(AnalyseSnapshotOutcome.ausgewertet.is_(True))
+            .filter(AnalyseSnapshot.analyse_modus == AnalyseModus.NEUE_POSITION)
             .order_by(AnalyseSnapshot.snapshot_zeitpunkt.desc())
             .all()
         )

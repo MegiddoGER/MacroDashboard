@@ -41,9 +41,29 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 class AnalyseModus:
-    """Welcher Analyse-Typ wurde bewertet."""
-    NEUE_POSITION = "NEUE_POSITION"        # /analysis/new — Phase 1
-    # Phase 2 (später): BESTEHENDE_POSITION = "BESTEHENDE_POSITION"
+    """Welcher Analyse-Typ wurde bewertet.
+
+    Die beiden Modi sind KEINE Varianten derselben Prognose, sondern zwei
+    verschiedene Systeme in einer Tabelle:
+
+      NEUE_POSITION        Einstiegs-Score aus services/scoring.py.
+                           `confidence` 0–100 aus fünf Kategorie-Scores,
+                           `richtungssignal` daraus über die 40/60-Schwellen
+                           abgeleitet (richtung_aus_confidence).
+      BESTEHENDE_POSITION  Positions-Score aus services/scoring_engine_v2.py.
+                           `confidence` ist der Overall-Score aus zwölf
+                           Teilscores, `richtungssignal` stammt dagegen aus
+                           der Empfehlung (richtung_aus_empfehlung) — Score
+                           und Richtung sind hier entkoppelt.
+
+    Auch `score_version` und die Einheit von `beitrag_numeric` unterscheiden
+    sich je Modus. Jeder Lesepfad, der Trefferquoten oder Kalibrierung
+    berechnet, MUSS deshalb nach `analyse_modus` filtern — genauso wie nach
+    `datenmodus` (siehe Look-Ahead-Hinweis im Modulkopf). Ein ungefilterter
+    Mittelwert über beide Modi mischt zwei Bewertungssysteme.
+    """
+    NEUE_POSITION = "NEUE_POSITION"                # /analysis/new
+    BESTEHENDE_POSITION = "BESTEHENDE_POSITION"    # /analysis/position
 
 
 class Datenmodus:
@@ -57,7 +77,8 @@ class ErstelltVon:
     SCHEDULER = "SCHEDULER"
     BACKFILL = "BACKFILL"
     MANUELL = "MANUELL"
-    ANALYSE_SEITE = "ANALYSE_SEITE"
+    ANALYSE_SEITE = "ANALYSE_SEITE"        # /analysis/new
+    POSITIONS_SEITE = "POSITIONS_SEITE"    # /analysis/position
     MIGRATION = "MIGRATION"
 
 

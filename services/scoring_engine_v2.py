@@ -27,6 +27,48 @@ from services.position_types import (
 DATENQUALITAET_WARNSCHWELLE = 70.0
 
 
+# Version der Positions-Scoring-Formel. Eigener Namensraum neben
+# services.scoring.SCORE_VERSION: beide landen im Feld `score_version` eines
+# Snapshots, unterschieden durch `analyse_modus` (NEUE_POSITION vs.
+# BESTEHENDE_POSITION). Gleiche Konvention wie dort — erhöhen, wenn aus
+# denselben Eingaben ein anderer Teilscore entstünde, NICHT bei reinen
+# Gewichtsänderungen: die Gewichte werden je Snapshot mitgeschrieben und
+# lassen sich aus den gespeicherten Teilscores exakt neu verrechnen.
+#
+# Changelog:
+#   1.0.0 — Erstfassung. Entspricht dem Stand, den die zwölf Teilscores seit
+#           PC-01/PC-02/PC-03 tragen: Trend-Guard bei fehlender SMA 200,
+#           data_quality als Qualifier statt Summand, RSI ohne Klippe.
+POSITION_SCORE_VERSION = "1.0.0"
+
+
+# Gewichte des Overall-Scores. Die elf Slots summieren sich auf 0,98 — der
+# Nenner wird ohnehin über die tatsächlich verfügbaren Scores normalisiert,
+# eine Summe von exakt 1 ist daher keine Voraussetzung.
+#
+# data_quality fehlt hier bewusst. Es beschreibt, wie belastbar die anderen
+# Scores sind, nicht wie gut die Position ist — zwei verschiedene Aussagen,
+# die sich nicht sinnvoll mitteln lassen. Mit dem früheren Gewicht von 0.02
+# war es ohnehin wirkungslos: über die gesamte Spanne von vollständigen zu
+# fehlenden Daten bewegte es den Overall-Score um rund 0,2 Punkte. Die
+# Unsicherheit wird stattdessen über has_data_warning ausgewiesen — wie
+# has_critical_warning, das aus demselben Grund neben dem Score steht und
+# nicht in ihm.
+POSITION_GEWICHTE: dict[str, float] = {
+    "trend_health": 0.20,
+    "momentum": 0.10,
+    "volume_structure": 0.10,
+    "relative_strength": 0.05,
+    "valuation": 0.10,
+    "balance_sheet": 0.05,
+    "quality_profitability": 0.05,
+    "sentiment": 0.05,
+    "risk_management": 0.15,
+    "target_quality": 0.10,
+    "event_risk": 0.03,
+}
+
+
 def _clamp(val: float, lo: float = 0.0, hi: float = 100.0) -> float:
     return max(lo, min(hi, val))
 
@@ -298,34 +340,16 @@ def calc_position_scores(
         s.has_data_warning = True
 
     # ── Overall Score ────────────────────────────────────────────
-    # Gewichteter Durchschnitt der verfügbaren Scores
-    weights_and_scores = [
-        (0.20, s.trend_health),
-        (0.10, s.momentum),
-        (0.10, s.volume_structure),
-        (0.05, s.relative_strength),
-        (0.10, s.valuation),
-        (0.05, s.balance_sheet),
-        (0.05, s.quality_profitability),
-        (0.05, s.sentiment),
-        (0.15, s.risk_management),
-        (0.10, s.target_quality),
-        (0.03, s.event_risk),
-        # data_quality ist bewusst NICHT enthalten. Es beschreibt, wie
-        # belastbar die anderen Scores sind, nicht wie gut die Position ist —
-        # zwei verschiedene Aussagen, die sich nicht sinnvoll mitteln lassen.
-        #
-        # Mit dem früheren Gewicht von 0.02 war es ohnehin wirkungslos: über
-        # die gesamte Spanne von vollständigen zu fehlenden Daten bewegte es
-        # den Overall-Score um rund 0,2 Punkte. Die Unsicherheit war damit
-        # weder im Score sichtbar noch als Warnung greifbar. Sie wird jetzt
-        # über has_data_warning ausgewiesen — wie has_critical_warning, das
-        # aus demselben Grund neben dem Score steht und nicht in ihm.
-    ]
+    # Gewichteter Durchschnitt der verfügbaren Scores. Die Gewichte stehen
+    # als POSITION_GEWICHTE am Modulkopf, damit der Snapshot sie mitschreiben
+    # kann — ohne gespeicherte Gewichte wäre später nicht rekonstruierbar,
+    # welche Gewichtung einen Overall-Score erzeugt hat.
+    verfuegbar = s.to_dict()
 
     total_weight = 0.0
     weighted_sum = 0.0
-    for weight, score in weights_and_scores:
+    for name, weight in POSITION_GEWICHTE.items():
+        score = verfuegbar.get(name)
         if score is not None:
             weighted_sum += weight * score
             total_weight += weight

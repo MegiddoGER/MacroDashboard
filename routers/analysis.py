@@ -466,13 +466,18 @@ def _build_analysis_context(raw_input: str, time_filter: str) -> dict | str:
         unnötig an externe APIs koppelte.
         """
         from database import get_session
-        from snapshot_engine.models import AnalyseSnapshot
+        from snapshot_engine.models import AnalyseModus, AnalyseSnapshot
         session = get_session()
         try:
             return [
                 s.to_dict() for s in (
                     session.query(AnalyseSnapshot)
                     .filter(AnalyseSnapshot.ticker == ticker.upper())
+                    # Nur Einstiegs-Snapshots. Diese Seite zeigt die Historie
+                    # des Einstiegs-Scores; Positions-Snapshots tragen eine
+                    # andere Confidence-Bedeutung und ein Richtungssignal aus
+                    # der Empfehlung — gemischt wäre die Liste unlesbar.
+                    .filter(AnalyseSnapshot.analyse_modus == AnalyseModus.NEUE_POSITION)
                     .order_by(AnalyseSnapshot.snapshot_zeitpunkt.desc())
                     .limit(5).all()
                 )
@@ -1040,6 +1045,36 @@ def _build_position_analysis_context(
             "modifier_badge": "Mittlere Position (5–15% Portfolio)",
             "volume_modifier": volume_modifier,
         }
+
+    # Snapshot des Positionspfads (P3-03). Ohne ihn war keine der zwölf
+    # Gewichtungen des Positions-Scores je gegen ein Ergebnis prüfbar — die
+    # Messung lässt sich für vergangene Aufrufe nicht nachholen.
+    #
+    # Die Kadenz-Regel prüft gegen die neue Richtung, nicht nur gegen das
+    # Datum: ein Kippen von "halten" auf "verkaufen" ist ein echtes Ereignis
+    # und soll erfasst werden, auch wenn der letzte Snapshot jung ist.
+    try:
+        if position_analysis is not None:
+            from database import get_session
+            from snapshot_engine.position_snapshot import (
+                ist_position_snapshot_faellig, position_snapshot_erfassen,
+                richtung_aus_empfehlung,
+            )
+            richtung = richtung_aus_empfehlung(
+                getattr(position_analysis.recommendation, "primary", None),
+                side=position_analysis.side,
+            )
+            session = get_session()
+            try:
+                if ist_position_snapshot_faellig(session, ticker, richtung):
+                    position_snapshot_erfassen(
+                        session, ticker, position_analysis,
+                        kurs=current_price,
+                    )
+            finally:
+                session.close()
+    except Exception as exc:
+        warnings.warn(f"Positions-Snapshot für {ticker} fehlgeschlagen: {exc}")
 
     ctx = {
         "ticker": ticker,
