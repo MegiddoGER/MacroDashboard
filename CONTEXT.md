@@ -147,7 +147,7 @@ ist deshalb weiterhin **unangetastet**.
 | Was | Wo |
 |---|---|
 | Sektor-Normalisierung (yfinance vs. GICS) | `services/sector_map.py` |
-| Score-Versionierung, aktuell **2.0.0** | `services/scoring.py`, Changelog im Kopf |
+| Score-Versionierung, aktuell **2.1.0** | `services/scoring.py`, Changelog im Kopf |
 | Split-sichere Outcome-Basis | `snapshot_engine/snapshot_service.py` |
 | Kalibrierungs-Fazit gegen die Basisrate | `snapshot_engine/auswertung/kalibrierung.py` |
 | Fehlerspannen + Signifikanz | `snapshot_engine/auswertung/basis.py` |
@@ -164,9 +164,11 @@ ist deshalb weiterhin **unangetastet**.
 | **P1-05 Train/Holdout-Trennung** | `snapshot_engine/auswertung/holdout.py` |
 | **P1-07 Schwellensuche auf dem Trainingsteil** | `snapshot_engine/auswertung/schwellensuche.py` |
 
-**Wichtig:** Es existiert **noch kein einziger Snapshot mit `score_version` 2.0.0**
-— alle 88.033 tragen 1.0.0. Die Out-of-Sample-Prüfung des Gates beginnt erst mit
-dem nächsten Scheduler-Lauf (18:30). Bis dahin sind alle Gate-Zahlen in-sample.
+**Wichtig:** Alle 88.033 Bestands-Snapshots tragen `score_version` 1.0.0 — es
+gibt weder welche mit 2.0.0 noch mit 2.1.0. Der sperrende Zweig hat also nie
+einen einzigen gespeicherten Snapshot beeinflusst; er wirkte ausschließlich auf
+die angezeigte Empfehlung. Neue Snapshots ab dem nächsten Scheduler-Lauf tragen
+2.1.0.
 
 ---
 
@@ -181,11 +183,12 @@ dem nächsten Scheduler-Lauf (18:30). Bis dahin sind alle Gate-Zahlen in-sample.
   Ergebnis **negativ** (siehe §2a). Es gibt keine belegbare Gate-Schwelle;
   `gate.SCHWELLE_BESTIMMT_AM` bleibt daher `None`. Der Holdout wurde **nicht**
   angefasst — es gab nichts zu bestätigen.
-- **P1-08 (neu)** das Gate steht in `services/scoring.py` weiter aktiv
-  (SCORE_VERSION 2.0.0), obwohl sein sperrender Zweig keinen belegbaren Nutzen
-  hat. Zu entscheiden: sperrenden Zweig entfernen und nur die Beförderung
-  behalten, oder das Gate ganz zurückbauen. **Produktentscheidung des
-  Besitzers**, keine reine Technikfrage — deshalb nicht eigenmächtig geändert.
+- ~~**P1-08** über das Gate entscheiden~~ → entschieden und umgesetzt: der
+  **sperrende Zweig ist entfallen** (SCORE_VERSION **2.1.0**), die
+  Mean-Reversion-Beförderung bleibt. Eine hohe Confidence ohne
+  Oszillator-Deckung wird nicht mehr zu „Kein Einstieg" herabgestuft; der
+  Oszillator erscheint dort nur noch als Hinweis in der Checkliste. Wirkung:
+  spürbar mehr Kaufempfehlungen als unter 2.0.0.
 - **P1-04** keine Benchmark-Rendite je Outcome — Trefferquoten sind absolut, kein Alpha
 - **P1-06** ein 30-Tage-Takt für alle Kategorien, unabhängig von der Signal-Halbwertszeit
 - **P1-03** Backfill kennt kein Sentiment, misst also ein anderes System als das laufende (Designentscheidung offen)
@@ -230,13 +233,7 @@ Arbeit inline erledigt, was sie langsam und einmalig statt wiederholbar macht.
 
 ## 5. Empfohlener nächster Schritt
 
-**P1-08 — über das Gate entscheiden.** §2a zeigt, dass sein sperrender Zweig
-keinen belegbaren Nutzen hat, während der befördernde trägt. Die Möglichkeiten:
-den sperrenden Zweig entfernen und nur die Beförderung behalten; oder das Gate
-ganz zurückbauen. Beides ändert ausgegebene Empfehlungen — eine Entscheidung
-des Besitzers, keine Technikfrage.
-
-Danach lohnt **P1-04** (Benchmark-Rendite je Outcome). §2a legt nahe, dass ein
+**P1-04 — Benchmark-Rendite je Outcome.** §2a legt nahe, dass ein
 guter Teil der gemessenen Unterschiede schlicht verschiedene Marktphasen sind:
 die Basisrate allein wandert zwischen Training (54,8) und Gesamtbestand (55,5).
 Ohne Benchmark je Beobachtung lässt sich Marktbewegung nicht von Signalqualität

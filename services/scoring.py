@@ -39,6 +39,14 @@ from dataclasses import dataclass, field
 # Verfälschung, die die Signal-Engine aufdecken soll.
 #
 # Änderungshistorie:
+#   2.1.0 — Der sperrende Zweig des Oszillator-Gates entfällt. Eine hohe
+#           Confidence ohne Oszillator-Deckung wird nicht mehr zu
+#           "Kein Einstieg" herabgestuft: der Nachweis dafür stammte aus dem
+#           Gesamtbestand und hielt der Train/Holdout-Trennung nicht stand
+#           (−0,3 pp ±4,6 auf dem Trainingsteil, CONTEXT.md §2a). Die
+#           Beförderung des Mean-Reversion-Setups bleibt — sie ist die einzige
+#           Konstellation mit belegtem Vorsprung. Die Confidence-Zahl bleibt
+#           unverändert; es ändern sich Empfehlungen, nicht Scores.
 #   2.0.0 — Oszillator-Gate: eine Kaufempfehlung wird nur noch ausgegeben,
 #           wenn der Oszillator sie trägt (siehe OSZILLATOR_GATE_SCHWELLE).
 #           Die Confidence-Zahl selbst bleibt unverändert.
@@ -50,36 +58,47 @@ from dataclasses import dataclass, field
 #           Stochastic ist unverändert bewertet, wird aber jetzt in signals und
 #           Checkliste geführt — messbar, ohne Score-Wirkung.
 #   1.0.0 — Stand bei Einführung der Versionierung.
-SCORE_VERSION = "2.0.0"
+SCORE_VERSION = "2.1.0"
 
 
 # ---------------------------------------------------------------------------
-# Oszillator-Gate
+# Oszillator-Schwelle (Mean-Reversion-Beförderung)
 # ---------------------------------------------------------------------------
 #
-# Belegt über 83.606 auswertbare historische Beobachtungen (30-Tage-Horizont,
-# gemessen gegen die Basisrate desselben Zeitraums, Signifikanz über die
-# EFFEKTIVE Stichprobe):
+# ACHTUNG — die Zahlen, mit denen diese Schwelle 2.0.0 eingeführt wurde, waren
+# ein Artefakt. Sie stammten aus dem GESAMTBESTAND von 83.606 Beobachtungen.
+# Nach der Train/Holdout-Trennung (P1-05) auf der Trainingshälfte gerechnet
+# (30 Tage, HISTORISCH, Basisrate 54,8, Signifikanz über die EFFEKTIVE
+# Stichprobe) bleibt davon:
 #
-#     Oszillator normiert >= +0.50   n=5.154   eff=1.683   +3,2 pp  ±2,4   belegt
-#     Oszillator normiert >= +0.75   n=1.041   eff=  340   +5,4 pp  ±5,2   belegt
-#     >= +0.50 UND Trend <= -0.50    n=2.452   eff=  800   +4,8 pp  ±3,4   belegt
-#     Gesamtes Universum (Kontrolle) n=83.606  eff=27.311  ±0,0 pp  ±0,6   Rauschen
+#     >= +0.50 allein          n=3.503  eff=1.144   +2,4 pp  ±2,9   RAUSCHEN
+#     >= +0.75 allein          n=  725  eff=  236   +6,2 pp  ±6,2   hauchdünn
+#     >= +0.50 UND conf >= 60  n=1.396  eff=  456   -0,3 pp  ±4,6   RAUSCHEN
+#     >= +0.50 UND conf <  60  n=2.107  eff=  688   +4,2 pp  ±3,7   belegt
 #
-# Warum ein Gate und nicht eine Umgewichtung: die Gewichte sagen bereits
-# oscillator 0,538 — wirksam ist das nicht, weil Trend- und Volumen-Indikatoren
-# auf JEDEM Snapshot ±1 liefern, während RSI und Bollinger nur in rund 11 % der
-# Fälle überhaupt ausschlagen. Eine Kategorie, die meistens 0 ist, kann eine
-# gewichtete Summe nicht bewegen, egal wie hoch sie gewichtet wird. Die
-# Umgewichtung vom 07.08.2026 hat das bereits erfolglos versucht.
+# Der zuvor als belegt geführte Vorsprung von +3,2 pp war nur über den
+# Gesamtbestand signifikant, wo die doppelte Stichprobe die Fehlerspanne
+# schrumpfen lässt. Auf der Hälfte der Daten ist er nicht von Zufall zu
+# unterscheiden. Genau dafür existiert die Trennung.
 #
-# Das Gate greift deshalb an der Empfehlung an, nicht an der Zahl: die
-# Confidence bleibt als zusammengesetzte Messgröße unverändert und
-# vergleichbar — aber eine KAUFempfehlung wird nur ausgegeben, wenn der
-# Oszillator sie trägt.
+# Was bleibt, ist die letzte Zeile: der Oszillator trägt bei NIEDRIGER
+# Confidence. Das ist die Mean-Reversion-Konstellation, und nur sie wird noch
+# ausgewertet. Der sperrende Zweig ist in 2.1.0 entfallen (siehe Changelog).
 #
-# Die Gegenrichtung bleibt bewusst ungenutzt: auf der Short-Seite ist der
-# Vorsprung bei jeder Schwelle Rauschen (>= -0.50: +0,7 pp ±1,8).
+# Die Schwelle 0,50 selbst ist NICHT auf dem Trainingsteil bestimmt worden —
+# sie stammt aus 2.0.0 und ist damit älter als die Holdout-Grenze. Eine Suche
+# über 13 Kandidaten (snapshot_engine/auswertung/schwellensuche.py) fand keine
+# bessere; sie fand überhaupt keine belegbare. 0,50 bleibt daher als
+# unveränderter Erbwert stehen, nicht als optimierter.
+#
+# Warum überhaupt an der Empfehlung und nicht an den Gewichten: oscillator
+# trägt bereits 0,538 Gewicht — wirkungslos, weil Trend- und
+# Volumen-Indikatoren auf JEDEM Snapshot ±1 liefern, während RSI und Bollinger
+# nur in rund 11 % der Fälle ausschlagen. Eine Kategorie, die meistens 0 ist,
+# kann eine gewichtete Summe nicht bewegen, egal wie hoch sie gewichtet wird.
+#
+# Die Gegenrichtung bleibt ungenutzt: auf der Short-Seite ist der Vorsprung bei
+# jeder Schwelle Rauschen (>= -0.50: +0,7 pp ±1,8).
 OSZILLATOR_GATE_SCHWELLE = 0.5
 
 
@@ -950,20 +969,27 @@ def _finalize_score(result: ScoreResult):
         score_label = "Meiden"
         confidence_label = "Sehr schwache Confidence — kein Kaufsignal"
 
-    # ── Oszillator entscheidet über die Empfehlung ───────────────
-    # Der Oszillator ist die einzige Kategorie mit belegtem Vorsprung, also
-    # richtet sich die Empfehlung nach ihm — in beide Richtungen:
+    # ── Oszillator befördert Mean-Reversion ─────────────────────
+    # Ein tragender Oszillator bei NIEDRIGER Confidence ist die
+    # Mean-Reversion-Konstellation; ohne diese Beförderung bliebe sie
+    # unerreichbar, weil Trend und Volumen die Confidence nach unten ziehen.
+    # Auf dem Trainingsteil ist sie die einzige Konstellation mit belegtem
+    # Vorsprung (+4,2 pp ±3,7, n=2107).
     #
-    #   sperrt  — hohe Confidence ohne Oszillator-Deckung entsteht rein aus
-    #             Trend und Volumen; diese Kombination schnitt messbar
-    #             schlechter ab als Zufall (Band 60–74: -1,4 pp).
-    #   befördert — ein tragender Oszillator bei niedriger Confidence ist die
-    #             Mean-Reversion-Konstellation; sie war bisher unerreichbar,
-    #             weil Trend und Volumen die Confidence nach unten ziehen.
+    # ENTFALLEN in 2.1.0 — der sperrende Zweig. Bis dahin wurde eine hohe
+    # Confidence ohne Oszillator-Deckung zu "Kein Einstieg" herabgestuft. Die
+    # Begründung stützte sich auf den Vorsprung des Oszillators im
+    # GESAMTBESTAND; die Train/Holdout-Trennung (P1-05) hat gezeigt, dass
+    # dieser Vorsprung dort ein Artefakt der doppelten Stichprobe war. Die
+    # gesperrte Gruppe schnitt nie schlechter ab als die durchgelassene:
+    # −0,3 pp ±4,6 auf dem Trainingsteil, +2,1 pp ±3,7 selbst in-sample.
+    # Belege in snapshot_engine/auswertung/gate.py (SCHWELLE_BESTIMMT_AM) und
+    # CONTEXT.md §2a. Das Sperren hat also Kaufempfehlungen unterdrückt, ohne
+    # dafür je einen Nachweis gehabt zu haben.
     #
-    # Die Confidence bleibt in beiden Fällen unangetastet. Sie ist die
-    # Messgröße, an der sich diese Logik überprüfen lassen muss — sie zu
-    # verbiegen würde den Maßstab zerstören, an dem sie zu bewerten ist.
+    # Die Confidence bleibt unangetastet. Sie ist die Messgröße, an der sich
+    # diese Logik überprüfen lassen muss — sie zu verbiegen würde den Maßstab
+    # zerstören, an dem sie zu bewerten ist.
     osz_max = result.cat_max.get("oscillator", 0)
     osz_normiert = (result.cat_scores.get("oscillator", 0) / osz_max) if osz_max > 0 else None
     osz_traegt = (osz_normiert is not None
@@ -976,20 +1002,16 @@ def _finalize_score(result: ScoreResult):
 
     mean_reversion = False
 
+    # Der Oszillator bleibt bei hoher Confidence als Hinweis sichtbar, ohne
+    # die Empfehlung zu ändern. Er verschwindet bewusst nicht: dass Trend und
+    # Volumen eine Confidence allein tragen, ist eine Information über die
+    # Zusammensetzung — nur eben keine, die ein Sperren rechtfertigt.
     if confidence >= 60 and not osz_traegt:
-        # Gesperrt: Confidence ohne Oszillator-Deckung.
-        score_label = "Kein Einstieg"
-        if osz_normiert is None:
-            confidence_label = (f"Confidence {confidence:.0f} — Oszillator nicht "
-                                "berechenbar, keine Kaufempfehlung")
-        else:
-            confidence_label = (f"Confidence {confidence:.0f}, aber vom Oszillator "
-                                "nicht getragen — kein Kaufsignal")
         result.checklist.append({
-            "Indikator": "Oszillator-Gate",
+            "Indikator": "Oszillator-Deckung",
             "Wert": ("—" if osz_normiert is None else f"{osz_normiert:+.2f}"),
-            "Signal": ("Trend/Volumen tragen die Confidence, der Oszillator nicht — "
-                       "ohne ihn ist kein Vorsprung belegt"),
+            "Signal": ("Confidence wird von Trend und Volumen getragen, nicht vom "
+                       "Oszillator — kein belegter Nachteil, aber schmalere Basis"),
             "Beitrag": "Info",
         })
 
@@ -1011,6 +1033,9 @@ def _finalize_score(result: ScoreResult):
 
     result.signals.update({
         "oscillator_normiert": osz_normiert,
+        # Name aus 2.0.0 beibehalten, damit gespeicherte Snapshots und
+        # bestehende Lesepfade weiter passen. Seit 2.1.0 sperrt nichts mehr;
+        # das Flag sagt nur noch aus, ob der Oszillator die Confidence trägt.
         "oscillator_gate_offen": osz_traegt,
         "trend_normiert": trend_normiert,
         "mean_reversion_setup": mean_reversion,
