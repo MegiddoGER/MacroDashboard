@@ -6,6 +6,9 @@ import pandas as pd
 import numpy as np
 import yfinance as yf
 
+from services import sector_map
+from services.sector_map import normalize_sector
+
 # ---------------------------------------------------------------------------
 # Dynamische Risk-Free Rate (Live Treasury Yield)
 # ---------------------------------------------------------------------------
@@ -101,12 +104,16 @@ def calc_dcf_valuation(info: dict) -> dict | None:
         wacc = max(wacc, 0.06)
 
         # --- Terminal Growth Rate nach Sektor ---
-        sector = (info.get("sector") or "").lower()
-        if sector in ("utilities", "real estate"):
+        # Normalisiert, weil yfinance ("Healthcare") und GICS ("Health Care")
+        # unterschiedlich schreiben. Der frühere Direktvergleich auf
+        # "health care" traf für yfinance-Daten nie — jede Gesundheits-Aktie
+        # bekam lautlos den Default statt der Sektor-Rate.
+        sector = normalize_sector(info.get("sector"))
+        if sector in (sector_map.UTILITIES, sector_map.REAL_ESTATE):
             terminal_growth = 0.020  # Versorger/Immobilien: stabile ~2%
-        elif sector in ("technology", "communication services"):
+        elif sector in (sector_map.TECHNOLOGY, sector_map.COMMUNICATION):
             terminal_growth = 0.030  # Tech: höheres langfristiges Wachstum ~3%
-        elif sector in ("health care",):
+        elif sector == sector_map.HEALTHCARE:
             terminal_growth = 0.028  # Gesundheit: leicht über Durchschnitt
         else:
             terminal_growth = 0.025  # Default: ~2.5% (nominales BIP)

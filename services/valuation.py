@@ -1,6 +1,8 @@
 import pandas as pd
 import numpy as np
 
+from services.sector_map import normalize_sector
+
 def _safe_float(val, default=0.0):
     try:
         if val is None or pd.isna(val):
@@ -189,7 +191,12 @@ def determine_sector_category(stats: dict, details: dict) -> tuple:
 
     Extrahiert aus views/sections/analysis_valuation.py — reine Logik, kein UI.
     """
-    yfin_sector = stats["sector"].lower() if stats.get("sector") and stats["sector"] != "—" else ""
+    # Über sector_map normalisiert, damit yfinance- und GICS-Schreibweisen
+    # ("Healthcare" vs. "Health Care") denselben Zweig treffen. Die kanonischen
+    # Werte sind absichtlich mit Leerzeichen gebildet, sodass die
+    # Teilstring-Prüfungen unten unverändert greifen.
+    roh_sector = stats["sector"] if stats.get("sector") and stats["sector"] != "—" else ""
+    yfin_sector = normalize_sector(roh_sector)
     yfin_industry = details.get("info", {}).get("industry", "").lower()
 
     sector_cat = "none"
