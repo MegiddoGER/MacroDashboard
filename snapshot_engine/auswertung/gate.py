@@ -53,6 +53,28 @@ logger = logging.getLogger(__name__)
 # Sobald die Schwelle allein auf `teil=TRAIN` neu bestimmt wird, gehört hier
 # der Zeitpunkt dieser Neubestimmung hinein; erst dann liefert
 # `gate_wirkung(teil=HOLDOUT)` einen echten Out-of-Sample-Beleg.
+#
+# STAND 30.08.2026 (P1-07): der Versuch ist gelaufen und hat NICHTS ergeben.
+# `schwellensuche.schwelle_suchen` fand auf dem Trainingsteil keine Schwelle,
+# deren Vorsprung sich von Zufall unterscheiden ließe — auch ohne Korrektur
+# für Mehrfachtests nicht (30 Tage, HISTORISCH, Basisrate 54,8):
+#
+#     osz >= 0.20 .. 0.30   n=4636  eff=1514   -0,6 pp  (+-2,5 unkorrigiert)
+#     osz >= 0.35 .. 0.65   n=1396  eff= 456   -0,3 pp  (+-4,6)
+#     osz >= 0.70 .. 0.80   n= 296  eff=  96   +2,7 pp  (+-9,9)
+#
+# Die gesperrte Gruppe ist damit nicht schlechter als die durchgelassene. Das
+# Gate in seiner AKTUELLEN Form — Kaufempfehlung nur bei tragendem Oszillator —
+# hat keinen belegbaren Nutzen. Der dokumentierte Vorsprung des Oszillators
+# stammt aus zwei anderen Konstellationen, die auf dem Trainingsteil bestehen:
+#
+#     osz >= 0.75 ALLEIN            n= 725  eff=236   +6,2 pp +-6,2  (hauchdünn)
+#     osz >= 0.50 UND conf < 60     n=2107  eff=688   +4,2 pp +-3,7  (Beförderung)
+#
+# Nicht der sperrende, sondern der BEFÖRDERNDE Zweig trägt den Effekt. Solange
+# das nicht aufgelöst ist, bleibt SCHWELLE_BESTIMMT_AM auf None — es gibt
+# keine auf dem Training bestimmte Schwelle, die ein Holdout-Test bestätigen
+# könnte. Den Holdout dafür anzufassen wäre Verschwendung.
 SCHWELLE_BESTIMMT_AM: "datetime | None" = None
 
 

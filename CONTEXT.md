@@ -112,6 +112,36 @@ Der Vorteil ist **long-only**. Die Short-Seite ist auf jeder Schwelle Rauschen.
 
 ---
 
+## 2a. Was die Train/Holdout-Trennung davon übrig lässt
+
+Die Zahlen in §2 stammen aus dem **Gesamtbestand**. Auf dem Trainingsteil allein
+(30 Tage, HISTORISCH, Basisrate 54,8 gegen 55,5) sieht es anders aus:
+
+| Konstellation | n | eff | Vorsprung | |
+|---|---|---|---|---|
+| `osz ≥ 0.50` allein (der Befund aus §2) | 3.503 | 1.144 | +2,4 pp ±2,9 | **Rauschen** |
+| `osz ≥ 0.75` allein | 725 | 236 | +6,2 pp ±6,2 | hauchdünn signifikant |
+| `osz ≥ 0.50` UND `conf ≥ 60` — **das Gate** | 1.396 | 456 | −0,3 pp ±4,6 | **Rauschen** |
+| `osz ≥ 0.50` UND `conf < 60` — Beförderung | 2.107 | 688 | +4,2 pp ±3,7 | signifikant |
+
+Drei Schlüsse, die nicht neu hergeleitet werden müssen:
+
+1. **Der Befund `osz ≥ 0.50: +3,2 pp` hält nicht.** Er war nur auf dem
+   Gesamtbestand signifikant, wo die größere Stichprobe die Fehlerspanne
+   schrumpfen lässt. Auf der Hälfte der Daten ist er Rauschen. Genau dafür
+   existiert die Trennung.
+2. **Der sperrende Zweig des Gates hat nie funktioniert** — auch in-sample
+   nicht (+2,1 pp ±3,7). Die durchgelassene Gruppe schlägt die gesperrte nicht.
+3. **Der Effekt sitzt im befördernden Zweig**, also im Mean-Reversion-Setup bei
+   NIEDRIGER Confidence — nicht im Sperren hoher Confidence.
+
+Die Schwellensuche über 13 Kandidaten (0,20–0,80) fand **keine** Schwelle, die
+sich von Zufall unterscheiden ließe; real sind es nur 3 unterscheidbare Tests,
+weil 0,35–0,65 dieselbe Zeilenmenge auswählen. Der Holdout (22.529 Snapshots)
+ist deshalb weiterhin **unangetastet**.
+
+---
+
 ## 3. Erledigt — nicht noch einmal bauen
 
 | Was | Wo |
@@ -132,6 +162,7 @@ Der Vorteil ist **long-only**. Die Short-Seite ist auf jeder Schwelle Rauschen.
 | PC-03 RSI-Klippe entfernt | `services/scoring_engine_v2.py` |
 | **P3-03 Positionspfad instrumentiert** | `snapshot_engine/position_snapshot.py` |
 | **P1-05 Train/Holdout-Trennung** | `snapshot_engine/auswertung/holdout.py` |
+| **P1-07 Schwellensuche auf dem Trainingsteil** | `snapshot_engine/auswertung/schwellensuche.py` |
 
 **Wichtig:** Es existiert **noch kein einziger Snapshot mit `score_version` 2.0.0**
 — alle 88.033 tragen 1.0.0. Die Out-of-Sample-Prüfung des Gates beginnt erst mit
@@ -146,12 +177,15 @@ dem nächsten Scheduler-Lauf (18:30). Bis dahin sind alle Gate-Zahlen in-sample.
   auf **2025-04-20**, Sperrzone 90 Tage, Holdout ab **2025-07-19**. Belegung
   (HISTORISCH): Training 59.065 · Sperrzone 5.332 · Holdout 22.529. Die Grenze
   liegt in der `Setting`-Tabelle und wandert nicht mit dem Bestand mit.
-- **P1-07 (neu)** die Oszillator-Schwelle ist **älter als die Grenze** und hat
-  die Holdout-Zeilen bereits gesehen — der Holdout ist für sie rückwirkend und
-  belegt nichts. `gate.SCHWELLE_BESTIMMT_AM` steht deshalb auf `None`, und
-  `gate_wirkung` weist `holdout_rueckwirkend: True` aus. Sauber wird es erst,
-  wenn die Schwelle allein auf `teil=TRAIN` neu bestimmt und der Zeitpunkt dort
-  eingetragen wird. **Erster Posten, der den Holdout tatsächlich nutzt.**
+- ~~**P1-07** Schwelle auf dem Trainingsteil neu bestimmen~~ → durchgeführt,
+  Ergebnis **negativ** (siehe §2a). Es gibt keine belegbare Gate-Schwelle;
+  `gate.SCHWELLE_BESTIMMT_AM` bleibt daher `None`. Der Holdout wurde **nicht**
+  angefasst — es gab nichts zu bestätigen.
+- **P1-08 (neu)** das Gate steht in `services/scoring.py` weiter aktiv
+  (SCORE_VERSION 2.0.0), obwohl sein sperrender Zweig keinen belegbaren Nutzen
+  hat. Zu entscheiden: sperrenden Zweig entfernen und nur die Beförderung
+  behalten, oder das Gate ganz zurückbauen. **Produktentscheidung des
+  Besitzers**, keine reine Technikfrage — deshalb nicht eigenmächtig geändert.
 - **P1-04** keine Benchmark-Rendite je Outcome — Trefferquoten sind absolut, kein Alpha
 - **P1-06** ein 30-Tage-Takt für alle Kategorien, unabhängig von der Signal-Halbwertszeit
 - **P1-03** Backfill kennt kein Sentiment, misst also ein anderes System als das laufende (Designentscheidung offen)
@@ -196,25 +230,25 @@ Arbeit inline erledigt, was sie langsam und einmalig statt wiederholbar macht.
 
 ## 5. Empfohlener nächster Schritt
 
-**P1-07 — die Oszillator-Schwelle allein auf dem Trainingsteil neu bestimmen.**
-Der Apparat steht seit P1-05, benutzt hat ihn noch nichts. Solange die Schwelle
-älter ist als die Grenze, liefert auch `teil=HOLDOUT` keinen Beleg, sondern nur
-eine Zahl, die danach aussieht. Vorgehen: Schwelle über `teil=TRAIN` neu
-bestimmen, `gate.SCHWELLE_BESTIMMT_AM` setzen, **einmal** auf dem Holdout
-prüfen — und das Ergebnis stehen lassen, auch wenn es enttäuscht.
+**P1-08 — über das Gate entscheiden.** §2a zeigt, dass sein sperrender Zweig
+keinen belegbaren Nutzen hat, während der befördernde trägt. Die Möglichkeiten:
+den sperrenden Zweig entfernen und nur die Beförderung behalten; oder das Gate
+ganz zurückbauen. Beides ändert ausgegebene Empfehlungen — eine Entscheidung
+des Besitzers, keine Technikfrage.
 
-Zur Einordnung: die Zahlen aus dem ersten (rückwirkenden) Durchlauf lagen auf
-dem Holdout deutlich besser als auf dem Training (durchgelassen +8,7 pp gegen
-−0,3 pp). Das ist **kein Befund**, sondern genau der Grund für P1-07 — ein
-Unterschied dieser Größe zwischen zwei Zeiträumen ist eher ein Hinweis auf
-verschiedene Marktphasen als auf einen Effekt.
+Danach lohnt **P1-04** (Benchmark-Rendite je Outcome). §2a legt nahe, dass ein
+guter Teil der gemessenen Unterschiede schlicht verschiedene Marktphasen sind:
+die Basisrate allein wandert zwischen Training (54,8) und Gesamtbestand (55,5).
+Ohne Benchmark je Beobachtung lässt sich Marktbewegung nicht von Signalqualität
+trennen — und dann misst jede weitere Verfeinerung weiter beides zusammen.
 
 **Nicht** mit dem Vorschlagspanel für Gewichte anfangen: DX-01 zeigt, dass
 Gewichtstuning an dieser Architektur eine Decke hat.
 
-**Den Holdout nicht mehrfach befragen.** Der Zähler steht auf `/signals`; wer
-nach jeder Änderung erneut misst und die beste Variante behält, hat ihn zum
-Trainingsset gemacht — nur langsamer.
+**Den Holdout nicht anfassen**, solange keine auf dem Training bestimmte
+Aussage vorliegt, die er bestätigen soll. Er steht bei **0 Zugriffen**; der
+Zähler ist auf `/signals` sichtbar. Wer nach jeder Änderung erneut misst und
+die beste Variante behält, hat ihn zum Trainingsset gemacht — nur langsamer.
 
 ---
 

@@ -13,6 +13,7 @@ Kursabrufe). Öffentliche API:
     kelly_parameter()         — Trefferquote/CRV für die Positionsgrößen-Rechnung
     grenze_festlegen()        — Train/Holdout-Grenze einmalig festlegen
     split_status()            — Belegung der drei Mengen (Anzeige/Diagnose)
+    schwelle_suchen()         — Oszillator-Schwelle auf dem Trainingsteil bestimmen
 
 Sechs Grundsätze gelten überall:
   1. LIVE und HISTORISCH werden nie vermischt (unterschiedliche Datenbasis).
@@ -50,6 +51,7 @@ from snapshot_engine.auswertung.holdout import (
     EMBARGO, HOLDOUT, TRAIN, grenze_festlegen, grenze_lesen,
     holdout_zugriffe, split_filter, split_status, split_zuordnen,
 )
+from snapshot_engine.auswertung.schwellensuche import schwelle_suchen
 
 __all__ = [
     "EMBARGO",
@@ -77,6 +79,7 @@ __all__ = [
     "kelly_parameter",
     "kennzahlen_aus_returns",
     "kennzahlen_berechnen",
+    "schwelle_suchen",
     "signal_statistik",
     "split_filter",
     "split_status",
