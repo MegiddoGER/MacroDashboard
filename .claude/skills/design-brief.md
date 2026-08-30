@@ -3,7 +3,7 @@
 > Auftrag an den `ui-designer`-Subagenten. In einer neuen Sitzung ausführen mit:
 > *"Führe den ui-designer-Agenten mit dem Brief in `.claude/design-brief.md` aus."*
 
-## Wichtig — zuerst lesen
+#do # Wichtig — zuerst lesen
 
 Der `ui-designer`-Systemprompt verlangt, zunächst einen `context-manager`-Agenten
 abzufragen. **Diesen Agenten gibt es in diesem Projekt nicht.** Kein Kontext-Request,
