@@ -6,11 +6,18 @@
 {%- endmacro %}
 
 {# Die entscheidende Spalte: eine Trefferquote ohne ihre Basisrate misst
-   überwiegend die allgemeine Marktrichtung, nicht Prognosefähigkeit. #}
+   überwiegend die allgemeine Marktrichtung, nicht Prognosefähigkeit.
+
+   Ein Vorsprung innerhalb der Fehlerspanne wird bewusst NICHT eingefärbt:
+   grün dargestellt hätte er sonst dieselbe Wirkung wie ein belegter Vorteil,
+   obwohl er von Zufall nicht zu unterscheiden ist. #}
 {% macro vorsprung(kz) -%}
     {% if kz.vorsprung_pp is not none %}
-        <span class="{{ 'positive' if kz.vorsprung_pp > 0 else ('negative' if kz.vorsprung_pp < 0 else 'muted') }}">
-            {{ '%+.1f'|format(kz.vorsprung_pp) }} pp</span>
+        {% set belegt = kz.vorsprung_signifikant %}
+        <span class="{{ ('positive' if kz.vorsprung_pp > 0 else 'negative') if belegt else 'muted' }}"
+              {% if kz.vorsprung_fehler_pp is not none %}title="Fehlerspanne ±{{ kz.vorsprung_fehler_pp }} pp (95 %, effektive Stichprobe){{ ' — nicht von Zufall unterscheidbar' if not belegt else '' }}"{% endif %}>
+            {{ '%+.1f'|format(kz.vorsprung_pp) }} pp{% if kz.vorsprung_fehler_pp is not none %}
+            <span class="caption">±{{ kz.vorsprung_fehler_pp }}</span>{% endif %}</span>
     {% else %}<span class="muted">–</span>{% endif %}
 {%- endmacro %}
 
@@ -180,9 +187,63 @@
      Confidence-Kalibrierung
      ═══════════════════════════════════════════════════════════ -->
 <h3 class="section-head">Confidence-Kalibrierung ({{ gewaehlter_horizont }} Tage)</h3>
-<div class="alert alert-{{ 'success' if kalibrierung_fazit.status == 'kalibriert' else 'warning' }}">
-    <strong>{{ kalibrierung_fazit.status|capitalize }}:</strong> {{ kalibrierung_fazit.aussage }}
+{% if vermischung and vermischung.vermischt %}
+<div class="alert alert-warning">
+    <strong>Vermischte Grundgesamtheit:</strong> {{ vermischung.warnung }}
 </div>
+{% endif %}
+<div class="alert alert-{{ 'success' if kalibrierung_fazit.status == 'kalibriert' else 'warning' }}">
+    <strong>{{ kalibrierung_fazit.status|replace('_', ' ')|capitalize }}:</strong> {{ kalibrierung_fazit.aussage }}
+    {% if kalibrierung_fazit.trennschaerfe %}
+    <div class="caption" style="margin-top:.4rem">
+        Trennschärfe: {{ kalibrierung_fazit.trennschaerfe }} ·
+        Bestes Band: {{ kalibrierung_fazit.bestes_band or '–' }}
+        {%- if kalibrierung_fazit.vorsprung_pp is not none %} ·
+        Vorsprung {{ '%+.1f'|format(kalibrierung_fazit.vorsprung_pp) }} pp
+        (±{{ kalibrierung_fazit.vorsprung_fehler_pp }} pp){% endif %}
+    </div>
+    {% endif %}
+</div>
+{% if gate and gate.durchgelassen and gate.durchgelassen.n %}
+<h3 class="section-head">Oszillator-Logik ({{ gewaehlter_horizont }} Tage)</h3>
+<div class="alert mb-4">
+    <strong>Der Oszillator entscheidet über die Empfehlung</strong>
+    (normiert ≥ {{ '%.2f'|format(gate.schwelle) }}) — er ist die einzige Kategorie mit
+    belegtem Vorsprung. Er <em>sperrt</em> eine hohe Confidence, die er nicht trägt
+    (sie entsteht dann rein aus Trend und Volumen), und er <em>befördert</em> ein
+    Mean-Reversion-Setup, das die Confidence sonst verwerfen würde.
+    <br>
+    <span class="caption">Die Schwelle stammt aus denselben Daten, an denen sie hier geprüft wird.
+    Belastbar wird der Vergleich erst mit Beobachtungen ab Score-Version 2.0.0.</span>
+</div>
+<div class="table-wrapper">
+<table class="data-table">
+    <thead><tr><th>Gruppe</th><th>n</th><th>eff. n</th><th>Trefferquote</th><th>Basisrate</th><th>Vorsprung</th></tr></thead>
+    <tbody>
+        {% for schluessel, bezeichnung in [('durchgelassen','Empfohlen — Confidence + Oszillator'), ('befoerdert','Empfohlen — Mean-Reversion-Setup'), ('geblockt','Gesperrt — Confidence ohne Oszillator')] %}
+        {% set g = gate[schluessel] %}
+        {% if g and g.n %}
+        <tr>
+            <td>{{ bezeichnung }}</td>
+            <td>{{ g.n }}</td>
+            <td>{{ g.n_effektiv }}</td>
+            <td>{{ g.trefferquote }}%</td>
+            <td class="muted">{{ gate.basisrate }}%</td>
+            <td>
+                <strong><span class="{{ ('positive' if g.vorsprung_pp > 0 else 'negative') if g.signifikant else 'muted' }}"
+                      title="Fehlerspanne ±{{ g.fehlerspanne_pp }} pp (95 %, effektive Stichprobe){{ ' — nicht von Zufall unterscheidbar' if not g.signifikant else '' }}">
+                    {{ '%+.1f'|format(g.vorsprung_pp) }} pp
+                    <span class="caption">±{{ g.fehlerspanne_pp }}</span>
+                </span></strong>
+            </td>
+        </tr>
+        {% endif %}
+        {% endfor %}
+    </tbody>
+</table>
+</div>
+{% endif %}
+
 <div class="table-wrapper">
 <table class="data-table">
     <thead><tr><th>Confidence-Bereich</th><th>n</th><th>Trefferquote</th><th>Basisrate</th><th>Vorsprung</th><th>Ø Ertrag</th><th>Erwartungswert</th></tr></thead>
@@ -197,6 +258,14 @@
                 <td><strong>{{ vorsprung(z) }}</strong></td>
                 <td class="{{ 'positive' if z.avg_ertrag > 0 else 'negative' }}">{{ z.avg_ertrag }}%</td>
                 <td>{{ z.erwartungswert if z.erwartungswert is not none else '–' }}</td>
+            {% elif z.confidence_min == 45 %}
+                {# NEUTRAL-Signale werden von erfolg_bewerten nie bewertet.
+                   Das größte Band trägt deshalb zu keinem Fazit bei — als
+                   leere Zeile sähe das nach fehlenden Daten aus. #}
+                <td colspan="5" class="muted">
+                    NEUTRAL-Signale werden grundsätzlich nicht als Treffer gewertet —
+                    dieses Band fließt in kein Fazit ein
+                </td>
             {% else %}
                 <td colspan="5" class="muted">zu wenig unabhängige Beobachtungen</td>
             {% endif %}

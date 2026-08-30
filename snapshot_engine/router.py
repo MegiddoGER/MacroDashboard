@@ -17,8 +17,9 @@ from database import get_session
 from snapshot_engine.auswertung import (
     MIN_STICHPROBE, bestand_ermitteln, indikator_leaderboard,
     kalibrierung_berechnen, kalibrierung_bewerten, kategorie_leaderboard,
-    kennzahlen_berechnen,
+    kennzahlen_berechnen, vermischung_pruefen,
 )
+from snapshot_engine.auswertung.gate import gate_wirkung
 from snapshot_engine.auswertung.indikator_stats import basisrate
 from snapshot_engine.models import (
     HORIZONTE_TAGE, AnalyseSnapshot, AnalyseSnapshotOutcome, BackfillStatus,
@@ -46,7 +47,11 @@ def _basis_kontext(request: Request, pfad: str) -> dict:
 @router.get("/", response_class=HTMLResponse)
 async def uebersicht(request: Request,
                      horizont: int = Query(30),
-                     datenmodus: str = Query("ALLE"),
+                     # Vorgabe HISTORISCH statt ALLE: LIVE und HISTORISCH haben
+                     # deutlich verschiedene Basisraten, und HISTORISCH trägt
+                     # praktisch die gesamte statistische Masse. ALLE bleibt
+                     # wählbar, wird aber als Vermischung gekennzeichnet.
+                     datenmodus: str = Query(Datenmodus.HISTORISCH),
                      seite: int = Query(1, ge=1)):
     """Hauptseite: Kennzahlen, Kalibrierung und jüngste Snapshots."""
     templates = request.app.state.templates
@@ -86,6 +91,8 @@ async def uebersicht(request: Request,
             "kalibrierung": kalibrierung,
             "kalibrierung_fazit": fazit,
             "basis": basisrate(session, horizont, modus),
+            "vermischung": vermischung_pruefen(session, modus),
+            "gate": gate_wirkung(session, horizont=horizont, datenmodus=modus),
             "snapshot_zeilen": snapshot_zeilen,
             "gesamt_anzahl": gesamt,
             "aktuelle_seite": seite,
@@ -113,7 +120,7 @@ async def uebersicht(request: Request,
 @router.get("/indikatoren", response_class=HTMLResponse)
 async def indikatoren(request: Request,
                       horizont: int = Query(30),
-                      datenmodus: str = Query("ALLE")):
+                      datenmodus: str = Query(Datenmodus.HISTORISCH)):
     """Bewertung jedes Einzelindikators gegen die unbedingte Basisrate."""
     templates = request.app.state.templates
     session = get_session()
@@ -130,6 +137,7 @@ async def indikatoren(request: Request,
             "kategorien": kategorie_leaderboard(session, horizont=horizont,
                                                 datenmodus=modus),
             "basis": basisrate(session, horizont, modus),
+            "vermischung": vermischung_pruefen(session, modus),
             "gewaehlter_horizont": horizont,
             "gewaehlter_datenmodus": datenmodus,
             "bestand": bestand_ermitteln(session),

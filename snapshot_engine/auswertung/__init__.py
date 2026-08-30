@@ -26,10 +26,10 @@ Fünf Grundsätze gelten überall:
 from snapshot_engine.auswertung.basis import (
     MIN_STICHPROBE, STATUS_OK, STATUS_ZU_WENIG_DATEN,
     anteil_steigend, basis_trefferquote, effektive_stichprobe,
-    kennzahlen_aus_returns, mit_basis,
+    fehlerspanne_pp, kennzahlen_aus_returns, mit_basis, vorsprung_signifikant,
 )
 from snapshot_engine.auswertung.kennzahlen import (
-    bestand_ermitteln, kennzahlen_berechnen,
+    bestand_ermitteln, kennzahlen_berechnen, vermischung_pruefen,
 )
 from snapshot_engine.auswertung.indikator_stats import (
     indikator_leaderboard, kategorie_leaderboard,
@@ -40,6 +40,7 @@ from snapshot_engine.auswertung.kalibrierung import (
 from snapshot_engine.auswertung.risk_adjusted import (
     kelly_parameter, signal_statistik,
 )
+from snapshot_engine.auswertung.gate import gate_wirkung
 
 __all__ = [
     "MIN_STICHPROBE",
@@ -49,7 +50,11 @@ __all__ = [
     "basis_trefferquote",
     "bestand_ermitteln",
     "effektive_stichprobe",
+    "fehlerspanne_pp",
+    "gate_wirkung",
     "mit_basis",
+    "vermischung_pruefen",
+    "vorsprung_signifikant",
     "indikator_leaderboard",
     "kalibrierung_berechnen",
     "kalibrierung_bewerten",

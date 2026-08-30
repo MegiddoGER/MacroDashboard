@@ -91,13 +91,61 @@ def basis_trefferquote(anteil: Optional[float],
 
 def mit_basis(kennzahlen: dict, anteil: Optional[float],
               richtungen: Sequence[Optional[int]]) -> dict:
-    """Ergänzt eine Kennzahlenzeile um Basisrate und Vorsprung (in Prozentpunkten)."""
+    """Ergänzt eine Kennzahlenzeile um Basisrate, Vorsprung und dessen Belastbarkeit."""
     basis = basis_trefferquote(anteil, richtungen)
     quote = kennzahlen.get("trefferquote")
     kennzahlen["basis_trefferquote"] = round(basis, 1) if basis is not None else None
-    kennzahlen["vorsprung_pp"] = (round(quote - basis, 1)
-                                  if basis is not None and quote is not None else None)
+    vorsprung = (round(quote - basis, 1)
+                 if basis is not None and quote is not None else None)
+    kennzahlen["vorsprung_pp"] = vorsprung
+
+    # Ohne Fehlerbalken ist ein Vorsprung nicht bewertbar: +2 pp auf 200
+    # effektiven Beobachtungen ist Rauschen, dieselben +2 pp auf 15.000 nicht.
+    kennzahlen["vorsprung_fehler_pp"] = fehlerspanne_pp(
+        quote, kennzahlen.get("n_effektiv"))
+    kennzahlen["vorsprung_signifikant"] = vorsprung_signifikant(
+        vorsprung, quote, kennzahlen.get("n_effektiv"))
     return kennzahlen
+
+
+# ---------------------------------------------------------------------------
+# Belastbarkeit einer Trefferquote
+# ---------------------------------------------------------------------------
+
+# 1,96 Standardfehler ≈ 95-%-Konfidenzintervall.
+Z_95 = 1.96
+
+
+def fehlerspanne_pp(trefferquote: Optional[float],
+                    n_effektiv: Optional[int]) -> Optional[float]:
+    """Halbe Breite des 95-%-Konfidenzintervalls einer Trefferquote, in Prozentpunkten.
+
+    Gerechnet wird über die EFFEKTIVE Stichprobe, nicht über die Zeilenzahl:
+    überlappende Beobachtungen messen weitgehend denselben Kursverlauf und
+    dürfen die Genauigkeit nicht vortäuschen.
+
+    Die Basisrate stützt sich auf zehntausende Beobachtungen; ihr eigener
+    Fehler ist dagegen vernachlässigbar, weshalb hier nur der Fehler der
+    verglichenen Gruppe eingeht.
+    """
+    if trefferquote is None or not n_effektiv or n_effektiv <= 0:
+        return None
+    p = max(0.0, min(1.0, trefferquote / 100.0))
+    standardfehler = (p * (1.0 - p) / n_effektiv) ** 0.5
+    return round(Z_95 * standardfehler * 100.0, 1)
+
+
+def vorsprung_signifikant(vorsprung_pp: Optional[float],
+                          trefferquote: Optional[float],
+                          n_effektiv: Optional[int]) -> Optional[bool]:
+    """Übersteigt der Vorsprung gegenüber der Basisrate die Zufallsschwankung?
+
+    None, wenn es nichts zu beurteilen gibt (fehlende Werte oder Stichprobe).
+    """
+    spanne = fehlerspanne_pp(trefferquote, n_effektiv)
+    if vorsprung_pp is None or spanne is None:
+        return None
+    return abs(vorsprung_pp) > spanne
 
 
 # ---------------------------------------------------------------------------

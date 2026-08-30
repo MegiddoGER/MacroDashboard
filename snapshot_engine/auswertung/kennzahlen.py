@@ -150,6 +150,68 @@ def bestand_ermitteln(db: Session) -> dict:
     return bestand
 
 
+def vermischung_pruefen(db: Session, datenmodus: str | None = None) -> dict:
+    """Meldet, ob die gewählte Auswahl unvergleichbare Grundgesamtheiten mischt.
+
+    Zwei Arten der Vermischung machen jede Kennzahl darüber bedeutungslos:
+
+      * DATENMODUS — LIVE und HISTORISCH stammen aus verschiedenen
+        Marktphasen und Datenlagen (historische Snapshots kennen kein
+        Sentiment). Ihre Basisraten unterscheiden sich deutlich.
+      * SCORE_VERSION — Snapshots vor und nach einer Formeländerung tragen
+        nicht dieselbe Bedeutung. Eine gemeinsame Trefferquote mittelt über
+        zwei verschiedene Bewertungssysteme.
+
+    Der Modul-Grundsatz "LIVE und HISTORISCH werden nie vermischt" galt bisher
+    nur für explizit gesetzte Filter — die Vorgabe ALLE hebelte ihn aus, ohne
+    dass es an der Oberfläche sichtbar war.
+    """
+    ergebnis: dict = {
+        "datenmodi": [],
+        "score_versionen": [],
+        "vermischt": False,
+        "warnung": None,
+    }
+
+    try:
+        query = db.query(AnalyseSnapshot.datenmodus,
+                         AnalyseSnapshot.score_version).distinct()
+        if datenmodus:
+            query = query.filter(AnalyseSnapshot.datenmodus == datenmodus)
+
+        paare = query.all()
+        modi = sorted({m for m, _ in paare if m})
+        versionen = sorted({v for _, v in paare if v})
+        # None-Versionen (Altzeilen vor der Migration) als solche ausweisen
+        if any(v is None for _, v in paare):
+            versionen.append("unbekannt")
+
+        ergebnis["datenmodi"] = modi
+        ergebnis["score_versionen"] = versionen
+
+        gruende = []
+        if len(modi) > 1:
+            gruende.append(
+                "LIVE und HISTORISCH werden gemeinsam ausgewertet — sie haben "
+                "unterschiedliche Basisraten und Datenlagen")
+        if len(versionen) > 1:
+            gruende.append(
+                "mehrere Score-Versionen (%s) werden gemeinsam ausgewertet — "
+                "die Confidence bedeutet je Version etwas anderes"
+                % ", ".join(versionen))
+
+        if gruende:
+            ergebnis["vermischt"] = True
+            ergebnis["warnung"] = (
+                "Die Zahlen mischen unvergleichbare Grundgesamtheiten: "
+                + "; ".join(gruende) + ".")
+
+    except Exception as e:
+        logger.error("Vermischungsprüfung fehlgeschlagen: %s", e, exc_info=True)
+
+    return ergebnis
+
+
 def _top_flop_ticker(db: Session, datenmodus: str | None, horizont: int,
                      minimum: int = MIN_STICHPROBE,
                      min_pro_ticker: int = MIN_STICHPROBE) -> tuple[list, list]:

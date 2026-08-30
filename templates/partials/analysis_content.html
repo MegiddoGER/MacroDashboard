@@ -1052,7 +1052,11 @@ function filterCongress(type, btn) {
     {% for s in signal_history %}
     <tr>
       <td>{{ s.snapshot_zeitpunkt[:16] if s.snapshot_zeitpunkt else '—' }}</td>
-      <td>{% if s.richtungssignal == 'KAUF' %}KAUFEN{% elif s.richtungssignal == 'VERKAUF' %}VERKAUFEN{% else %}NEUTRAL{% endif %}</td>
+      {# "MEIDEN" statt "VERKAUFEN": scoring.py gibt für die unteren Bereiche
+         bewusst kein Verkaufssignal aus (siehe _finalize_score) — als
+         Verkaufssignal gelesen lag der Bereich häufiger falsch als richtig.
+         VERKAUF bleibt intern die Messgröße, ist aber keine Empfehlung. #}
+      <td>{% if s.richtungssignal == 'KAUF' %}KAUFEN{% elif s.richtungssignal == 'VERKAUF' %}MEIDEN{% else %}NEUTRAL{% endif %}</td>
       <td>{{ "%.0f"|format(s.confidence) if s.confidence else '—' }}</td>
       <td>{{ "{:,.2f} €".format(s.kurs_bei_snapshot) if s.kurs_bei_snapshot else '—' }}</td>
       {% for o in s.outcomes %}
