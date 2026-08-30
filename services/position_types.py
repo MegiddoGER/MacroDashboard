@@ -223,6 +223,10 @@ class ScoreBreakdown:
     data_quality: Optional[float] = None
     overall: Optional[float] = None
     has_critical_warning: bool = False
+    # Datenlage zu dünn, um den Overall-Score unkommentiert zu lesen.
+    # Steht bewusst NEBEN dem Score statt in ihm: Belastbarkeit und Bewertung
+    # sind verschiedene Aussagen (siehe scoring_engine_v2, Gewichtsliste).
+    has_data_warning: bool = False
 
     def to_dict(self) -> dict:
         return {
@@ -240,6 +244,7 @@ class ScoreBreakdown:
             "data_quality": self.data_quality,
             "overall": self.overall,
             "has_critical_warning": self.has_critical_warning,
+            "has_data_warning": self.has_data_warning,
         }
 
 

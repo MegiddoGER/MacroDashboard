@@ -42,6 +42,26 @@ consistently — preserve it when adding features.
 `main.py` wires the FastAPI app: DB init, Jinja2 templates (`app.state.templates`), one router
 include per feature area, and a `lifespan` that also boots the snapshot engine's scheduler.
 
+### Configuration (`config.py` + `.env`)
+
+`config.py` is the single entry point for all environment configuration. Importing it loads
+`.env` from the project root once via `python-dotenv` (`override=False`, so real OS env vars win
+— that matters for server deployment). Any module needing a setting imports `config`, which makes
+import order irrelevant. `.env` is gitignored; `.env.example` is the committed template and
+documents *every* external API the project touches, including the keyless ones.
+
+- Secrets: `config.get_api_token(key)` reads the DB `Setting` table first (the `/settings` UI),
+  then falls back to `.env`. Used by `services/quiver.py` and `services/news.py` (Finnhub).
+  DB-first means a token entered in the UI overrides `.env` without a restart.
+- Plain values are module-level constants: `DATABASE_URL` (empty → `database.py` keeps its
+  absolute SQLite default), `APP_HOST`/`APP_PORT` (`launcher.py`), `SEC_USER_AGENT` /
+  `SCRAPER_USER_AGENT` / `CONGRESS_USER_AGENT`, `SNAPSHOT_RUN_TIME`
+  (`snapshot_engine/scheduler.py`).
+
+Add new external config here rather than reading `os.environ` ad hoc, and document it in
+`.env.example`. Note `config.get_api_token()` imports `database` lazily — `database.py` imports
+`config`, so a top-level import would be circular.
+
 ### Two different "models"
 
 - `database.py` — the actual SQLAlchemy ORM layer: engine/session factory (`get_session()`),
@@ -68,7 +88,7 @@ data fetch, add a `cached_*` wrapper here rather than caching ad hoc in the serv
 
 ### Position analysis pipeline (two generations coexist)
 
-- **Legacy / current production path**: `services/scoring.py` (a 1,582-line monolith) is what
+- **Legacy / current production path**: `services/scoring.py` (a 1,354-line monolith) is what
   `routers/analysis.py` actually calls today (`calc_quick_score`, `calc_position_score`,
   `generate_position_relevance`).
 - **Newer, more structured engine**: `services/position_types.py` (all enums/dataclasses —
@@ -114,9 +134,11 @@ configured. Most other market data goes through `services/market_data.py`
 
 ## Known rough edges (see REVIEW.md for full detail)
 
-- Broad `except Exception` (and a couple of bare `except:`) are common, and there is no `logging`
-  module usage anywhere — only ad hoc `print()`. Failures in scheduled jobs or data fetches can
-  fail silently; keep this in mind when debugging "missing data" reports.
+- Broad `except Exception` (~190 occurrences) and a couple of bare `except:` are still common.
+  `logging` has since been adopted in `snapshot_engine/` and `backfill_cli.py`/
+  `services/market_data_batch.py`, but the rest of the app (routers, most services, `main.py`,
+  `launcher.py`, `database.py`) still relies on ad hoc `print()`. Failures in scheduled jobs or
+  data fetches outside `snapshot_engine/` can still fail silently; keep this in mind when
+  debugging "missing data" reports.
 - `services/quiver.py` has unverified field-mapping TODOs (Quiver API response fields never
   confirmed against real responses).
-- `data/streamlit_charts_old.py.txt` is dead weight from a pre-FastAPI Streamlit version.

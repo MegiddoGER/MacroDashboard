@@ -11,6 +11,7 @@ from typing import Any
 import pandas as pd
 import numpy as np
 import yfinance as yf
+from config import SEC_USER_AGENT, SCRAPER_USER_AGENT
 from services.forex import convert_to_eur, get_rate_to_eur, get_fx_info
 
 
@@ -157,7 +158,7 @@ def _get_cik_for_ticker(ticker: str) -> str | None:
     try:
         req = urllib.request.Request(
             "https://www.sec.gov/files/company_tickers.json",
-            headers={"User-Agent": "MacroDashboard contact@example.com"}
+            headers={"User-Agent": SEC_USER_AGENT}
         )
         with urllib.request.urlopen(req, timeout=10) as r:
             data = json.loads(r.read())
@@ -295,7 +296,7 @@ def get_stock_details(ticker: str) -> dict | None:
             if cik:
                 # Versuch über SEC EDGAR
                 url = f"https://data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json"
-                req = urllib.request.Request(url, headers={"User-Agent": "MacroDashboard contact@example.com"})
+                req = urllib.request.Request(url, headers={"User-Agent": SEC_USER_AGENT})
                 try:
                     with urllib.request.urlopen(req, timeout=15) as r:
                         facts = json.loads(r.read())
@@ -596,7 +597,7 @@ def get_stock_listings() -> pd.DataFrame | None:
     if not cache_fresh:
         try:
             records = {}  # sym -> (name, exchange)
-            headers = {"User-Agent": "Mozilla/5.0"}
+            headers = {"User-Agent": SCRAPER_USER_AGENT}
 
             # 1. NASDAQ-gelistete Aktien
             req = urllib.request.Request(
@@ -650,7 +651,7 @@ def get_stock_listings() -> pd.DataFrame | None:
             try:
                 req = urllib.request.Request(
                     "https://www.sec.gov/files/company_tickers.json",
-                    headers={"User-Agent": "MacroDashboard contact@example.com"},
+                    headers={"User-Agent": SEC_USER_AGENT},
                 )
                 r = urllib.request.urlopen(req, timeout=15)
                 sec_data = json.loads(r.read())
@@ -984,7 +985,7 @@ def get_sp500_components() -> pd.DataFrame | None:
     try:
         import requests
         url = 'https://en.wikipedia.org/wiki/List_of_S%26P_500_companies'
-        headers = {"User-Agent": "Mozilla/5.0"}
+        headers = {"User-Agent": SCRAPER_USER_AGENT}
         html = requests.get(url, headers=headers).text
         tables = pd.read_html(html)
         df = tables[0]

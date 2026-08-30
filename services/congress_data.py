@@ -14,6 +14,8 @@ import httpx
 from datetime import datetime, timedelta
 from threading import Lock
 
+from config import CONGRESS_USER_AGENT
+
 # ---------------------------------------------------------------------------
 # Konfiguration
 # ---------------------------------------------------------------------------
@@ -50,7 +52,7 @@ def _load_all_trades() -> list[dict]:
         resp = httpx.get(
             _DATA_URL,
             timeout=_TIMEOUT,
-            headers={"User-Agent": "MacroDashboard/1.0"},
+            headers={"User-Agent": CONGRESS_USER_AGENT},
             follow_redirects=True,
         )
         resp.raise_for_status()

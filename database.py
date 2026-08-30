@@ -23,6 +23,8 @@ from sqlalchemy.orm import (
     DeclarativeBase, Mapped, mapped_column, sessionmaker, relationship,
 )
 
+import config  # lädt .env, bevor DATABASE_URL gelesen wird
+
 
 # ---------------------------------------------------------------------------
 # Pfade
@@ -38,9 +40,9 @@ os.makedirs(_DATA_DIR, exist_ok=True)
 # Engine & Session
 # ---------------------------------------------------------------------------
 
-# ↓↓↓ DIESE EINE ZEILE ÄNDERN FÜR POSTGRESQL ↓↓↓
-DATABASE_URL = f"sqlite:///{_DB_FILE}"
-# Beispiel PostgreSQL: DATABASE_URL = "postgresql://user:pass@localhost/macrodashboard"
+# Vorgabe: lokale SQLite-Datei. Überschreibbar via DATABASE_URL in .env,
+# z. B. postgresql://user:pass@localhost/macrodashboard
+DATABASE_URL = config.DATABASE_URL or f"sqlite:///{_DB_FILE}"
 
 engine = create_engine(
     DATABASE_URL,

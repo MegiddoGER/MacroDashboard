@@ -15,6 +15,18 @@ from services.position_types import (
 )
 
 
+# Ab hier gilt die Datenlage als zu dünn, um den Overall-Score unkommentiert
+# zu lesen.
+#
+# Bezugspunkt ist der Normalfall, nicht ein runder Wert: eine rein technische
+# Analyse ohne übergebene Fundamentaldaten landet bei 75 (Valuation -10,
+# Bilanz -5, Sentiment -5, relative Stärke -5). Das ist der Regelbetrieb und
+# darf nicht warnen. Erst wenn zusätzlich eine TECHNISCHE Eingabe fehlt —
+# etwa die SMA 200 mangels Historie oder ein fehlender Stop — sinkt der Wert
+# darunter, und genau dann wird der Score unzuverlässig.
+DATENQUALITAET_WARNSCHWELLE = 70.0
+
+
 def _clamp(val: float, lo: float = 0.0, hi: float = 100.0) -> float:
     return max(lo, min(hi, val))
 
@@ -86,15 +98,22 @@ def calc_position_scores(
         mom_score -= 15
 
     rsi_val = signals.get("rsi_val")
-    if rsi_val:
+    # RSI wird ausschließlich als Mean-Reversion gelesen — wie in
+    # services/scoring.py und wie es die Messung stützt (überverkauft: +4,6 pp
+    # Vorsprung gegenüber der Basisrate, siehe /signals/indikatoren).
+    #
+    # Zuvor galt zwischen 30 und 70 die GEGENTEILIGE Deutung (>50 bullisch,
+    # <50 bärisch, also Momentum). An den Grenzen trafen beide Theorien
+    # aufeinander und erzeugten einen Sprung: RSI 69 ergab +5, RSI 71 ergab
+    # -10 — zwei Punkte Kursbewegung kippten den Beitrag um 15 Punkte. Für die
+    # Momentum-Lesart im mittleren Bereich gibt es keinen Beleg; sie entfällt
+    # daher ersatzlos statt geglättet zu werden.
+    if rsi_val is not None:
         if rsi_val > 70:
-            mom_score -= 10  # Überkauft
+            mom_score -= 10  # Überkauft (Rückschlagrisiko)
         elif rsi_val < 30:
             mom_score += 10  # Überverkauft (Rebound-Chance)
-        elif rsi_val > 50:
-            mom_score += 5
-        else:
-            mom_score -= 5
+        # 30-70: keine Aussage. Der Oszillator feuert nur an den Extremen.
 
     boll = signals.get("bollinger_state", "Neutral")
     if boll == "Am oberen Band":
@@ -271,6 +290,13 @@ def calc_position_scores(
 
     s.data_quality = _clamp(dq_score)
 
+    # Unter dieser Schwelle fehlen so viele Eingaben, dass der Overall-Score
+    # zwar berechenbar bleibt, aber nicht mehr dieselbe Aussagekraft hat wie
+    # bei vollständiger Datenlage. Ohne diesen Hinweis ist ein Score aus
+    # halben Daten von einem aus vollen nicht zu unterscheiden.
+    if s.data_quality is not None and s.data_quality < DATENQUALITAET_WARNSCHWELLE:
+        s.has_data_warning = True
+
     # ── Overall Score ────────────────────────────────────────────
     # Gewichteter Durchschnitt der verfügbaren Scores
     weights_and_scores = [
@@ -285,7 +311,16 @@ def calc_position_scores(
         (0.15, s.risk_management),
         (0.10, s.target_quality),
         (0.03, s.event_risk),
-        (0.02, s.data_quality),
+        # data_quality ist bewusst NICHT enthalten. Es beschreibt, wie
+        # belastbar die anderen Scores sind, nicht wie gut die Position ist —
+        # zwei verschiedene Aussagen, die sich nicht sinnvoll mitteln lassen.
+        #
+        # Mit dem früheren Gewicht von 0.02 war es ohnehin wirkungslos: über
+        # die gesamte Spanne von vollständigen zu fehlenden Daten bewegte es
+        # den Overall-Score um rund 0,2 Punkte. Die Unsicherheit war damit
+        # weder im Score sichtbar noch als Warnung greifbar. Sie wird jetzt
+        # über has_data_warning ausgewiesen — wie has_critical_warning, das
+        # aus demselben Grund neben dem Score steht und nicht in ihm.
     ]
 
     total_weight = 0.0

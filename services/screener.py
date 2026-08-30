@@ -18,6 +18,7 @@ import pandas as pd
 import numpy as np
 import yfinance as yf
 
+from config import SCRAPER_USER_AGENT
 from services.scoring import calc_quick_score
 
 
@@ -41,7 +42,7 @@ def get_sp500_tickers() -> pd.DataFrame | None:
     try:
         import requests
         url = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
-        headers = {"User-Agent": "Mozilla/5.0"}
+        headers = {"User-Agent": SCRAPER_USER_AGENT}
         html = requests.get(url, headers=headers, timeout=15).text
         tables = pd.read_html(html)
         df = tables[0]

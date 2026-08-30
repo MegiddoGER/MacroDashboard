@@ -22,11 +22,16 @@ import pystray
 from pystray import MenuItem as item
 from PIL import Image, ImageDraw
 
+import config  # lädt .env
+
 # ---------------------------------------------------------------------------
 # Konfiguration
 # ---------------------------------------------------------------------------
-PORT = 8501
-URL = f"http://127.0.0.1:{PORT}"
+HOST = config.APP_HOST
+PORT = config.APP_PORT
+# Bind-Adressen wie 0.0.0.0 sind nicht aufrufbar — für die Browser-URL auf localhost drehen.
+_URL_HOST = "127.0.0.1" if HOST in ("0.0.0.0", "::") else HOST
+URL = f"http://{_URL_HOST}:{PORT}"
 WINDOW_SIZE = "1400,900"
 
 
@@ -99,7 +104,7 @@ def main():
     server_proc = subprocess.Popen(
         [
             sys.executable, "-m", "uvicorn", "main:app",
-            "--host", "127.0.0.1",
+            "--host", HOST,
             "--port", str(PORT),
             "--timeout-keep-alive", "120",
         ],

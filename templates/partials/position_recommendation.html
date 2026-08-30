@@ -23,6 +23,14 @@
         {{ "%.0f"|format(pa.scores.overall) }} <span style="font-size:1rem;color:var(--text-dim);">/ 100</span>
       </div>
       <div style="font-size:0.75rem; color:var(--text-muted); text-transform:uppercase;">Overall Score</div>
+      {# Ein Score aus halben Daten sieht sonst aus wie einer aus vollen.
+         Die Datenlage steht deshalb neben der Zahl, nicht in ihr. #}
+      {% if pa.scores.has_data_warning %}
+      <div style="font-size:0.75rem; color:var(--yellow); margin-top:4px;"
+           title="Datenqualität {{ "%.0f"|format(pa.scores.data_quality) }}/100 — es fehlen Eingaben, auf denen dieser Score beruht.">
+        ⚠ Dünne Datenlage ({{ "%.0f"|format(pa.scores.data_quality) }}/100)
+      </div>
+      {% endif %}
     </div>
   </div>
 

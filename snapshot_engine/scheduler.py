@@ -22,6 +22,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 
+from config import SNAPSHOT_RUN_TIME
 from database import get_session
 
 logger = logging.getLogger(__name__)
@@ -31,7 +32,7 @@ logger = logging.getLogger(__name__)
 # Konfiguration
 # ---------------------------------------------------------------------------
 
-TAEGLICHER_LAUF_UHRZEIT = "18:30"   # CET, nach Xetra-Schluss
+TAEGLICHER_LAUF_UHRZEIT = SNAPSHOT_RUN_TIME   # CET, nach Xetra-Schluss (.env: SNAPSHOT_RUN_TIME)
 DRAIN_INTERVALL_MINUTEN = 3         # Takt der Warteschlangen-Abarbeitung
 DRAIN_QUEUE_LIMIT = 8               # Ticker je Drain-Tick (Rate-Limit-Schonung)
 DRAIN_OUTCOME_LIMIT = 300           # Outcomes je Drain-Tick

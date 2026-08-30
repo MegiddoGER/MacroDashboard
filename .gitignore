@@ -70,6 +70,7 @@ coverage.xml
 .env
 .env.*
 *.env
+!.env.example
 
 # ==============================
 # Logs
@@ -81,6 +82,11 @@ coverage.xml
 # ==============================
 *.sqlite3
 *.db
+# SQLite im WAL-Modus legt zwei Begleitdateien an. `*.db` greift bei ihnen
+# NICHT — die Endung lautet .db-wal bzw. .db-shm. Ohne diese Regeln landet die
+# WAL-Datei im Repo und wächst dort mit jedem Start um zweistellige Megabyte.
+*.db-wal
+*.db-shm
 
 # ==============================
 # IDEs / Editors

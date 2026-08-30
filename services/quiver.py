@@ -11,7 +11,6 @@ Caching: TTLCache mit 30 Min TTL pro Ticker/Endpunkt.
 Fehlerbehandlung: Gibt leere Listen zurück bei API-Fehlern, loggt Warnungen.
 """
 
-import os
 import warnings
 import time
 from datetime import datetime, timedelta
@@ -33,15 +32,9 @@ _last_request_time = 0.0
 
 
 def _get_token() -> str | None:
-    """Liest den Quiver API Token: zuerst aus der DB (Settings-Seite), dann aus Umgebungsvariable."""
-    try:
-        from database import get_setting
-        db_token = get_setting("QUIVER_API_TOKEN")
-        if db_token:
-            return db_token
-    except Exception:
-        pass
-    return os.environ.get("QUIVER_API_TOKEN")
+    """Liest den Quiver API Token: zuerst aus der DB (Settings-Seite), dann aus .env."""
+    from config import get_api_token
+    return get_api_token("QUIVER_API_TOKEN")
 
 
 def _is_available() -> bool:

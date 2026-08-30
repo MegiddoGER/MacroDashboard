@@ -129,12 +129,13 @@ def get_company_news(ticker: str, max_items: int = 10) -> list[dict] | None:
     Rückgabe: Liste von Dicts [{title, link, published, source}, ...],
               oder None bei Fehler.
     """
-    from database import get_setting
     from datetime import datetime, timedelta
     import requests
 
-    # 1. Finnhub (Primär)
-    finnhub_token = get_setting("FINNHUB_API_TOKEN")
+    from config import get_api_token
+
+    # 1. Finnhub (Primär) — Token aus DB (Settings-Seite), sonst aus .env
+    finnhub_token = get_api_token("FINNHUB_API_TOKEN")
     if finnhub_token:
         try:
             today = datetime.now()
