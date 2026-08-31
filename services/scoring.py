@@ -1339,6 +1339,27 @@ def generate_position_relevance(checklist: list, position_data: dict) -> list:
 # V2: Professionelle Positionsanalyse (orchestriert alle neuen Engines)
 # ---------------------------------------------------------------------------
 
+def _seite_aus_positionsdaten(position_data: dict):
+    """Liest die Positionsseite aus den Eingabedaten; LONG ist der Rückfall.
+
+    Akzeptiert den Enum selbst, seinen Wert ("LONG"/"SHORT") und eine
+    Schreibweise in Kleinbuchstaben — Formulardaten kommen als Text herein,
+    programmatische Aufrufer halten meist den Enum in der Hand.
+
+    Alles Unbekannte wird LONG. Eine unverständliche Angabe als SHORT zu deuten
+    würde aus einem Tippfehler eine umgekehrte Empfehlung machen.
+    """
+    from services.position_types import PositionSide
+
+    roh = position_data.get("side") if position_data else None
+    if roh is None:
+        return PositionSide.LONG
+    if isinstance(roh, PositionSide):
+        return roh
+    return (PositionSide.SHORT if str(roh).strip().upper() == "SHORT"
+            else PositionSide.LONG)
+
+
 def calc_position_analysis_v2(
     score_result,
     position_data: dict,
@@ -1389,7 +1410,17 @@ def calc_position_analysis_v2(
     holding_days = position_data.get("holding_days", 0)
     atr_val = position_data.get("atr_val")
 
-    side = PositionSide.LONG  # Default — Short support prepared but not UI-exposed
+    # P3-02: Die Seite kam bis hierher fest verdrahtet als LONG herein,
+    # obwohl jede Engine darunter (validate_target_stop, calc_position_metrics,
+    # position_state_engine) beide Seiten vollständig behandelt. Der SHORT-Pfad
+    # war damit toter Code — nicht falsch, nur unerreichbar.
+    #
+    # Jetzt entscheidet der Aufrufer über `position_data["side"]`. Die
+    # Oberfläche bietet das Feld noch NICHT an; sie liefert weiterhin keine
+    # Seite und bekommt damit LONG wie bisher. Das ist Absicht: der SHORT-Pfad
+    # ist erst durch Tests abgedeckt, nicht durch Benutzung, und eine
+    # Positionsempfehlung ist eine Aussage über echtes Geld.
+    side = _seite_aus_positionsdaten(position_data)
     analysis = PositionAnalysis(side=side)
 
     # ── 1. Validierung ────────────────────────────────────────────

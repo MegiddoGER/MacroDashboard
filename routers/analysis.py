@@ -10,6 +10,7 @@ GET  /api/analysis/position/recommendation → HTMX-Partial: Empfehlung re-rende
 """
 
 import json
+import logging
 import math
 import traceback
 import warnings
@@ -20,6 +21,8 @@ import numpy as np
 import pandas as pd
 from fastapi import APIRouter, Request, Form, Query
 from fastapi.responses import HTMLResponse
+
+logger = logging.getLogger(__name__)
 
 from services.cache_core import (
     cached_stock_details, cached_company_news,
@@ -559,8 +562,12 @@ def _build_analysis_context(raw_input: str, time_filter: str) -> dict | str:
                     )
             finally:
                 session.close()
-    except Exception as exc:
-        warnings.warn(f"Signal-Erfassung für {ticker} fehlgeschlagen: {exc}")
+    except Exception:
+        # Vormals warnings.warn — das landete nirgends, wo jemand es gesehen
+        # hätte. Genau deshalb war tagelang unklar, ob der Erfassungspfad
+        # überhaupt feuert.
+        logger.warning("Signal-Erfassung für %s fehlgeschlagen.", ticker,
+                       exc_info=True)
 
     # Post-process: margins chart
     try:
@@ -1026,9 +1033,11 @@ def _build_position_analysis_context(
             rec = v2_result.get("legacy_rec", {})
             cat_scores = dict(score_result.cat_scores)
             cat_max = dict(score_result.cat_max)
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
+    except Exception:
+        # Der Nutzer bekommt unten eine Ersatzempfehlung zu sehen; ohne
+        # Protokoll wäre nicht mehr feststellbar, WARUM sie erschienen ist.
+        logger.error("Positions-Scoring (V2) für %s fehlgeschlagen — "
+                     "Ersatzempfehlung wird ausgegeben.", ticker, exc_info=True)
         rec = {
             "position_score": 50,
             "action": "HALTEN",
@@ -1073,8 +1082,9 @@ def _build_position_analysis_context(
                     )
             finally:
                 session.close()
-    except Exception as exc:
-        warnings.warn(f"Positions-Snapshot für {ticker} fehlgeschlagen: {exc}")
+    except Exception:
+        logger.warning("Positions-Snapshot für %s fehlgeschlagen.", ticker,
+                       exc_info=True)
 
     ctx = {
         "ticker": ticker,

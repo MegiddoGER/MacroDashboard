@@ -1,6 +1,6 @@
 # CONTEXT.md — Arbeitsstand Signal-Engine
 
-_Stand: 2026-08-31 · auf `2d15793` folgend · Branch `main`_
+_Stand: 2026-08-31 · auf `a92e6f1` folgend · Branch `main`_
 
 Übergabedatei für eine frische Claude-Session. Sie beantwortet drei Fragen:
 **Was ist erledigt, was ist offen, und was darf nicht noch einmal neu hergeleitet
@@ -357,6 +357,8 @@ echte Ereignisse (CVNA, SMCI, HelloFresh, Fiserv), keine Split-Brüche.
 | **P1-04 auf der Oberfläche sichtbar** | `templates/pages/signal_quality.html` (vier Tabellen) |
 | **Marktbasis statt Nullhypothese 50** | `auswertung/basis.py` (`anteil_schlaegt_markt`, `markt_basis`) |
 | **P2-02 Querschnitts-Momentum, gemessen** | `services/cross_sectional_momentum.py`, `auswertung/momentum.py` |
+| **P3-02 Positionsseite erreichbar** | `services/scoring.py`, `tests/test_position_side.py` |
+| **Analyse-Router protokolliert** | `routers/analysis.py` (drei stille Fehlerpfade) |
 
 **Wichtig:** Alle 88.033 Bestands-Snapshots tragen `score_version` 1.0.0 — es
 gibt weder welche mit 2.0.0 noch mit 2.1.0 noch mit 2.2.0. Weder der sperrende
@@ -438,16 +440,28 @@ dem nächsten Scheduler-Lauf tragen **2.2.0**.
   hat — siehe §5.
 
 ### C. Positionspfad — Messung läuft, Auswertung fehlt
-- ~~**P3-03** erzeugt keine Snapshots~~ → erledigt, siehe §3. Ab jetzt schreibt
-  jede Positionsanalyse einen Snapshot mit `analyse_modus = BESTEHENDE_POSITION`.
-  **Der Bestand ist aber leer:** die ersten Outcomes werden erst 7 Tage nach dem
-  ersten erfassten Aufruf fällig, belastbare Zahlen dauern entsprechend länger.
+- ~~**P3-03** erzeugt keine Snapshots~~ → erledigt UND **nachgeprüft**. Der
+  Bestand stand tagelang auf null, was zwei völlig verschiedene Ursachen haben
+  konnte: nie aufgerufen, oder still gescheitert. Ein echter Aufruf von
+  `POST /analysis/position/load` hat genau eine Zeile erzeugt — der Pfad
+  funktioniert, er war nur nie benutzt worden. Der Bestand beginnt jetzt;
+  die ersten Outcomes werden 7 Tage nach dem ersten Aufruf fällig.
+  Dass die Frage überhaupt offen war, lag am fehlenden Protokoll (siehe
+  P4-11).
 - **P3-05 (neu)** keine Auswertungsfläche für `BESTEHENDE_POSITION`. Die Daten
   laufen auf, gelesen werden sie noch nirgends — `/signals` und alle Abfragen in
   `auswertung/` filtern bewusst auf `NEUE_POSITION`. Nächster Schritt, sobald
   genug Zeilen fällig geworden sind.
 - **P3-01** keine Stop-Historie → Ratchet wirkungslos, R-Multiple/MAE/MFE unberechenbar
-- **P3-02** SHORT-Pfad unerreichbar (`side = PositionSide.LONG` fest verdrahtet)
+- ~~**P3-02** SHORT-Pfad unerreichbar~~ → **halb erledigt.** Die Seite kommt
+  jetzt aus `position_data["side"]` statt fest verdrahtet
+  (`services/scoring.py`); `tests/test_position_side.py` belegt die
+  Durchleitung und dass dieselbe Lage je Seite umgekehrt bewertet wird. Die
+  Engines konnten SHORT ohnehin immer — es war getesteter toter Code.
+  **Offen bleibt die Oberfläche:** das Positionsformular bietet kein
+  Seiten-Feld an, liefert also weiter keine Seite und bekommt LONG. Bewusst so:
+  der SHORT-Pfad ist durch Tests gedeckt, nicht durch Benutzung, und eine
+  Positionsempfehlung ist eine Aussage über echtes Geld.
 - **PC-04** ADX wird hier gerichtet gewertet — genau umgekehrt zur Entry-Engine, die ihn als Info führt
 - **PC-06** drei Metriken werden berechnet und nie gelesen
 - **P3-04** Entry- und Positionsscore sind keine vergleichbaren Größen
@@ -468,6 +482,24 @@ dem nächsten Scheduler-Lauf tragen **2.2.0**.
 - **P4-03** Währungen (Xetra/US) werden nie verrechnet
 - **P4-05** Nenner nahe null über die gesamte Kennzahlenfläche
 - **P4-06/07/08/09** illiquide Reihen, still ausscheidende Delistings (Survivorship), Kursgrößenordnungen, ADR-Doppelzählung
+- **P4-10 (neu)** `basis_kurs` ist auf **allen 264.102** Outcomes NULL. Das Feld
+  existiert, `models.py` führt es als split-sichere Outcome-Basis, und
+  `snapshot_service` füllt es für neue Zeilen — nur hat keine einzige
+  Bestandszeile es je bekommen. Alle gespeicherten `outcome_return` sind damit
+  gegen `kurs_bei_snapshot` gerechnet, mit einem Outcome-Kurs aus einem anderen
+  Download: genau die Konstellation, gegen die das Feld eingeführt wurde. Der
+  sichtbare Schaden ist klein — 26 von 87.523 Sieben-Tage-Zeilen über ±40 %,
+  und die tragen bekannte Namen (CVNA, SMCI, ECHO, ACX.DE), sind also echte
+  Ereignisse. Der Schutz war trotzdem nie in Kraft. Eine echte Reparatur hieße,
+  die Outcomes aus einer frisch geladenen, einheitlich angepassten Reihe neu zu
+  rechnen (593 Ticker).
+- **P4-11 (neu)** Stille Fehlerpfade außerhalb von `snapshot_engine/`.
+  `routers/analysis.py` ist umgestellt (drei Stellen: `warnings.warn` und
+  `traceback.print_exc` → `logger`), weil dort die Unsicherheit über P3-03
+  entstand. Der Rest steht noch: ~190 breite `except Exception` und
+  `print()`-Fehlerbehandlung in den übrigen Routern und Services (siehe
+  CLAUDE.md). Dazu 23 mypy-Meldungen ohne committete Konfiguration — fehlende
+  Stubs sowie `Row`-vs-`tuple` in `kennzahlen.py` und `risk_adjusted.py`.
 
 ### F. Werkzeuge — keines gebaut
 `signal-researcher`, `market-data-integrity`, `sector-models`, `snapshot-schema`
@@ -513,7 +545,7 @@ die beste Variante behält, hat ihn zum Trainingsset gemacht — nur langsamer.
 ## 6. Verifikation (es gibt keine CI)
 
 ```
-py -m pytest -q                                   # 167 Tests
+py -m pytest -q                                   # 183 Tests
 py -m mypy <geänderte Dateien>                    # ad hoc, keine Konfiguration im Repo
 py -c "import warnings; warnings.filterwarnings('ignore'); from fastapi.testclient import TestClient; import main; c=TestClient(main.app); c.__enter__(); [print(c.get(u).status_code, u) for u in ['/','/signals','/signals/indikatoren','/signals/backfill','/analysis','/screener','/watchlist','/journal','/backtesting','/sectors','/economy','/settings','/lexicon','/sources','/directory']]"
 ```
