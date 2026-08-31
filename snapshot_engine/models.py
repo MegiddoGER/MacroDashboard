@@ -261,6 +261,17 @@ class AnalyseSnapshotOutcome(Base):
     # None bei Altzeilen: dort wurde snapshot.kurs_bei_snapshot verwendet.
     basis_kurs: Mapped[Optional[float]] = mapped_column(Float)
     outcome_return: Mapped[Optional[float]] = mapped_column(Float)      # in Prozent
+
+    # Marktrendite über DASSELBE Fenster (P1-04). Ohne sie ist jede
+    # Trefferquote absolut: "57 % der Kaufsignale stiegen" ist in einem
+    # Zeitraum, in dem 57 % aller Aktien stiegen, exakt null Leistung.
+    # Der Index richtet sich nach dem HANDELSPLATZ, nicht nach dem Sitz des
+    # Unternehmens — sonst wäre die Differenz zweier Prozentzahlen aus
+    # verschiedenen Währungen (siehe snapshot_engine/benchmark.py).
+    # None: Markt unbekannt, Index nicht ladbar, oder Altzeile vor P1-04.
+    benchmark_ticker: Mapped[Optional[str]] = mapped_column(Text)
+    benchmark_return: Mapped[Optional[float]] = mapped_column(Float)     # in Prozent
+
     outcome_zeitpunkt: Mapped[Optional[datetime]] = mapped_column(DateTime)
     ausgewertet: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     # None = nicht bewertbar (NEUTRAL-Signal oder Bewegung < MIN_BEWEGUNG_PCT)
@@ -272,6 +283,17 @@ class AnalyseSnapshotOutcome(Base):
     snapshot: Mapped["AnalyseSnapshot"] = relationship(
         "AnalyseSnapshot", back_populates="outcomes")
 
+    @property
+    def ueberrendite(self) -> Optional[float]:
+        """Titel minus Markt, in Prozentpunkten.
+
+        Bewusst berechnet und nicht gespeichert: eine dritte Spalte könnte von
+        ihren beiden Summanden abweichen, sobald eine davon nachträglich
+        korrigiert wird.
+        """
+        from snapshot_engine.benchmark import ueberrendite
+        return ueberrendite(self.outcome_return, self.benchmark_return)
+
     def to_dict(self) -> dict:
         return {
             "horizont_tage": self.horizont_tage,
@@ -279,6 +301,9 @@ class AnalyseSnapshotOutcome(Base):
             "outcome_kurs": self.outcome_kurs,
             "basis_kurs": self.basis_kurs,
             "outcome_return": self.outcome_return,
+            "benchmark_ticker": self.benchmark_ticker,
+            "benchmark_return": self.benchmark_return,
+            "ueberrendite": self.ueberrendite,
             "outcome_zeitpunkt": self.outcome_zeitpunkt.isoformat() if self.outcome_zeitpunkt else None,
             "ausgewertet": self.ausgewertet,
             "war_erfolgreich": self.war_erfolgreich,
@@ -528,6 +553,11 @@ def _schema_migrieren():
             "versuche": "INTEGER DEFAULT 0",
             # NULL für Altzeilen — dort war die Basis snapshot.kurs_bei_snapshot.
             "basis_kurs": "REAL",
+            # P1-04. Ohne DEFAULT: NULL heißt hier "noch nicht nachgetragen"
+            # und ist von "kein Benchmark ermittelbar" nur über
+            # benchmark_ticker zu unterscheiden.
+            "benchmark_ticker": "TEXT",
+            "benchmark_return": "REAL",
         },
         "analyse_snapshots": {
             # Bestandszeilen stammen aus der Formel, die bei Einführung der

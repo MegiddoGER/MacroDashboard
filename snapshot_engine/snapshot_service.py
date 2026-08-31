@@ -744,6 +744,14 @@ def outcomes_nachtragen(db: Session, limit: int = 500) -> int:
                                      end=jetzt + timedelta(days=1),
                                      pause_sekunden=0.5)
 
+    # Vergleichsindizes (P1-04). Das sind vier Reihen statt 611 — der Aufwand
+    # fällt neben dem Ticker-Download nicht ins Gewicht.
+    from snapshot_engine.benchmark import (
+        benchmark_fuer, benchmark_reihen_laden, benoetigte_benchmarks,
+    )
+    benchmark_reihen = benchmark_reihen_laden(
+        benoetigte_benchmarks(tickers), start, jetzt + timedelta(days=1))
+
     nachgetragen = 0
 
     for outcome in faellige:
@@ -784,11 +792,30 @@ def outcomes_nachtragen(db: Session, limit: int = 500) -> int:
         outcome.ausgewertet = True
         outcome.war_erfolgreich = erfolg_bewerten(
             snapshot.richtungssignal, basis, kurs)
+
+        # Marktrendite über dasselbe Fenster. Schlägt sie fehl, bleibt das
+        # Outcome trotzdem ausgewertet — die absolute Bewertung steht für sich,
+        # und ein fehlender Benchmark darf sie nicht blockieren.
+        outcome.benchmark_ticker = benchmark_fuer(snapshot.ticker)
+        outcome.benchmark_return = _benchmark_return(
+            benchmark_reihen, outcome.benchmark_ticker,
+            snapshot.snapshot_zeitpunkt, outcome.faellig_am)
+
         nachgetragen += 1
 
     db.commit()
     logger.info("Outcomes: %d nachgetragen.", nachgetragen)
     return nachgetragen
+
+
+def _benchmark_return(reihen: dict, benchmark: Optional[str],
+                      von, bis) -> Optional[float]:
+    """Indexrendite über dasselbe Fenster wie das Outcome, gerundet."""
+    if not benchmark or von is None or bis is None:
+        return None
+    from snapshot_engine.benchmark import rendite
+    wert = rendite(reihen.get(benchmark), von, bis)
+    return None if wert is None else round(wert, 2)
 
 
 # ---------------------------------------------------------------------------

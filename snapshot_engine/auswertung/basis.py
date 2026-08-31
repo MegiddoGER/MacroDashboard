@@ -109,6 +109,100 @@ def mit_basis(kennzahlen: dict, anteil: Optional[float],
 
 
 # ---------------------------------------------------------------------------
+# Überrendite gegen den Markt (P1-04)
+# ---------------------------------------------------------------------------
+
+# Mindest-Vorsprung, ab dem eine Überrendite als Aussage gilt. Dieselbe
+# Schwelle wie MIN_BEWEGUNG_PCT bei der absoluten Bewertung, nur auf die
+# Differenz angewandt statt auf die Kursbewegung.
+MIN_VORSPRUNG_PP = MIN_BEWEGUNG_PCT
+
+# Die Nullhypothese der Marktquote ist 50, nicht `anteil_steigend`. Genau das
+# ist der Sinn von P1-04: der Vergleichsindex hat die Marktbewegung bereits aus
+# jeder einzelnen Beobachtung herausgerechnet, deshalb braucht es keine über
+# den Gesamtbestand gemittelte Basisrate mehr. Wer ohne Prognosefähigkeit
+# rät, liegt gegen den Markt in der Hälfte der Fälle vorn.
+MARKT_NULLHYPOTHESE = 50.0
+
+
+def mit_ueberrendite(kennzahlen: dict,
+                     ueberrenditen: Sequence[Optional[float]],
+                     richtungen: Sequence[Optional[int]],
+                     horizont_tage: int = 0) -> dict:
+    """Ergänzt eine Kennzahlenzeile um die Bewertung gegen den Markt.
+
+    Tritt NEBEN die absolute Trefferquote, ersetzt sie nicht. Beide werden
+    gebraucht: die absolute Quote bleibt mit allen bisher belegten Zahlen
+    vergleichbar, und wo die beiden auseinanderlaufen, saß Marktphase statt
+    Signalqualität.
+
+    Gerechnet wird auf der Überrendite aus Sicht des Signals -- bei VERKAUF
+    ist ein Rückstand des Titels gegenüber dem Index ein Treffer. Ungerichtete
+    Beobachtungen (NEUTRAL) tragen nichts bei.
+
+    `ueberrendite_abdeckung_pct` ist Teil des Ergebnisses und keine Beigabe:
+    solange der Bestandsnachtrag läuft, hat nur ein Teil der Zeilen einen
+    Vergleichswert, und eine Marktquote über 200 von 256.705 Zeilen darf
+    nicht wie eine Aussage über den Bestand aussehen.
+
+    Bezugsgröße der Abdeckung sind die GERICHTETEN Beobachtungen, nicht alle:
+    NEUTRAL ist gegen den Markt ohnehin nicht bewertbar, und gegen `n`
+    gerechnet wäre ein fehlender Benchmark von einem fehlenden
+    Richtungssignal nicht mehr zu unterscheiden.
+
+    Args:
+        kennzahlen: Zeile aus `kennzahlen_aus_returns`, wird ergänzt.
+        ueberrenditen: Titel minus Index in Prozentpunkten, None wo kein
+            Vergleichswert vorliegt.
+        richtungen: +1 (long) / -1 (short) / None je Beobachtung.
+        horizont_tage: Für die effektive Stichprobe.
+    """
+    gerichtet = [u * ri for u, ri in zip(ueberrenditen, richtungen)
+                 if u is not None and ri is not None]
+
+    n_gerichtet = sum(1 for ri in richtungen if ri is not None)
+    kennzahlen["ueberrendite_n"] = len(gerichtet)
+    kennzahlen["ueberrendite_abdeckung_pct"] = (
+        round(len(gerichtet) / n_gerichtet * 100, 1) if n_gerichtet else None)
+
+    # Alles Weitere braucht eine Stichprobe. Fehlt sie, bleiben die Felder
+    # None -- sichtbar leer ist besser als eine Zahl ohne Deckung.
+    kennzahlen.setdefault("ueberrendite_mittel_pp", None)
+    kennzahlen.setdefault("markt_trefferquote", None)
+    kennzahlen.setdefault("markt_vorsprung_pp", None)
+    kennzahlen.setdefault("markt_fehler_pp", None)
+    kennzahlen.setdefault("markt_signifikant", None)
+
+    n_effektiv = (effektive_stichprobe(len(gerichtet), horizont_tage)
+                  if horizont_tage else len(gerichtet))
+    kennzahlen["ueberrendite_n_effektiv"] = n_effektiv
+    kennzahlen["ueberrendite_status"] = (
+        STATUS_OK if stichprobe_ausreichend(n_effektiv) else STATUS_ZU_WENIG_DATEN)
+    if kennzahlen["ueberrendite_status"] != STATUS_OK:
+        return kennzahlen
+
+    # Mittelwert über ALLE gerichteten Beobachtungen, auch die knappen: das
+    # ist der Ertrag gegenüber dem Markt, und ein Vorsprung von 0,1 pp ist
+    # dafür ein echter Beitrag, nur eben ein kleiner.
+    kennzahlen["ueberrendite_mittel_pp"] = round(statistics.fmean(gerichtet), 2)
+
+    # Die Quote dagegen zählt nur, was über dem Rauschen liegt -- dieselbe
+    # Trennung wie zwischen avg_return und trefferquote.
+    bewertbar = [g for g in gerichtet if abs(g) >= MIN_VORSPRUNG_PP]
+    if not bewertbar:
+        return kennzahlen
+
+    quote = sum(1 for g in bewertbar if g > 0) / len(bewertbar) * 100
+    kennzahlen["markt_trefferquote"] = round(quote, 1)
+    vorsprung = quote - MARKT_NULLHYPOTHESE
+    kennzahlen["markt_vorsprung_pp"] = round(vorsprung, 1)
+    kennzahlen["markt_fehler_pp"] = fehlerspanne_pp(quote, n_effektiv)
+    kennzahlen["markt_signifikant"] = vorsprung_signifikant(
+        vorsprung, quote, n_effektiv)
+    return kennzahlen
+
+
+# ---------------------------------------------------------------------------
 # Belastbarkeit einer Trefferquote
 # ---------------------------------------------------------------------------
 

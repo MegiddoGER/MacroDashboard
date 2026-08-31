@@ -18,7 +18,9 @@ from snapshot_engine.models import (
 )
 from snapshot_engine.auswertung.basis import (
     MIN_STICHPROBE, anteil_steigend, kennzahlen_aus_returns, mit_basis,
+    mit_ueberrendite,
 )
+from snapshot_engine.benchmark import ueberrendite
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +35,13 @@ def _ausgewertete_paare(db: Session, datenmodus: str | None = None,
                         horizont: int | None = None) -> list[tuple]:
     """Lädt die ausgewerteten Beobachtungen als schlanke Tupel.
 
-    Rückgabe je Zeile: (ticker, richtungssignal, outcome_return, war_erfolgreich).
+    Rückgabe je Zeile: (ticker, richtungssignal, outcome_return,
+    war_erfolgreich, benchmark_return).
+
+    `benchmark_return` kommt ohne eigenen Filter mit: Zeilen ohne
+    Vergleichswert sollen weiterhin in die absolute Trefferquote eingehen.
+    Sie fallen erst in `mit_ueberrendite` heraus, das die Abdeckung
+    getrennt ausweist.
     Bewusst keine ORM-Objekte — bei sechsstelligen Zeilenzahlen wäre das
     Hydrieren ganzer Entitäten der Flaschenhals der ganzen Seite.
     """
@@ -41,7 +49,8 @@ def _ausgewertete_paare(db: Session, datenmodus: str | None = None,
         db.query(AnalyseSnapshot.ticker,
                  AnalyseSnapshot.richtungssignal,
                  AnalyseSnapshotOutcome.outcome_return,
-                 AnalyseSnapshotOutcome.war_erfolgreich)
+                 AnalyseSnapshotOutcome.war_erfolgreich,
+                 AnalyseSnapshotOutcome.benchmark_return)
         .join(AnalyseSnapshotOutcome,
               AnalyseSnapshotOutcome.snapshot_id == AnalyseSnapshot.id)
         .filter(AnalyseSnapshotOutcome.ausgewertet.is_(True))
@@ -77,29 +86,38 @@ def kennzahlen_berechnen(db: Session, datenmodus: str | None = None,
             zeilen = _ausgewertete_paare(db, datenmodus, horizont)
 
             # Einmal je Horizont aus denselben Zeilen — kostet keine Extraabfrage.
-            anteil = anteil_steigend([r for _, _, r, _ in zeilen])
-            richtungen = [RICHTUNG_JE_SIGNAL.get(s) for _, s, _, _ in zeilen]
+            anteil = anteil_steigend([r for _, _, r, _, _ in zeilen])
+            richtungen = [RICHTUNG_JE_SIGNAL.get(s) for _, s, _, _, _ in zeilen]
+            # Titel minus Index je Beobachtung (P1-04). None, wo kein
+            # Vergleichswert vorliegt — die Reihenfolge bleibt erhalten,
+            # damit Rendite, Richtung und Überrendite ausgerichtet sind.
+            ueberrenditen = [ueberrendite(r, b) for _, _, r, _, b in zeilen]
 
-            ergebnis["horizonte"][horizont] = mit_basis(
-                kennzahlen_aus_returns(
-                    [r for _, _, r, _ in zeilen],
-                    [t for _, _, _, t in zeilen],
-                    horizont_tage=horizont, minimum=minimum,
-                    richtungen=richtungen),
-                anteil, richtungen)
+            ergebnis["horizonte"][horizont] = mit_ueberrendite(
+                mit_basis(
+                    kennzahlen_aus_returns(
+                        [r for _, _, r, _, _ in zeilen],
+                        [t for _, _, _, t, _ in zeilen],
+                        horizont_tage=horizont, minimum=minimum,
+                        richtungen=richtungen),
+                    anteil, richtungen),
+                ueberrenditen, richtungen, horizont_tage=horizont)
 
             # Aufschlüsselung je Richtungssignal
             je_signal: dict = {}
             for signal in ("KAUF", "NEUTRAL", "VERKAUF"):
                 gefiltert = [z for z in zeilen if z[1] == signal]
                 signal_richtungen = [RICHTUNG_JE_SIGNAL.get(signal)] * len(gefiltert)
-                je_signal[signal] = mit_basis(
-                    kennzahlen_aus_returns(
-                        [r for _, _, r, _ in gefiltert],
-                        [t for _, _, _, t in gefiltert],
-                        horizont_tage=horizont, minimum=minimum,
-                        richtungen=signal_richtungen),
-                    anteil, signal_richtungen)
+                je_signal[signal] = mit_ueberrendite(
+                    mit_basis(
+                        kennzahlen_aus_returns(
+                            [r for _, _, r, _, _ in gefiltert],
+                            [t for _, _, _, t, _ in gefiltert],
+                            horizont_tage=horizont, minimum=minimum,
+                            richtungen=signal_richtungen),
+                        anteil, signal_richtungen),
+                    [ueberrendite(r, b) for _, _, r, _, b in gefiltert],
+                    signal_richtungen, horizont_tage=horizont)
             ergebnis["je_signal"][horizont] = je_signal
 
         # Top-/Flop-Ticker auf dem kürzesten Horizont (meiste Daten)
@@ -224,7 +242,7 @@ def _top_flop_ticker(db: Session, datenmodus: str | None, horizont: int,
     zeilen = _ausgewertete_paare(db, datenmodus, horizont)
 
     je_ticker = defaultdict(list)
-    for ticker, richtungssignal, outcome_return, _ in zeilen:
+    for ticker, richtungssignal, outcome_return, _, _ in zeilen:
         if richtungssignal == "KAUF":
             je_ticker[ticker].append(outcome_return)
 

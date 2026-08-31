@@ -1,6 +1,6 @@
 # CONTEXT.md — Arbeitsstand Signal-Engine
 
-_Stand: 2026-08-30 · HEAD `c7eec1e`+ · Branch `main`_
+_Stand: 2026-08-31 · auf `955479f` folgend · Branch `main`_
 
 Übergabedatei für eine frische Claude-Session. Sie beantwortet drei Fragen:
 **Was ist erledigt, was ist offen, und was darf nicht noch einmal neu hergeleitet
@@ -142,6 +142,54 @@ ist deshalb weiterhin **unangetastet**.
 
 ---
 
+## 2b. Was die Marktbereinigung davon übrig lässt
+
+Seit P1-04 trägt jedes Outcome die Rendite seines Handelsplatz-Index über
+DASSELBE Fenster (`snapshot_engine/benchmark.py`). Der Bestand ist
+nachgetragen: **256.705 von 256.705 ausgewerteten Outcomes, Abdeckung 100 %**
+(S&P 216.138 · DAX 40.114 · CAC 447 · SMI 3 · KOSPI 3), null Zeilen ohne
+Indexkurs. Damit lässt sich zum ersten Mal trennen, was Signalqualität war und
+was Marktphase — und das Ergebnis kehrt die bisherige Deutung um
+(30 Tage, HISTORISCH):
+
+| Signal | n | absolute Quote | gegen den Markt | |
+|---|---|---|---|---|
+| KAUF | 32.001 | 54,3 % | 47,4 % (−2,6 pp) | **signifikanter Rückstand** |
+| VERKAUF | 19.439 | 41,2 % | 50,8 % (+0,8 pp) | **Rauschen** |
+
+Alle Signale zusammen, je Horizont:
+
+| Horizont | absolut (ggü. Basisrate) | gegen den Markt (ggü. 50) | mittlere Überrendite |
+|---|---|---|---|
+| 7 Tage | 50,4 % (−0,3 pp, Rauschen) | 50,1 % (+0,1 pp, Rauschen) | +0,03 pp |
+| 30 Tage | 49,3 % (−2,1 pp, signifikant) | 48,7 % (−1,3 pp, signifikant) | −0,06 pp |
+| 90 Tage | 51,0 % (−1,1 pp, signifikant) | 48,2 % (−1,8 pp, signifikant) | +0,02 pp |
+
+Drei Schlüsse, die nicht neu hergeleitet werden müssen:
+
+1. **Die Kaufsignale waren nie gut.** Ihre 54,3 % waren Marktdrift; gegen den
+   Index liegen sie signifikant zurück. Wer nur die absolute Quote sah, hielt
+   ein unterdurchschnittliches Signal für ein brauchbares.
+2. **Die Verkaufssignale waren nie schlecht.** Ihre 41,2 % entstanden gegen
+   einen steigenden Markt; bereinigt sind sie ein Münzwurf. Die Short-Seite ist
+   damit nicht kaputt, sondern nur ohne Vorsprung — ein anderer Befund als
+   bisher angenommen.
+3. **Im Aggregat gibt es kein Alpha.** Die mittlere Überrendite liegt auf allen
+   drei Horizonten bei rund null.
+
+Zwei Festlegungen dazu, die nicht wieder aufgerollt werden müssen:
+
+- **Die Nullhypothese der Marktquote ist 50**, nicht `anteil_steigend`. Der
+  Index hat die Marktbewegung je Beobachtung bereits herausgerechnet; eine über
+  den Gesamtbestand gemittelte Basisrate wäre danach doppelt gezählt.
+- **Der Index richtet sich nach dem Handelsplatz, nicht nach dem Sitz des
+  Unternehmens.** Die Überrendite ist eine Differenz zweier Prozentzahlen und
+  nur dann sauber, wenn beide dieselbe Währung messen. Ein unbekanntes Suffix
+  bekommt deshalb bewusst KEINEN Index: ein falscher wäre eine als Alpha
+  getarnte Wechselkursbewegung, und die fiele später niemandem mehr auf.
+
+---
+
 ## 3. Erledigt — nicht noch einmal bauen
 
 | Was | Wo |
@@ -163,6 +211,9 @@ ist deshalb weiterhin **unangetastet**.
 | **P3-03 Positionspfad instrumentiert** | `snapshot_engine/position_snapshot.py` |
 | **P1-05 Train/Holdout-Trennung** | `snapshot_engine/auswertung/holdout.py` |
 | **P1-07 Schwellensuche auf dem Trainingsteil** | `snapshot_engine/auswertung/schwellensuche.py` |
+| **P1-04 Marktrendite je Outcome** | `snapshot_engine/benchmark.py` |
+| **P1-04 Bestandsnachtrag (256.505 Zeilen)** | `snapshot_engine/benchmark_backfill.py` |
+| **P1-04 Überrendite in den Kennzahlen** | `auswertung/basis.py`, `auswertung/kennzahlen.py` |
 
 **Wichtig:** Alle 88.033 Bestands-Snapshots tragen `score_version` 1.0.0 — es
 gibt weder welche mit 2.0.0 noch mit 2.1.0. Der sperrende Zweig hat also nie
@@ -189,7 +240,18 @@ die angezeigte Empfehlung. Neue Snapshots ab dem nächsten Scheduler-Lauf tragen
   Oszillator-Deckung wird nicht mehr zu „Kein Einstieg" herabgestuft; der
   Oszillator erscheint dort nur noch als Hinweis in der Checkliste. Wirkung:
   spürbar mehr Kaufempfehlungen als unter 2.0.0.
-- **P1-04** keine Benchmark-Rendite je Outcome — Trefferquoten sind absolut, kein Alpha
+- ~~**P1-04** keine Benchmark-Rendite je Outcome~~ → erledigt, siehe §2b
+  und §3. Jedes ausgewertete Outcome trägt `benchmark_ticker` und
+  `benchmark_return`; die Kennzahlen weisen Marktquote, mittlere
+  Überrendite, Fehlerspanne und Abdeckung neben der absoluten Quote aus.
+  Die absolute Quote bleibt bewusst stehen — sonst verlören alle in §2
+  und §2a belegten Zahlen ihren Bezug, und gerade die Differenz zwischen
+  beiden ist die Aussage.
+- **P1-04b (neu)** die Überrendite steht nur in `basis.py` und
+  `kennzahlen.py`. `kalibrierung.py`, `indikator_stats.py`,
+  `risk_adjusted.py`, `gate.py` und `holdout.py` messen weiter absolut —
+  und weisen damit weiter Marktphase als Signalqualität aus. Nächster
+  Schritt, siehe §5.
 - **P1-06** ein 30-Tage-Takt für alle Kategorien, unabhängig von der Signal-Halbwertszeit
 - **P1-03** Backfill kennt kein Sentiment, misst also ein anderes System als das laufende (Designentscheidung offen)
 
@@ -233,11 +295,22 @@ Arbeit inline erledigt, was sie langsam und einmalig statt wiederholbar macht.
 
 ## 5. Empfohlener nächster Schritt
 
-**P1-04 — Benchmark-Rendite je Outcome.** §2a legt nahe, dass ein
-guter Teil der gemessenen Unterschiede schlicht verschiedene Marktphasen sind:
-die Basisrate allein wandert zwischen Training (54,8) und Gesamtbestand (55,5).
-Ohne Benchmark je Beobachtung lässt sich Marktbewegung nicht von Signalqualität
-trennen — und dann misst jede weitere Verfeinerung weiter beides zusammen.
+**P1-04b — die Überrendite in die übrigen Auswertungsmodule tragen.**
+`basis.py` und `kennzahlen.py` rechnen seit P1-04 marktbereinigt;
+`kalibrierung.py`, `indikator_stats.py`, `risk_adjusted.py`, `gate.py` und
+`holdout.py` tun es nicht. §2b zeigt, was das kostet: dort wird weiter
+Marktphase als Signalqualität ausgewiesen, und zwar je nach Richtung mit
+umgekehrtem Vorzeichen. Der Schritt ist klein — die Bausteine stehen
+(`mit_ueberrendite`, `erfolg_gegen_benchmark`), es fehlt die Verdrahtung —
+und er entscheidet, ob jede weitere Messung überhaupt etwas Belastbares
+misst.
+
+**Danach BC-01/02/03** (§4 B). §2b hat die Diagnose verschärft: die
+Kaufsignale liegen gegen den Markt signifikant zurück, und der Composite,
+der sie erzeugt, besteht aus sechs korrelierten Momentum-Messungen
+gegenüber drei meist stillen Oszillator-Slots. Das ist kein
+Kalibrierungs-, sondern ein Kompositionsproblem — und keine Gewichtung
+repariert es.
 
 **Nicht** mit dem Vorschlagspanel für Gewichte anfangen: DX-01 zeigt, dass
 Gewichtstuning an dieser Architektur eine Decke hat.
@@ -252,7 +325,7 @@ die beste Variante behält, hat ihn zum Trainingsset gemacht — nur langsamer.
 ## 6. Verifikation (es gibt keine CI)
 
 ```
-py -m pytest -q                                   # 15 Tests
+py -m pytest -q                                   # 127 Tests
 py -m mypy <geänderte Dateien>                    # ad hoc, keine Konfiguration im Repo
 py -c "import warnings; warnings.filterwarnings('ignore'); from fastapi.testclient import TestClient; import main; c=TestClient(main.app); c.__enter__(); [print(c.get(u).status_code, u) for u in ['/','/signals','/signals/indikatoren','/signals/backfill','/analysis','/screener','/watchlist','/journal','/backtesting','/sectors','/economy','/settings','/lexicon','/sources','/directory']]"
 ```
