@@ -21,6 +21,7 @@ from services.economic_calendar import get_upcoming_events, get_calendar_summary
 from services.options import get_options_overview
 from services.portfolio import calc_equity_curve, calc_performance_metrics, calc_sector_allocation
 from services.risk import calc_full_risk_report
+from services.index_membership import sp500_aufnahmedaten
 from snapshot_engine.auswertung_adapter import (
     get_signal_statistics, calc_hit_rate, calc_calibration_chart,
 )
@@ -72,6 +73,9 @@ _gold_cache = TTLCache(maxsize=10, ttl=300)
 _inflation_cache = TTLCache(maxsize=10, ttl=300)
 _listings_cache = TTLCache(maxsize=5, ttl=3600)
 _sp500_components_cache = TTLCache(maxsize=5, ttl=86400)
+# Index-Aufnahmen ändern sich einige Male im Jahr — ein Tag ist reichlich
+# kurz, aber gleich lang wie die Konstituentenliste daneben.
+_index_membership_cache = TTLCache(maxsize=5, ttl=86400)
 
 # News / Kalender
 _regional_news_cache = TTLCache(maxsize=20, ttl=600)
@@ -192,6 +196,11 @@ def cached_earnings(tickers_str: str, names_str: str):
 @cached(_sp500_components_cache, lock=_lock)
 def cached_sp500_components():
     return get_sp500_components()
+
+
+@cached(_index_membership_cache, lock=_lock)
+def cached_sp500_aufnahmedaten():
+    return sp500_aufnahmedaten()
 
 
 @cached(_components_perf_cache, lock=_lock)

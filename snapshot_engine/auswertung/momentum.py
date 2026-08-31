@@ -42,6 +42,7 @@ from snapshot_engine.auswertung.basis import (
     MIN_STICHPROBE, anteil_schlaegt_markt, kennzahlen_aus_returns,
     mit_ueberrendite,
 )
+from services.index_membership import war_mitglied
 from snapshot_engine.auswertung.holdout import grenze_lesen, split_filter
 
 logger = logging.getLogger(__name__)
@@ -124,8 +125,18 @@ def raenge_berechnen(db: Session, datenmodus: str = "HISTORISCH",
 def momentum_auswerten(db: Session, horizont: int = 30,
                        datenmodus: str = "HISTORISCH",
                        teil: Optional[str] = None,
-                       minimum: int = MIN_STICHPROBE) -> dict:
+                       minimum: int = MIN_STICHPROBE,
+                       nur_mitglieder: bool = False) -> dict:
     """Wertet die Ränge je Dezil gegen den Markt aus.
+
+    Args:
+        nur_mitglieder: Survivorship-Prüfung (P4-07). Zählt nur Beobachtungen,
+            bei denen der Titel zum Snapshot-Zeitpunkt bereits im Index war.
+            Titel, für die sich das nicht entscheiden lässt — jeder
+            Xetra-Wert, und jedes frühere Mitglied — fallen dabei heraus; die
+            Stichprobe schrumpft also aus zwei verschiedenen Gründen. Das
+            Ergebnis trägt `mitglieder_geprueft`, damit die beiden Läufe
+            nicht verwechselt werden.
 
     Jedes Dezil wird als LONG bewertet: gefragt ist, wie oft ein Titel dieses
     Rangs seinen Index schlägt. Trägt Momentum, muss Dezil 10 über und Dezil 1
@@ -142,6 +153,8 @@ def momentum_auswerten(db: Session, horizont: int = 30,
 
     query = (
         db.query(AnalyseSnapshot.id,
+                 AnalyseSnapshot.ticker,
+                 AnalyseSnapshot.snapshot_zeitpunkt,
                  AnalyseSnapshotOutcome.outcome_return,
                  AnalyseSnapshotOutcome.benchmark_return)
         .join(AnalyseSnapshotOutcome,
@@ -155,10 +168,34 @@ def momentum_auswerten(db: Session, horizont: int = 30,
     if teil:
         query = split_filter(query, teil, grenze_lesen())
 
+    # Aufnahmedaten nur laden, wenn sie gebraucht werden — der Abruf geht
+    # ins Netz, und der Normalfall dieser Auswertung braucht ihn nicht.
+    aufnahmedaten = None
+    if nur_mitglieder:
+        from services.cache_core import cached_sp500_aufnahmedaten
+        aufnahmedaten = cached_sp500_aufnahmedaten()
+        if not aufnahmedaten:
+            logger.warning("Survivorship-Prüfung angefordert, aber keine "
+                           "Aufnahmedaten verfügbar — Lauf wird abgebrochen.")
+            return {"basis_markt": None, "n_gesamt": 0, "dezile": [],
+                    "spread_pp": None, "mitglieder_geprueft": False,
+                    "verworfen_unbekannt": 0, "verworfen_kein_mitglied": 0}
+
     gruppen: dict[int, list[tuple]] = defaultdict(list)
     alle_ueberrenditen: list[Optional[float]] = []
+    verworfen_unbekannt = 0
+    verworfen_kein_mitglied = 0
 
-    for snapshot_id, ret, benchmark in query.all():
+    for snapshot_id, ticker, zeitpunkt, ret, benchmark in query.all():
+        if nur_mitglieder:
+            mitglied = war_mitglied(ticker, zeitpunkt, aufnahmedaten)
+            if mitglied is None:
+                verworfen_unbekannt += 1
+                continue
+            if not mitglied:
+                verworfen_kein_mitglied += 1
+                continue
+
         d = dezil(raenge.get(snapshot_id))
         if d is None:
             continue
@@ -188,6 +225,9 @@ def momentum_auswerten(db: Session, horizont: int = 30,
         "n_gesamt": sum(len(v) for v in gruppen.values()),
         "dezile": zeilen,
         "spread_pp": _spread(zeilen),
+        "mitglieder_geprueft": nur_mitglieder,
+        "verworfen_unbekannt": verworfen_unbekannt,
+        "verworfen_kein_mitglied": verworfen_kein_mitglied,
     }
 
 

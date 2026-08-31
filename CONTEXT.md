@@ -1,6 +1,6 @@
 # CONTEXT.md — Arbeitsstand Signal-Engine
 
-_Stand: 2026-08-31 · auf `a92e6f1` folgend · Branch `main`_
+_Stand: 2026-08-31 · auf `d6284f2` folgend · Branch `main`_
 
 Übergabedatei für eine frische Claude-Session. Sie beantwortet drei Fragen:
 **Was ist erledigt, was ist offen, und was darf nicht noch einmal neu hergeleitet
@@ -296,21 +296,40 @@ zuvor Gemessene:
 - **Der Verlauf trägt die Aussage, nicht eine Zelle.** Ein einzelnes
   herausragendes Dezil wäre verdächtig; zehn monoton steigende sind es nicht.
 
-### Die offene Bedrohung: Survivorship (P4-07)
+### Die Survivorship-Korrektur — ein Drittel des Effekts ist weg
 
-Das Universum ist die **heutige** Index-Mitgliedschaft, rückwärts abgespielt.
-Momentum ist davon stärker betroffen als jeder andere Indikator, weil es genau
-auf der vergangenen Rendite rangt:
+**Gemessen, nicht mehr nur befürchtet.** Die Wikipedia-Komponententabelle trägt
+eine Spalte `Date added`; **75 der 503 heutigen S&P-Mitglieder** sind erst nach
+dem Backfill-Beginn (2022-03-16) aufgenommen worden. Beschränkt man die
+Auswertung auf Beobachtungen, bei denen der Titel zum Snapshot-Zeitpunkt
+bereits Mitglied war (Trainingsteil, nur US-Werte, damit die Titelmenge
+vergleichbar bleibt):
 
-- Titel, die nach schlechten Renditen aus dem Index geflogen sind, fehlen — sie
-  hätten D1–D3 besetzt. Deren Rendite ist dadurch zu gut.
-- Titel, die nach starken Renditen später eingestiegen sind, sind mit ihrer
-  gesamten Vorgeschichte drin. Deren Rendite ist dadurch zu gut sichtbar.
+| | 30 Tage | 90 Tage |
+|---|---|---|
+| alle Daten (n = 31.957) | D10 **+4,5 pp**, signifikant | D10 **+8,7 pp**, signifikant |
+| erst ab Aufnahme (n = 29.607) | D10 **+2,9 pp**, *nicht signifikant* | D10 **+6,6 pp**, signifikant |
 
-Beide Ränder sind verzerrt, die Nettorichtung ist **nicht offensichtlich**.
-Wichtig: der **Holdout schützt hier nicht** — er stammt aus demselben Universum
-und trüge dieselbe Verzerrung. Ihn zu verbrauchen, bevor Survivorship
-eingegrenzt ist, verschenkt den einen Schuss.
+Es fallen nur **2.350 Beobachtungen weg (7,4 %)** — und sie nehmen rund ein
+Drittel des Effekts mit. Genau wie erwartet trifft es ausschließlich das
+oberste Dezil; D1 bleibt fast unverändert (−3,6 → −3,4 bzw. −4,9 → −4,3). Das
+sind die spät aufgenommenen Gewinner, deren Vorgeschichte im Nachhinein
+garantiert gut aussieht.
+
+**Was davon übrig bleibt:** der 90-Tage-Effekt hält, der 30-Tage-Effekt fällt
+unter die Signifikanzschwelle.
+
+### Die verbleibende Hälfte: Ausschlüsse
+
+Korrigiert ist nur die **Aufnahmen**-Hälfte. Titel, die nach schlechter
+Entwicklung aus dem Index geflogen sind, fehlen weiterhin ganz — Wikipedia
+führt die Änderungshistorie seit einem Seitenumbau nicht mehr, und in der
+Datenbank sind sie nie gewesen.
+
+Wichtig für die Einordnung: diese Hälfte wirkt **gegen** den Befund. Die
+fehlenden Verlierer hätten D1 besetzt; dessen gemessene Quote ist dadurch zu
+gut, der Spread also eher zu klein als zu groß. Die korrigierten Zahlen oben
+sind damit eine faire bis konservative Schätzung — nicht eine geschönte.
 
 ### Wo der Eingang steht
 
@@ -358,6 +377,7 @@ echte Ereignisse (CVNA, SMCI, HelloFresh, Fiserv), keine Split-Brüche.
 | **Marktbasis statt Nullhypothese 50** | `auswertung/basis.py` (`anteil_schlaegt_markt`, `markt_basis`) |
 | **P2-02 Querschnitts-Momentum, gemessen** | `services/cross_sectional_momentum.py`, `auswertung/momentum.py` |
 | **P3-02 Positionsseite erreichbar** | `services/scoring.py`, `tests/test_position_side.py` |
+| **P4-07 Aufnahmedaten als Quelle** | `services/index_membership.py`, `cache_core.cached_sp500_aufnahmedaten` |
 | **Analyse-Router protokolliert** | `routers/analysis.py` (drei stille Fehlerpfade) |
 
 **Wichtig:** Alle 88.033 Bestands-Snapshots tragen `score_version` 1.0.0 — es
@@ -468,11 +488,12 @@ dem nächsten Scheduler-Lauf tragen **2.2.0**.
 
 ### D. Analyse-Substanz
 - **P2-01** Sektor-Bewertungsmodelle erreichen den Score nicht — generischer DCF läuft auf Banken, REITs, Biotech
-- ~~**P2-02** Cross-sectional Momentum fehlt ganz~~ → gebaut und gemessen,
-  siehe §2c. Trägt auf dem Trainingsteil auf allen drei Horizonten
-  (D10: +4,9 / +4,9 / +9,3 pp, alle signifikant). **Noch nicht im
-  Score** — offen ist die Survivorship-Eingrenzung (P4-07) und danach
-  die Holdout-Bestätigung, in dieser Reihenfolge (§5).
+- ~~**P2-02** Cross-sectional Momentum fehlt ganz~~ → gebaut, gemessen und
+  **survivorship-korrigiert** (§2c). Nach Abzug der Aufnahmen-Verzerrung
+  bleibt auf dem Trainingsteil: **90 Tage +6,6 pp signifikant**, 30 Tage
+  +2,9 pp nicht mehr signifikant. **Noch nicht im Score.** Nächster Schritt
+  ist die Holdout-Bestätigung, und zwar gezielt für den 90-Tage-Horizont
+  mit Mitgliedschaftsfilter (§5).
 - **P2-03** ADX wird berechnet und verworfen; gehört als Regime-Gate verwendet
 - **P2-05** Fundamentalblock (0,30) wird auf 7–90 Tagen gemessen, passt nicht zur Halbwertszeit
 - **P2-06** fehlende Signale: PEAD (Ansatz existiert, <1 % Abdeckung), Analysten-Revisionen, relative Stärke je Sektor, Short Interest, Insider-Cluster, Accruals
@@ -481,7 +502,16 @@ dem nächsten Scheduler-Lauf tragen **2.2.0**.
 - **P4-04** absolute statt volatilitätsrelative Schwellen — RSI 30 bedeutet bei Versorger und Biotech Verschiedenes
 - **P4-03** Währungen (Xetra/US) werden nie verrechnet
 - **P4-05** Nenner nahe null über die gesamte Kennzahlenfläche
-- **P4-06/07/08/09** illiquide Reihen, still ausscheidende Delistings (Survivorship), Kursgrößenordnungen, ADR-Doppelzählung
+- **P4-06/08/09** illiquide Reihen, Kursgrößenordnungen, ADR-Doppelzählung
+- ~~**P4-07** Survivorship~~ → **halb geschlossen.** Die Aufnahmen-Hälfte ist
+  gemessen und korrigierbar: `services/index_membership.py` liefert die
+  Aufnahmedaten, `momentum_auswerten(nur_mitglieder=True)` filtert danach,
+  und der Effekt ist beziffert (§2c: ein Drittel des Momentum-Vorsprungs).
+  **Offen bleibt die Ausschluss-Hälfte** — die entfernten Titel fehlen im
+  Bestand vollständig und Wikipedia führt die Änderungshistorie nicht mehr.
+  Sie wirkt allerdings gegen gefundene Effekte, ist also die ungefährlichere
+  der beiden. Zum Schließen bräuchte es eine Quelle historischer
+  Index-Zusammensetzungen und einen Backfill der entfernten Ticker.
 - **P4-10 (neu)** `basis_kurs` ist auf **allen 264.102** Outcomes NULL. Das Feld
   existiert, `models.py` führt es als split-sichere Outcome-Basis, und
   `snapshot_service` füllt es für neue Zeilen — nur hat keine einzige
@@ -510,23 +540,26 @@ Arbeit inline erledigt, was sie langsam und einmalig statt wiederholbar macht.
 
 ## 5. Empfohlener nächster Schritt
 
-**P4-07 — Survivorship eingrenzen, bevor der Holdout verbraucht wird.**
-P2-02 trägt (§2c) und ist damit der erste Kandidat für den Score. Der Weg
-dorthin hat aber eine feste Reihenfolge, und sie ist nicht verhandelbar:
+**Die Holdout-Bestätigung für P2-02 — jetzt, und gezielt.** Schritt 1 der
+bisherigen Reihenfolge ist erledigt: die Aufnahmen-Verzerrung ist gemessen und
+kostet ein Drittel des Effekts (§2c). Was danach übrig bleibt, ist eine
+Aussage, die vorab feststeht und keinen getunten Parameter enthält — genau der
+Fall, für den der Holdout existiert. Er steht bei **0 Zugriffen**.
 
-1. **Survivorship bemessen.** Das Universum ist die heutige
-   Index-Mitgliedschaft, rückwärts abgespielt; Momentum rangt auf genau der
-   Größe, die über Index-Zugehörigkeit entscheidet. Der Holdout schützt davor
-   NICHT — er stammt aus demselben Universum. Konkret: historische
-   Index-Mitgliedschaften beschaffen oder, als Untergrenze, den Effekt über
-   die im Bestand vorhandenen Delistings abschätzen.
-2. **Dann die Holdout-Bestätigung**, einmal. 12-1 hat keinen getunten
-   Parameter, die Aussage steht also vorab fest — der saubere Fall, für den
-   der Holdout da ist. Er steht weiterhin bei 0 Zugriffen.
-3. **Dann erst in den Score.** `normiert()` liefert die passende Skala; die
-   Score-Version wäre zu erhöhen, und BC-01/BC-03 werden in dem Moment
-   relevant, weil die Arithmetik darüber entscheidet, ob ein einzelner
-   tragender Eingang gegen sechs gesättigte Momentum-Slots durchkommt.
+Die Aussage, die bestätigt werden soll, ist eng zu fassen, sonst ist der Schuss
+verschwendet:
+
+> Auf **90 Tagen**, mit Mitgliedschaftsfilter, liegt das oberste
+> Momentum-Dezil über der unbedingten Marktquote.
+
+**Nicht** auch 30 Tage mitprüfen: dort ist der Effekt schon auf dem Training
+nicht mehr signifikant, und zwei Tests auf demselben Holdout sind zwei
+Versuche, nicht einer.
+
+Danach erst in den Score. `normiert()` liefert die passende Skala, die
+Score-Version wäre zu erhöhen — und in dem Moment werden BC-01 und BC-03
+relevant, weil die Arithmetik darüber entscheidet, ob ein einzelner tragender
+Eingang gegen sechs gesättigte Momentum-Slots überhaupt durchkommt.
 
 Danach P2-06 in der dortigen Reihenfolge (PEAD, Analysten-Revisionen, relative
 Stärke je Sektor, Short Interest, Insider-Cluster, Accruals) und P2-01
@@ -545,7 +578,7 @@ die beste Variante behält, hat ihn zum Trainingsset gemacht — nur langsamer.
 ## 6. Verifikation (es gibt keine CI)
 
 ```
-py -m pytest -q                                   # 183 Tests
+py -m pytest -q                                   # 191 Tests
 py -m mypy <geänderte Dateien>                    # ad hoc, keine Konfiguration im Repo
 py -c "import warnings; warnings.filterwarnings('ignore'); from fastapi.testclient import TestClient; import main; c=TestClient(main.app); c.__enter__(); [print(c.get(u).status_code, u) for u in ['/','/signals','/signals/indikatoren','/signals/backfill','/analysis','/screener','/watchlist','/journal','/backtesting','/sectors','/economy','/settings','/lexicon','/sources','/directory']]"
 ```
