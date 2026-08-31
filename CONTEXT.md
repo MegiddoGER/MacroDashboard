@@ -1,6 +1,6 @@
 # CONTEXT.md — Arbeitsstand Signal-Engine
 
-_Stand: 2026-08-31 · auf `7a28f36` folgend · Branch `main`_
+_Stand: 2026-08-31 · auf `2d15793` folgend · Branch `main`_
 
 Übergabedatei für eine frische Claude-Session. Sie beantwortet drei Fragen:
 **Was ist erledigt, was ist offen, und was darf nicht noch einmal neu hergeleitet
@@ -259,6 +259,75 @@ Fehlerspannen, weil dort keine Überlappungskorrektur greift.
 
 ---
 
+## 2c. P2-02 — der erste Eingang, der etwas trägt
+
+Querschnitts-Momentum rangt Titel gegeneinander statt gegen null: 12-1-Rendite
+(zwölf Monate Rückschau, jüngster Monat ausgelassen), wöchentlich gerangt
+**je Handelsplatz**. Die Trennung nach Handelsplatz ist dieselbe Entscheidung
+wie bei `benchmark.py` — eine gemeinsame Rangliste über Xetra und US wiese eine
+Dollarstärke als Momentum aus.
+
+Auf dem **Trainingsteil** (HISTORISCH, jedes Dezil als long bewertet, Frage:
+wie oft schlägt ein Titel dieses Rangs seinen Index?):
+
+| Dezil | 7 Tage | 30 Tage | 90 Tage |
+|---|---|---|---|
+| D1 (schwächstes) | −2,1 pp **sig.** | −3,0 pp **sig.** | −4,4 pp |
+| D2 | −1,6 pp **sig.** | −1,2 pp | −4,0 pp |
+| D5 | −1,5 pp | −0,6 pp | −2,2 pp |
+| D8 | +0,7 pp | +1,0 pp | +1,4 pp |
+| D9 | +2,3 pp **sig.** | +1,1 pp | +4,7 pp |
+| **D10 (stärkstes)** | **+4,9 pp sig.** | **+4,9 pp sig.** | **+9,3 pp sig.** |
+| Spread D10−D1 | 7,1 pp | 7,9 pp | 13,7 pp |
+
+Mittlere Überrendite von D10: +0,3 / **+1,54** / **+5,54** pp. Der Verlauf ist
+auf allen drei Horizonten monoton steigend, das oberste Dezil überall
+signifikant, und der Effekt wächst mit dem Horizont — die klassische
+Momentum-Signatur. Auf dem Gesamtbestand dasselbe Bild (D10: +5,1 / +5,2 /
++9,7 pp).
+
+Das ist nach §2b der **erste und bisher einzige Eingang mit einem
+marktrelativen Vorsprung**. Zwei Eigenschaften machen ihn belastbarer als alles
+zuvor Gemessene:
+
+- **Kein getunter Parameter.** 12-1 ist die Lehrbuchform, a priori gewählt. Es
+  gab keine Schwellensuche, also auch keine Mehrfachtest-Inflation — anders als
+  beim Oszillator-Gate, dessen 0,50 aus denselben Daten stammte.
+- **Der Verlauf trägt die Aussage, nicht eine Zelle.** Ein einzelnes
+  herausragendes Dezil wäre verdächtig; zehn monoton steigende sind es nicht.
+
+### Die offene Bedrohung: Survivorship (P4-07)
+
+Das Universum ist die **heutige** Index-Mitgliedschaft, rückwärts abgespielt.
+Momentum ist davon stärker betroffen als jeder andere Indikator, weil es genau
+auf der vergangenen Rendite rangt:
+
+- Titel, die nach schlechten Renditen aus dem Index geflogen sind, fehlen — sie
+  hätten D1–D3 besetzt. Deren Rendite ist dadurch zu gut.
+- Titel, die nach starken Renditen später eingestiegen sind, sind mit ihrer
+  gesamten Vorgeschichte drin. Deren Rendite ist dadurch zu gut sichtbar.
+
+Beide Ränder sind verzerrt, die Nettorichtung ist **nicht offensichtlich**.
+Wichtig: der **Holdout schützt hier nicht** — er stammt aus demselben Universum
+und trüge dieselbe Verzerrung. Ihn zu verbrauchen, bevor Survivorship
+eingegrenzt ist, verschenkt den einen Schuss.
+
+### Wo der Eingang steht
+
+Gemessen, **nicht** im Score. `services/cross_sectional_momentum.py` rechnet
+Ränge, `snapshot_engine/auswertung/momentum.py` wertet sie aus; keine
+Aufrufstelle in `scoring.py`. `normiert()` liefert die Skala [−1, +1], mit der
+er sich als Kategorie-Score führen ließe — sobald die Entscheidung dafür
+gefallen ist.
+
+Die Ränge sind aus den Snapshot-Kursen gerechnet, nicht aus neuen Downloads:
+der Backfill hat je Ticker EINE Reihe abgespielt, alle HISTORISCH-Kurse eines
+Tickers teilen daher eine Anpassungsbasis. Nachgeprüft — von 86.333 aufeinander
+folgenden Kurspaaren liegen 16 außerhalb von [0,6 · 1,6], und die sind sämtlich
+echte Ereignisse (CVNA, SMCI, HelloFresh, Fiserv), keine Split-Brüche.
+
+---
+
 ## 3. Erledigt — nicht noch einmal bauen
 
 | Was | Wo |
@@ -287,6 +356,7 @@ Fehlerspannen, weil dort keine Überlappungskorrektur greift.
 | **P1-04b Überrendite in Kalibrierung, Indikatoren, Gate** | `auswertung/kalibrierung.py`, `indikator_stats.py`, `gate.py` |
 | **P1-04 auf der Oberfläche sichtbar** | `templates/pages/signal_quality.html` (vier Tabellen) |
 | **Marktbasis statt Nullhypothese 50** | `auswertung/basis.py` (`anteil_schlaegt_markt`, `markt_basis`) |
+| **P2-02 Querschnitts-Momentum, gemessen** | `services/cross_sectional_momentum.py`, `auswertung/momentum.py` |
 
 **Wichtig:** Alle 88.033 Bestands-Snapshots tragen `score_version` 1.0.0 — es
 gibt weder welche mit 2.0.0 noch mit 2.1.0 noch mit 2.2.0. Weder der sperrende
@@ -384,7 +454,11 @@ dem nächsten Scheduler-Lauf tragen **2.2.0**.
 
 ### D. Analyse-Substanz
 - **P2-01** Sektor-Bewertungsmodelle erreichen den Score nicht — generischer DCF läuft auf Banken, REITs, Biotech
-- **P2-02** Cross-sectional Momentum fehlt ganz (robusteste Anomalie überhaupt)
+- ~~**P2-02** Cross-sectional Momentum fehlt ganz~~ → gebaut und gemessen,
+  siehe §2c. Trägt auf dem Trainingsteil auf allen drei Horizonten
+  (D10: +4,9 / +4,9 / +9,3 pp, alle signifikant). **Noch nicht im
+  Score** — offen ist die Survivorship-Eingrenzung (P4-07) und danach
+  die Holdout-Bestätigung, in dieser Reihenfolge (§5).
 - **P2-03** ADX wird berechnet und verworfen; gehört als Regime-Gate verwendet
 - **P2-05** Fundamentalblock (0,30) wird auf 7–90 Tagen gemessen, passt nicht zur Halbwertszeit
 - **P2-06** fehlende Signale: PEAD (Ansatz existiert, <1 % Abdeckung), Analysten-Revisionen, relative Stärke je Sektor, Short Interest, Insider-Cluster, Accruals
@@ -404,24 +478,27 @@ Arbeit inline erledigt, was sie langsam und einmalig statt wiederholbar macht.
 
 ## 5. Empfohlener nächster Schritt
 
-**Einen Eingang beschaffen, der einen marktrelativen Vorsprung trägt.** Die
-Messfläche steht: alles, was eine Trefferquote ausweist, weist sie auch gegen
-den Markt und gegen dessen gemessene Basis aus. Was sie zeigt, ist ein
-Null-Befund über die gesamte Indikatorenliste (§2b). Damit ist die Reihenfolge
-des Artifacts überholt — es setzte den Umbau des Composites (BC/P2-04) nach
-vorn, weil ein guter Eingang gerettet werden müsse. Den gibt es nicht.
+**P4-07 — Survivorship eingrenzen, bevor der Holdout verbraucht wird.**
+P2-02 trägt (§2c) und ist damit der erste Kandidat für den Score. Der Weg
+dorthin hat aber eine feste Reihenfolge, und sie ist nicht verhandelbar:
 
-**P2-02 — Cross-sectional Momentum** ist der erste Kandidat. Er ist von
-Konstruktion her relativ (Titel werden gegeneinander gerangt statt gegen null),
-misst also genau die Größe, die jetzt auswertbar ist, und gilt als die
-robusteste dokumentierte Anomalie überhaupt. Danach P2-06 in der dortigen
-Reihenfolge (PEAD, Analysten-Revisionen, relative Stärke je Sektor, Short
-Interest, Insider-Cluster, Accruals) und P2-01 (Sektormodelle).
+1. **Survivorship bemessen.** Das Universum ist die heutige
+   Index-Mitgliedschaft, rückwärts abgespielt; Momentum rangt auf genau der
+   Größe, die über Index-Zugehörigkeit entscheidet. Der Holdout schützt davor
+   NICHT — er stammt aus demselben Universum. Konkret: historische
+   Index-Mitgliedschaften beschaffen oder, als Untergrenze, den Effekt über
+   die im Bestand vorhandenen Delistings abschätzen.
+2. **Dann die Holdout-Bestätigung**, einmal. 12-1 hat keinen getunten
+   Parameter, die Aussage steht also vorab fest — der saubere Fall, für den
+   der Holdout da ist. Er steht weiterhin bei 0 Zugriffen.
+3. **Dann erst in den Score.** `normiert()` liefert die passende Skala; die
+   Score-Version wäre zu erhöhen, und BC-01/BC-03 werden in dem Moment
+   relevant, weil die Arithmetik darüber entscheidet, ob ein einzelner
+   tragender Eingang gegen sechs gesättigte Momentum-Slots durchkommt.
 
-**Der Umbau des Composites bleibt liegen, bis es etwas zu komponieren gibt.**
-BC-01 und BC-03 sind weiter wahr und werden mit dem ersten tragenden Eingang
-wieder relevant — dann nämlich entscheidet die Arithmetik darüber, ob er
-durchkommt.
+Danach P2-06 in der dortigen Reihenfolge (PEAD, Analysten-Revisionen, relative
+Stärke je Sektor, Short Interest, Insider-Cluster, Accruals) und P2-01
+(Sektormodelle). Der Umbau des Composites bleibt bis Schritt 3 liegen.
 
 **Nicht** mit dem Vorschlagspanel für Gewichte anfangen: DX-01 zeigt, dass
 Gewichtstuning an dieser Architektur eine Decke hat.
@@ -436,7 +513,7 @@ die beste Variante behält, hat ihn zum Trainingsset gemacht — nur langsamer.
 ## 6. Verifikation (es gibt keine CI)
 
 ```
-py -m pytest -q                                   # 142 Tests
+py -m pytest -q                                   # 167 Tests
 py -m mypy <geänderte Dateien>                    # ad hoc, keine Konfiguration im Repo
 py -c "import warnings; warnings.filterwarnings('ignore'); from fastapi.testclient import TestClient; import main; c=TestClient(main.app); c.__enter__(); [print(c.get(u).status_code, u) for u in ['/','/signals','/signals/indikatoren','/signals/backfill','/analysis','/screener','/watchlist','/journal','/backtesting','/sectors','/economy','/settings','/lexicon','/sources','/directory']]"
 ```
