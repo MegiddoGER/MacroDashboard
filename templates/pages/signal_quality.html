@@ -25,9 +25,12 @@
     {% if kz.basis_trefferquote is not none %}{{ kz.basis_trefferquote }}%{% else %}<span class="muted">–</span>{% endif %}
 {%- endmacro %}
 
-{# Gegen den Markt statt gegen null (P1-04). Der Vergleichsindex hat die
-   Marktbewegung je Beobachtung bereits herausgerechnet — die Nullhypothese
-   ist deshalb 50 % und nicht die Basisrate.
+{# Gegen den Markt statt gegen null (P1-04). Der Vergleichsindex ist je
+   Beobachtung abgezogen — aber die Nullhypothese ist trotzdem NICHT 50:
+   gemessen schlagen nur rund 48 % der Beobachtungen ihren Index, bei einer
+   mittleren Überrendite von null. Ein kapitalgewichteter Index wird von
+   wenigen großen Titeln getragen, der Median-Titel bleibt zurück. Deshalb
+   trägt auch diese Spalte ihre eigene, gemessene Basis.
 
    Dieselbe Zurückhaltung beim Einfärben wie oben: was innerhalb der
    Fehlerspanne liegt, bleibt grau. #}
@@ -39,7 +42,7 @@
     {% if kz.markt_vorsprung_pp is not none %}
         {% set belegt = kz.markt_signifikant %}
         <span class="{{ ('positive' if kz.markt_vorsprung_pp > 0 else 'negative') if belegt else 'muted' }}"
-              title="gegen den Index über dasselbe Fenster · Nullhypothese 50 %{% if kz.markt_fehler_pp is not none %} · Fehlerspanne ±{{ kz.markt_fehler_pp }} pp (95 %, effektive Stichprobe){{ ' — nicht von Zufall unterscheidbar' if not belegt else '' }}{% endif %}{% if kz.ueberrendite_abdeckung_pct is not none %} · Vergleichswert für {{ kz.ueberrendite_abdeckung_pct }} % der gerichteten Beobachtungen{% endif %}">
+              title="gegen den Index über dasselbe Fenster{% if kz.markt_basis is not none %} · unbedingte Marktquote {{ kz.markt_basis }} % (nicht 50 — der Median-Titel bleibt hinter einem kapitalgewichteten Index zurück){% endif %}{% if kz.markt_fehler_pp is not none %} · Fehlerspanne ±{{ kz.markt_fehler_pp }} pp (95 %, effektive Stichprobe){{ ' — nicht von Zufall unterscheidbar' if not belegt else '' }}{% endif %}{% if kz.ueberrendite_abdeckung_pct is not none %} · Vergleichswert für {{ kz.ueberrendite_abdeckung_pct }} % der gerichteten Beobachtungen{% endif %}">
             {{ '%+.1f'|format(kz.markt_vorsprung_pp) }} pp{% if kz.markt_fehler_pp is not none %}
             <span class="caption">±{{ kz.markt_fehler_pp }}</span>{% endif %}</span>
     {% else %}<span class="muted">–</span>{% endif %}
@@ -210,10 +213,15 @@
 <p class="caption">
     <strong>Vorsprung vs. Markt</strong> ist die härtere der beiden Spalten. Jedes Outcome trägt die
     Rendite seines Handelsplatz-Index über dasselbe Fenster; verglichen wird also gegen den Markt und
-    nicht gegen null. Die Nullhypothese ist deshalb 50 % — wer ohne Prognosefähigkeit rät, liegt in
-    der Hälfte der Fälle vorn. Weicht diese Spalte von der linken ab, war der Unterschied Marktphase
-    und nicht Signalqualität: eine Trefferquote von 54 % in einem Zeitraum, in dem der Index ohnehin
-    stieg, kann ein Rückstand sein.
+    nicht gegen null. Weicht diese Spalte von der linken ab, war der Unterschied Marktphase und nicht
+    Signalqualität: eine Trefferquote von 54 % in einem Zeitraum, in dem der Index ohnehin stieg,
+    sagt für sich genommen nichts.
+    <br>
+    Ihr Bezugspunkt ist <em>nicht</em> 50 %, sondern die unbedingte Marktquote (im Tooltip). Gemessen
+    schlagen nur rund 48 % aller Beobachtungen ihren Index, obwohl die mittlere Überrendite bei null
+    liegt: ein kapitalgewichteter Index wird von wenigen großen Titeln getragen, der Median-Titel
+    bleibt zurück. Gegen 50 gerechnet sähe deshalb jede Auswahl von Einzeltiteln nach einem
+    Rückstand aus, den sie nicht hat.
 </p>
 
 <!-- ═══════════════════════════════════════════════════════════

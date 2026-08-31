@@ -23,7 +23,8 @@ from snapshot_engine.models import (
     AnalyseSnapshotOutcome, Granularitaet,
 )
 from snapshot_engine.auswertung.basis import (
-    MIN_STICHPROBE, STATUS_OK, kennzahlen_aus_returns, mit_ueberrendite,
+    MIN_STICHPROBE, STATUS_OK, anteil_schlaegt_markt, kennzahlen_aus_returns,
+    mit_ueberrendite,
 )
 from snapshot_engine.benchmark import ueberrendite
 
@@ -56,7 +57,8 @@ def basisrate(db: Session, horizont: int, datenmodus: str | None = None) -> dict
     Aufwärtsdrift des Marktes, keine Prognosefähigkeit.
     """
     query = (
-        db.query(AnalyseSnapshotOutcome.outcome_return)
+        db.query(AnalyseSnapshotOutcome.outcome_return,
+                 AnalyseSnapshotOutcome.benchmark_return)
         .join(AnalyseSnapshot,
               AnalyseSnapshot.id == AnalyseSnapshotOutcome.snapshot_id)
         .filter(AnalyseSnapshotOutcome.horizont_tage == horizont)
@@ -67,15 +69,18 @@ def basisrate(db: Session, horizont: int, datenmodus: str | None = None) -> dict
     if datenmodus:
         query = query.filter(AnalyseSnapshot.datenmodus == datenmodus)
 
+    leer = {"n": 0, "anteil_positiv": None, "avg_return": None,
+            "n_bewertbar": 0, "anteil_positiv_bewertbar": None,
+            "anteil_schlaegt_markt": None}
     try:
-        returns = [r for (r,) in query.all()]
+        zeilen = query.all()
     except Exception as e:
         logger.error("Basisrate fehlgeschlagen: %s", e, exc_info=True)
-        return {"n": 0, "anteil_positiv": None, "avg_return": None}
+        return dict(leer)
 
+    returns = [r for r, _ in zeilen]
     if not returns:
-        return {"n": 0, "anteil_positiv": None, "avg_return": None,
-                "n_bewertbar": 0, "anteil_positiv_bewertbar": None}
+        return dict(leer)
 
     positiv = sum(1 for r in returns if r > 0)
 
@@ -85,6 +90,11 @@ def basisrate(db: Session, horizont: int, datenmodus: str | None = None) -> dict
     bewegt = [r for r in returns if abs(r) >= MIN_BEWEGUNG_PCT]
     positiv_bewegt = sum(1 for r in bewegt if r > 0)
 
+    # Unbedingte Marktquote als Bezugspunkt der Überrendite — dieselbe Rolle,
+    # die `anteil_positiv_bewertbar` für die absolute Trefferquote spielt.
+    anteil_markt = anteil_schlaegt_markt(
+        [ueberrendite(r, b) for r, b in zeilen])
+
     return {
         "n": len(returns),
         "anteil_positiv": round(positiv / len(returns) * 100, 1),
@@ -92,6 +102,8 @@ def basisrate(db: Session, horizont: int, datenmodus: str | None = None) -> dict
         "n_bewertbar": len(bewegt),
         "anteil_positiv_bewertbar": (round(positiv_bewegt / len(bewegt) * 100, 1)
                                      if bewegt else None),
+        "anteil_schlaegt_markt": (round(anteil_markt, 1)
+                                  if anteil_markt is not None else None),
     }
 
 
@@ -195,6 +207,7 @@ def indikator_leaderboard(db: Session, horizont: int = 7,
                 returns, treffer, horizont_tage=horizont, minimum=minimum,
                 richtungen=richtungen),
             [ueberrendite(r, b) for r, b in paare], richtungen,
+            basis.get("anteil_schlaegt_markt"),
             horizont_tage=horizont, minimum=minimum)
 
         ergebnis.append({
@@ -269,6 +282,7 @@ def kategorie_leaderboard(db: Session, horizont: int = 7,
                                    horizont_tage=horizont, minimum=minimum,
                                    richtungen=richtungen),
             [ueberrendite(r, b) for r, b in paare], richtungen,
+            basis.get("anteil_schlaegt_markt"),
             horizont_tage=horizont, minimum=minimum)
         ergebnis.append({
             "kategorie": kategorie,

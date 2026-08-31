@@ -17,8 +17,8 @@ from snapshot_engine.models import (
     Datenmodus,
 )
 from snapshot_engine.auswertung.basis import (
-    MIN_STICHPROBE, anteil_steigend, kennzahlen_aus_returns, mit_basis,
-    mit_ueberrendite,
+    MIN_STICHPROBE, anteil_schlaegt_markt, anteil_steigend,
+    kennzahlen_aus_returns, mit_basis, mit_ueberrendite,
 )
 from snapshot_engine.benchmark import ueberrendite
 
@@ -92,6 +92,10 @@ def kennzahlen_berechnen(db: Session, datenmodus: str | None = None,
             # Vergleichswert vorliegt — die Reihenfolge bleibt erhalten,
             # damit Rendite, Richtung und Überrendite ausgerichtet sind.
             ueberrenditen = [ueberrendite(r, b) for _, _, r, _, b in zeilen]
+            # Unbedingte Marktquote über ALLE Zeilen des Horizonts — der
+            # Bezugspunkt muss unabhängig von der Gruppe sein, gegen die er
+            # verglichen wird (wie `anteil` eine Zeile darüber).
+            anteil_markt = anteil_schlaegt_markt(ueberrenditen)
 
             ergebnis["horizonte"][horizont] = mit_ueberrendite(
                 mit_basis(
@@ -101,8 +105,8 @@ def kennzahlen_berechnen(db: Session, datenmodus: str | None = None,
                         horizont_tage=horizont, minimum=minimum,
                         richtungen=richtungen),
                     anteil, richtungen),
-                ueberrenditen, richtungen, horizont_tage=horizont,
-                minimum=minimum)
+                ueberrenditen, richtungen, anteil_markt,
+                horizont_tage=horizont, minimum=minimum)
 
             # Aufschlüsselung je Richtungssignal
             je_signal: dict = {}
@@ -118,8 +122,8 @@ def kennzahlen_berechnen(db: Session, datenmodus: str | None = None,
                             richtungen=signal_richtungen),
                         anteil, signal_richtungen),
                     [ueberrendite(r, b) for _, _, r, _, b in gefiltert],
-                    signal_richtungen, horizont_tage=horizont,
-                    minimum=minimum)
+                    signal_richtungen, anteil_markt,
+                    horizont_tage=horizont, minimum=minimum)
             ergebnis["je_signal"][horizont] = je_signal
 
         # Top-/Flop-Ticker auf dem kürzesten Horizont (meiste Daten)

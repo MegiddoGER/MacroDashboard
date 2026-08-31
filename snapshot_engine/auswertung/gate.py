@@ -36,7 +36,8 @@ from snapshot_engine.models import (
     MIN_BEWEGUNG_PCT, AnalyseModus, AnalyseSnapshot, AnalyseSnapshotOutcome,
 )
 from snapshot_engine.auswertung.basis import (
-    MIN_STICHPROBE, effektive_stichprobe, fehlerspanne_pp, mit_ueberrendite,
+    MIN_STICHPROBE, anteil_schlaegt_markt, effektive_stichprobe,
+    fehlerspanne_pp, mit_ueberrendite,
 )
 from snapshot_engine.benchmark import ueberrendite
 from snapshot_engine.auswertung.holdout import (
@@ -136,6 +137,7 @@ def gate_wirkung(db: Session, horizont: int = 30,
                           and not holdout_rueckwirkend(SCHWELLE_BESTIMMT_AM)),
         "holdout_zugriffe": None,
         "basisrate": None,
+        "markt_basisrate": None,
         "durchgelassen": None,
         "geblockt": None,
         "befoerdert": None,
@@ -178,6 +180,13 @@ def gate_wirkung(db: Session, horizont: int = 30,
     basisrate = sum(1 for r in bewegt if r > 0) / len(bewegt) * 100
     ergebnis["basisrate"] = round(basisrate, 1)
 
+    # Unbedingte Marktquote über dieselben Zeilen — Bezugspunkt der
+    # Überrendite, so wie `basisrate` der der absoluten Quote ist.
+    anteil_markt = anteil_schlaegt_markt(
+        [ueberrendite(r, b) for _, _, _, r, b in zeilen])
+    ergebnis["markt_basisrate"] = (round(anteil_markt, 1)
+                                   if anteil_markt is not None else None)
+
     # Rendite und Vergleichswert je Beobachtung als Paar (P1-04b).
     gruppen: dict[str, list[tuple]] = {
         "durchgelassen": [], "geblockt": [], "befoerdert": [],
@@ -200,13 +209,14 @@ def gate_wirkung(db: Session, horizont: int = 30,
         # Rest: weder empfohlen noch gesperrt — nicht Teil des Vergleichs.
 
     for schluessel, werte in gruppen.items():
-        ergebnis[schluessel] = _gruppe_bewerten(werte, basisrate, horizont, minimum)
+        ergebnis[schluessel] = _gruppe_bewerten(
+            werte, basisrate, anteil_markt, horizont, minimum)
 
     return ergebnis
 
 
 def _gruppe_bewerten(paare: list[tuple], basisrate: float,
-                     horizont: int, minimum: int) -> dict:
+                     anteil_markt, horizont: int, minimum: int) -> dict:
     """Kennzahlen einer Gate-Gruppe gegen die Basisrate UND gegen den Markt.
 
     Beide Bezugspunkte werden gebraucht. Die Basisrate ist ein Mittel über den
@@ -237,4 +247,4 @@ def _gruppe_bewerten(paare: list[tuple], basisrate: float,
     # Gate-Gruppen sind Kaufkonstellationen — die Richtung ist durchweg long.
     return mit_ueberrendite(
         ergebnis, [ueberrendite(r, b) for r, b in paare], [1] * n,
-        horizont_tage=horizont, minimum=minimum)
+        anteil_markt, horizont_tage=horizont, minimum=minimum)

@@ -1,6 +1,6 @@
 # CONTEXT.md — Arbeitsstand Signal-Engine
 
-_Stand: 2026-08-31 · auf `0e9c516` folgend · Branch `main`_
+_Stand: 2026-08-31 · auf `7a28f36` folgend · Branch `main`_
 
 Übergabedatei für eine frische Claude-Session. Sie beantwortet drei Fragen:
 **Was ist erledigt, was ist offen, und was darf nicht noch einmal neu hergeleitet
@@ -148,125 +148,114 @@ Seit P1-04 trägt jedes Outcome die Rendite seines Handelsplatz-Index über
 DASSELBE Fenster (`snapshot_engine/benchmark.py`). Der Bestand ist
 nachgetragen: **256.705 von 256.705 ausgewerteten Outcomes, Abdeckung 100 %**
 (S&P 216.138 · DAX 40.114 · CAC 447 · SMI 3 · KOSPI 3), null Zeilen ohne
-Indexkurs. Damit lässt sich zum ersten Mal trennen, was Signalqualität war und
-was Marktphase — und das Ergebnis kehrt die bisherige Deutung um
-(30 Tage, HISTORISCH):
+Indexkurs.
 
-| Signal | n | absolute Quote | gegen den Markt | |
-|---|---|---|---|---|
-| KAUF | 32.001 | 54,3 % | 47,4 % (−2,6 pp) | **signifikanter Rückstand** |
-| VERKAUF | 19.439 | 41,2 % | 50,8 % (+0,8 pp) | **Rauschen** |
+### Der Bezugspunkt ist 48 %, nicht 50 % — daran hängt alles Weitere
+
+Die naheliegende Annahme lautet: der Index sei je Beobachtung bereits
+abgezogen, also liege ein Ratender in der Hälfte der Fälle vorn. Sie ist
+falsch, und sie stand zwischenzeitlich als `MARKT_NULLHYPOTHESE = 50` im Code.
+Gemessen (HISTORISCH, Bewegung ≥ 0,3 pp):
+
+| Horizont | Beobachtungen | schlagen ihren Index | mittlere Überrendite |
+|---|---|---|---|
+| 7 Tage | 79.944 | **48,1 %** | −0,04 pp |
+| 30 Tage | 83.199 | **48,1 %** | +0,05 pp |
+| 90 Tage | 81.291 | **46,1 %** | −0,05 pp |
+
+Mittelwert null und Anteil unter 50 zugleich ist kein Widerspruch, sondern die
+**Marktbreite**: ein kapitalgewichteter Index wird von wenigen großen Titeln
+getragen. Der Median-Titel bleibt zurück, einige wenige ziehen den Mittelwert
+auf null. Gegen 50 gerechnet sieht deshalb JEDE Auswahl von Einzeltiteln nach
+einem systematischen Rückstand von rund 2 pp aus — auch eine zufällige.
+
+Die Marktquote braucht darum ihre eigene Basis, genau wie die absolute
+Trefferquote ihre `basis_trefferquote` hat: `anteil_schlaegt_markt()` misst sie
+unbedingt über die gesamte Grundgesamtheit, `markt_basis()` gewichtet sie nach
+der Richtungsmischung — für eine Short-Beobachtung ist der Bezugspunkt der
+Anteil, der den Index NICHT schlägt.
+
+**Achtung bei älteren Notizen und Commit-Texten:** alle Marktzahlen aus den
+Commits `9995db0` und `0e9c516` sind gegen 50 gerechnet und weisen rund 2 pp
+Rückstand zu viel aus. Die Tabellen unten sind korrigiert.
+
+### Was nach der Korrektur übrig bleibt: nichts
+
+Je Richtungssignal (30 Tage, HISTORISCH, Gesamtbestand):
+
+| Signal | n | absolut | gegen den Markt | Basis | |
+|---|---|---|---|---|---|
+| KAUF | 32.001 | 54,3 % | 47,4 % | 48,1 % | −0,7 pp, **Rauschen** |
+| VERKAUF | 19.439 | 41,2 % | 50,8 % | 51,9 % | −1,2 pp, **Rauschen** |
 
 Alle Signale zusammen, je Horizont:
 
-| Horizont | absolut (ggü. Basisrate) | gegen den Markt (ggü. 50) | mittlere Überrendite |
-|---|---|---|---|
-| 7 Tage | 50,4 % (−0,3 pp, Rauschen) | 50,1 % (+0,1 pp, Rauschen) | +0,03 pp |
-| 30 Tage | 49,3 % (−2,1 pp, signifikant) | 48,7 % (−1,3 pp, signifikant) | −0,06 pp |
-| 90 Tage | 51,0 % (−1,1 pp, signifikant) | 48,2 % (−1,8 pp, signifikant) | +0,02 pp |
+| Horizont | absolut (ggü. Basisrate) | gegen den Markt (ggü. Marktbasis) |
+|---|---|---|
+| 7 Tage | 50,4 % (−0,3 pp, Rauschen) | 50,1 % (+0,6 pp ±0,4, signifikant) |
+| 30 Tage | 49,3 % (−2,1 pp, signifikant) | 48,7 % (−0,9 pp ±0,8, signifikant) |
+| 90 Tage | 51,0 % (−1,1 pp, signifikant) | 48,2 % (−0,9 pp ±1,3, Rauschen) |
 
-Drei Schlüsse, die nicht neu hergeleitet werden müssen:
+**Und je Indikator — das ist der eigentliche Befund** (30 Tage, HISTORISCH,
+Marktbasis 48,1 % long / 51,9 % short):
 
-1. **Die Kaufsignale waren nie gut.** Ihre 54,3 % waren Marktdrift; gegen den
-   Index liegen sie signifikant zurück. Wer nur die absolute Quote sah, hielt
-   ein unterdurchschnittliches Signal für ein brauchbares.
-2. **Die Verkaufssignale waren nie schlecht.** Ihre 41,2 % entstanden gegen
-   einen steigenden Markt; bereinigt sind sie ein Münzwurf. Die Short-Seite ist
-   damit nicht kaputt, sondern nur ohne Vorsprung — ein anderer Befund als
-   bisher angenommen.
-3. **Im Aggregat gibt es kein Alpha.** Die mittlere Überrendite liegt auf allen
-   drei Horizonten bei rund null.
+| Indikator | bullisch | bearisch |
+|---|---|---|
+| Trend (SMA 200) | −0,5 pp | −0,6 pp |
+| SMA-Cross (20/50) | −0,3 pp | −0,3 pp |
+| FVG (Fair Value Gap) | −0,5 pp | −0,7 pp |
+| VWMA (20T) | +0,2 pp | +0,3 pp |
+| OBV Trend | −0,1 pp | −0,1 pp |
+| Volumen-Cluster (POC) | −0,3 pp | −0,5 pp |
+| RSI (14) | +0,4 pp | −0,4 pp |
+| Bollinger Bänder | +0,1 pp | −0,4 pp |
 
-Zwei Festlegungen dazu, die nicht wieder aufgerollt werden müssen:
+**Keine einzige dieser 16 Zeilen ist signifikant.** Dasselbe auf
+Kategorie-Ebene: trend −0,3 / −0,3, volume −0,1 / −0,0, oscillator +0,3 / −0,4
+— nichts davon von Zufall unterscheidbar. Die absoluten Quoten (54,8 % bullisch,
+43 % bearisch) waren vollständig Marktrichtung plus Marktbreite.
 
-- **Die Nullhypothese der Marktquote ist 50**, nicht `anteil_steigend`. Der
-  Index hat die Marktbewegung je Beobachtung bereits herausgerechnet; eine über
-  den Gesamtbestand gemittelte Basisrate wäre danach doppelt gezählt.
-- **Der Index richtet sich nach dem Handelsplatz, nicht nach dem Sitz des
-  Unternehmens.** Die Überrendite ist eine Differenz zweier Prozentzahlen und
-  nur dann sauber, wenn beide dieselbe Währung messen. Ein unbekanntes Suffix
-  bekommt deshalb bewusst KEINEN Index: ein falscher wäre eine als Alpha
-  getarnte Wechselkursbewegung, und die fiele später niemandem mehr auf.
+Das ist ein Null-Befund auf dem **Gesamtbestand**, also in der konservativen
+Richtung: eine Train/Holdout-Trennung könnte einen Vorsprung nur weiter
+schrumpfen, nicht erzeugen. Der Holdout musste dafür nicht angefasst werden und
+steht weiter bei **0 Zugriffen**.
 
----
+### Die Confidence-Kurve trennt nicht
 
-### Was dieselbe Bereinigung in den übrigen Auswertungen sichtbar macht
-
-Alle Zahlen unten: 30 Tage, HISTORISCH, **Gesamtbestand** — nicht auf dem
-Trainingsteil gerechnet. Für eine Entscheidung müssten sie dort wiederholt
-werden; als Diagnose reichen sie.
-
-**Die Confidence-Kurve überlebt die Bereinigung nicht:**
-
-| Confidence-Band | n | absolut | gegen den Markt |
-|---|---|---|---|
-| 0–29 VERKAUF | 5.643 | 38,7 % | 49,1 % (−0,9 pp, Rauschen) |
-| 30–44 VERKAUF | 19.344 | 42,3 % | 51,5 % (+1,5 pp, Rauschen) |
-| 60–74 KAUF | 30.029 | 54,1 % | 47,3 % (−2,7 pp, **signifikant**) |
-| 75–100 KAUF | 1.972 | 56,3 % | 48,6 % (−1,4 pp, Rauschen) |
+| Confidence-Band | n | absolut | gegen den Markt | Basis | |
+|---|---|---|---|---|---|
+| 0–29 VERKAUF | 5.643 | 38,7 % | 49,1 % | 51,9 % | −2,9 pp, **signifikant** |
+| 30–44 VERKAUF | 19.344 | 42,3 % | 51,5 % | 51,9 % | −0,5 pp, Rauschen |
+| 60–74 KAUF | 30.029 | 54,1 % | 47,3 % | 48,1 % | −0,8 pp, Rauschen |
+| 75–100 KAUF | 1.972 | 56,3 % | 48,6 % | 48,1 % | +0,6 pp, Rauschen |
 
 Absolut steigt die Kurve sauber monoton (38,7 → 42,3 → 54,1 → 56,3) und sieht
-nach einer gut kalibrierten Engine aus. Gegen den Markt bleibt davon nichts:
-49,1 → 51,5 → 47,3 → 48,6. Genau davor warnt der Docstring von
-`kalibrierung.py` seit jeher — in einem steigenden Markt erzeugt schon die
+nach einer gut kalibrierten Engine aus. Marktbereinigt bleibt eine flache
+Reihe, in der nur das unterste Band überhaupt aus dem Rauschen ragt — und zwar
+mit negativem Vorzeichen. Genau davor warnt der Docstring von
+`kalibrierung.py` seit jeher: in einem steigenden Markt erzeugt schon die
 Aufwärtsdrift eine steigende Kurve, weil niedrige Confidence Verkaufssignale
-sind und hohe Kaufsignale. Jetzt ist es gemessen statt vermutet.
+sind und hohe Kaufsignale.
 
-**Beide Signalrichtungen wählen Titel, die hinter dem Index bleiben:**
+### P1-08b: die Beförderung ist entfallen
 
-| Kategorie | Richtung | n | absolut | gegen den Markt |
-|---|---|---|---|---|
-| trend | bullisch | 196.888 | 54,7 % | 47,8 % (−2,2 pp, **signifikant**) |
-| volume | bullisch | 151.293 | 54,7 % | 48,0 % (−2,0 pp, **signifikant**) |
-| oscillator | bullisch | 6.816 | 58,9 % | 48,4 % (−1,6 pp, Rauschen) |
-| trend | bearisch | 144.281 | 43,3 % | 51,6 % (+1,6 pp, **signifikant**) |
-| volume | bearisch | 107.430 | 43,3 % | 51,9 % (+1,9 pp, **signifikant**) |
-| oscillator | bearisch | 12.123 | 45,2 % | 51,5 % (+1,5 pp, Rauschen) |
-
-Was die Indikatoren bullisch nennen, bleibt hinter dem Index zurück — und was
-sie bearisch nennen, ebenfalls. Die bearische Seite liegt damit richtig, die
-bullische systematisch falsch. Das verschärft §2: dort war die
-Volumen-Kategorie „in beiden Richtungen negativ"; marktbereinigt ist sie
-bearisch signifikant **positiv** und nur bullisch negativ.
-
-**Der befördernde Zweig des Gates hält der Bereinigung nicht stand:**
-
-| Gate-Gruppe | n | absolut | gegen den Markt |
-|---|---|---|---|
-| Empfohlen — Confidence + Oszillator | 2.136 | 57,7 % (+2,1 pp, Rauschen) | 48,7 % (−1,3 pp, Rauschen) |
-| Empfohlen — Mean-Reversion-Setup | 3.018 | 59,5 % (+3,9 pp, **signifikant**) | 49,4 % (−0,6 pp, Rauschen) |
-| Gesperrt — Confidence ohne Oszillator | 28.814 | 54,0 % (−1,5 pp, signifikant) | 47,9 % (−2,1 pp, signifikant) |
-
-§2a hielt fest: „Der Effekt sitzt im befördernden Zweig." Gegen den Markt ist
-auch dieser Effekt weg (+3,9 pp → −0,6 pp, nicht mehr signifikant).
-
-### P1-08b auf dem Trainingsteil: die Beförderung ist entfallen
-
-Die Zahlen oben stammen aus dem Gesamtbestand, deshalb auf dem **Trainingsteil**
-nachgerechnet (HISTORISCH). Der Holdout-Zähler stand davor und danach auf **0**:
+Auf dem **Trainingsteil** nachgerechnet, gegen die dortige Marktbasis:
 
 | Horizont | n | absolut | gegen den Markt |
 |---|---|---|---|
-| 7 Tage | 2.033 | 57,4 % — **+4,9 pp, signifikant** | 49,0 % — −1,0 pp ±2,2, Rauschen |
-| 30 Tage | 2.107 | 58,9 % — **+4,2 pp, signifikant** | 48,1 % — −1,9 pp ±3,7, Rauschen |
-| 90 Tage | 2.147 | 65,5 % — **+6,5 pp, signifikant** | 50,2 % — +0,2 pp ±6,4, Rauschen |
+| 7 Tage | 2.033 | +4,9 pp, signifikant | +0,7 pp, Rauschen |
+| 30 Tage | 2.107 | +4,2 pp, signifikant | −0,5 pp, Rauschen |
+| 90 Tage | 2.147 | +6,5 pp, signifikant | +3,1 pp, Rauschen |
 
-Auf allen drei Horizonten dasselbe: der absolute Vorsprung ist stabil und
-signifikant, marktbereinigt verschwindet er restlos, zweimal ins Minus. Kein
-Grenzfall an einer Fehlerspanne. **Konsequenz: die Beförderung ist in Score
-2.2.0 entfallen** (§3), die Konstellation wird weiter erkannt und als Hinweis
-geführt.
+Absolut auf allen drei Horizonten signifikant, marktbereinigt auf keinem.
+**Konsequenz: die Beförderung ist in Score 2.2.0 entfallen** (§3); die
+Konstellation wird weiter erkannt und als Hinweis geführt.
 
-Zwei Beobachtungen am Rand, bewusst nicht ausgedeutet:
-
-- `durchgelassen` auf **7 Tagen** ist die einzige marktbereinigt positive,
-  signifikante Zelle der ganzen Tabelle (+3,2 pp ±2,7). Auf 30 und 90 Tagen
-  kippt sie ins Negative. Ein Fund, der über drei Horizonte nur auf einem hält,
-  ist eher Mehrfachtest als Signal.
-- `geblockt` schlägt `durchgelassen` marktbereinigt auf allen drei Horizonten
-  (30 Tage: −1,6 gegen −4,0 pp). Das bestätigt nachträglich, dass das Entfernen
-  des sperrenden Zweigs richtig war: das Gate hat die schlechtere Gruppe
-  empfohlen.
+Eine Auffälligkeit, bewusst nicht ausgedeutet: `durchgelassen` trägt auf
+**7 Tagen** +4,9 pp und ist dort signifikant, auf 30 und 90 Tagen aber −2,7
+und −0,6 pp. Ein Fund, der über drei Horizonte nur auf einem hält, ist eher
+Mehrfachtest als Signal — und 7 Tage ist der Horizont mit den engsten
+Fehlerspannen, weil dort keine Überlappungskorrektur greift.
 
 ---
 
@@ -297,6 +286,7 @@ Zwei Beobachtungen am Rand, bewusst nicht ausgedeutet:
 | **P1-04 Überrendite in den Kennzahlen** | `auswertung/basis.py`, `auswertung/kennzahlen.py` |
 | **P1-04b Überrendite in Kalibrierung, Indikatoren, Gate** | `auswertung/kalibrierung.py`, `indikator_stats.py`, `gate.py` |
 | **P1-04 auf der Oberfläche sichtbar** | `templates/pages/signal_quality.html` (vier Tabellen) |
+| **Marktbasis statt Nullhypothese 50** | `auswertung/basis.py` (`anteil_schlaegt_markt`, `markt_basis`) |
 
 **Wichtig:** Alle 88.033 Bestands-Snapshots tragen `score_version` 1.0.0 — es
 gibt weder welche mit 2.0.0 noch mit 2.1.0 noch mit 2.2.0. Weder der sperrende
@@ -358,8 +348,24 @@ dem nächsten Scheduler-Lauf tragen **2.2.0**.
 - **P1-06** ein 30-Tage-Takt für alle Kategorien, unabhängig von der Signal-Halbwertszeit
 - **P1-03** Backfill kennt kein Sentiment, misst also ein anderes System als das laufende (Designentscheidung offen)
 
-### B. Die strukturelle Ursache (Gate umgeht sie, löst sie nicht)
-- **BC-01/02/03 + P2-04** sechs korrelierte Momentum-Messungen dominieren drei meist stille Oszillator-Slots. Das Gate filtert obenauf; der Composite darunter bleibt fehlkomponiert. **Größter offener Posten, architektonisch.**
+### B. Die strukturelle Ursache — Prämisse widerlegt, Umbau ausgesetzt
+- **BC-01** (die volume-Kategorie misst kein Volumen: VWMA = Momentum(20),
+  OBV-Slope = Momentum(20), POC = Momentum(252)) und **BC-03** (fünf von sechs
+  Preis-Positions-Messungen feuern auf 100 % der Snapshots, RSI und Bollinger
+  auf 11 %) sind **weiterhin wahr**. Es sind Aussagen über den Code, nicht über
+  Vorsprünge, und die Sättigungszahlen stehen im Artifact.
+- **BC-02 ist widerlegt.** Sie lautete: „die einzige Kategorie mit Vorsprung
+  wird von der ohne gekippt" — Grundlage war der Oszillator-Vorsprung. Gegen
+  den Markt hat der Oszillator keinen: +0,3 pp bullisch, −0,4 pp bearisch,
+  beides Rauschen (§2b). Es gibt kein gutes Signal, das gerettet werden müsste.
+- **P2-04** (die additive Form kann keine Interaktionen ausdrücken) stand auf
+  demselben Beleg: „überverkauft gegen den Trend +4,8 pp". Diese Interaktion
+  ist exakt die Mean-Reversion-Beförderung, die in 2.2.0 entfallen ist, weil
+  marktbereinigt nichts von ihr bleibt.
+- **Konsequenz: den Composite jetzt NICHT umbauen.** Eine andere Arithmetik
+  über Eingänge, von denen keiner einen marktrelativen Vorsprung trägt, ordnet
+  Nullen um. Der Umbau wird sinnvoll, sobald es einen Eingang gibt, der einen
+  hat — siehe §5.
 
 ### C. Positionspfad — Messung läuft, Auswertung fehlt
 - ~~**P3-03** erzeugt keine Snapshots~~ → erledigt, siehe §3. Ab jetzt schreibt
@@ -398,18 +404,24 @@ Arbeit inline erledigt, was sie langsam und einmalig statt wiederholbar macht.
 
 ## 5. Empfohlener nächster Schritt
 
-**BC-01/02/03 — die Komposition des Composites** (§4 B). Die Messfläche steht
-jetzt: alles, was eine Trefferquote ausweist, weist sie auch gegen den Markt
-aus. Was sie zeigt, ist eindeutig und trifft die Architektur, nicht die
-Kalibrierung — die bullische Seite aller drei Kategorien liegt gegen den Index
-signifikant zurück, die bearische leicht vorn (§2b). Sechs korrelierte
-Momentum-Messungen dominieren drei meist stille Oszillator-Slots; die
-volume-Kategorie misst kein Volumen (§2). Keine Gewichtung repariert das, und
-DX-01 zeigt, dass Gewichtstuning an dieser Architektur ohnehin eine Decke hat.
+**Einen Eingang beschaffen, der einen marktrelativen Vorsprung trägt.** Die
+Messfläche steht: alles, was eine Trefferquote ausweist, weist sie auch gegen
+den Markt und gegen dessen gemessene Basis aus. Was sie zeigt, ist ein
+Null-Befund über die gesamte Indikatorenliste (§2b). Damit ist die Reihenfolge
+des Artifacts überholt — es setzte den Umbau des Composites (BC/P2-04) nach
+vorn, weil ein guter Eingang gerettet werden müsse. Den gibt es nicht.
 
-Vorgelagerte Aufräumarbeiten gibt es keine mehr: mit 2.2.0 ist der letzte
-Zweig gefallen, der auf einem absolut gemessenen Vorsprung stand. Was jetzt
-noch an der Empfehlung dreht, ist der Composite selbst.
+**P2-02 — Cross-sectional Momentum** ist der erste Kandidat. Er ist von
+Konstruktion her relativ (Titel werden gegeneinander gerangt statt gegen null),
+misst also genau die Größe, die jetzt auswertbar ist, und gilt als die
+robusteste dokumentierte Anomalie überhaupt. Danach P2-06 in der dortigen
+Reihenfolge (PEAD, Analysten-Revisionen, relative Stärke je Sektor, Short
+Interest, Insider-Cluster, Accruals) und P2-01 (Sektormodelle).
+
+**Der Umbau des Composites bleibt liegen, bis es etwas zu komponieren gibt.**
+BC-01 und BC-03 sind weiter wahr und werden mit dem ersten tragenden Eingang
+wieder relevant — dann nämlich entscheidet die Arithmetik darüber, ob er
+durchkommt.
 
 **Nicht** mit dem Vorschlagspanel für Gewichte anfangen: DX-01 zeigt, dass
 Gewichtstuning an dieser Architektur eine Decke hat.
@@ -424,7 +436,7 @@ die beste Variante behält, hat ihn zum Trainingsset gemacht — nur langsamer.
 ## 6. Verifikation (es gibt keine CI)
 
 ```
-py -m pytest -q                                   # 136 Tests
+py -m pytest -q                                   # 142 Tests
 py -m mypy <geänderte Dateien>                    # ad hoc, keine Konfiguration im Repo
 py -c "import warnings; warnings.filterwarnings('ignore'); from fastapi.testclient import TestClient; import main; c=TestClient(main.app); c.__enter__(); [print(c.get(u).status_code, u) for u in ['/','/signals','/signals/indikatoren','/signals/backfill','/analysis','/screener','/watchlist','/journal','/backtesting','/sectors','/economy','/settings','/lexicon','/sources','/directory']]"
 ```

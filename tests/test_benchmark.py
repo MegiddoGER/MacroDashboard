@@ -14,8 +14,8 @@ import pandas as pd
 import pytest
 
 from snapshot_engine.auswertung.basis import (
-    MARKT_NULLHYPOTHESE, MIN_VORSPRUNG_PP, STATUS_OK, STATUS_ZU_WENIG_DATEN,
-    mit_ueberrendite,
+    MIN_VORSPRUNG_PP, STATUS_OK, STATUS_ZU_WENIG_DATEN, anteil_schlaegt_markt,
+    markt_basis, mit_ueberrendite,
 )
 from snapshot_engine.benchmark import (
     BENCHMARK_JE_SUFFIX, benchmark_fuer, benoetigte_benchmarks,
@@ -207,15 +207,25 @@ def test_ausreichende_stichprobe_wird_ausgewiesen():
     assert k["ueberrendite_status"] == STATUS_OK
 
 
-def test_vorsprung_wird_gegen_fuenfzig_gemessen_nicht_gegen_die_basisrate():
-    """Der Index hat die Marktbewegung schon je Beobachtung herausgerechnet;
-    die Nullhypothese ist damit der Münzwurf."""
-    assert MARKT_NULLHYPOTHESE == 50.0
-    haelfte = [3.0] * 30 + [-3.0] * 30
-    k = mit_ueberrendite(_zeile(60), haelfte, [1] * 60)
-    assert k["markt_trefferquote"] == 50.0
+def test_vorsprung_wird_gegen_die_gemessene_basis_gerechnet():
+    """Eine Gruppe, die genau auf der unbedingten Marktquote liegt, hat keinen
+    Vorsprung. Gegen 50 gerechnet sähe dieselbe Gruppe nach einem Rückstand
+    von 2 pp aus — das war der Fehler, den diese Basis behebt."""
+    werte = [3.0] * 48 + [-3.0] * 52
+    k = mit_ueberrendite(_zeile(100), werte, [1] * 100, anteil_markt=48.0)
+    assert k["markt_trefferquote"] == 48.0
+    assert k["markt_basis"] == 48.0
     assert k["markt_vorsprung_pp"] == 0.0
     assert k["markt_signifikant"] is False
+
+
+def test_ohne_basis_wird_kein_vorsprung_ausgewiesen():
+    """Die Quote allein ist keine Aussage — so wenig wie eine Trefferquote
+    ohne ihre Basisrate."""
+    k = mit_ueberrendite(_zeile(60), [2.0] * 60, [1] * 60)
+    assert k["markt_trefferquote"] == 100.0
+    assert k["markt_basis"] is None
+    assert k["markt_vorsprung_pp"] is None
 
 
 def test_knappe_ueberrenditen_zaehlen_im_mittel_aber_nicht_in_der_quote():
@@ -232,6 +242,42 @@ def test_ohne_jede_richtung_bleibt_alles_leer():
     assert k["ueberrendite_n"] == 0
     assert k["ueberrendite_abdeckung_pct"] is None
     assert k["markt_trefferquote"] is None
+
+
+# ---------------------------------------------------------------------------
+# Die unbedingte Marktquote — gemessen, nicht angenommen
+# ---------------------------------------------------------------------------
+
+def test_unbedingte_marktquote_wird_gemessen():
+    """Über den echten Bestand schlagen nur rund 48 % der Beobachtungen ihren
+    Index, bei einer mittleren Überrendite von null: ein kapitalgewichteter
+    Index wird von wenigen großen Titeln getragen, der Median bleibt zurück."""
+    assert anteil_schlaegt_markt([2.0] * 48 + [-2.0] * 52) == pytest.approx(48.0)
+
+
+def test_knappe_ueberrenditen_zaehlen_auch_in_der_basis_nicht():
+    """Basis und Quote müssen dieselbe Grundgesamtheit haben, sonst ist der
+    Vorsprung zwischen ihnen systematisch verschoben."""
+    knapp = MIN_VORSPRUNG_PP / 2
+    assert anteil_schlaegt_markt([2.0] * 10 + [knapp] * 90) == 100.0
+
+
+def test_ohne_vergleichswerte_keine_basis():
+    assert anteil_schlaegt_markt([None] * 10) is None
+    assert anteil_schlaegt_markt([]) is None
+
+
+def test_markt_basis_folgt_der_richtungsmischung():
+    """Für eine Short-Beobachtung ist der Bezugspunkt der Anteil der Titel,
+    die ihren Index NICHT schlagen."""
+    assert markt_basis(48.0, [1] * 10) == pytest.approx(48.0)
+    assert markt_basis(48.0, [-1] * 10) == pytest.approx(52.0)
+    assert markt_basis(48.0, [1] * 5 + [-1] * 5) == pytest.approx(50.0)
+
+
+def test_markt_basis_ohne_richtung_ist_keine():
+    assert markt_basis(48.0, [None] * 10) is None
+    assert markt_basis(None, [1] * 10) is None
 
 
 # ---------------------------------------------------------------------------
@@ -259,7 +305,7 @@ def test_gate_gruppe_wird_auch_gegen_den_markt_bewertet():
     from snapshot_engine.auswertung.gate import _gruppe_bewerten
     # 40 Beobachtungen, die den Index jeweils um 3 pp schlagen.
     paare = [(8.0, 5.0)] * 40
-    g = _gruppe_bewerten(paare, basisrate=55.0, horizont=30, minimum=10)
+    g = _gruppe_bewerten(paare, 55.0, 48.0, horizont=30, minimum=10)
     assert g["trefferquote"] == 100.0          # absolut: alle im Plus
     assert g["markt_trefferquote"] == 100.0    # und alle vor dem Index
     assert g["ueberrendite_mittel_pp"] == pytest.approx(3.0)
@@ -267,7 +313,7 @@ def test_gate_gruppe_wird_auch_gegen_den_markt_bewertet():
 
 def test_leere_gate_gruppe_faellt_nicht_um():
     from snapshot_engine.auswertung.gate import _gruppe_bewerten
-    g = _gruppe_bewerten([], basisrate=55.0, horizont=30, minimum=10)
+    g = _gruppe_bewerten([], 55.0, 48.0, horizont=30, minimum=10)
     assert g["n"] == 0
     assert g["trefferquote"] is None
     assert g["markt_trefferquote"] is None

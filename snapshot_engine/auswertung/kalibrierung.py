@@ -18,8 +18,8 @@ from snapshot_engine.models import (
     AnalyseModus, AnalyseSnapshot, AnalyseSnapshotOutcome,
 )
 from snapshot_engine.auswertung.basis import (
-    MIN_STICHPROBE, anteil_steigend, kennzahlen_aus_returns, mit_basis,
-    mit_ueberrendite,
+    MIN_STICHPROBE, anteil_schlaegt_markt, anteil_steigend,
+    kennzahlen_aus_returns, mit_basis, mit_ueberrendite,
 )
 from snapshot_engine.benchmark import ueberrendite
 from snapshot_engine.auswertung.kennzahlen import RICHTUNG_JE_SIGNAL
@@ -74,6 +74,8 @@ def kalibrierung_berechnen(db: Session, horizont: int = 7,
     # Vergleichsbasis über den gesamten Zeitraum, nicht je Band — sie soll
     # unabhängig von der Confidence sein, gegen die sie verglichen wird.
     anteil = anteil_steigend([r for _, r, _, _, _ in alle])
+    anteil_markt = anteil_schlaegt_markt(
+        [ueberrendite(r, b) for _, r, _, _, b in alle])
 
     for bereich in CONFIDENCE_BEREICHE:
         gruppe = [z for z in alle
@@ -97,7 +99,7 @@ def kalibrierung_berechnen(db: Session, horizont: int = 7,
                 ),
                 anteil, richtungen),
             [ueberrendite(r, b) for _, r, _, _, b in gruppe],
-            richtungen, horizont_tage=horizont, minimum=minimum)
+            richtungen, anteil_markt, horizont_tage=horizont, minimum=minimum)
 
         ergebnis.append({
             "bereich": bereich["label"],

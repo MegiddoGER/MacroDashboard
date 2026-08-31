@@ -117,17 +117,53 @@ def mit_basis(kennzahlen: dict, anteil: Optional[float],
 # Differenz angewandt statt auf die Kursbewegung.
 MIN_VORSPRUNG_PP = MIN_BEWEGUNG_PCT
 
-# Die Nullhypothese der Marktquote ist 50, nicht `anteil_steigend`. Genau das
-# ist der Sinn von P1-04: der Vergleichsindex hat die Marktbewegung bereits aus
-# jeder einzelnen Beobachtung herausgerechnet, deshalb braucht es keine über
-# den Gesamtbestand gemittelte Basisrate mehr. Wer ohne Prognosefähigkeit
-# rät, liegt gegen den Markt in der Hälfte der Fälle vorn.
-MARKT_NULLHYPOTHESE = 50.0
+def anteil_schlaegt_markt(ueberrenditen: Sequence[Optional[float]]) -> Optional[float]:
+    """Anteil der Beobachtungen, die ihren Index geschlagen haben — unbedingt.
+
+    Das Gegenstück zu `anteil_steigend`, eine Ebene höher. Es war verlockend,
+    hier stattdessen 50 anzunehmen: der Index sei ja bereits je Beobachtung
+    abgezogen, also müsse ein Ratender in der Hälfte der Fälle vorn liegen.
+    Das ist falsch, und zwar messbar. Über den Bestand schlagen nur **48,1 %**
+    der Beobachtungen ihren Index (7 und 30 Tage; 46,1 % auf 90 Tagen), während
+    die mittlere Überrendite bei rund null liegt.
+
+    Beides zugleich ist kein Widerspruch, sondern die Marktbreite: ein
+    kapitalgewichteter Index wird von wenigen großen Titeln getragen. Der
+    Median-Titel bleibt zurück, einige wenige ziehen den Mittelwert auf null.
+    Gegen 50 gerechnet sähe deshalb JEDE Auswahl von Einzeltiteln nach einem
+    systematischen Rückstand aus — auch eine zufällige.
+
+    Gefiltert wird über `MIN_VORSPRUNG_PP`, dieselbe Schwelle, die auch die
+    Marktquote anlegt; sonst wären Basis und Quote auf verschiedenen
+    Grundgesamtheiten gerechnet.
+    """
+    bewegt = [u for u in ueberrenditen
+              if u is not None and abs(u) >= MIN_VORSPRUNG_PP]
+    if not bewegt:
+        return None
+    return sum(1 for u in bewegt if u > 0) / len(bewegt) * 100
+
+
+def markt_basis(anteil_markt: Optional[float],
+                richtungen: Sequence[Optional[int]]) -> Optional[float]:
+    """Was dieselbe Richtungsmischung ohne Prognosefähigkeit erreicht hätte.
+
+    Baugleich zu `basis_trefferquote`, nur auf der Marktquote: für eine
+    Short-Beobachtung ist der Bezugspunkt der Anteil der Titel, die ihren Index
+    NICHT schlagen.
+    """
+    gerichtet = [ri for ri in richtungen if ri is not None]
+    if anteil_markt is None or not gerichtet:
+        return None
+    n_long = sum(1 for ri in gerichtet if ri > 0)
+    n_short = len(gerichtet) - n_long
+    return (n_long * anteil_markt + n_short * (100.0 - anteil_markt)) / len(gerichtet)
 
 
 def mit_ueberrendite(kennzahlen: dict,
                      ueberrenditen: Sequence[Optional[float]],
                      richtungen: Sequence[Optional[int]],
+                     anteil_markt: Optional[float] = None,
                      horizont_tage: int = 0,
                      minimum: int = MIN_STICHPROBE) -> dict:
     """Ergänzt eine Kennzahlenzeile um die Bewertung gegen den Markt.
@@ -156,6 +192,11 @@ def mit_ueberrendite(kennzahlen: dict,
         ueberrenditen: Titel minus Index in Prozentpunkten, None wo kein
             Vergleichswert vorliegt.
         richtungen: +1 (long) / -1 (short) / None je Beobachtung.
+        anteil_markt: Unbedingter Anteil der Beobachtungen, die ihren Index
+            schlagen (aus `anteil_schlaegt_markt` über die GESAMTE
+            Grundgesamtheit, nicht über diese Gruppe). Ohne ihn bleibt der
+            Vorsprung None — eine Marktquote ohne Bezugspunkt ist so wenig
+            interpretierbar wie eine Trefferquote ohne Basisrate.
         horizont_tage: Für die effektive Stichprobe.
         minimum: Mindest-Stichprobe. Folgt der Aufrufstelle, damit die
             Marktquote nicht unter einer anderen Schwelle ausgewiesen wird als
@@ -173,6 +214,7 @@ def mit_ueberrendite(kennzahlen: dict,
     # None -- sichtbar leer ist besser als eine Zahl ohne Deckung.
     kennzahlen.setdefault("ueberrendite_mittel_pp", None)
     kennzahlen.setdefault("markt_trefferquote", None)
+    kennzahlen.setdefault("markt_basis", None)
     kennzahlen.setdefault("markt_vorsprung_pp", None)
     kennzahlen.setdefault("markt_fehler_pp", None)
     kennzahlen.setdefault("markt_signifikant", None)
@@ -199,9 +241,14 @@ def mit_ueberrendite(kennzahlen: dict,
 
     quote = sum(1 for g in bewertbar if g > 0) / len(bewertbar) * 100
     kennzahlen["markt_trefferquote"] = round(quote, 1)
-    vorsprung = quote - MARKT_NULLHYPOTHESE
-    kennzahlen["markt_vorsprung_pp"] = round(vorsprung, 1)
     kennzahlen["markt_fehler_pp"] = fehlerspanne_pp(quote, n_effektiv)
+
+    basis = markt_basis(anteil_markt, richtungen)
+    if basis is None:
+        return kennzahlen
+    kennzahlen["markt_basis"] = round(basis, 1)
+    vorsprung = quote - basis
+    kennzahlen["markt_vorsprung_pp"] = round(vorsprung, 1)
     kennzahlen["markt_signifikant"] = vorsprung_signifikant(
         vorsprung, quote, n_effektiv)
     return kennzahlen
