@@ -128,7 +128,8 @@ MARKT_NULLHYPOTHESE = 50.0
 def mit_ueberrendite(kennzahlen: dict,
                      ueberrenditen: Sequence[Optional[float]],
                      richtungen: Sequence[Optional[int]],
-                     horizont_tage: int = 0) -> dict:
+                     horizont_tage: int = 0,
+                     minimum: int = MIN_STICHPROBE) -> dict:
     """Ergänzt eine Kennzahlenzeile um die Bewertung gegen den Markt.
 
     Tritt NEBEN die absolute Trefferquote, ersetzt sie nicht. Beide werden
@@ -156,6 +157,9 @@ def mit_ueberrendite(kennzahlen: dict,
             Vergleichswert vorliegt.
         richtungen: +1 (long) / -1 (short) / None je Beobachtung.
         horizont_tage: Für die effektive Stichprobe.
+        minimum: Mindest-Stichprobe. Folgt der Aufrufstelle, damit die
+            Marktquote nicht unter einer anderen Schwelle ausgewiesen wird als
+            die absolute Quote daneben.
     """
     gerichtet = [u * ri for u, ri in zip(ueberrenditen, richtungen)
                  if u is not None and ri is not None]
@@ -177,7 +181,8 @@ def mit_ueberrendite(kennzahlen: dict,
                   if horizont_tage else len(gerichtet))
     kennzahlen["ueberrendite_n_effektiv"] = n_effektiv
     kennzahlen["ueberrendite_status"] = (
-        STATUS_OK if stichprobe_ausreichend(n_effektiv) else STATUS_ZU_WENIG_DATEN)
+        STATUS_OK if stichprobe_ausreichend(n_effektiv, minimum)
+        else STATUS_ZU_WENIG_DATEN)
     if kennzahlen["ueberrendite_status"] != STATUS_OK:
         return kennzahlen
 

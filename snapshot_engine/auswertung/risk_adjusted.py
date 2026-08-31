@@ -4,6 +4,14 @@ snapshot_engine/auswertung/risk_adjusted.py — Risikoadjustierte Auswertung.
 Stellt die Kennzahlen bereit, die andere Programmteile aus der Signal-Historie
 beziehen (Kelly-Positionsgrößen, Journal-Statistik) — und löst damit
 services/signal_history.py ab.
+
+Bewusst NICHT marktbereinigt (P1-04b). Hier geht es um Positionsgrößen und
+Journal-Statistik, also um tatsächlich realisierte Gewinne und Verluste. Kelly
+rechnet mit der Trefferquote und dem Gewinn/Verlust-Verhältnis, die das Depot
+wirklich erlebt — eine Überrendite lässt sich nicht ausgeben, solange nicht
+zugleich der Index geshortet wird. Die Marktbereinigung gehört in die
+Bewertung der Signalqualität (kennzahlen, kalibrierung, indikator_stats, gate),
+nicht in die Größenbestimmung.
 """
 
 import logging

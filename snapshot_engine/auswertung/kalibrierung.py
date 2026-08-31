@@ -19,7 +19,9 @@ from snapshot_engine.models import (
 )
 from snapshot_engine.auswertung.basis import (
     MIN_STICHPROBE, anteil_steigend, kennzahlen_aus_returns, mit_basis,
+    mit_ueberrendite,
 )
+from snapshot_engine.benchmark import ueberrendite
 from snapshot_engine.auswertung.kennzahlen import RICHTUNG_JE_SIGNAL
 
 logger = logging.getLogger(__name__)
@@ -46,13 +48,14 @@ def kalibrierung_berechnen(db: Session, horizont: int = 7,
     ergebnis = []
 
     try:
-        # Nur die drei benötigten Spalten statt ganzer ORM-Objekte (Performance
+        # Nur die benötigten Spalten statt ganzer ORM-Objekte (Performance
         # bei sechsstelligen Zeilenzahlen).
         paare = (
             db.query(AnalyseSnapshot.confidence,
                      AnalyseSnapshotOutcome.outcome_return,
                      AnalyseSnapshotOutcome.war_erfolgreich,
-                     AnalyseSnapshot.richtungssignal)
+                     AnalyseSnapshot.richtungssignal,
+                     AnalyseSnapshotOutcome.benchmark_return)
             .join(AnalyseSnapshotOutcome,
                   AnalyseSnapshotOutcome.snapshot_id == AnalyseSnapshot.id)
             .filter(AnalyseSnapshotOutcome.horizont_tage == horizont)
@@ -70,7 +73,7 @@ def kalibrierung_berechnen(db: Session, horizont: int = 7,
 
     # Vergleichsbasis über den gesamten Zeitraum, nicht je Band — sie soll
     # unabhängig von der Confidence sein, gegen die sie verglichen wird.
-    anteil = anteil_steigend([r for _, r, _, _ in alle])
+    anteil = anteil_steigend([r for _, r, _, _, _ in alle])
 
     for bereich in CONFIDENCE_BEREICHE:
         gruppe = [z for z in alle
@@ -78,17 +81,23 @@ def kalibrierung_berechnen(db: Session, horizont: int = 7,
 
         # Die Bänder mischen KAUF und VERKAUF (niedrige Confidence = Verkauf).
         # Ohne Richtung würde ein erfolgreiches Verkaufssignal als Verlust zählen.
-        richtungen = [RICHTUNG_JE_SIGNAL.get(s) for _, _, _, s in gruppe]
+        richtungen = [RICHTUNG_JE_SIGNAL.get(s) for _, _, _, s, _ in gruppe]
 
-        kennzahlen = mit_basis(
-            kennzahlen_aus_returns(
-                [r for _, r, _, _ in gruppe],
-                [t for _, _, t, _ in gruppe],
-                horizont_tage=horizont,
-                minimum=minimum,
-                richtungen=richtungen,
-            ),
-            anteil, richtungen)
+        # Neben die Basisrate tritt der Vergleich mit dem Markt: gerade die
+        # Confidence-Bänder mischen KAUF und VERKAUF, und genau dort schlägt
+        # eine Marktphase sonst als Kalibrierungsgüte durch (siehe §2b).
+        kennzahlen = mit_ueberrendite(
+            mit_basis(
+                kennzahlen_aus_returns(
+                    [r for _, r, _, _, _ in gruppe],
+                    [t for _, _, t, _, _ in gruppe],
+                    horizont_tage=horizont,
+                    minimum=minimum,
+                    richtungen=richtungen,
+                ),
+                anteil, richtungen),
+            [ueberrendite(r, b) for _, r, _, _, b in gruppe],
+            richtungen, horizont_tage=horizont, minimum=minimum)
 
         ergebnis.append({
             "bereich": bereich["label"],

@@ -1,6 +1,6 @@
 # CONTEXT.md — Arbeitsstand Signal-Engine
 
-_Stand: 2026-08-31 · auf `955479f` folgend · Branch `main`_
+_Stand: 2026-08-31 · auf `9995db0` folgend · Branch `main`_
 
 Übergabedatei für eine frische Claude-Session. Sie beantwortet drei Fragen:
 **Was ist erledigt, was ist offen, und was darf nicht noch einmal neu hergeleitet
@@ -190,6 +190,60 @@ Zwei Festlegungen dazu, die nicht wieder aufgerollt werden müssen:
 
 ---
 
+### Was dieselbe Bereinigung in den übrigen Auswertungen sichtbar macht
+
+Alle Zahlen unten: 30 Tage, HISTORISCH, **Gesamtbestand** — nicht auf dem
+Trainingsteil gerechnet. Für eine Entscheidung müssten sie dort wiederholt
+werden; als Diagnose reichen sie.
+
+**Die Confidence-Kurve überlebt die Bereinigung nicht:**
+
+| Confidence-Band | n | absolut | gegen den Markt |
+|---|---|---|---|
+| 0–29 VERKAUF | 5.643 | 38,7 % | 49,1 % (−0,9 pp, Rauschen) |
+| 30–44 VERKAUF | 19.344 | 42,3 % | 51,5 % (+1,5 pp, Rauschen) |
+| 60–74 KAUF | 30.029 | 54,1 % | 47,3 % (−2,7 pp, **signifikant**) |
+| 75–100 KAUF | 1.972 | 56,3 % | 48,6 % (−1,4 pp, Rauschen) |
+
+Absolut steigt die Kurve sauber monoton (38,7 → 42,3 → 54,1 → 56,3) und sieht
+nach einer gut kalibrierten Engine aus. Gegen den Markt bleibt davon nichts:
+49,1 → 51,5 → 47,3 → 48,6. Genau davor warnt der Docstring von
+`kalibrierung.py` seit jeher — in einem steigenden Markt erzeugt schon die
+Aufwärtsdrift eine steigende Kurve, weil niedrige Confidence Verkaufssignale
+sind und hohe Kaufsignale. Jetzt ist es gemessen statt vermutet.
+
+**Beide Signalrichtungen wählen Titel, die hinter dem Index bleiben:**
+
+| Kategorie | Richtung | n | absolut | gegen den Markt |
+|---|---|---|---|---|
+| trend | bullisch | 196.888 | 54,7 % | 47,8 % (−2,2 pp, **signifikant**) |
+| volume | bullisch | 151.293 | 54,7 % | 48,0 % (−2,0 pp, **signifikant**) |
+| oscillator | bullisch | 6.816 | 58,9 % | 48,4 % (−1,6 pp, Rauschen) |
+| trend | bearisch | 144.281 | 43,3 % | 51,6 % (+1,6 pp, **signifikant**) |
+| volume | bearisch | 107.430 | 43,3 % | 51,9 % (+1,9 pp, **signifikant**) |
+| oscillator | bearisch | 12.123 | 45,2 % | 51,5 % (+1,5 pp, Rauschen) |
+
+Was die Indikatoren bullisch nennen, bleibt hinter dem Index zurück — und was
+sie bearisch nennen, ebenfalls. Die bearische Seite liegt damit richtig, die
+bullische systematisch falsch. Das verschärft §2: dort war die
+Volumen-Kategorie „in beiden Richtungen negativ"; marktbereinigt ist sie
+bearisch signifikant **positiv** und nur bullisch negativ.
+
+**Der befördernde Zweig des Gates hält der Bereinigung nicht stand:**
+
+| Gate-Gruppe | n | absolut | gegen den Markt |
+|---|---|---|---|
+| Empfohlen — Confidence + Oszillator | 2.136 | 57,7 % (+2,1 pp, Rauschen) | 48,7 % (−1,3 pp, Rauschen) |
+| Empfohlen — Mean-Reversion-Setup | 3.018 | 59,5 % (+3,9 pp, **signifikant**) | 49,4 % (−0,6 pp, Rauschen) |
+| Gesperrt — Confidence ohne Oszillator | 28.814 | 54,0 % (−1,5 pp, signifikant) | 47,9 % (−2,1 pp, signifikant) |
+
+§2a hielt fest: „Der Effekt sitzt im befördernden Zweig." Gegen den Markt ist
+auch dieser Effekt weg (+3,9 pp → −0,6 pp, nicht mehr signifikant). Die
+Mean-Reversion-Beförderung, die in Score 2.1.0 als einziger Gate-Teil erhalten
+blieb, steht damit ohne belegten Vorsprung da — siehe P1-08b in §4 A.
+
+---
+
 ## 3. Erledigt — nicht noch einmal bauen
 
 | Was | Wo |
@@ -214,6 +268,8 @@ Zwei Festlegungen dazu, die nicht wieder aufgerollt werden müssen:
 | **P1-04 Marktrendite je Outcome** | `snapshot_engine/benchmark.py` |
 | **P1-04 Bestandsnachtrag (256.505 Zeilen)** | `snapshot_engine/benchmark_backfill.py` |
 | **P1-04 Überrendite in den Kennzahlen** | `auswertung/basis.py`, `auswertung/kennzahlen.py` |
+| **P1-04b Überrendite in Kalibrierung, Indikatoren, Gate** | `auswertung/kalibrierung.py`, `indikator_stats.py`, `gate.py` |
+| **P1-04 auf der Oberfläche sichtbar** | `templates/pages/signal_quality.html` (vier Tabellen) |
 
 **Wichtig:** Alle 88.033 Bestands-Snapshots tragen `score_version` 1.0.0 — es
 gibt weder welche mit 2.0.0 noch mit 2.1.0. Der sperrende Zweig hat also nie
@@ -247,11 +303,27 @@ die angezeigte Empfehlung. Neue Snapshots ab dem nächsten Scheduler-Lauf tragen
   Die absolute Quote bleibt bewusst stehen — sonst verlören alle in §2
   und §2a belegten Zahlen ihren Bezug, und gerade die Differenz zwischen
   beiden ist die Aussage.
-- **P1-04b (neu)** die Überrendite steht nur in `basis.py` und
-  `kennzahlen.py`. `kalibrierung.py`, `indikator_stats.py`,
-  `risk_adjusted.py`, `gate.py` und `holdout.py` messen weiter absolut —
-  und weisen damit weiter Marktphase als Signalqualität aus. Nächster
-  Schritt, siehe §5.
+- ~~**P1-04b** die Überrendite steht nur in `basis.py` und `kennzahlen.py`~~
+  → erledigt. `kalibrierung.py`, `indikator_stats.py` (beide Leaderboards) und
+  `gate.py` rechnen jetzt marktbereinigt; die Befunde stehen in §2b. Zwei
+  Korrekturen an der damaligen Aufzählung:
+  - `holdout.py` rechnet **gar keine** Trefferquoten — es liefert nur Grenze,
+    Filter und Zugriffszähler. Dort war nichts zu verdrahten.
+  - `risk_adjusted.py` bleibt **absichtlich** absolut. Es speist
+    Kelly-Positionsgrößen und Journal-Statistik, also tatsächlich realisierte
+    Gewinne und Verluste. Eine Überrendite lässt sich nicht ausgeben, solange
+    nicht zugleich der Index geshortet wird. Die Begründung steht im
+    Modul-Docstring, damit sie nicht als vergessene Lücke wiederkehrt.
+- ~~**P1-04c** die Überrendite ist nirgends sichtbar~~ → erledigt.
+  `/signals` zeigt sie in allen vier Tabellen (Horizonte, Richtungssignal,
+  Gate-Gruppen, Confidence-Kalibrierung) als Spaltenpaar „Quote vs. Markt" und
+  „Vorsprung vs. Markt", mit Fehlerspanne und Abdeckung im Tooltip. Wie beim
+  absoluten Vorsprung wird innerhalb der Fehlerspanne **nicht** eingefärbt.
+- **P1-08b (neu)** über die Mean-Reversion-Beförderung entscheiden. Sie blieb
+  in Score 2.1.0 als einziger Teil des Gates erhalten, weil sie absolut +3,9 pp
+  brachte; marktbereinigt sind es −0,6 pp und nicht signifikant (§2b). Vor
+  einer Entscheidung auf dem **Trainingsteil** nachrechnen — die Zahlen in §2b
+  stammen aus dem Gesamtbestand.
 - **P1-06** ein 30-Tage-Takt für alle Kategorien, unabhängig von der Signal-Halbwertszeit
 - **P1-03** Backfill kennt kein Sentiment, misst also ein anderes System als das laufende (Designentscheidung offen)
 
@@ -295,22 +367,19 @@ Arbeit inline erledigt, was sie langsam und einmalig statt wiederholbar macht.
 
 ## 5. Empfohlener nächster Schritt
 
-**P1-04b — die Überrendite in die übrigen Auswertungsmodule tragen.**
-`basis.py` und `kennzahlen.py` rechnen seit P1-04 marktbereinigt;
-`kalibrierung.py`, `indikator_stats.py`, `risk_adjusted.py`, `gate.py` und
-`holdout.py` tun es nicht. §2b zeigt, was das kostet: dort wird weiter
-Marktphase als Signalqualität ausgewiesen, und zwar je nach Richtung mit
-umgekehrtem Vorzeichen. Der Schritt ist klein — die Bausteine stehen
-(`mit_ueberrendite`, `erfolg_gegen_benchmark`), es fehlt die Verdrahtung —
-und er entscheidet, ob jede weitere Messung überhaupt etwas Belastbares
-misst.
+**BC-01/02/03 — die Komposition des Composites** (§4 B). Die Messfläche steht
+jetzt: alles, was eine Trefferquote ausweist, weist sie auch gegen den Markt
+aus. Was sie zeigt, ist eindeutig und trifft die Architektur, nicht die
+Kalibrierung — die bullische Seite aller drei Kategorien liegt gegen den Index
+signifikant zurück, die bearische leicht vorn (§2b). Sechs korrelierte
+Momentum-Messungen dominieren drei meist stille Oszillator-Slots; die
+volume-Kategorie misst kein Volumen (§2). Keine Gewichtung repariert das, und
+DX-01 zeigt, dass Gewichtstuning an dieser Architektur ohnehin eine Decke hat.
 
-**Danach BC-01/02/03** (§4 B). §2b hat die Diagnose verschärft: die
-Kaufsignale liegen gegen den Markt signifikant zurück, und der Composite,
-der sie erzeugt, besteht aus sechs korrelierten Momentum-Messungen
-gegenüber drei meist stillen Oszillator-Slots. Das ist kein
-Kalibrierungs-, sondern ein Kompositionsproblem — und keine Gewichtung
-repariert es.
+**Vorher billig mitzunehmen: P1-08b.** Die Mean-Reversion-Beförderung ist der
+einzige noch aktive Gate-Teil und hat marktbereinigt keinen Vorsprung mehr. Das
+auf dem Trainingsteil nachzurechnen kostet wenig und entscheidet, ob Score
+2.1.0 einen Zweig trägt, der nichts beiträgt.
 
 **Nicht** mit dem Vorschlagspanel für Gewichte anfangen: DX-01 zeigt, dass
 Gewichtstuning an dieser Architektur eine Decke hat.
@@ -325,7 +394,7 @@ die beste Variante behält, hat ihn zum Trainingsset gemacht — nur langsamer.
 ## 6. Verifikation (es gibt keine CI)
 
 ```
-py -m pytest -q                                   # 127 Tests
+py -m pytest -q                                   # 130 Tests
 py -m mypy <geänderte Dateien>                    # ad hoc, keine Konfiguration im Repo
 py -c "import warnings; warnings.filterwarnings('ignore'); from fastapi.testclient import TestClient; import main; c=TestClient(main.app); c.__enter__(); [print(c.get(u).status_code, u) for u in ['/','/signals','/signals/indikatoren','/signals/backfill','/analysis','/screener','/watchlist','/journal','/backtesting','/sectors','/economy','/settings','/lexicon','/sources','/directory']]"
 ```

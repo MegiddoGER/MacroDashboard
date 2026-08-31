@@ -36,8 +36,9 @@ from snapshot_engine.models import (
     MIN_BEWEGUNG_PCT, AnalyseModus, AnalyseSnapshot, AnalyseSnapshotOutcome,
 )
 from snapshot_engine.auswertung.basis import (
-    MIN_STICHPROBE, effektive_stichprobe, fehlerspanne_pp,
+    MIN_STICHPROBE, effektive_stichprobe, fehlerspanne_pp, mit_ueberrendite,
 )
+from snapshot_engine.benchmark import ueberrendite
 from snapshot_engine.auswertung.holdout import (
     HOLDOUT, grenze_lesen, holdout_rueckwirkend, holdout_zugriff_vermerken,
     split_filter,
@@ -145,7 +146,8 @@ def gate_wirkung(db: Session, horizont: int = 30,
             db.query(AnalyseSnapshot.indikator_json,
                      AnalyseSnapshot.cat_max_json,
                      AnalyseSnapshot.confidence,
-                     AnalyseSnapshotOutcome.outcome_return)
+                     AnalyseSnapshotOutcome.outcome_return,
+                     AnalyseSnapshotOutcome.benchmark_return)
             .join(AnalyseSnapshotOutcome,
                   AnalyseSnapshotOutcome.snapshot_id == AnalyseSnapshot.id)
             .filter(AnalyseSnapshotOutcome.horizont_tage == horizont)
@@ -170,17 +172,18 @@ def gate_wirkung(db: Session, horizont: int = 30,
             f"gate_wirkung(horizont={horizont}, datenmodus={datenmodus})")
 
     # Basisrate über dieselbe Mindestbewegung, die auch die Treffer bewertet.
-    bewegt = [r for _, _, _, r in zeilen if abs(r) >= MIN_BEWEGUNG_PCT]
+    bewegt = [r for _, _, _, r, _ in zeilen if abs(r) >= MIN_BEWEGUNG_PCT]
     if not bewegt:
         return ergebnis
     basisrate = sum(1 for r in bewegt if r > 0) / len(bewegt) * 100
     ergebnis["basisrate"] = round(basisrate, 1)
 
-    gruppen: dict[str, list[float]] = {
+    # Rendite und Vergleichswert je Beobachtung als Paar (P1-04b).
+    gruppen: dict[str, list[tuple]] = {
         "durchgelassen": [], "geblockt": [], "befoerdert": [],
     }
 
-    for indikator_json, cat_max_json, confidence, ret in zeilen:
+    for indikator_json, cat_max_json, confidence, ret, bm in zeilen:
         if abs(ret) < MIN_BEWEGUNG_PCT:
             continue
         osz = _normierter_oszillator(indikator_json, cat_max_json)
@@ -189,11 +192,11 @@ def gate_wirkung(db: Session, horizont: int = 30,
         hohe_confidence = (confidence or 0) >= 60
 
         if hohe_confidence and traegt:
-            gruppen["durchgelassen"].append(ret)
+            gruppen["durchgelassen"].append((ret, bm))
         elif hohe_confidence:
-            gruppen["geblockt"].append(ret)
+            gruppen["geblockt"].append((ret, bm))
         elif traegt:
-            gruppen["befoerdert"].append(ret)
+            gruppen["befoerdert"].append((ret, bm))
         # Rest: weder empfohlen noch gesperrt — nicht Teil des Vergleichs.
 
     for schluessel, werte in gruppen.items():
@@ -202,26 +205,36 @@ def gate_wirkung(db: Session, horizont: int = 30,
     return ergebnis
 
 
-def _gruppe_bewerten(returns: list[float], basisrate: float,
+def _gruppe_bewerten(paare: list[tuple], basisrate: float,
                      horizont: int, minimum: int) -> dict:
-    """Kennzahlen einer Gate-Gruppe gegen die Basisrate."""
-    n = len(returns)
-    if n == 0:
-        return {"n": 0, "n_effektiv": 0, "trefferquote": None,
-                "vorsprung_pp": None, "fehlerspanne_pp": None,
-                "signifikant": None, "ausreichend": False}
+    """Kennzahlen einer Gate-Gruppe gegen die Basisrate UND gegen den Markt.
 
-    quote = sum(1 for r in returns if r > 0) / n * 100
-    n_eff = effektive_stichprobe(n, horizont)
-    spanne = fehlerspanne_pp(quote, n_eff)
-    vorsprung = quote - basisrate
+    Beide Bezugspunkte werden gebraucht. Die Basisrate ist ein Mittel über den
+    gesamten Zeitraum; sie kann nicht sehen, dass die drei Gruppen zu
+    unterschiedlichen Zeiten entstanden sind. Der Index je Beobachtung kann es.
+    """
+    n = len(paare)
+    ergebnis: dict = {"n": 0, "n_effektiv": 0, "trefferquote": None,
+                      "vorsprung_pp": None, "fehlerspanne_pp": None,
+                      "signifikant": None, "ausreichend": False}
 
-    return {
-        "n": n,
-        "n_effektiv": n_eff,
-        "trefferquote": round(quote, 1),
-        "vorsprung_pp": round(vorsprung, 1),
-        "fehlerspanne_pp": spanne,
-        "signifikant": (abs(vorsprung) > spanne) if spanne is not None else None,
-        "ausreichend": n_eff >= minimum,
-    }
+    if n:
+        returns = [r for r, _ in paare]
+        quote = sum(1 for r in returns if r > 0) / n * 100
+        n_eff = effektive_stichprobe(n, horizont)
+        spanne = fehlerspanne_pp(quote, n_eff)
+        vorsprung = quote - basisrate
+        ergebnis = {
+            "n": n,
+            "n_effektiv": n_eff,
+            "trefferquote": round(quote, 1),
+            "vorsprung_pp": round(vorsprung, 1),
+            "fehlerspanne_pp": spanne,
+            "signifikant": (abs(vorsprung) > spanne) if spanne is not None else None,
+            "ausreichend": n_eff >= minimum,
+        }
+
+    # Gate-Gruppen sind Kaufkonstellationen — die Richtung ist durchweg long.
+    return mit_ueberrendite(
+        ergebnis, [ueberrendite(r, b) for r, b in paare], [1] * n,
+        horizont_tage=horizont, minimum=minimum)

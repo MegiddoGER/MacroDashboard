@@ -101,7 +101,8 @@ def kennzahlen_berechnen(db: Session, datenmodus: str | None = None,
                         horizont_tage=horizont, minimum=minimum,
                         richtungen=richtungen),
                     anteil, richtungen),
-                ueberrenditen, richtungen, horizont_tage=horizont)
+                ueberrenditen, richtungen, horizont_tage=horizont,
+                minimum=minimum)
 
             # Aufschlüsselung je Richtungssignal
             je_signal: dict = {}
@@ -117,7 +118,8 @@ def kennzahlen_berechnen(db: Session, datenmodus: str | None = None,
                             richtungen=signal_richtungen),
                         anteil, signal_richtungen),
                     [ueberrendite(r, b) for _, _, r, _, b in gefiltert],
-                    signal_richtungen, horizont_tage=horizont)
+                    signal_richtungen, horizont_tage=horizont,
+                    minimum=minimum)
             ergebnis["je_signal"][horizont] = je_signal
 
         # Top-/Flop-Ticker auf dem kürzesten Horizont (meiste Daten)

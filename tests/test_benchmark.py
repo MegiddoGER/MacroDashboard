@@ -232,3 +232,42 @@ def test_ohne_jede_richtung_bleibt_alles_leer():
     assert k["ueberrendite_n"] == 0
     assert k["ueberrendite_abdeckung_pct"] is None
     assert k["markt_trefferquote"] is None
+
+
+# ---------------------------------------------------------------------------
+# Mindeststichprobe folgt der Aufrufstelle (P1-04b)
+# ---------------------------------------------------------------------------
+
+def test_minimum_folgt_der_aufrufstelle():
+    """Die Marktquote darf nicht unter einer anderen Schwelle erscheinen als
+    die absolute Quote neben ihr — sonst steht in einer Zeile eine Zahl und in
+    der Nachbarspalte ein Strich, ohne dass die Datenlage sich unterscheidet."""
+    streng = mit_ueberrendite(_zeile(60), [2.0] * 60, [1] * 60, minimum=200)
+    assert streng["ueberrendite_status"] == STATUS_ZU_WENIG_DATEN
+    assert streng["markt_trefferquote"] is None
+
+    locker = mit_ueberrendite(_zeile(60), [2.0] * 60, [1] * 60, minimum=10)
+    assert locker["ueberrendite_status"] == STATUS_OK
+    assert locker["markt_trefferquote"] == 100.0
+
+
+# ---------------------------------------------------------------------------
+# Gate-Gruppen tragen die Marktzahlen mit (P1-04b)
+# ---------------------------------------------------------------------------
+
+def test_gate_gruppe_wird_auch_gegen_den_markt_bewertet():
+    from snapshot_engine.auswertung.gate import _gruppe_bewerten
+    # 40 Beobachtungen, die den Index jeweils um 3 pp schlagen.
+    paare = [(8.0, 5.0)] * 40
+    g = _gruppe_bewerten(paare, basisrate=55.0, horizont=30, minimum=10)
+    assert g["trefferquote"] == 100.0          # absolut: alle im Plus
+    assert g["markt_trefferquote"] == 100.0    # und alle vor dem Index
+    assert g["ueberrendite_mittel_pp"] == pytest.approx(3.0)
+
+
+def test_leere_gate_gruppe_faellt_nicht_um():
+    from snapshot_engine.auswertung.gate import _gruppe_bewerten
+    g = _gruppe_bewerten([], basisrate=55.0, horizont=30, minimum=10)
+    assert g["n"] == 0
+    assert g["trefferquote"] is None
+    assert g["markt_trefferquote"] is None

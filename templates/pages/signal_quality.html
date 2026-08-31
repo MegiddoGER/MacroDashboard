@@ -25,6 +25,26 @@
     {% if kz.basis_trefferquote is not none %}{{ kz.basis_trefferquote }}%{% else %}<span class="muted">–</span>{% endif %}
 {%- endmacro %}
 
+{# Gegen den Markt statt gegen null (P1-04). Der Vergleichsindex hat die
+   Marktbewegung je Beobachtung bereits herausgerechnet — die Nullhypothese
+   ist deshalb 50 % und nicht die Basisrate.
+
+   Dieselbe Zurückhaltung beim Einfärben wie oben: was innerhalb der
+   Fehlerspanne liegt, bleibt grau. #}
+{% macro marktquote(kz) -%}
+    {% if kz.markt_trefferquote is not none %}{{ kz.markt_trefferquote }}%{% else %}<span class="muted">–</span>{% endif %}
+{%- endmacro %}
+
+{% macro marktvorsprung(kz) -%}
+    {% if kz.markt_vorsprung_pp is not none %}
+        {% set belegt = kz.markt_signifikant %}
+        <span class="{{ ('positive' if kz.markt_vorsprung_pp > 0 else 'negative') if belegt else 'muted' }}"
+              title="gegen den Index über dasselbe Fenster · Nullhypothese 50 %{% if kz.markt_fehler_pp is not none %} · Fehlerspanne ±{{ kz.markt_fehler_pp }} pp (95 %, effektive Stichprobe){{ ' — nicht von Zufall unterscheidbar' if not belegt else '' }}{% endif %}{% if kz.ueberrendite_abdeckung_pct is not none %} · Vergleichswert für {{ kz.ueberrendite_abdeckung_pct }} % der gerichteten Beobachtungen{% endif %}">
+            {{ '%+.1f'|format(kz.markt_vorsprung_pp) }} pp{% if kz.markt_fehler_pp is not none %}
+            <span class="caption">±{{ kz.markt_fehler_pp }}</span>{% endif %}</span>
+    {% else %}<span class="muted">–</span>{% endif %}
+{%- endmacro %}
+
 {% block content %}
 <div class="page-header">
     <h2>Signal-Qualität</h2>
@@ -123,6 +143,7 @@
         <tr>
             <th>Horizont</th><th>Beobachtungen</th><th>davon unabhängig</th>
             <th>Trefferquote</th><th>Basisrate</th><th>Vorsprung</th>
+            <th>Quote vs. Markt</th><th>Vorsprung vs. Markt</th>
             <th>Ø Ertrag</th><th>Erwartungswert</th><th>Profitfaktor</th>
         </tr>
     </thead>
@@ -136,12 +157,14 @@
                 <td>{{ quote(kz) }}</td>
                 <td class="muted">{{ basisquote(kz) }}</td>
                 <td><strong>{{ vorsprung(kz) }}</strong></td>
+                <td class="muted">{{ marktquote(kz) }}</td>
+                <td><strong>{{ marktvorsprung(kz) }}</strong></td>
                 <td class="{{ 'positive' if kz.avg_ertrag > 0 else 'negative' }}">{{ kz.avg_ertrag }}%</td>
                 <td class="{{ 'positive' if kz.erwartungswert and kz.erwartungswert > 0 else 'negative' }}">
                     {{ kz.erwartungswert if kz.erwartungswert is not none else '–' }}</td>
                 <td>{{ kz.profitfaktor if kz.profitfaktor is not none else '–' }}</td>
             {% else %}
-                <td colspan="6" class="muted">Noch zu wenig unabhängige Beobachtungen (mindestens {{ kz.min_erforderlich }})</td>
+                <td colspan="8" class="muted">Noch zu wenig unabhängige Beobachtungen (mindestens {{ kz.min_erforderlich }})</td>
             {% endif %}
         </tr>
         {% endfor %}
@@ -155,7 +178,7 @@
 <h3 class="section-head">Nach Richtungssignal ({{ gewaehlter_horizont }} Tage)</h3>
 <div class="table-wrapper">
 <table class="data-table">
-    <thead><tr><th>Signal</th><th>n</th><th>Trefferquote</th><th>Basisrate</th><th>Vorsprung</th><th>Ø Ertrag</th><th>Erwartungswert</th></tr></thead>
+    <thead><tr><th>Signal</th><th>n</th><th>Trefferquote</th><th>Basisrate</th><th>Vorsprung</th><th>Quote vs. Markt</th><th>Vorsprung vs. Markt</th><th>Ø Ertrag</th><th>Erwartungswert</th></tr></thead>
     <tbody>
         {% for signal, kz in (kennzahlen.je_signal[gewaehlter_horizont] or {}).items() %}
         <tr>
@@ -165,10 +188,12 @@
                 <td>{{ quote(kz) }}</td>
                 <td class="muted">{{ basisquote(kz) }}</td>
                 <td><strong>{{ vorsprung(kz) }}</strong></td>
+                <td class="muted">{{ marktquote(kz) }}</td>
+                <td><strong>{{ marktvorsprung(kz) }}</strong></td>
                 <td class="{{ 'positive' if kz.avg_ertrag > 0 else 'negative' }}">{{ kz.avg_ertrag }}%</td>
                 <td>{{ kz.erwartungswert if kz.erwartungswert is not none else '–' }}</td>
             {% else %}
-                <td colspan="5" class="muted">zu wenig unabhängige Beobachtungen</td>
+                <td colspan="7" class="muted">zu wenig unabhängige Beobachtungen</td>
             {% endif %}
         </tr>
         {% endfor %}
@@ -181,6 +206,14 @@
     er sagt, um wie viele Prozentpunkte das Signal die Quote schlägt, die dieselbe Richtungsmischung
     ohne jede Prognosefähigkeit erreicht hätte. Werte um 0 heißen: das Signal trägt nichts bei.
     <strong>Ø Ertrag</strong> ist richtungsbewusst — bei VERKAUF zählt ein fallender Kurs als Gewinn.
+</p>
+<p class="caption">
+    <strong>Vorsprung vs. Markt</strong> ist die härtere der beiden Spalten. Jedes Outcome trägt die
+    Rendite seines Handelsplatz-Index über dasselbe Fenster; verglichen wird also gegen den Markt und
+    nicht gegen null. Die Nullhypothese ist deshalb 50 % — wer ohne Prognosefähigkeit rät, liegt in
+    der Hälfte der Fälle vorn. Weicht diese Spalte von der linken ab, war der Unterschied Marktphase
+    und nicht Signalqualität: eine Trefferquote von 54 % in einem Zeitraum, in dem der Index ohnehin
+    stieg, kann ein Rückstand sein.
 </p>
 
 <!-- ═══════════════════════════════════════════════════════════
@@ -257,7 +290,7 @@
 {% endif %}
 <div class="table-wrapper">
 <table class="data-table">
-    <thead><tr><th>Gruppe</th><th>n</th><th>eff. n</th><th>Trefferquote</th><th>Basisrate</th><th>Vorsprung</th></tr></thead>
+    <thead><tr><th>Gruppe</th><th>n</th><th>eff. n</th><th>Trefferquote</th><th>Basisrate</th><th>Vorsprung</th><th>Quote vs. Markt</th><th>Vorsprung vs. Markt</th></tr></thead>
     <tbody>
         {% for schluessel, bezeichnung in [('durchgelassen','Empfohlen — Confidence + Oszillator'), ('befoerdert','Empfohlen — Mean-Reversion-Setup'), ('geblockt','Gesperrt — Confidence ohne Oszillator')] %}
         {% set g = gate[schluessel] %}
@@ -275,6 +308,8 @@
                     <span class="caption">±{{ g.fehlerspanne_pp }}</span>
                 </span></strong>
             </td>
+            <td class="muted">{{ marktquote(g) }}</td>
+            <td><strong>{{ marktvorsprung(g) }}</strong></td>
         </tr>
         {% endif %}
         {% endfor %}
@@ -285,7 +320,7 @@
 
 <div class="table-wrapper">
 <table class="data-table">
-    <thead><tr><th>Confidence-Bereich</th><th>n</th><th>Trefferquote</th><th>Basisrate</th><th>Vorsprung</th><th>Ø Ertrag</th><th>Erwartungswert</th></tr></thead>
+    <thead><tr><th>Confidence-Bereich</th><th>n</th><th>Trefferquote</th><th>Basisrate</th><th>Vorsprung</th><th>Quote vs. Markt</th><th>Vorsprung vs. Markt</th><th>Ø Ertrag</th><th>Erwartungswert</th></tr></thead>
     <tbody>
         {% for z in kalibrierung %}
         <tr>
@@ -295,18 +330,20 @@
                 <td>{{ quote(z) }}</td>
                 <td class="muted">{{ basisquote(z) }}</td>
                 <td><strong>{{ vorsprung(z) }}</strong></td>
+                <td class="muted">{{ marktquote(z) }}</td>
+                <td><strong>{{ marktvorsprung(z) }}</strong></td>
                 <td class="{{ 'positive' if z.avg_ertrag > 0 else 'negative' }}">{{ z.avg_ertrag }}%</td>
                 <td>{{ z.erwartungswert if z.erwartungswert is not none else '–' }}</td>
             {% elif z.confidence_min == 45 %}
                 {# NEUTRAL-Signale werden von erfolg_bewerten nie bewertet.
                    Das größte Band trägt deshalb zu keinem Fazit bei — als
                    leere Zeile sähe das nach fehlenden Daten aus. #}
-                <td colspan="5" class="muted">
+                <td colspan="7" class="muted">
                     NEUTRAL-Signale werden grundsätzlich nicht als Treffer gewertet —
                     dieses Band fließt in kein Fazit ein
                 </td>
             {% else %}
-                <td colspan="5" class="muted">zu wenig unabhängige Beobachtungen</td>
+                <td colspan="7" class="muted">zu wenig unabhängige Beobachtungen</td>
             {% endif %}
         </tr>
         {% endfor %}
@@ -316,6 +353,10 @@
 <p class="caption">
     Eine funktionierende Engine zeigt hier steigende Werte: höhere Confidence → bessere Ergebnisse.
     Ein flacher Verlauf bedeutet, dass die Confidence-Zahl nicht trennt.
+    Maßgeblich ist dabei die Marktspalte: in einem steigenden Markt erzeugt schon die allgemeine
+    Aufwärtsdrift eine sauber steigende Kurve, weil niedrige Confidence Verkaufssignale sind und
+    hohe Kaufsignale. Erst wenn der Anstieg auch gegen den Index bestehen bleibt, trennt die
+    Confidence wirklich.
 </p>
 
 <!-- ═══════════════════════════════════════════════════════════

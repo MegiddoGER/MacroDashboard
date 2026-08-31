@@ -23,8 +23,9 @@ from snapshot_engine.models import (
     AnalyseSnapshotOutcome, Granularitaet,
 )
 from snapshot_engine.auswertung.basis import (
-    MIN_STICHPROBE, STATUS_OK, kennzahlen_aus_returns,
+    MIN_STICHPROBE, STATUS_OK, kennzahlen_aus_returns, mit_ueberrendite,
 )
+from snapshot_engine.benchmark import ueberrendite
 
 logger = logging.getLogger(__name__)
 
@@ -140,7 +141,8 @@ def indikator_leaderboard(db: Session, horizont: int = 7,
         db.query(AnalyseSnapshotIndikator.indikator_name,
                  AnalyseSnapshotIndikator.kategorie,
                  AnalyseSnapshotIndikator.beitrag_numeric,
-                 AnalyseSnapshotOutcome.outcome_return)
+                 AnalyseSnapshotOutcome.outcome_return,
+                 AnalyseSnapshotOutcome.benchmark_return)
         .join(AnalyseSnapshot,
               AnalyseSnapshot.id == AnalyseSnapshotIndikator.snapshot_id)
         .join(AnalyseSnapshotOutcome,
@@ -169,25 +171,31 @@ def indikator_leaderboard(db: Session, horizont: int = 7,
     gruppen: dict[tuple, list] = defaultdict(list)
     kategorien: dict[str, str] = {}
 
-    for name, kategorie, beitrag, outcome_return in zeilen:
+    for name, kategorie, beitrag, outcome_return, benchmark_return in zeilen:
         richtung = RICHTUNG_BULLISCH if beitrag > 0 else RICHTUNG_BEARISCH
-        gruppen[(name, richtung)].append(outcome_return)
+        # Rendite und Vergleichswert bleiben als Paar beieinander — getrennte
+        # Listen liefen bei der Gruppierung auseinander.
+        gruppen[(name, richtung)].append((outcome_return, benchmark_return))
         if kategorie:
             kategorien[name] = kategorie
 
     basis = basisrate(db, horizont, datenmodus)
 
     ergebnis = []
-    for (name, richtung), returns in gruppen.items():
+    for (name, richtung), paare in gruppen.items():
+        returns = [r for r, _ in paare]
         # Ein bullischer Indikator "trifft", wenn der Kurs steigt;
         # ein bearischer, wenn er fällt. Bewegungen unterhalb der
         # Mindestschwelle gelten als Rauschen und bleiben unbewertet.
         treffer = [_treffer(r, richtung) for r in returns]
         richtungen = [1 if richtung == RICHTUNG_BULLISCH else -1] * len(returns)
 
-        kennzahlen = kennzahlen_aus_returns(
-            returns, treffer, horizont_tage=horizont, minimum=minimum,
-            richtungen=richtungen)
+        kennzahlen = mit_ueberrendite(
+            kennzahlen_aus_returns(
+                returns, treffer, horizont_tage=horizont, minimum=minimum,
+                richtungen=richtungen),
+            [ueberrendite(r, b) for r, b in paare], richtungen,
+            horizont_tage=horizont, minimum=minimum)
 
         ergebnis.append({
             "indikator": name,
@@ -221,7 +229,8 @@ def kategorie_leaderboard(db: Session, horizont: int = 7,
         db.query(AnalyseSnapshotIndikator.indikator_name,
                  AnalyseSnapshotIndikator.kategorie,
                  AnalyseSnapshotIndikator.beitrag_numeric,
-                 AnalyseSnapshotOutcome.outcome_return)
+                 AnalyseSnapshotOutcome.outcome_return,
+                 AnalyseSnapshotOutcome.benchmark_return)
         .join(AnalyseSnapshot,
               AnalyseSnapshot.id == AnalyseSnapshotIndikator.snapshot_id)
         .join(AnalyseSnapshotOutcome,
@@ -244,19 +253,23 @@ def kategorie_leaderboard(db: Session, horizont: int = 7,
         return []
 
     gruppen: dict[tuple, list] = defaultdict(list)
-    for _name, kategorie, beitrag, outcome_return in zeilen:
+    for _name, kategorie, beitrag, outcome_return, benchmark_return in zeilen:
         richtung = RICHTUNG_BULLISCH if beitrag > 0 else RICHTUNG_BEARISCH
-        gruppen[(kategorie, richtung)].append(outcome_return)
+        gruppen[(kategorie, richtung)].append((outcome_return, benchmark_return))
 
     basis = basisrate(db, horizont, datenmodus)
 
     ergebnis = []
-    for (kategorie, richtung), returns in gruppen.items():
+    for (kategorie, richtung), paare in gruppen.items():
+        returns = [r for r, _ in paare]
         treffer = [_treffer(r, richtung) for r in returns]
         richtungen = [1 if richtung == RICHTUNG_BULLISCH else -1] * len(returns)
-        kennzahlen = kennzahlen_aus_returns(returns, treffer,
-                                            horizont_tage=horizont, minimum=minimum,
-                                            richtungen=richtungen)
+        kennzahlen = mit_ueberrendite(
+            kennzahlen_aus_returns(returns, treffer,
+                                   horizont_tage=horizont, minimum=minimum,
+                                   richtungen=richtungen),
+            [ueberrendite(r, b) for r, b in paare], richtungen,
+            horizont_tage=horizont, minimum=minimum)
         ergebnis.append({
             "kategorie": kategorie,
             "richtung": richtung,
