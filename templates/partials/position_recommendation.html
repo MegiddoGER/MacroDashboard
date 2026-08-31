@@ -61,6 +61,110 @@
   </div>
   {% endif %}
 
+
+  {# ── Positionsmetriken (PC-06) ───────────────────────────────────────────
+     Diese Zahlen wurden bisher vollständig berechnet und nirgends angezeigt.
+     Es sind genau die, an denen eine Positionsentscheidung hängt: was bei
+     Stop-Auslösung verloren geht, was bereits gesichert ist, wie weit es bis
+     Stop und Ziel ist.
+
+     ACHTUNG EINHEITEN: die `_pct`-Felder von PositionMetrics enthalten
+     BRÜCHE, keine Prozente — `_safe_div` teilt nur. Deshalb überall × 100.
+     Die Engines rechnen genauso um (recommendation_engine.py:59).
+
+     Was ohne Eingabe nicht berechenbar ist, wird NICHT als Kachel gezeigt.
+     Eine Reihe von Gedankenstrichen sieht aus wie ein Fehler; die fehlende
+     Eingabe steht stattdessen als Satz darunter. #}
+  {% if pa and pa.metrics %}
+  {% set m = pa.metrics %}
+  <h5 style="margin-bottom:12px;">Risiko und Abstände</h5>
+  <div style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom:8px;">
+
+    {% if m.invested_capital is not none %}
+    <div style="background:var(--bg-app-dark); padding:8px 12px; border-radius:var(--radius-sm); border:1px solid var(--border-subtle); min-width:130px;">
+      <span style="color:var(--text-dim); font-size:0.75rem; text-transform:uppercase;">Investiert</span><br>
+      <span style="font-weight:bold;">{{ fmt_price(m.invested_capital) }}</span>
+      {% if m.current_value is not none %}
+      <span style="color:var(--text-muted); font-size:0.85rem;"> → {{ fmt_price(m.current_value) }}</span>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    {% if m.open_risk is not none %}
+    <div style="background:var(--bg-app-dark); padding:8px 12px; border-radius:var(--radius-sm); border:1px solid var(--border-subtle); min-width:130px;"
+         title="Was bei Auslösen des aktuellen Stops noch verloren geht — gerechnet vom heutigen Kurs, nicht vom Einstieg.">
+      <span style="color:var(--text-dim); font-size:0.75rem; text-transform:uppercase;">Offenes Risiko</span><br>
+      <span style="font-weight:bold; color:var(--red);">{{ fmt_price(m.open_risk) }}</span>
+      {% if m.distance_to_stop_pct is not none %}
+      <span style="color:var(--text-muted); font-size:0.85rem;"> · {{ "%.1f"|format(m.distance_to_stop_pct * 100) }} % entfernt</span>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    {% if m.stop_distance_atr is not none %}
+    <div style="background:var(--bg-app-dark); padding:8px 12px; border-radius:var(--radius-sm); border:1px solid var(--border-subtle); min-width:130px;"
+         title="Stop-Abstand in Vielfachen der ATR. Volatilitätsrelativ — 2 % Abstand bedeuten bei einem Versorger etwas anderes als bei einem Biotech.">
+      <span style="color:var(--text-dim); font-size:0.75rem; text-transform:uppercase;">Stop-Abstand</span><br>
+      <span style="font-weight:bold;">{{ "%.1f"|format(m.stop_distance_atr) }} × ATR</span>
+    </div>
+    {% endif %}
+
+    {% if m.secured_profit_at_stop is not none and m.stop_locks_profit %}
+    <div style="background:var(--bg-app-dark); padding:8px 12px; border-radius:var(--radius-sm); border:1px solid var(--border-subtle); min-width:130px;"
+         title="Der Stop liegt über dem Einstieg — dieser Gewinn ist bereits gesichert, auch wenn er auslöst.">
+      <span style="color:var(--text-dim); font-size:0.75rem; text-transform:uppercase;">Gesichert</span><br>
+      <span style="font-weight:bold; color:var(--green);">{{ fmt_price(m.secured_profit_at_stop) }}</span>
+      {% if m.secured_profit_pct_at_stop is not none %}
+      <span style="color:var(--text-muted); font-size:0.85rem;"> · {{ "%.1f"|format(m.secured_profit_pct_at_stop * 100) }} %</span>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    {% if m.distance_to_target_pct is not none %}
+    <div style="background:var(--bg-app-dark); padding:8px 12px; border-radius:var(--radius-sm); border:1px solid var(--border-subtle); min-width:130px;">
+      <span style="color:var(--text-dim); font-size:0.75rem; text-transform:uppercase;">Bis zum Ziel</span><br>
+      <span style="font-weight:bold;">{{ "%.1f"|format(m.distance_to_target_pct * 100) }} %</span>
+    </div>
+    {% endif %}
+
+    {% if m.target_exceeded_by_pct is not none %}
+    <div style="background:var(--bg-app-dark); padding:8px 12px; border-radius:var(--radius-sm); border:1px solid var(--border-subtle); min-width:130px;"
+         title="Das Ziel ist bereits überschritten. Ohne nachgezogenen Stop läuft der Gewinn ungesichert weiter.">
+      <span style="color:var(--text-dim); font-size:0.75rem; text-transform:uppercase;">Ziel überschritten</span><br>
+      <span style="font-weight:bold; color:var(--green);">+{{ "%.1f"|format(m.target_exceeded_by_pct * 100) }} %</span>
+    </div>
+    {% endif %}
+
+    {% if m.remaining_reward_risk is not none %}
+    <div style="background:var(--bg-app-dark); padding:8px 12px; border-radius:var(--radius-sm); border:1px solid var(--border-subtle); min-width:130px;"
+         title="Verbleibende Chance zu verbleibendem Risiko, vom heutigen Kurs aus. Das ursprüngliche CRV beim Einstieg ist dafür bedeutungslos.">
+      <span style="color:var(--text-dim); font-size:0.75rem; text-transform:uppercase;">Verbleibendes CRV</span><br>
+      <span style="font-weight:bold;">1 : {{ "%.1f"|format(m.remaining_reward_risk) }}</span>
+    </div>
+    {% endif %}
+
+    {% if m.r_multiple is not none %}
+    <div style="background:var(--bg-app-dark); padding:8px 12px; border-radius:var(--radius-sm); border:1px solid var(--border-subtle); min-width:130px;"
+         title="Aktueller Gewinn in Vielfachen des ursprünglich eingegangenen Risikos.">
+      <span style="color:var(--text-dim); font-size:0.75rem; text-transform:uppercase;">R-Multiple</span><br>
+      <span style="font-weight:bold;">{{ "%.2f"|format(m.r_multiple) }} R</span>
+    </div>
+    {% endif %}
+  </div>
+
+  {# Was fehlt, und warum — statt einer Reihe leerer Kacheln. #}
+  <p style="color:var(--text-muted); font-size:0.8rem; margin-bottom:20px;">
+    {% if m.open_risk is none %}
+    Ohne hinterlegten Stop lässt sich das offene Risiko nicht beziffern — es ist
+    dann die gesamte Position.
+    {% endif %}
+    {% if m.r_multiple is none %}
+    Das R-Multiple braucht den <em>ursprünglichen</em> Stop; das Dashboard führt
+    bisher keine Stop-Historie (P3-01), deshalb bleibt es leer.
+    {% endif %}
+  </p>
+  {% endif %}
+
   <div class="grid-2" style="gap:24px;">
     <!-- Left Column: Actions -->
     <div>

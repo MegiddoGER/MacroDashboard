@@ -1195,7 +1195,9 @@ async def position_recommendation_rerender(
                     "fmt_big": _fmt_big,
                 }
         except Exception:
-            pass
+            logger.warning("Empfehlungs-Rerender für %s fehlgeschlagen — "
+                           "Ersatzempfehlung wird ausgegeben.",
+                           rec_ticker or "?", exc_info=True)
 
         return {
             "rec": {

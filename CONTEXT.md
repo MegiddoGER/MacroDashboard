@@ -483,7 +483,22 @@ dem nächsten Scheduler-Lauf tragen **2.2.0**.
   der SHORT-Pfad ist durch Tests gedeckt, nicht durch Benutzung, und eine
   Positionsempfehlung ist eine Aussage über echtes Geld.
 - **PC-04** ADX wird hier gerichtet gewertet — genau umgekehrt zur Entry-Engine, die ihn als Info führt
-- **PC-06** drei Metriken werden berechnet und nie gelesen
+- ~~**PC-06** drei Metriken werden berechnet und nie gelesen~~ → erledigt, und
+  es waren **acht**, nicht drei: `distance_to_stop_pct`,
+  `distance_to_target_pct`, `invested_capital`, `open_risk`,
+  `position_cagr`, `secured_profit_at_stop`, `secured_profit_pct_at_stop`,
+  `target_exceeded_by_pct` — null Verwendungen außerhalb der Engine. Die
+  Ursache war größer als der Posten: `position_recommendation.html` liest
+  `pa.recommendation`, `pa.scores`, `pa.validation` und `pa.stop_proposals`,
+  aber **`pa.metrics` kein einziges Mal**. Jetzt zeigt das Partial Risiko und
+  Abstände (offenes Risiko, Stop-Abstand in ATR, gesicherter Gewinn,
+  Zielabstand, verbleibendes CRV, R-Multiple). `position_cagr` bleibt bewusst
+  draußen — eine auf ein Jahr hochgerechnete Rendite aus drei Haltetagen ist
+  eine Zahl, die in die Irre führt.
+  **Einheitenfalle dabei festgehalten:** die `_pct`-Felder von
+  `PositionMetrics` enthalten BRÜCHE, keine Prozente (`_safe_div` teilt nur).
+  Die Engines rechnen korrekt um (`recommendation_engine.py:59`), die Anzeige
+  jetzt auch.
 - **P3-04** Entry- und Positionsscore sind keine vergleichbaren Größen
 
 ### D. Analyse-Substanz
