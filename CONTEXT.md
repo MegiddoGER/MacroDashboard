@@ -1,6 +1,6 @@
 # CONTEXT.md — Arbeitsstand Signal-Engine
 
-_Stand: 2026-08-31 · auf `9995db0` folgend · Branch `main`_
+_Stand: 2026-08-31 · auf `0e9c516` folgend · Branch `main`_
 
 Übergabedatei für eine frische Claude-Session. Sie beantwortet drei Fragen:
 **Was ist erledigt, was ist offen, und was darf nicht noch einmal neu hergeleitet
@@ -238,9 +238,35 @@ bearisch signifikant **positiv** und nur bullisch negativ.
 | Gesperrt — Confidence ohne Oszillator | 28.814 | 54,0 % (−1,5 pp, signifikant) | 47,9 % (−2,1 pp, signifikant) |
 
 §2a hielt fest: „Der Effekt sitzt im befördernden Zweig." Gegen den Markt ist
-auch dieser Effekt weg (+3,9 pp → −0,6 pp, nicht mehr signifikant). Die
-Mean-Reversion-Beförderung, die in Score 2.1.0 als einziger Gate-Teil erhalten
-blieb, steht damit ohne belegten Vorsprung da — siehe P1-08b in §4 A.
+auch dieser Effekt weg (+3,9 pp → −0,6 pp, nicht mehr signifikant).
+
+### P1-08b auf dem Trainingsteil: die Beförderung ist entfallen
+
+Die Zahlen oben stammen aus dem Gesamtbestand, deshalb auf dem **Trainingsteil**
+nachgerechnet (HISTORISCH). Der Holdout-Zähler stand davor und danach auf **0**:
+
+| Horizont | n | absolut | gegen den Markt |
+|---|---|---|---|
+| 7 Tage | 2.033 | 57,4 % — **+4,9 pp, signifikant** | 49,0 % — −1,0 pp ±2,2, Rauschen |
+| 30 Tage | 2.107 | 58,9 % — **+4,2 pp, signifikant** | 48,1 % — −1,9 pp ±3,7, Rauschen |
+| 90 Tage | 2.147 | 65,5 % — **+6,5 pp, signifikant** | 50,2 % — +0,2 pp ±6,4, Rauschen |
+
+Auf allen drei Horizonten dasselbe: der absolute Vorsprung ist stabil und
+signifikant, marktbereinigt verschwindet er restlos, zweimal ins Minus. Kein
+Grenzfall an einer Fehlerspanne. **Konsequenz: die Beförderung ist in Score
+2.2.0 entfallen** (§3), die Konstellation wird weiter erkannt und als Hinweis
+geführt.
+
+Zwei Beobachtungen am Rand, bewusst nicht ausgedeutet:
+
+- `durchgelassen` auf **7 Tagen** ist die einzige marktbereinigt positive,
+  signifikante Zelle der ganzen Tabelle (+3,2 pp ±2,7). Auf 30 und 90 Tagen
+  kippt sie ins Negative. Ein Fund, der über drei Horizonte nur auf einem hält,
+  ist eher Mehrfachtest als Signal.
+- `geblockt` schlägt `durchgelassen` marktbereinigt auf allen drei Horizonten
+  (30 Tage: −1,6 gegen −4,0 pp). Das bestätigt nachträglich, dass das Entfernen
+  des sperrenden Zweigs richtig war: das Gate hat die schlechtere Gruppe
+  empfohlen.
 
 ---
 
@@ -249,7 +275,8 @@ blieb, steht damit ohne belegten Vorsprung da — siehe P1-08b in §4 A.
 | Was | Wo |
 |---|---|
 | Sektor-Normalisierung (yfinance vs. GICS) | `services/sector_map.py` |
-| Score-Versionierung, aktuell **2.1.0** | `services/scoring.py`, Changelog im Kopf |
+| Score-Versionierung, aktuell **2.2.0** | `services/scoring.py`, Changelog im Kopf |
+| **P1-08b Mean-Reversion-Beförderung entfernt (2.2.0)** | `services/scoring.py`, `tests/test_scoring_gate.py` |
 | Split-sichere Outcome-Basis | `snapshot_engine/snapshot_service.py` |
 | Kalibrierungs-Fazit gegen die Basisrate | `snapshot_engine/auswertung/kalibrierung.py` |
 | Fehlerspannen + Signifikanz | `snapshot_engine/auswertung/basis.py` |
@@ -272,10 +299,10 @@ blieb, steht damit ohne belegten Vorsprung da — siehe P1-08b in §4 A.
 | **P1-04 auf der Oberfläche sichtbar** | `templates/pages/signal_quality.html` (vier Tabellen) |
 
 **Wichtig:** Alle 88.033 Bestands-Snapshots tragen `score_version` 1.0.0 — es
-gibt weder welche mit 2.0.0 noch mit 2.1.0. Der sperrende Zweig hat also nie
-einen einzigen gespeicherten Snapshot beeinflusst; er wirkte ausschließlich auf
-die angezeigte Empfehlung. Neue Snapshots ab dem nächsten Scheduler-Lauf tragen
-2.1.0.
+gibt weder welche mit 2.0.0 noch mit 2.1.0 noch mit 2.2.0. Weder der sperrende
+Zweig noch die Beförderung hat je einen gespeicherten Snapshot beeinflusst;
+beide wirkten ausschließlich auf die angezeigte Empfehlung. Neue Snapshots ab
+dem nächsten Scheduler-Lauf tragen **2.2.0**.
 
 ---
 
@@ -319,11 +346,15 @@ die angezeigte Empfehlung. Neue Snapshots ab dem nächsten Scheduler-Lauf tragen
   Gate-Gruppen, Confidence-Kalibrierung) als Spaltenpaar „Quote vs. Markt" und
   „Vorsprung vs. Markt", mit Fehlerspanne und Abdeckung im Tooltip. Wie beim
   absoluten Vorsprung wird innerhalb der Fehlerspanne **nicht** eingefärbt.
-- **P1-08b (neu)** über die Mean-Reversion-Beförderung entscheiden. Sie blieb
-  in Score 2.1.0 als einziger Teil des Gates erhalten, weil sie absolut +3,9 pp
-  brachte; marktbereinigt sind es −0,6 pp und nicht signifikant (§2b). Vor
-  einer Entscheidung auf dem **Trainingsteil** nachrechnen — die Zahlen in §2b
-  stammen aus dem Gesamtbestand.
+- ~~**P1-08b** über die Mean-Reversion-Beförderung entscheiden~~ → entschieden
+  und umgesetzt: die **Beförderung ist entfallen** (SCORE_VERSION **2.2.0**).
+  Auf dem Trainingsteil trägt sie marktbereinigt auf keinem Horizont etwas
+  (§2b). Damit steuert der Oszillator gar keine Empfehlung mehr — beide Zweige
+  des Gates sind weg, der sperrende in 2.1.0, der befördernde in 2.2.0. Die
+  Konstellation wird weiter erkannt (`mean_reversion_setup` bleibt gesetzt) und
+  erscheint als Hinweis in der Checkliste. Wirkung: keine Kaufempfehlungen mehr
+  aus dem unteren Confidence-Bereich. `tests/test_scoring_gate.py` hält beide
+  Entscheidungen fest — es war bis dahin kein einziger Test auf `scoring.py`.
 - **P1-06** ein 30-Tage-Takt für alle Kategorien, unabhängig von der Signal-Halbwertszeit
 - **P1-03** Backfill kennt kein Sentiment, misst also ein anderes System als das laufende (Designentscheidung offen)
 
@@ -376,10 +407,9 @@ Momentum-Messungen dominieren drei meist stille Oszillator-Slots; die
 volume-Kategorie misst kein Volumen (§2). Keine Gewichtung repariert das, und
 DX-01 zeigt, dass Gewichtstuning an dieser Architektur ohnehin eine Decke hat.
 
-**Vorher billig mitzunehmen: P1-08b.** Die Mean-Reversion-Beförderung ist der
-einzige noch aktive Gate-Teil und hat marktbereinigt keinen Vorsprung mehr. Das
-auf dem Trainingsteil nachzurechnen kostet wenig und entscheidet, ob Score
-2.1.0 einen Zweig trägt, der nichts beiträgt.
+Vorgelagerte Aufräumarbeiten gibt es keine mehr: mit 2.2.0 ist der letzte
+Zweig gefallen, der auf einem absolut gemessenen Vorsprung stand. Was jetzt
+noch an der Empfehlung dreht, ist der Composite selbst.
 
 **Nicht** mit dem Vorschlagspanel für Gewichte anfangen: DX-01 zeigt, dass
 Gewichtstuning an dieser Architektur eine Decke hat.
@@ -394,7 +424,7 @@ die beste Variante behält, hat ihn zum Trainingsset gemacht — nur langsamer.
 ## 6. Verifikation (es gibt keine CI)
 
 ```
-py -m pytest -q                                   # 130 Tests
+py -m pytest -q                                   # 136 Tests
 py -m mypy <geänderte Dateien>                    # ad hoc, keine Konfiguration im Repo
 py -c "import warnings; warnings.filterwarnings('ignore'); from fastapi.testclient import TestClient; import main; c=TestClient(main.app); c.__enter__(); [print(c.get(u).status_code, u) for u in ['/','/signals','/signals/indikatoren','/signals/backfill','/analysis','/screener','/watchlist','/journal','/backtesting','/sectors','/economy','/settings','/lexicon','/sources','/directory']]"
 ```

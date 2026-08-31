@@ -240,11 +240,12 @@
 {% if gate and gate.durchgelassen and gate.durchgelassen.n %}
 <h3 class="section-head">Oszillator-Logik ({{ gewaehlter_horizont }} Tage)</h3>
 <div class="alert mb-4">
-    <strong>Der Oszillator entscheidet über die Empfehlung</strong>
-    (normiert ≥ {{ '%.2f'|format(gate.schwelle) }}) — er ist die einzige Kategorie mit
-    belegtem Vorsprung. Er <em>sperrt</em> eine hohe Confidence, die er nicht trägt
-    (sie entsteht dann rein aus Trend und Volumen), und er <em>befördert</em> ein
-    Mean-Reversion-Setup, das die Confidence sonst verwerfen würde.
+    <strong>Der Oszillator steuert seit Score 2.2.0 keine Empfehlung mehr</strong>
+    (normiert ≥ {{ '%.2f'|format(gate.schwelle) }}). Beide Zweige sind entfallen — das
+    Sperren in 2.1.0, die Beförderung in 2.2.0 — und beide aus demselben Grund: ihr
+    Vorsprung war absolut gemessen und verschwand gegen den Vergleichsindex über
+    dasselbe Fenster. Die drei Gruppen werden weiter <em>gemessen</em>, damit sichtbar
+    bleibt, was die Konstellationen tun; sie entscheiden nur nichts mehr.
     <br>
     <span class="caption">Die Schwelle stammt aus denselben Daten, an denen sie hier geprüft wird —
     diese Zahlen sind in-sample und belegen nur die Konsistenz der Umsetzung.
@@ -292,7 +293,7 @@
 <table class="data-table">
     <thead><tr><th>Gruppe</th><th>n</th><th>eff. n</th><th>Trefferquote</th><th>Basisrate</th><th>Vorsprung</th><th>Quote vs. Markt</th><th>Vorsprung vs. Markt</th></tr></thead>
     <tbody>
-        {% for schluessel, bezeichnung in [('durchgelassen','Empfohlen — Confidence + Oszillator'), ('befoerdert','Empfohlen — Mean-Reversion-Setup'), ('geblockt','Gesperrt — Confidence ohne Oszillator')] %}
+        {% for schluessel, bezeichnung in [('durchgelassen','Confidence + Oszillator'), ('befoerdert','Mean-Reversion-Konstellation'), ('geblockt','Confidence ohne Oszillator')] %}
         {% set g = gate[schluessel] %}
         {% if g and g.n %}
         <tr>

@@ -39,13 +39,25 @@ from dataclasses import dataclass, field
 # Verfälschung, die die Signal-Engine aufdecken soll.
 #
 # Änderungshistorie:
+#   2.2.0 — Die Mean-Reversion-Beförderung entfällt. Eine niedrige Confidence
+#           mit tragendem Oszillator wird nicht mehr zu "Mean-Reversion-Setup"
+#           hochgestuft. Der Vorsprung, auf den sie sich stützte, war ABSOLUT
+#           gemessen; gegen den Vergleichsindex über dasselbe Fenster (P1-04)
+#           bleibt auf dem TRAININGSTEIL nichts davon — 7/30/90 Tage:
+#           −1,0 / −1,9 / +0,2 pp, keiner davon signifikant, während der
+#           absolute Vorsprung auf allen drei Horizonten signifikant war
+#           (CONTEXT.md §2b). Damit ändert der Oszillator keine Empfehlung
+#           mehr; beide Zweige sind entfallen. Die Konstellation wird weiter
+#           erkannt und als Hinweis geführt. Scores unverändert.
 #   2.1.0 — Der sperrende Zweig des Oszillator-Gates entfällt. Eine hohe
 #           Confidence ohne Oszillator-Deckung wird nicht mehr zu
 #           "Kein Einstieg" herabgestuft: der Nachweis dafür stammte aus dem
 #           Gesamtbestand und hielt der Train/Holdout-Trennung nicht stand
 #           (−0,3 pp ±4,6 auf dem Trainingsteil, CONTEXT.md §2a). Die
 #           Beförderung des Mean-Reversion-Setups bleibt — sie ist die einzige
-#           Konstellation mit belegtem Vorsprung. Die Confidence-Zahl bleibt
+#           Konstellation mit belegtem Vorsprung. (In 2.2.0 widerlegt: der
+#           Vorsprung war absolut gemessen und hielt der Marktbereinigung
+#           nicht stand.) Die Confidence-Zahl bleibt
 #           unverändert; es ändern sich Empfehlungen, nicht Scores.
 #   2.0.0 — Oszillator-Gate: eine Kaufempfehlung wird nur noch ausgegeben,
 #           wenn der Oszillator sie trägt (siehe OSZILLATOR_GATE_SCHWELLE).
@@ -58,7 +70,7 @@ from dataclasses import dataclass, field
 #           Stochastic ist unverändert bewertet, wird aber jetzt in signals und
 #           Checkliste geführt — messbar, ohne Score-Wirkung.
 #   1.0.0 — Stand bei Einführung der Versionierung.
-SCORE_VERSION = "2.1.0"
+SCORE_VERSION = "2.2.0"
 
 
 # ---------------------------------------------------------------------------
@@ -81,9 +93,15 @@ SCORE_VERSION = "2.1.0"
 # schrumpfen lässt. Auf der Hälfte der Daten ist er nicht von Zufall zu
 # unterscheiden. Genau dafür existiert die Trennung.
 #
-# Was bleibt, ist die letzte Zeile: der Oszillator trägt bei NIEDRIGER
-# Confidence. Das ist die Mean-Reversion-Konstellation, und nur sie wird noch
-# ausgewertet. Der sperrende Zweig ist in 2.1.0 entfallen (siehe Changelog).
+# Auch die letzte Zeile hält nicht. Ihr Vorsprung ist absolut gemessen; gegen
+# den Vergleichsindex über dasselbe Fenster (P1-04) bleiben auf dem
+# Trainingsteil −1,9 pp ±3,7, und auf 7 und 90 Tagen dasselbe Bild. Beide
+# Zweige sind damit entfallen: der sperrende in 2.1.0, die Beförderung in
+# 2.2.0.
+#
+# Die Schwelle bleibt als MESSGRÖSSE stehen. Sie entscheidet weiter, ob der
+# Oszillator als tragend gilt, und dieses Flag geht in jeden Snapshot ein
+# (`oscillator_gate_offen`). Sie steuert nur keine Empfehlung mehr.
 #
 # Die Schwelle 0,50 selbst ist NICHT auf dem Trainingsteil bestimmt worden —
 # sie stammt aus 2.0.0 und ist damit älter als die Holdout-Grenze. Eine Suche
@@ -103,32 +121,28 @@ OSZILLATOR_GATE_SCHWELLE = 0.5
 
 
 # ---------------------------------------------------------------------------
-# Mean-Reversion-Setup
+# Mean-Reversion-Konstellation
 # ---------------------------------------------------------------------------
 #
-# Das Gate allein filtert nur — es kann eine Empfehlung verhindern, aber keine
-# erzeugen. Damit blieb ausgerechnet die am besten belegte Konstellation
-# unerreichbar: ein überverkaufter Oszillator GEGEN den Trend. Genau dort ist
-# die zusammengesetzte Confidence am niedrigsten, weil Trend und Volumen sie
-# nach unten ziehen — und genau dort ist der Vorsprung am größten.
-#
-# Gemessen an den Beobachtungen, die die Confidence bisher verworfen hätte
-# (Oszillator >= 0.50 UND Confidence < 60):
+# Die Beförderung ist in 2.2.0 ENTFALLEN. Eingeführt wurde sie, weil die
+# Konstellation "überverkaufter Oszillator bei niedriger Confidence" absolut
+# den größten belegten Vorsprung zeigte. Auf dem Trainingsteil, HISTORISCH:
 #
 #                                7 Tage           30 Tage          90 Tage
-#     neu befördert          +4,2 pp ±1,8     +3,9 pp ±3,1     +3,6 pp ±5,3
-#       davon gegen Trend    +5,4 pp ±2,0     +4,8 pp ±3,4     +5,0 pp ±5,9
-#     Vergleich: Gate-Käufe  +3,9 pp ±2,1     +2,1 pp ±3,7     +5,2 pp ±6,2
+#     absolut                  +4,9 pp          +4,2 pp          +6,5 pp
+#     gegen den Markt          −1,0 pp ±2,2     −1,9 pp ±3,7     +0,2 pp ±6,4
 #
-# Bemerkenswert bei 30 Tagen: die neu beförderte Gruppe ist belegt, die vom
-# Composite durchgelassene nicht. Die Signale, die die Confidence ablehnt,
-# sind besser als die, die sie annimmt.
+# Die obere Zeile ist auf allen drei Horizonten signifikant, die untere auf
+# keinem. Der Vorsprung war Marktdrift: die Konstellation tritt gehäuft in
+# steigenden Phasen auf, und absolut gemessen zählt das als Treffer. Belege in
+# CONTEXT.md §2b; gerechnet auf dem Trainingsteil, der Holdout ist unberührt.
 #
-# Die Confidence bleibt auch hier unverändert — die Empfehlung entsteht
-# daneben, nicht durch Verbiegen der Messgröße.
-MEAN_REVERSION_SCHWELLE = 0.5
-# Ab diesem normierten Trend-Score gilt das Setup als "gegen den Trend" —
-# die klassische Mean-Reversion-Konstellation mit dem größten Vorsprung.
+# Die Konstellation wird weiter ERKANNT und in der Checkliste geführt: dass sie
+# keinen Vorsprung trägt, ist selbst eine Aussage, die messbar bleiben soll.
+# Sie ändert nur keine Empfehlung mehr.
+#
+# Ab diesem normierten Trend-Score gilt sie als "gegen den Trend" — die
+# klassische Mean-Reversion-Lage, die zuvor als die stärkste galt.
 MEAN_REVERSION_TREND_SCHWELLE = -0.5
 
 
@@ -969,12 +983,16 @@ def _finalize_score(result: ScoreResult):
         score_label = "Meiden"
         confidence_label = "Sehr schwache Confidence — kein Kaufsignal"
 
-    # ── Oszillator befördert Mean-Reversion ─────────────────────
-    # Ein tragender Oszillator bei NIEDRIGER Confidence ist die
-    # Mean-Reversion-Konstellation; ohne diese Beförderung bliebe sie
-    # unerreichbar, weil Trend und Volumen die Confidence nach unten ziehen.
-    # Auf dem Trainingsteil ist sie die einzige Konstellation mit belegtem
-    # Vorsprung (+4,2 pp ±3,7, n=2107).
+    # ── Oszillator: Hinweis, keine Steuerung ────────────────────
+    # Seit 2.2.0 ändert der Oszillator keine Empfehlung mehr. Beide Zweige
+    # sind entfallen, und beide aus demselben Grund: ihr Vorsprung war absolut
+    # gemessen und verschwand, sobald er gegen den Vergleichsindex über
+    # dasselbe Fenster gerechnet wurde (P1-04).
+    #
+    # ENTFALLEN in 2.2.0 — die Beförderung. Bis dahin wurde eine niedrige
+    # Confidence mit tragendem Oszillator zu "Mean-Reversion-Setup"
+    # hochgestuft. Absolut trug sie +4,2 pp ±3,7 auf dem Trainingsteil, gegen
+    # den Markt −1,9 pp ±3,7 — Rauschen, und auf 7 und 90 Tagen dasselbe Bild.
     #
     # ENTFALLEN in 2.1.0 — der sperrende Zweig. Bis dahin wurde eine hohe
     # Confidence ohne Oszillator-Deckung zu "Kein Einstieg" herabgestuft. Die
@@ -1016,18 +1034,19 @@ def _finalize_score(result: ScoreResult):
         })
 
     elif confidence < 60 and osz_traegt:
-        # Befördert: Mean-Reversion-Setup trotz niedriger Confidence.
+        # Erkannt, nicht befördert: score_label und confidence_label bleiben,
+        # was die Confidence sagt. Die Konstellation ist trotzdem sichtbar —
+        # sie zu verschweigen hieße, eine gemessene Lage zu unterschlagen,
+        # nur weil sie keinen Vorsprung trägt.
         mean_reversion = True
-        score_label = "Mean-Reversion-Setup"
-        confidence_label = (
-            f"Confidence {confidence:.0f} — vom Oszillator getragen"
-            + (" und gegen den Trend" if gegen_trend else ""))
         result.checklist.append({
-            "Indikator": "Mean-Reversion-Setup",
+            "Indikator": "Mean-Reversion-Konstellation",
             "Wert": f"{osz_normiert:+.2f}",
-            "Signal": ("Überverkauft gegen den Trend — stärkster belegter Vorsprung"
+            "Signal": ("Überverkauft gegen den Trend — gegen den Markt gemessen "
+                       "ohne belegten Vorsprung, ändert die Empfehlung nicht"
                        if gegen_trend else
-                       "Oszillator trägt trotz niedriger Gesamt-Confidence"),
+                       "Oszillator trägt trotz niedriger Gesamt-Confidence — "
+                       "ohne belegten Vorsprung, ändert die Empfehlung nicht"),
             "Beitrag": "Info",
         })
 
@@ -1036,6 +1055,8 @@ def _finalize_score(result: ScoreResult):
         # Name aus 2.0.0 beibehalten, damit gespeicherte Snapshots und
         # bestehende Lesepfade weiter passen. Seit 2.1.0 sperrt nichts mehr;
         # das Flag sagt nur noch aus, ob der Oszillator die Confidence trägt.
+        # Dasselbe gilt seit 2.2.0 für `mean_reversion_setup`: rein
+        # beschreibend, ohne Wirkung auf die Empfehlung.
         "oscillator_gate_offen": osz_traegt,
         "trend_normiert": trend_normiert,
         "mean_reversion_setup": mean_reversion,
