@@ -732,6 +732,104 @@ Trefferquote bei „plausibles Signal trägt auch": **null von sieben.**
 
 ---
 
+## 2h. Die Kodierung war das Problem — und das Regime ist die offene Frage
+
+Der erste Befund dieser Reihe, bei dem die Engine selbst der Fehler ist und
+nicht die Datenlage. Ausgelöst durch einen Einwand des Besitzers: die
+bisherigen Nullbefunde seien Aussagen über **eine Implementierung**, nicht
+über die Kennzahlen — und Profis arbeiteten sehr wohl mit Flags, Kaufsignalen
+und Chartverhalten. Beides trifft zu.
+
+### Was im Bestand tatsächlich steht
+
+| Indikator | Zeilen | **verschiedene Werte** | Verteilung |
+|---|---|---|---|
+| Trend (SMA 200) | 274.839 | **2** | +1: 62 % · −1: 38 % |
+| SMA-Cross (20/50) | 274.839 | **2** | +1: 57 % · −1: 43 % |
+| VWMA (20T) | 274.840 | **2** | +1: 56 % · −1: 44 % |
+| Volumen-Cluster (POC) | 274.840 | **2** | +1: 66 % · −1: 34 % |
+| FVG (Fair Value Gap) | 263.630 | **2** | +1: 69 % · −1: 31 % |
+
+Ein Kurs ein halbes Prozent über der SMA 200 und einer fünfundvierzig Prozent
+darüber sind **derselbe Eingang**. Keine Stärke, kein Neutralbereich. Und im
+Feld `wert` steht bei den Trendindikatoren nicht der Abstand, sondern der Kurs
+(409,39 / 90,37) — die Größe selbst wurde nie gespeichert. Ein Flag, das bei
+62 Prozent aller Beobachtungen gesetzt ist, ist kein Flag, sondern eine
+Zustandsbeschreibung.
+
+### Der Kontrollversuch (7 Tage, TRAIN, identische Zeilen, Šidák z = 2,68)
+
+Gemessen wurden beide Fassungen derselben Zahl auf **exakt denselben
+205.159 Zeilen**, mit derselben Marktbasis und derselben Korrektur. Einziger
+Unterschied: die weggeworfene Stärke.
+
+| | Q1 | Q2 | Q3 | Q4 | Q5 | Spread |
+|---|---|---|---|---|---|---|
+| **Trend stetig** | −0,8 **SIG** | −1,0 **SIG** | −0,3 | +1,0 **SIG** | +1,2 **SIG** | **2,0 pp** |
+| Trend binär | −1: −0,5 Rauschen | | | | +1: +0,3 Rauschen | 0,8 pp |
+| **SMA-Cross stetig** | −1,2 **SIG** | −1,3 **SIG** | +0,1 | +0,7 | +1,7 **SIG** | **2,9 pp** |
+| SMA-Cross binär | −1: −0,2 Rauschen | | | | +1: +0,1 Rauschen | 0,3 pp |
+
+**Monotoner Verlauf über alle fünf Quintile, mehrere Zellen korrigiert
+signifikant — und die binäre Fassung derselben Zahl zeigt nichts.** Die
+Rundung auf ±1 vernichtet das Signal.
+
+Auf 30 und 90 Tagen verschwindet der Effekt in beiden Fassungen und kehrt sich
+teilweise um. Es ist ein Kurzfristeffekt, was zur Kursnähe passt: 0,696 beim
+Trend, 0,513 beim Cross. Das ist hier kein Einwand wie in §2f — die Größe
+**ist** eine Kursgröße, sie gibt nicht vor, etwas anderes zu sein. Es heißt
+aber: kein neuer Eingang, sondern ein besser kodierter alter.
+
+### Die Regime-Prüfung besteht es nicht — und zeigt dabei auf die Lösung
+
+Spread je Kalenderjahr: **Trend 5 von 8 Jahren positiv** (p ≈ 0,73),
+**SMA-Cross 6 von 8** (p ≈ 0,29). Beides fällt durch denselben Test, an dem
+Querschnitts-Momentum (§2c) und die Zielrevision (§2f) gescheitert sind.
+
+Entscheidend ist aber, **wie** es durchfällt:
+
+| Jahr | Trend stetig | SMA-Cross stetig | Zielrevision (§2f) |
+|---|---|---|---|
+| 2018 | +1,5 | +2,5 | +1,3 |
+| 2019 | −0,1 | +1,9 | +1,4 |
+| **2020** | **+6,0** | **+4,3** | **+5,3** |
+| **2021** | **−2,1** | **−1,5** | **−3,3** |
+| **2022** | **+2,4** | **+6,4** | **+3,2** |
+| 2023 | −0,6 | +1,6 | +1,4 |
+| **2024** | **+4,2** | **+4,7** | **+5,4** |
+| 2025 (Teiljahr) | +6,2 | −0,1 | −5,0 |
+
+**Drei unabhängig konstruierte Signale, dasselbe Jahresmuster.** Stark in
+2020, 2022 und 2024, negativ in 2021. Dass drei verschiedene Bauweisen
+dieselben Jahre gut und dieselben Jahre schlecht finden, ist kein Zufall —
+es sagt, dass die fehlende Größe **nicht ein weiteres Signal ist, sondern die
+Bedingung, unter der ein Signal gilt.**
+
+Damit hat P2-03 („der ADX wird berechnet und verworfen; gehört als Regime-Gate
+verwendet") zum ersten Mal einen empirischen Beleg statt einer Vermutung.
+
+### Was daraus folgt
+
+1. **Die Kodierung ist ein echter Defekt der Engine**, unabhängig davon, ob
+   das Signal am Ende trägt. Sie vernichtet nachweislich eine messbare Größe.
+   Das gilt für alle sechzehn Indikatorrichtungen, nicht nur die zwei
+   geprüften.
+2. **Die Nullbefunde aus §2b sind entsprechend abzuschwächen.** Sie belegen,
+   dass diese Kodierung nichts trägt — nicht, dass Trend, Mean-Reversion oder
+   Chartlage nichts tragen. Wer sie weiter als Zweites zitiert, zitiert falsch.
+3. **Kommt trotzdem nicht in den Score.** Ein Eingang, der in fünf von acht
+   Jahren funktioniert, ist ohne Bedingung nicht handelbar; die Turnover-Frage
+   bei einem Sieben-Tage-Horizont kommt hinzu.
+4. **Der nächste Schritt ist das Regime-Gate**, nicht die achte Signalfamilie.
+
+**Grenze der Messung:** die gleitenden Mittel stammen aus Snapshot-Kursen mit
+acht Tagen Kadenz — das lange Fenster hat rund 35 statt 200 Stützstellen. Für
+den Kontrollversuch (stetig gegen binär auf identischen Zeilen) reicht das;
+ein exakter Nachbau auf echten Tagesreihen wäre der nächste Schärfungsschritt,
+falls das Regime-Gate trägt.
+
+---
+
 ## 3. Erledigt — nicht noch einmal bauen
 
 | Was | Wo |
@@ -777,6 +875,7 @@ Trefferquote bei „plausibles Signal trägt auch": **null von sieben.**
 | **P2-06 Accruals: SEC-Bestand (6.556 Jahresabschlüsse)** | `database.AccrualKennzahl`, `services/accruals.py` |
 | **P2-06 Accruals gemessen, negativ** | `auswertung/accruals.py`, `tests/test_accruals.py` |
 | **Kursnähe-Prüfung als stehende Regel** | `auswertung/kursnaehe.py` (geeicht: 0,47 vs. −0,001) |
+| **§2h Stetige Kodierung gegen binäre, Kontrollversuch** | `services/stetige_indikatoren.py`, `auswertung/kodierung.py` |
 
 **Wichtig:** Alle 88.033 Bestands-Snapshots tragen `score_version` 1.0.0 — es
 gibt weder welche mit 2.0.0 noch mit 2.1.0 noch mit 2.2.0. Weder der sperrende
@@ -852,10 +951,17 @@ dem nächsten Scheduler-Lauf tragen **2.2.0**.
   demselben Beleg: „überverkauft gegen den Trend +4,8 pp". Diese Interaktion
   ist exakt die Mean-Reversion-Beförderung, die in 2.2.0 entfallen ist, weil
   marktbereinigt nichts von ihr bleibt.
-- **Konsequenz: den Composite jetzt NICHT umbauen.** Eine andere Arithmetik
-  über Eingänge, von denen keiner einen marktrelativen Vorsprung trägt, ordnet
-  Nullen um. Der Umbau wird sinnvoll, sobald es einen Eingang gibt, der einen
-  hat — siehe §5.
+- **BC-04 (neu, §2h): die Kodierung vernichtet die Eingänge, bevor die
+  Arithmetik sie erreicht.** Alle sechzehn Indikatorrichtungen liegen als
+  genau zwei Werte vor (+1/−1), ohne Stärke und ohne Neutralbereich. Im
+  Kontrollversuch auf identischen Zeilen trägt die stetige Fassung derselben
+  Größe 2,0 bzw. 2,9 pp Spread mit monotonem Verlauf, die binäre nichts.
+- **Konsequenz, revidiert:** die frühere Begründung („nichts umbauen, solange
+  kein Eingang einen Vorsprung trägt") war **zirkulär**. Sie prüfte die
+  Eingänge in einer Kodierung, die einen Vorsprung gar nicht sichtbar werden
+  lassen kann. Der Umbau bleibt trotzdem zurückgestellt, aber aus einem
+  anderen Grund: die stetige Fassung ist ohne Regime-Bedingung nicht stabil
+  (§2h). **Erst das Gate, dann die Arithmetik.**
 
 ### C. Positionspfad — Messung läuft, Auswertung fehlt
 - ~~**P3-03** erzeugt keine Snapshots~~ → erledigt UND **nachgeprüft**. Der
@@ -976,7 +1082,12 @@ dem nächsten Scheduler-Lauf tragen **2.2.0**.
   im Rest ein einziges Regime (2023-25). **Kommt nicht in den Score.** Die
   Module bleiben — sie messen weiter, und ein Regime-Filter wäre die einzige
   Konstruktion, unter der Momentum hier je etwas beitrüge.
-- **P2-03** ADX wird berechnet und verworfen; gehört als Regime-Gate verwendet
+- **P2-03 ADX wird berechnet und verworfen; gehört als Regime-Gate verwendet.**
+  **Jetzt mit Beleg statt Vermutung (§2h):** drei unabhängig konstruierte
+  Signale — stetiger Trend, stetiger SMA-Cross, Analysten-Zielrevision —
+  zeigen dasselbe Jahresmuster (stark 2020/2022/2024, negativ 2021). Die
+  fehlende Größe ist nicht ein weiteres Signal, sondern die Bedingung, unter
+  der ein Signal gilt. **Höchste Priorität in Abschnitt D.**
 - **P2-05** Fundamentalblock (0,30) wird auf 7–90 Tagen gemessen, passt nicht zur Halbwertszeit
 - **P2-06** fehlende Signale. **PEAD ist erledigt und gemessen** (§2e): die
   Abdeckung lag nicht an der Quelle, sondern an einem fehlenden `limit` —
@@ -1050,112 +1161,75 @@ Arbeit inline erledigt, was sie langsam und einmalig statt wiederholbar macht.
 
 ## 5. Empfohlener nächster Schritt
 
-**Der Befund nach zehn Jahren Daten: kein Eingang der Engine trägt auf der
-Kaufseite gegen den Markt.** Weder die sechzehn Indikator-Richtungen noch die
-fünf Kategorien (§2b), noch das Oszillator-Gate in beiden Zweigen (§2a,
-2.1.0/2.2.0), noch Querschnitts-Momentum (§2c), noch die Sektortrennung (§2d),
-noch PEAD (§2e), noch die Analystenrevisionen (§2f), noch die Accruals (§2g).
+**Das Regime-Gate (P2-03) — und zwar vor allem anderen.**
 
-**Die Vermutung, das liege an der kursbasierten Herkunft aller Eingänge, ist
-dreimal geprüft und widerlegt.** PEAD ist auf der Kaufseite genauso still wie
-jede Kursformel; was es voraus hat, steht auf der Miss-Seite — ein über neun
-Jahre stabiles Vorzeichen. Die Analystenrevision, die auf der Kaufseite
-tatsächlich leuchtet, ist zu 0,47 mit dem Kurs rangkorreliert: eine
-fundamentale **Quelle** ist noch keine fundamentale **Größe**. Und die
-Accruals, deren Kursnähe bei −0,001 liegt und die damit als einziger Eingang
-nachweislich nichts vom Kurs abbilden, tragen ebenso wenig.
+Die Begründung hat sich in §2h von einer Vermutung in einen Befund verwandelt.
+Drei unabhängig konstruierte Signale zeigen dasselbe Jahresmuster: stark 2020,
+2022 und 2024, negativ 2021. Keines ist für sich regimestabil; alle drei
+scheitern an derselben Stelle. Wenn drei verschiedene Bauweisen dieselben
+Jahre gut und dieselben Jahre schlecht finden, fehlt nicht ein viertes Signal,
+sondern **die Bedingung, unter der ein Signal gilt**.
 
-Damit ist eine Erklärung ausgeschieden und die Frage verschoben: es liegt
-nicht daran, WOHER die Eingänge kommen. Was als Erklärung übrig bleibt, steht
-in §2 und §2b — die Engine misst Zustände, die auf 100 % der Snapshots
-gesättigt sind, gegen einen Markt, dessen Median-Titel ohnehin zurückbleibt.
+Der ADX wird bereits berechnet und weggeworfen. Das ist der billigste
+denkbare erste Versuch: dieselben Messungen aus §2h, aber getrennt nach
+Trendstärke-Regime. Trägt der stetige SMA-Cross in Hochregime-Jahren
+durchgehend und in Niedrigregime-Jahren nicht, ist das Gate belegt — und
+damit zum ersten Mal etwas, das den Holdout wert wäre.
 
-Zwei Wege, in dieser Reihenfolge:
+Daneben, in dieser Reihenfolge:
 
-0. **Erledigt und negativ: die Sektorhypothese** (§2d). Die Vermutung, das
-   Pooling über alle Titel mittele sektorspezifische Vorsprünge weg, ist
-   geprüft und widerlegt — 198 Zellen, zwei korrigiert signifikante, beide
-   negativ. Damit ist auch die dritte Forderung des Nutzers vom 2026-08-30
-   („specific on the stock that the user inputted") als Erklärung für die
-   Nullbefunde ausgeschieden. Als Konstruktionsprinzip bleibt sie offen: P4-04
-   (volatilitätsrelative statt absoluter Schwellen) und P2-01 (Sektormodelle
-   erreichen den Score nicht) sind davon unberührt — geprüft wurde, ob die
-   bestehenden Indikatoren je Sektor besser messen, nicht ob titelspezifische
-   Schwellen ein besserer Indikator wären.
+1. **Die Kodierung reparieren, unabhängig vom Signalbefund** (§2h, BC-04). Die
+   Rundung auf ±1 vernichtet nachweislich eine messbare Größe, und zwar bei
+   allen sechzehn Indikatorrichtungen. Das ist ein Defekt, kein
+   Optimierungsvorschlag. Die Score-Version wäre zu erhöhen (§7).
+2. **Volumen ist nie getestet worden.** Die „volume"-Kategorie misst kein
+   Volumen (BC-01): VWMA = Momentum(20), OBV-Slope = Momentum(20), POC =
+   Momentum(252). Echter Umsatz, Umsatzspitzen relativ zum eigenen Schnitt,
+   Volumen bei Ausbrüchen — davon steht in keinem der 274.940 Snapshots
+   irgendetwas. Braucht einen Nachtrag echter OHLCV-Daten, ist also teurer,
+   aber es ist die einzige Kategorie, über die es **gar keine** Messung gibt.
+3. **Die Oszillatoren existieren nur an den Rändern.** RSI und Bollinger
+   werden nur gespeichert, wenn sie extrem sind — 30.216 statt 274.840 Zeilen.
+   Ihr Verlauf über den ganzen Bereich war nie im Bestand und ist damit auch
+   nie geprüft worden.
+4. **Was keinen Prognosevorteil braucht** (Abschnitt C): Stop-Historie,
+   R-Multiple, MAE/MFE, der Positionspfad. Realisierte Ergebnisse hängen an
+   Ausstieg und Positionsgröße. Blockiert ist das nicht am Code, sondern an
+   Daten: die beiden offenen Positionen haben weder Stop noch Ziel,
+   `position_stop_historie` ist leer, und das Journal enthält Testdaten
+   (25 Einträge, 24 offen, 18× NVDA zu 0,01).
 
-1. **Erledigt: PEAD** (§2e), die erste geprüfte Größe, die nicht aus Kursen
-   stammt. Kaufseite Rauschen wie alles davor — aber die Miss-Seite trägt
-   −1,1 pp über sieben Tage und hat in acht von neun Jahren dasselbe
-   Vorzeichen. Das ist der erste regimestabile Eingang der Engine, und
-   zugleich einer, der sich nur als **Meidungsfilter** verwenden ließe, nicht
-   als Kaufsignal. Die Trefferquote bei „plausibles Signal trägt auch" steht
-   damit bei null von fünf; die Erwartung an die nächsten Familien sollte
-   entsprechend sein.
-
-2. **Erledigt: Analysten-Revisionen** (§2f). Erstmals leuchtet die Kaufseite
-   — Zielrevision über sieben Tage, monoton über alle fünf Quintile, beide
-   Enden signifikant, Spread 2,1 pp. Und trotzdem nichts: nur sieben von neun
-   Jahren positiv (p ≈ 0,18), auf 30 Tagen verschwunden, und mit 0,47
-   rangkorreliert zur vorangegangenen Kursrendite. Die Quelle ist fundamental,
-   die Größe ist es nicht.
-
-   **Daraus eine stehende Prüfung:** für jede weitere Signalfamilie gehört die
-   Rangkorrelation zur Kursrendite zur Messung dazu. Sie kostet eine Abfrage
-   und trennt einen eigenständigen Eingang von einem umetikettierten.
-
-3. **Erledigt: Accruals** (§2g) — und mit ihnen die Leitidee dieses
-   Abschnitts. Der Eingang ist nachweislich kursunabhängig (Kursnähe −0,001
-   gegen 0,473 bei den Revisionen), sauber punkt-in-zeit datiert, aus 6.556
-   Jahresabschlüssen — und er trägt so wenig wie die sechzehn
-   Kursindikatoren. **Die Gemeinsamkeit der Nullbefunde liegt nicht in der
-   Herkunft der Eingänge.** Der Rat „eine andere Signalklasse probieren" ist
-   damit dreimal befolgt und ausgeschöpft; er war richtig, aber er hat die
-   Frage nicht beantwortet.
-
-   Offen aus P2-06 bleiben nur noch Short Interest und relative Stärke je
-   Sektor. Letztere ist per Konstruktion kursbasiert und liefe direkt in die
-   Falle von §2f — sie lohnt nicht ohne vorherige Kursnähe-Prüfung. Insider
-   ist mangels Datentiefe ausgeschieden (§2g).
-
-2. **Parallel das ernten, was keinen Prognosevorteil braucht.** Section C:
-   Stop-Historie (P3-01) schaltet R-Multiple, MAE und MFE frei; die
-   Positionsmetriken sind seit PC-06 sichtbar; P3-05 wertet den Positionspfad
-   aus, sobald Zeilen fällig sind. Realisierte Ergebnisse hängen an Ausstieg
-   und Positionsgröße, und die sind steuerbar, ohne vorher zu wissen, welcher
-   Titel den Index schlägt. Für das Ziel „so viel Geld wie möglich" ist das
-   der Teil mit dem sicheren Beitrag.
-
-**Der Holdout steht weiterhin bei 0 Zugriffen — aber erstmals liegt eine
-Aussage vor, die er bestätigen könnte.** Sie lautet: „Das unterste Quintil der
-Ergebnisüberraschung schlägt den Markt über sieben Tage rund 1,1 pp seltener."
-Sie ist auf dem Trainingsteil bestimmt, Šidák-korrigiert und über acht von neun
-Jahren im Vorzeichen stabil.
-
-Ob dafür ein Holdout-Zugriff ausgegeben wird, ist eine Entscheidung des
-Besitzers und keine der Auswertung. Dafür spricht: es ist die erste Aussage
-überhaupt, die den Trainingsteil überstanden hat. Dagegen spricht: sie taugt
-nur zum Meiden, nicht zum Kaufen, und der Holdout ist einmal verbraucht. Ein
-Zugriff für einen Meidungsfilter von rund einem Prozentpunkt könnte später
-fehlen, wenn eine der übrigen Signalfamilien etwas Größeres hergibt.
-
-Danach P2-06 in der verbleibenden Reihenfolge (Analysten-Revisionen, relative
-Stärke je Sektor, Short Interest, Insider-Cluster, Accruals) und P2-01
-(Sektormodelle). Der Umbau des Composites bleibt bis Schritt 3 liegen.
+**Was NICHT mehr als nächster Schritt taugt:** noch eine Signalfamilie. Sieben
+sind geprüft, und §2g hat die Leitidee dahinter erledigt — die Accruals sind
+nachweislich kursunabhängig (Kursnähe −0,001) und tragen trotzdem nichts. Die
+Gemeinsamkeit der Nullbefunde liegt nicht in der Herkunft der Eingänge. Aus
+P2-06 offen bleiben ohnehin nur Short Interest und relative Stärke je Sektor;
+Letztere ist per Konstruktion kursbasiert und liefe in die Falle von §2f.
 
 **Nicht** mit dem Vorschlagspanel für Gewichte anfangen: DX-01 zeigt, dass
-Gewichtstuning an dieser Architektur eine Decke hat.
+Gewichtstuning an dieser Architektur eine Decke hat — und §2h zeigt, dass die
+Decke schon eine Ebene tiefer liegt, in der Kodierung.
 
-**Den Holdout nicht anfassen**, solange keine auf dem Training bestimmte
-Aussage vorliegt, die er bestätigen soll. Er steht bei **0 Zugriffen**; der
-Zähler ist auf `/signals` sichtbar. Wer nach jeder Änderung erneut misst und
-die beste Variante behält, hat ihn zum Trainingsset gemacht — nur langsamer.
+### Der Holdout
+
+Er steht bei **0 Zugriffen**. Es liegt eine Aussage vor, die er bestätigen
+könnte — PEADs Miss-Seite (§2e): „das unterste Quintil der
+Ergebnisüberraschung schlägt den Markt über sieben Tage rund 1,1 pp seltener",
+auf dem Trainingsteil bestimmt, korrigiert, in acht von neun Jahren im
+Vorzeichen stabil.
+
+Ob dafür ein Zugriff ausgegeben wird, ist eine Entscheidung des Besitzers.
+Dagegen spricht inzwischen mehr als vorher: das Regime-Gate könnte in Kürze
+eine deutlich größere Aussage liefern, und der Holdout ist einmal verbraucht.
+Wer nach jeder Änderung erneut misst und die beste Variante behält, hat ihn
+zum Trainingsset gemacht — nur langsamer.
 
 ---
 
 ## 6. Verifikation (es gibt keine CI)
 
 ```
-py -m pytest -q                                   # 340 Tests
+py -m pytest -q                                   # 368 Tests
 py -m mypy <geänderte Dateien>                    # ad hoc, keine Konfiguration im Repo
 py -c "import warnings; warnings.filterwarnings('ignore'); from fastapi.testclient import TestClient; import main; c=TestClient(main.app); c.__enter__(); [print(c.get(u).status_code, u) for u in ['/','/signals','/signals/indikatoren','/signals/positionen','/signals/backfill','/analysis','/screener','/watchlist','/journal','/backtesting','/sectors','/economy','/settings','/lexicon','/sources','/directory']]"
 ```
