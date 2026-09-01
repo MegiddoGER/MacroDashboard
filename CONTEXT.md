@@ -1,6 +1,6 @@
 # CONTEXT.md — Arbeitsstand Signal-Engine
 
-_Stand: 2026-08-31 · auf `d6284f2` folgend · Branch `main`_
+_Stand: 2026-09-01 · auf `1782d55` folgend · Branch `main`_
 
 Übergabedatei für eine frische Claude-Session. Sie beantwortet drei Fragen:
 **Was ist erledigt, was ist offen, und was darf nicht noch einmal neu hergeleitet
@@ -65,9 +65,17 @@ Zweigwechsel trotzdem `git status` prüfen und nur die Dateien der jeweiligen
 MacroDashboard misst mit der Snapshot-Engine, ob die eigenen Empfehlungen
 eintreffen. Ziel des Besitzers: daraus **automatisch** bessere Analysen ableiten.
 
-Datenbestand: **88.033 Snapshots**, **256.705 ausgewertete Outcomes**,
-**611 Ticker**, Horizonte 7/30/90 Tage. Davon 86.926 HISTORISCH (Backfill),
-1.107 LIVE.
+Datenbestand (nach dem 10-Jahres-Backfill vom 2026-09-01): **274.940
+Snapshots**, **810.838 ausgewertete Outcomes**, **611 Ticker**, Horizonte
+7/30/90 Tage. Davon 273.831 HISTORISCH über **2017-04 bis 2026-08**, 1.109
+LIVE. Datenbank rund 970 MB.
+
+**Versionsmischung im Bestand:** 88.035 Snapshots tragen `score_version` 1.0.0
+(Ur-Backfill), 186.905 tragen 2.2.0 (Nachlauf). Dazwischen liegt 1.1.0 mit
+echten `cat_score`-Änderungen an VWMA und POC. Für kursbasierte Auswertungen
+wie Momentum ohne Belang; Indikator- und Kategorie-Leaderboards mischen ab
+jetzt zwei Bewertungssysteme und müssen getrennt werden. Die
+Vermischungswarnung in `kennzahlen.py` schlägt darauf an.
 
 ---
 
@@ -331,6 +339,44 @@ fehlenden Verlierer hätten D1 besetzt; dessen gemessene Quote ist dadurch zu
 gut, der Spread also eher zu klein als zu groß. Die korrigierten Zahlen oben
 sind damit eine faire bis konservative Schätzung — nicht eine geschönte.
 
+### Auf zehn Jahren: der Effekt war ein einziges Regime
+
+Der ursprüngliche Bestand begann 2022-03; mit zwölf Monaten Rückschau maß die
+Momentum-Auswertung faktisch **ab 2023-03** — also fast genau die KI-Hausse.
+Der 10-Jahres-Backfill (2017-04 bis 2026-08, 273.831 HISTORISCH-Snapshots)
+macht sichtbar, was das wert war. Trainingsteil, 90 Tage, mit
+Mitgliedschaftsfilter, je Regime:
+
+| Regime | n | Marktbasis | D10 | D1 |
+|---|---|---|---|---|
+| 2018-19 normal, Q4-18-Einbruch | 18.950 | 53,4 % | **−7,7 pp signifikant** | +0,2 pp |
+| 2020 COVID-Crash + Erholung | 13.376 | 48,9 % | −7,4 pp | **+11,9 pp signifikant** |
+| 2021 Melt-up | 13.752 | 49,4 % | −5,9 pp | +2,2 pp |
+| 2022 Bärenmarkt | 20.589 | 58,7 % | −3,0 pp | −3,1 pp |
+| **2023-25 KI-Hausse** | 73.030 | 44,3 % | **+4,8 pp signifikant** | −1,4 pp |
+
+Momentum trägt in **genau einem** von fünf Regimen. In 2020 kehrt es sich um:
+das unterste Dezil liegt +11,9 pp vorn — der klassische Momentum-Crash, bei dem
+die abgestraften Titel am stärksten zurückspringen.
+
+Über den gesamten Trainingsteil 2018-2025 gepoolt bleibt nichts:
+
+| Dezil | 30 Tage | 90 Tage |
+|---|---|---|
+| D1 | −1,1 pp | +1,2 pp |
+| D5 | +0,6 pp | −0,2 pp |
+| D9 | −0,2 pp | −0,2 pp |
+| **D10** | **+0,2 pp** | **−0,8 pp** |
+
+Keine einzige Zelle signifikant, n = 146.931. **P2-02 reiht sich damit in den
+Null-Befund aus §2b ein.**
+
+**Und der Holdout war richtig gespart.** Er beginnt am 2025-07-19 und liegt
+damit mitten in dem einen Regime, in dem der Effekt existiert. Er hätte
+bestätigt — und ein Regime-Artefakt wäre in den Score gewandert. Dass die
+Fehlerspanne dort ohnehin größer war als der Effekt (±8,0 gegen +6,6 pp), war
+der erste Grund, nicht zu messen; dieser hier ist der bessere.
+
 ### Wo der Eingang steht
 
 Gemessen, **nicht** im Score. `services/cross_sectional_momentum.py` rechnet
@@ -503,12 +549,13 @@ dem nächsten Scheduler-Lauf tragen **2.2.0**.
 
 ### D. Analyse-Substanz
 - **P2-01** Sektor-Bewertungsmodelle erreichen den Score nicht — generischer DCF läuft auf Banken, REITs, Biotech
-- ~~**P2-02** Cross-sectional Momentum fehlt ganz~~ → gebaut, gemessen und
-  **survivorship-korrigiert** (§2c). Nach Abzug der Aufnahmen-Verzerrung
-  bleibt auf dem Trainingsteil: **90 Tage +6,6 pp signifikant**, 30 Tage
-  +2,9 pp nicht mehr signifikant. **Noch nicht im Score.** Nächster Schritt
-  ist die Holdout-Bestätigung, und zwar gezielt für den 90-Tage-Horizont
-  mit Mitgliedschaftsfilter (§5).
+- ~~**P2-02** Cross-sectional Momentum fehlt ganz~~ → gebaut, gemessen,
+  survivorship-korrigiert und auf zehn Jahren **widerlegt** (§2c). Über
+  2018-2025 gepoolt: D10 +0,2 pp (30 Tage) und −0,8 pp (90 Tage), nichts
+  signifikant. Der ursprüngliche Befund war zu einem Drittel Survivorship und
+  im Rest ein einziges Regime (2023-25). **Kommt nicht in den Score.** Die
+  Module bleiben — sie messen weiter, und ein Regime-Filter wäre die einzige
+  Konstruktion, unter der Momentum hier je etwas beitrüge.
 - **P2-03** ADX wird berechnet und verworfen; gehört als Regime-Gate verwendet
 - **P2-05** Fundamentalblock (0,30) wird auf 7–90 Tagen gemessen, passt nicht zur Halbwertszeit
 - **P2-06** fehlende Signale: PEAD (Ansatz existiert, <1 % Abdeckung), Analysten-Revisionen, relative Stärke je Sektor, Short Interest, Insider-Cluster, Accruals
@@ -555,26 +602,31 @@ Arbeit inline erledigt, was sie langsam und einmalig statt wiederholbar macht.
 
 ## 5. Empfohlener nächster Schritt
 
-**Die Holdout-Bestätigung für P2-02 — jetzt, und gezielt.** Schritt 1 der
-bisherigen Reihenfolge ist erledigt: die Aufnahmen-Verzerrung ist gemessen und
-kostet ein Drittel des Effekts (§2c). Was danach übrig bleibt, ist eine
-Aussage, die vorab feststeht und keinen getunten Parameter enthält — genau der
-Fall, für den der Holdout existiert. Er steht bei **0 Zugriffen**.
+**Der Befund nach zehn Jahren Daten: kein Eingang der Engine trägt gegen den
+Markt.** Weder die sechzehn Indikator-Richtungen noch die fünf Kategorien
+(§2b), noch das Oszillator-Gate in beiden Zweigen (§2a, 2.1.0/2.2.0), noch
+Querschnitts-Momentum (§2c). Alles Getestete ist **kursbasiert** — und genau
+das ist inzwischen die auffälligste Gemeinsamkeit der Null-Befunde.
 
-Die Aussage, die bestätigt werden soll, ist eng zu fassen, sonst ist der Schuss
-verschwendet:
+Zwei Wege, in dieser Reihenfolge:
 
-> Auf **90 Tagen**, mit Mitgliedschaftsfilter, liegt das oberste
-> Momentum-Dezil über der unbedingten Marktquote.
+1. **Eine andere Signalklasse probieren, nicht noch eine Kursformel.** P2-06
+   listet die einzigen bisher ungetesteten Familien: PEAD (Ansatz existiert,
+   <1 % Abdeckung), Analysten-Revisionen, Short Interest, Insider-Cluster,
+   Accruals. Keine davon ist aus Kursen ableitbar — das ist ihr Wert hier.
+   Nüchtern dazu: die Trefferquote dieser Sitzung bei „plausibles Signal trägt
+   auch" liegt bei null von vier. Die Erwartung sollte entsprechend sein.
 
-**Nicht** auch 30 Tage mitprüfen: dort ist der Effekt schon auf dem Training
-nicht mehr signifikant, und zwei Tests auf demselben Holdout sind zwei
-Versuche, nicht einer.
+2. **Parallel das ernten, was keinen Prognosevorteil braucht.** Section C:
+   Stop-Historie (P3-01) schaltet R-Multiple, MAE und MFE frei; die
+   Positionsmetriken sind seit PC-06 sichtbar; P3-05 wertet den Positionspfad
+   aus, sobald Zeilen fällig sind. Realisierte Ergebnisse hängen an Ausstieg
+   und Positionsgröße, und die sind steuerbar, ohne vorher zu wissen, welcher
+   Titel den Index schlägt. Für das Ziel „so viel Geld wie möglich" ist das
+   der Teil mit dem sicheren Beitrag.
 
-Danach erst in den Score. `normiert()` liefert die passende Skala, die
-Score-Version wäre zu erhöhen — und in dem Moment werden BC-01 und BC-03
-relevant, weil die Arithmetik darüber entscheidet, ob ein einzelner tragender
-Eingang gegen sechs gesättigte Momentum-Slots überhaupt durchkommt.
+**Der Holdout bleibt unberührt** (0 Zugriffe) — es gibt weiterhin nichts zu
+bestätigen.
 
 Danach P2-06 in der dortigen Reihenfolge (PEAD, Analysten-Revisionen, relative
 Stärke je Sektor, Short Interest, Insider-Cluster, Accruals) und P2-01
