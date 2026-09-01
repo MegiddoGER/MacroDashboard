@@ -193,6 +193,22 @@ def calc_position_metrics(
             if m.profit_giveback_ratio is not None:
                 m.profit_giveback_ratio = max(0.0, m.profit_giveback_ratio)
 
+    # ── MAE / MFE ────────────────────────────────────────────────
+    # Die größte Bewegung gegen und für die Position seit Einstieg. Beide
+    # brauchen das Fenster SEIT EINSTIEG — mit einem 22-Bar-Fenster gerechnet
+    # wären es die Extrema des letzten Monats, was bei längerer Haltedauer
+    # etwas völlig anderes ist.
+    if side == PositionSide.LONG:
+        if high_since_entry is not None:
+            m.mfe = _safe_div(max(high_since_entry - entry_price, 0.0), entry_price)
+        if low_since_entry is not None:
+            m.mae = _safe_div(min(low_since_entry - entry_price, 0.0), entry_price)
+    else:
+        if low_since_entry is not None:
+            m.mfe = _safe_div(max(entry_price - low_since_entry, 0.0), entry_price)
+        if high_since_entry is not None:
+            m.mae = _safe_div(min(entry_price - high_since_entry, 0.0), entry_price)
+
     # ── Secured Profit Ratio ─────────────────────────────────────
     if active_stop is not None:
         if side == PositionSide.LONG and current_price > entry_price:

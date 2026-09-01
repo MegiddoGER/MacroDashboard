@@ -1339,6 +1339,51 @@ def generate_position_relevance(checklist: list, position_data: dict) -> list:
 # V2: Professionelle Positionsanalyse (orchestriert alle neuen Engines)
 # ---------------------------------------------------------------------------
 
+def _fenster_seit_einstieg(hist, buy_date):
+    """Höchst- und Tiefstkurs seit dem Einstieg.
+
+    Bis hierher lief das auf einer 22-Bar-Näherung („Best approximation with
+    available data"). Für eine Position, die drei Tage alt ist, war das
+    ungefähr richtig; für eine, die ein halbes Jahr liegt, war es das Hoch des
+    letzten Monats — und damit eine andere Größe als die, die der Name
+    behauptet. `profit_giveback_ratio` hängt daran, und die kostet im
+    Risiko-Teilscore bis zu 20 Punkte.
+
+    Returns:
+        (high, low) über das Fenster ab Einstieg, oder (None, None), wenn die
+        Historie den Einstieg nicht abdeckt. None statt einer Näherung ist
+        hier die richtige Antwort: die Engines behandeln fehlende Werte
+        sauber (Abzug in `data_quality`), einen falschen Wert nicht.
+    """
+    if hist is None or getattr(hist, "empty", True) or not buy_date:
+        return None, None
+    if "High" not in hist.columns or "Low" not in hist.columns:
+        return None, None
+
+    try:
+        import pandas as pd
+
+        einstieg = pd.Timestamp(buy_date)
+        index = hist.index
+        if getattr(index, "tz", None) is not None:
+            einstieg = (einstieg.tz_localize(index.tz) if einstieg.tzinfo is None
+                        else einstieg.tz_convert(index.tz))
+        elif einstieg.tzinfo is not None:
+            einstieg = einstieg.tz_localize(None)
+
+        # Beginnt die Historie NACH dem Einstieg, fehlt der Anfang des
+        # Fensters — das wahre Extrem könnte darin liegen.
+        if index[0] > einstieg:
+            return None, None
+
+        fenster = hist.loc[index >= einstieg]
+        if fenster.empty:
+            return None, None
+        return float(fenster["High"].max()), float(fenster["Low"].min())
+    except (TypeError, ValueError, KeyError, IndexError):
+        return None, None
+
+
 def _seite_aus_positionsdaten(position_data: dict):
     """Liest die Positionsseite aus den Eingabedaten; LONG ist der Rückfall.
 
@@ -1442,15 +1487,24 @@ def calc_position_analysis_v2(
     analysis.validation = validation
 
     # ── 2. Metriken ───────────────────────────────────────────────
-    # Compute highest_high from hist for drawdown/chandelier
-    highest_high_22 = None
+    # Fenster seit Einstieg statt der früheren 22-Bar-Näherung. Deckt die
+    # Historie den Einstieg nicht ab, bleiben beide None — und alles, was
+    # daran hängt (Drawdown, Giveback, MAE/MFE), entfällt sauber.
+    hoch_seit_einstieg, tief_seit_einstieg = _fenster_seit_einstieg(
+        hist, position_data.get("buy_date"))
+
+    # Davon zu trennen: der Chandelier-Stop weiter unten. Dessen 22 Bars sind
+    # die DEFINITION des Verfahrens (höchstes Hoch der letzten 22 Perioden
+    # minus k x ATR), keine Näherung für „seit Einstieg". Beide Fenster
+    # nebeneinander sind richtig, sie beantworten verschiedene Fragen.
+    hoechstes_hoch_22 = None
     if hist is not None and not hist.empty and "High" in hist.columns:
         try:
-            high_series = hist["High"]
-            if len(high_series) >= 22:
-                highest_high_22 = float(high_series.iloc[-22:].max())
-        except Exception:
-            pass
+            hoch_reihe = hist["High"]
+            if len(hoch_reihe) >= 22:
+                hoechstes_hoch_22 = float(hoch_reihe.iloc[-22:].max())
+        except (TypeError, ValueError, KeyError):
+            hoechstes_hoch_22 = None
 
     metrics = calc_position_metrics(
         side=side,
@@ -1465,7 +1519,8 @@ def calc_position_analysis_v2(
         original_take_profit=take_profit,
         holding_days=holding_days,
         atr_val=atr_val,
-        high_since_entry=highest_high_22,  # Best approximation with available data
+        high_since_entry=hoch_seit_einstieg,
+        low_since_entry=tief_seit_einstieg,
     )
     analysis.metrics = metrics
 
@@ -1493,10 +1548,10 @@ def calc_position_analysis_v2(
         entry_price=buy_price,
         quantity=quantity,
         atr_val=atr_val,
-        highest_high_22=highest_high_22,
+        highest_high_22=hoechstes_hoch_22,
         sma20=sma20,
         sma50=sma50,
-        previous_stop=None,
+        previous_stop=previous_stop,
     )
     analysis.stop_proposals = stop_proposals
     suggested_stop = get_suggested_stop(stop_proposals, side, volume_modifier=volume_modifier)

@@ -182,6 +182,16 @@ class PositionMetrics:
     profit_giveback_ratio: Optional[float] = None
     secured_profit_ratio: Optional[float] = None
 
+    # MAE/MFE — wie weit die Position seit Einstieg gegen und für einen lief.
+    # Als BRUCH wie alle Verhältniszahlen hier; bewusst ohne `_pct`-Suffix,
+    # das an den Nachbarfeldern irreführt (dort steht auch kein Prozentwert).
+    #
+    # Sie beantworten die Frage, die eine Trefferquote nicht beantwortet: war
+    # der Stop zu eng (großes MFE, das nie mitgenommen wurde) oder das Ziel zu
+    # weit (großes MFE, aber die Position kam nie an)?
+    mae: Optional[float] = None
+    mfe: Optional[float] = None
+
 
 # ---------------------------------------------------------------------------
 # Stop-Vorschläge

@@ -36,10 +36,18 @@ DATENQUALITAET_WARNSCHWELLE = 70.0
 # lassen sich aus den gespeicherten Teilscores exakt neu verrechnen.
 #
 # Changelog:
+#   1.1.0 — Das Fenster für Drawdown und Profit-Giveback reicht jetzt bis zum
+#           tatsächlichen Einstieg statt über die letzten 22 Bars. Aus
+#           denselben Eingaben entsteht damit ein anderer
+#           `risk_management`-Teilscore (Giveback über 0,75 kostet dort 20
+#           Punkte) und ein anderer `data_quality`-Wert, sobald die Historie
+#           den Einstieg nicht abdeckt — dann sind die Werte None statt
+#           genähert. Zusätzlich MAE und MFE als eigene Metriken; sie fließen
+#           in keinen Teilscore ein, sondern werden nur ausgewiesen.
 #   1.0.0 — Erstfassung. Entspricht dem Stand, den die zwölf Teilscores seit
 #           PC-01/PC-02/PC-03 tragen: Trend-Guard bei fehlender SMA 200,
 #           data_quality als Qualifier statt Summand, RSI ohne Klippe.
-POSITION_SCORE_VERSION = "1.0.0"
+POSITION_SCORE_VERSION = "1.1.0"
 
 
 # Gewichte des Overall-Scores. Die elf Slots summieren sich auf 0,98 — der

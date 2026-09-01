@@ -1,6 +1,6 @@
 # CONTEXT.md — Arbeitsstand Signal-Engine
 
-_Stand: 2026-09-01 · auf `2b0c064` folgend · Branch `main`_
+_Stand: 2026-09-01 · auf `db5f54d` folgend · Branch `main`_
 
 Übergabedatei für eine frische Claude-Session. Sie beantwortet drei Fragen:
 **Was ist erledigt, was ist offen, und was darf nicht noch einmal neu hergeleitet
@@ -425,6 +425,7 @@ echte Ereignisse (CVNA, SMCI, HelloFresh, Fiserv), keine Split-Brüche.
 | **P3-02 Positionsseite erreichbar** | `services/scoring.py`, `tests/test_position_side.py` |
 | **P4-07 Aufnahmedaten als Quelle** | `services/index_membership.py`, `cache_core.cached_sp500_aufnahmedaten` |
 | **P3-01 Stop-Historie** | `database.PositionStopHistorie`, `services/watchlist.py` |
+| **P3-01 MAE/MFE + Fenster seit Einstieg** | `services/scoring.py`, `position_metrics_engine.py` |
 | **Analyse-Router protokolliert** | `routers/analysis.py` (drei stille Fehlerpfade) |
 
 **Wichtig:** Alle 88.033 Bestands-Snapshots tragen `score_version` 1.0.0 — es
@@ -534,8 +535,26 @@ dem nächsten Scheduler-Lauf tragen **2.2.0**.
   aussehen, als sie war. Für die Ratchet-Prüfung genügt er dagegen.
   **Folge:** ein R-Multiple erscheint erst für Positionen, die ab jetzt mit
   Stop eröffnet werden. Die beiden Bestandspositionen haben ohnehin keinen.
-  MAE/MFE bleiben offen — sie brauchen zusätzlich `high_since_entry` und
-  `low_since_entry` über die echte Haltedauer statt der 22-Bar-Näherung.
+  **MAE/MFE ebenfalls erledigt.** `high_since_entry` lief auf den letzten 22
+  Bars, kommentiert als „Best approximation with available data";
+  `low_since_entry` wurde nie übergeben. Jetzt bestimmt
+  `_fenster_seit_einstieg()` beide über die echte Haltedauer und liefert
+  `(None, None)`, wenn die Historie den Einstieg nicht abdeckt — eine
+  Näherung wäre dort eine falsche Zahl, und die Engines behandeln None
+  sauber (Abzug in `data_quality`).
+  **Das war kein kosmetischer Fehler.** An der echten ABEA.DE-Position: Hoch
+  seit Einstieg 350,56 statt 332,55 aus der Näherung, Profit-Giveback damit
+  **0,776 statt 0,705** — also über der 0,75-Schwelle statt darunter, und
+  −20 statt −10 Punkte im Risiko-Teilscore. Deshalb ist
+  `POSITION_SCORE_VERSION` auf **1.1.0** erhöht.
+  Getrennt davon bleibt der Chandelier-Stop bei 22 Bars: das ist die
+  Definition des Verfahrens, keine Näherung. Beide Fenster stehen jetzt
+  nebeneinander im Code, mit Begründung.
+  MAE und MFE sind neue Metriken (`mae`, `mfe`, als Bruch wie die
+  Nachbarfelder, bewusst ohne irreführendes `_pct`-Suffix) und in der
+  Positionsanzeige sichtbar. Sie fließen in keinen Teilscore ein — sie
+  beantworten die Frage, die eine Trefferquote nicht beantwortet: war der
+  Stop zu eng oder das Ziel zu weit?
 - ~~**P3-02** SHORT-Pfad unerreichbar~~ → **halb erledigt.** Die Seite kommt
   jetzt aus `position_data["side"]` statt fest verdrahtet
   (`services/scoring.py`); `tests/test_position_side.py` belegt die
@@ -662,7 +681,7 @@ die beste Variante behält, hat ihn zum Trainingsset gemacht — nur langsamer.
 ## 6. Verifikation (es gibt keine CI)
 
 ```
-py -m pytest -q                                   # 202 Tests
+py -m pytest -q                                   # 215 Tests
 py -m mypy <geänderte Dateien>                    # ad hoc, keine Konfiguration im Repo
 py -c "import warnings; warnings.filterwarnings('ignore'); from fastapi.testclient import TestClient; import main; c=TestClient(main.app); c.__enter__(); [print(c.get(u).status_code, u) for u in ['/','/signals','/signals/indikatoren','/signals/backfill','/analysis','/screener','/watchlist','/journal','/backtesting','/sectors','/economy','/settings','/lexicon','/sources','/directory']]"
 ```
