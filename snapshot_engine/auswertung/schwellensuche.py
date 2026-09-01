@@ -42,7 +42,6 @@ Schwelle hergibt, die sich von Zufall unterscheiden lässt.
 """
 
 import logging
-import statistics
 from typing import Optional, Sequence
 
 from sqlalchemy.orm import Session
@@ -51,7 +50,8 @@ from snapshot_engine.models import (
     MIN_BEWEGUNG_PCT, AnalyseModus, AnalyseSnapshot, AnalyseSnapshotOutcome,
 )
 from snapshot_engine.auswertung.basis import (
-    MIN_STICHPROBE, effektive_stichprobe,
+    ALPHA, MIN_STICHPROBE, effektive_stichprobe, fehlerspanne_korrigiert,
+    z_korrigiert,
 )
 from snapshot_engine.auswertung.gate import _normierter_oszillator
 from snapshot_engine.auswertung.holdout import TRAIN, grenze_lesen, split_filter
@@ -72,30 +72,11 @@ KANDIDATEN: tuple[float, ...] = (
 # verwenden.
 CONFIDENCE_KAUF = 60.0
 
-ALPHA = 0.05
-
-
-def _z_korrigiert(anzahl_tests: int, alpha: float = ALPHA) -> float:
-    """Kritischer z-Wert, geweitet auf die Zahl der Tests (Šidák).
-
-    Bei einem einzelnen Test entspricht das 1,96. Bei 13 Kandidaten wächst der
-    Wert auf rund 2,8 — der Vorsprung muss also deutlich größer ausfallen, um
-    noch als Fund zu gelten.
-    """
-    if anzahl_tests <= 1:
-        anzahl_tests = 1
-    alpha_einzeln = 1.0 - (1.0 - alpha) ** (1.0 / anzahl_tests)
-    return statistics.NormalDist().inv_cdf(1.0 - alpha_einzeln / 2.0)
-
-
-def _fehlerspanne_korrigiert(trefferquote: float, n_effektiv: int,
-                             z: float) -> Optional[float]:
-    """Wie `basis.fehlerspanne_pp`, aber mit vorgegebenem z-Wert."""
-    if not n_effektiv or n_effektiv <= 0:
-        return None
-    p = max(0.0, min(1.0, trefferquote / 100.0))
-    standardfehler = (p * (1.0 - p) / n_effektiv) ** 0.5
-    return round(z * standardfehler * 100.0, 1)
+# Beide Korrekturhelfer liegen seit der PEAD-Auswertung in `basis` — dort
+# brauchen sie mehrere Module. Die Namen bleiben hier als lokale Aliase
+# stehen, damit die Aufrufstellen unverändert lesbar sind.
+_z_korrigiert = z_korrigiert
+_fehlerspanne_korrigiert = fehlerspanne_korrigiert
 
 
 def _zeilen_laden(db: Session, horizont: int, datenmodus: Optional[str]) -> list:

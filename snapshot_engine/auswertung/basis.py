@@ -281,6 +281,42 @@ def fehlerspanne_pp(trefferquote: Optional[float],
     return round(Z_95 * standardfehler * 100.0, 1)
 
 
+# ---------------------------------------------------------------------------
+# Mehrfachtests (Šidák)
+# ---------------------------------------------------------------------------
+
+ALPHA = 0.05
+
+
+def z_korrigiert(anzahl_tests: int, alpha: float = ALPHA) -> float:
+    """Kritischer z-Wert, geweitet auf die Zahl der Tests (Šidák).
+
+    Bei einem einzelnen Test entspricht das 1,96. Bei 13 Kandidaten wächst der
+    Wert auf rund 2,8, bei 198 Zellen auf 3,65 — der Vorsprung muss also
+    deutlich größer ausfallen, um noch als Fund zu gelten.
+
+    Steht hier und nicht im aufrufenden Modul, weil inzwischen mehrere
+    Auswertungen darauf angewiesen sind (`schwellensuche`, `pead`) und eine
+    zweite Fassung der Formel die Vergleichbarkeit ihrer Befunde stillschweigend
+    aufheben könnte.
+    """
+    if anzahl_tests <= 1:
+        anzahl_tests = 1
+    alpha_einzeln = 1.0 - (1.0 - alpha) ** (1.0 / anzahl_tests)
+    return statistics.NormalDist().inv_cdf(1.0 - alpha_einzeln / 2.0)
+
+
+def fehlerspanne_korrigiert(trefferquote: Optional[float],
+                            n_effektiv: Optional[int],
+                            z: float) -> Optional[float]:
+    """Wie `fehlerspanne_pp`, aber mit vorgegebenem (korrigiertem) z-Wert."""
+    if trefferquote is None or not n_effektiv or n_effektiv <= 0:
+        return None
+    p = max(0.0, min(1.0, trefferquote / 100.0))
+    standardfehler = (p * (1.0 - p) / n_effektiv) ** 0.5
+    return round(z * standardfehler * 100.0, 1)
+
+
 def vorsprung_signifikant(vorsprung_pp: Optional[float],
                           trefferquote: Optional[float],
                           n_effektiv: Optional[int]) -> Optional[bool]:

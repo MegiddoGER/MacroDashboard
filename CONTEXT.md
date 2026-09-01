@@ -1,6 +1,6 @@
 # CONTEXT.md — Arbeitsstand Signal-Engine
 
-_Stand: 2026-09-01 · auf `04ecba5` folgend · Branch `main`_
+_Stand: 2026-09-01 · auf `1fa08d8` folgend · Branch `main`_
 
 Übergabedatei für eine frische Claude-Session. Sie beantwortet drei Fragen:
 **Was ist erledigt, was ist offen, und was darf nicht noch einmal neu hergeleitet
@@ -453,6 +453,97 @@ von 198 zusammenzufassen ist Cherry-Picking mit Zwischenschritt.
 
 ---
 
+## 2e. PEAD: der erste Eingang, dessen Vorzeichen über die Jahre hält
+
+Der erste geprüfte Kandidat, der **nicht aus Kursen stammt** (P2-06). Genau
+darum ging es: die Gemeinsamkeit aller bisherigen Nullbefunde war nicht die
+Hypothese, sondern die Herkunft der Größe.
+
+### Der Bestand, und warum es ihn vorher nicht gab
+
+`services/earnings.py` liest `tk.earnings_dates` **ohne `limit`** — Yahoos
+Vorgabe sind rund zwölf Quartale. Das ist die ganze Erklärung für die
+„<1 % Abdeckung", die hier lange als Sackgasse notiert war: es fehlte nicht
+die Quelle, es fehlte ein Parameter. Mit `limit=100` reicht die Reihe bei
+US-Titeln bis 2002 (AAPL 87 Quartale, MSFT 99), bei SAP.DE bis 2010.
+
+Geladen: **47.176 Ereignisse über 592 der 611 Ticker.** Die 19 Ausfälle sind
+fast alle Xetra-Listings von US-Konzernen (`MSF.DE`, `ABEA.DE`, `NVD.DE`,
+`ORC.DE`, `CHV.DE`, `BAC.DE` …) — deren Zahlen liegen unter dem US-Kürzel;
+eine Zuordnungstabelle wäre die Nachbesserung, ist aber ungeprüft und daher
+nicht gebaut. `BTC-USD` hat berechtigterweise keine Quartalszahlen.
+
+Damit tragen **204.652 von 217.590 auswertbaren Snapshot-Zeilen (94 %)** ein
+Ereignis im Fenster — gegenüber 981 Zeilen vorher.
+
+### Die Messung: Quintile gegen den Markt (TRAIN, HISTORISCH, Šidák z = 2,57)
+
+| Horizont | Basis | Q1 (schlechteste) | Q5 (beste) | Spread |
+|---|---|---|---|---|
+| 7 Tage | 49,7 % | 48,7 % · **−1,1 pp ±0,6 SIGNIFIKANT** | 50,2 % · +0,5 ±0,6 | 1,5 pp |
+| 30 Tage | 50,0 % | 49,4 % · −0,6 ±1,1 | 50,7 % · +0,7 ±1,1 | 1,3 pp |
+| 90 Tage | 49,6 % | 49,6 % · −0,0 ±1,9 | 50,3 % · +0,6 ±1,9 | 0,7 pp |
+
+Die Reihenfolge zeigt auf allen drei Horizonten in die vorhergesagte Richtung,
+und der Spread schrumpft mit wachsendem Horizont — beides passt zu PEAD.
+**Signifikant ist aber nur das untere Ende.** Q5, die Seite, die man kaufen
+würde, bleibt überall Rauschen.
+
+### Der Verlauf über den Abstand zur Veröffentlichung (30 Tage, 20 Zellen, z = 3,02)
+
+Zwei Zellen überstehen die Korrektur: `Q1 · 6–20 Tage` mit −3,2 pp ±3,1 und
+`Q4 · 61–120 Tage` mit +2,6 pp ±2,2. Bei zwanzig Tests ist etwa ein
+Zufallstreffer zu erwarten, zwei sind kaum mehr. Und die zweite liegt an der
+**für PEAD falschen Stelle**: ein verzögertes Einpreisen klingt ab, es setzt
+nicht nach vier Monaten im vierten Quintil ein. Als Beleg zählt sie nicht.
+
+Nebenbefund, der beim Lesen der Tabelle sonst irreführt: das Band 21–60 Tage
+liegt in **allen** Quintilen bei −1,7 bis −1,8 pp, das Band 61–120 Tage in
+allen bei +1,0 bis +2,6. Das ist eine gemeinsame Zeitstruktur, keine
+Eigenschaft der Überraschung — im Quintilvergleich hebt sie sich auf.
+
+### Die Regime-Prüfung, an der Momentum gescheitert ist (7 Tage, je Kalenderjahr)
+
+| Jahr | n | Basis | Q1 Vorsprung | Q5 Vorsprung |
+|---|---|---|---|---|
+| 2017 | 7.935 | 50,9 % | −1,5 | +1,1 |
+| 2018 | 18.942 | 52,5 % | −1,6 | −0,1 |
+| 2019 | 19.079 | 51,6 % | −1,4 | −0,7 |
+| 2020 | 19.411 | 48,6 % | −1,9 | +2,7 |
+| 2021 | 19.473 | 49,3 % | −0,5 | −0,8 |
+| 2022 | 29.693 | 54,2 % | −1,6 | +0,7 |
+| 2023 | 39.436 | 46,8 % | −0,5 | −0,2 |
+| 2024 | 39.610 | 46,1 % | −1,7 | +2,0 |
+| 2025 (Teiljahr bis zur Grenze) | 11.073 | 55,2 % | **+2,9** | −1,9 |
+
+**Das ist der Unterschied zu §2c.** Querschnitts-Momentum trug in einem
+einzigen Regime (2023–25) und sonst nichts. Q1 trägt hier in **acht von neun
+Jahren** dasselbe Vorzeichen — als Vorzeichentest p ≈ 0,04, und zwar
+unabhängig davon, wie gepoolt wird. Q5 dagegen hat kein stabiles Vorzeichen
+(fünfmal positiv, viermal negativ) und ist damit auch jahresweise Rauschen.
+
+Das letzte, unvollständige Jahr kehrt Q1 um (+2,9). Es ist das jüngste
+Fenster vor der Trennungsgrenze und wiegt entsprechend — es widerlegt den
+Befund nicht, aber es ist die eine Beobachtung, die gegen ihn steht.
+
+### Was daraus folgt
+
+1. **PEAD als Kaufsignal trägt nicht.** Q5 ist gepoolt Rauschen und jahresweise
+   ohne stabiles Vorzeichen. Die Trefferquote „plausibles Signal trägt auch"
+   bleibt damit bei null von fünf.
+2. **Die Miss-Seite trägt schwach, aber stabil.** Rund −1,1 bis −1,3 pp über
+   sieben Tage, Vorzeichen in acht von neun Jahren gleich. Das ist der erste
+   Eingang der Engine mit einem über Regime hinweg stabilen Vorzeichen.
+3. **Verwendbar wäre er nur als Meidungsfilter**, nicht als Signal: eine
+   Short-Seite lässt sich hier nicht ausspielen (dieselbe Begründung, aus der
+   `risk_adjusted.py` absolut rechnet). „Nach einem schweren Miss in den
+   nächsten Tagen nicht kaufen" ist dagegen ohne Leerverkauf umsetzbar.
+4. **Nichts davon geht in den Score**, bevor der Holdout dazu gehört wurde —
+   und ob er dafür ausgegeben wird, ist eine Entscheidung des Besitzers
+   (siehe §5).
+
+---
+
 ## 3. Erledigt — nicht noch einmal bauen
 
 | Was | Wo |
@@ -489,6 +580,9 @@ von 198 zusammenzufassen ist Cherry-Picking mit Zwischenschritt.
 | **P3-05 Auswertungsfläche Positionspfad** | `auswertung/position.py`, `/signals/positionen` |
 | **PC-04 ADX-Vorzeichenfehler behoben (1.2.0)** | `services/scoring_engine_v2.py` |
 | **Analyse-Router protokolliert** | `routers/analysis.py` (drei stille Fehlerpfade) |
+| **P2-06 PEAD: Earnings-Bestand (47.176 Ereignisse)** | `database.EarningsEvent`, `services/pead.py` |
+| **P2-06 PEAD gemessen, Kaufseite negativ** | `snapshot_engine/auswertung/pead.py`, `tests/test_pead.py` |
+| **Šidák-Korrektur zentral** | `auswertung/basis.py` (`z_korrigiert`, `fehlerspanne_korrigiert`) |
 
 **Wichtig:** Alle 88.033 Bestands-Snapshots tragen `score_version` 1.0.0 — es
 gibt weder welche mit 2.0.0 noch mit 2.1.0 noch mit 2.2.0. Weder der sperrende
@@ -690,7 +784,15 @@ dem nächsten Scheduler-Lauf tragen **2.2.0**.
   Konstruktion, unter der Momentum hier je etwas beitrüge.
 - **P2-03** ADX wird berechnet und verworfen; gehört als Regime-Gate verwendet
 - **P2-05** Fundamentalblock (0,30) wird auf 7–90 Tagen gemessen, passt nicht zur Halbwertszeit
-- **P2-06** fehlende Signale: PEAD (Ansatz existiert, <1 % Abdeckung), Analysten-Revisionen, relative Stärke je Sektor, Short Interest, Insider-Cluster, Accruals
+- **P2-06** fehlende Signale. **PEAD ist erledigt und gemessen** (§2e): die
+  Abdeckung lag nicht an der Quelle, sondern an einem fehlenden `limit` —
+  jetzt 47.176 Ereignisse über 592 Ticker und 94 % der auswertbaren Zeilen.
+  Ergebnis: Kaufseite (Q5) Rauschen, Miss-Seite (Q1) −1,1 pp über 7 Tage mit
+  in acht von neun Jahren gleichem Vorzeichen. **Kommt nicht in den Score**,
+  solange der Holdout nicht gehört wurde. Offen bleiben:
+  Analysten-Revisionen, relative Stärke je Sektor, Short Interest,
+  Insider-Cluster, Accruals — dazu die Zuordnung Xetra-Listing → US-Kürzel,
+  ohne die 19 Ticker ohne Earnings-Historie bleiben.
 
 ### E. Präzision (2 von 9 erledigt)
 - **P4-04** absolute statt volatilitätsrelative Schwellen — RSI 30 bedeutet bei Versorger und Biotech Verschiedenes
@@ -734,11 +836,17 @@ Arbeit inline erledigt, was sie langsam und einmalig statt wiederholbar macht.
 
 ## 5. Empfohlener nächster Schritt
 
-**Der Befund nach zehn Jahren Daten: kein Eingang der Engine trägt gegen den
-Markt.** Weder die sechzehn Indikator-Richtungen noch die fünf Kategorien
-(§2b), noch das Oszillator-Gate in beiden Zweigen (§2a, 2.1.0/2.2.0), noch
-Querschnitts-Momentum (§2c). Alles Getestete ist **kursbasiert** — und genau
-das ist inzwischen die auffälligste Gemeinsamkeit der Null-Befunde.
+**Der Befund nach zehn Jahren Daten: kein Eingang der Engine trägt auf der
+Kaufseite gegen den Markt.** Weder die sechzehn Indikator-Richtungen noch die
+fünf Kategorien (§2b), noch das Oszillator-Gate in beiden Zweigen (§2a,
+2.1.0/2.2.0), noch Querschnitts-Momentum (§2c), noch die Sektortrennung (§2d),
+noch PEAD (§2e).
+
+Die Vermutung, das liege an der **kursbasierten** Herkunft aller Eingänge, ist
+mit §2e geprüft und trägt nur zur Hälfte: die erste fundamentale Größe ist auf
+der Kaufseite genauso still wie die Kursformeln. Was sie voraus hat, steht auf
+der anderen Seite — ein über neun Jahre stabiles Vorzeichen, das keine
+Kursformel je gezeigt hat.
 
 Zwei Wege, in dieser Reihenfolge:
 
@@ -753,12 +861,18 @@ Zwei Wege, in dieser Reihenfolge:
    bestehenden Indikatoren je Sektor besser messen, nicht ob titelspezifische
    Schwellen ein besserer Indikator wären.
 
-1. **Eine andere Signalklasse probieren, nicht noch eine Kursformel.** P2-06
-   listet die einzigen bisher ungetesteten Familien: PEAD (Ansatz existiert,
-   <1 % Abdeckung), Analysten-Revisionen, Short Interest, Insider-Cluster,
-   Accruals. Keine davon ist aus Kursen ableitbar — das ist ihr Wert hier.
-   Nüchtern dazu: die Trefferquote dieser Sitzung bei „plausibles Signal trägt
-   auch" liegt bei null von vier. Die Erwartung sollte entsprechend sein.
+1. **Erledigt: PEAD** (§2e), die erste geprüfte Größe, die nicht aus Kursen
+   stammt. Kaufseite Rauschen wie alles davor — aber die Miss-Seite trägt
+   −1,1 pp über sieben Tage und hat in acht von neun Jahren dasselbe
+   Vorzeichen. Das ist der erste regimestabile Eingang der Engine, und
+   zugleich einer, der sich nur als **Meidungsfilter** verwenden ließe, nicht
+   als Kaufsignal. Die Trefferquote bei „plausibles Signal trägt auch" steht
+   damit bei null von fünf; die Erwartung an die nächsten Familien sollte
+   entsprechend sein.
+
+   Offen und in dieser Reihenfolge: Analysten-Revisionen, relative Stärke je
+   Sektor, Short Interest, Insider-Cluster, Accruals. Keine davon ist aus
+   Kursen ableitbar — das ist ihr Wert hier.
 
 2. **Parallel das ernten, was keinen Prognosevorteil braucht.** Section C:
    Stop-Historie (P3-01) schaltet R-Multiple, MAE und MFE frei; die
@@ -768,10 +882,20 @@ Zwei Wege, in dieser Reihenfolge:
    Titel den Index schlägt. Für das Ziel „so viel Geld wie möglich" ist das
    der Teil mit dem sicheren Beitrag.
 
-**Der Holdout bleibt unberührt** (0 Zugriffe) — es gibt weiterhin nichts zu
-bestätigen.
+**Der Holdout steht weiterhin bei 0 Zugriffen — aber erstmals liegt eine
+Aussage vor, die er bestätigen könnte.** Sie lautet: „Das unterste Quintil der
+Ergebnisüberraschung schlägt den Markt über sieben Tage rund 1,1 pp seltener."
+Sie ist auf dem Trainingsteil bestimmt, Šidák-korrigiert und über acht von neun
+Jahren im Vorzeichen stabil.
 
-Danach P2-06 in der dortigen Reihenfolge (PEAD, Analysten-Revisionen, relative
+Ob dafür ein Holdout-Zugriff ausgegeben wird, ist eine Entscheidung des
+Besitzers und keine der Auswertung. Dafür spricht: es ist die erste Aussage
+überhaupt, die den Trainingsteil überstanden hat. Dagegen spricht: sie taugt
+nur zum Meiden, nicht zum Kaufen, und der Holdout ist einmal verbraucht. Ein
+Zugriff für einen Meidungsfilter von rund einem Prozentpunkt könnte später
+fehlen, wenn eine der übrigen Signalfamilien etwas Größeres hergibt.
+
+Danach P2-06 in der verbleibenden Reihenfolge (Analysten-Revisionen, relative
 Stärke je Sektor, Short Interest, Insider-Cluster, Accruals) und P2-01
 (Sektormodelle). Der Umbau des Composites bleibt bis Schritt 3 liegen.
 
@@ -788,7 +912,7 @@ die beste Variante behält, hat ihn zum Trainingsset gemacht — nur langsamer.
 ## 6. Verifikation (es gibt keine CI)
 
 ```
-py -m pytest -q                                   # 240 Tests
+py -m pytest -q                                   # 269 Tests
 py -m mypy <geänderte Dateien>                    # ad hoc, keine Konfiguration im Repo
 py -c "import warnings; warnings.filterwarnings('ignore'); from fastapi.testclient import TestClient; import main; c=TestClient(main.app); c.__enter__(); [print(c.get(u).status_code, u) for u in ['/','/signals','/signals/indikatoren','/signals/positionen','/signals/backfill','/analysis','/screener','/watchlist','/journal','/backtesting','/sectors','/economy','/settings','/lexicon','/sources','/directory']]"
 ```

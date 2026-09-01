@@ -16,8 +16,8 @@ from datetime import datetime
 from typing import Optional
 
 from sqlalchemy import (
-    create_engine, Integer, Float, Text, Boolean,
-    ForeignKey, event,
+    create_engine, DateTime, Integer, Float, Text, Boolean,
+    ForeignKey, UniqueConstraint, event,
 )
 from sqlalchemy.orm import (
     DeclarativeBase, Mapped, mapped_column, sessionmaker, relationship,
@@ -235,6 +235,58 @@ class PositionStopHistorie(Base):
             "stop": self.stop,
             "quelle": self.quelle,
             "gesetzt_am": self.gesetzt_am,
+        }
+
+
+class EarningsEvent(Base):
+    """Eine veröffentlichte Quartalszahl mit ihrer Abweichung von der Schätzung (P2-06).
+
+    Grundlage für die PEAD-Messung (Post-Earnings-Announcement Drift). Die
+    Tabelle existiert, weil der Abruf teuer und das Ergebnis unveränderlich
+    ist: rund 20.000 Ereignisse über 600 Ticker kosten einen Lauf von
+    Stunden, und ein Quartalsergebnis von 2019 ändert sich nicht mehr. Ein
+    TTL-Cache wie bei den Index-Aufnahmedaten wäre hier das falsche Mittel —
+    er würde bei jedem Neustart erneut Stunden verbrauchen.
+
+    `surprise_pct` ist ein Verhältnis und damit immun gegen die rückwirkende
+    Split-Anpassung, die Yahoo auf `eps_actual` und `eps_estimate` anwendet:
+    beide werden im selben Maß angepasst, ihr Quotient bleibt gleich. Genau
+    deshalb ist die Abweichung und nicht der EPS-Betrag die Messgröße.
+
+    **Der Zeitstempel ist der wunde Punkt.** Yahoo liefert ihn mit Uhrzeit und
+    Zeitzone, aber ohne verlässliche Angabe, ob vor Handelsbeginn oder nach
+    Handelsschluss berichtet wurde. Wer ein Ereignis demselben Handelstag
+    zurechnet, riskiert deshalb, eine Zahl zu verwenden, die zu diesem
+    Zeitpunkt noch nicht öffentlich war. Auswertungen halten daher einen
+    Sicherheitsabstand ein (`pead.MIN_ABSTAND_TAGE`), statt sich auf die
+    Uhrzeit zu verlassen.
+    """
+    __tablename__ = "earnings_events"
+    __table_args__ = (
+        UniqueConstraint("ticker", "datum", name="uq_earnings_ticker_datum"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    ticker: Mapped[str] = mapped_column(Text, nullable=False, index=True)
+    datum: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
+
+    eps_actual: Mapped[Optional[float]] = mapped_column(Float)
+    eps_estimate: Mapped[Optional[float]] = mapped_column(Float)
+    # (actual - estimate) / |estimate| * 100, wie von der Quelle geliefert.
+    surprise_pct: Mapped[Optional[float]] = mapped_column(Float)
+
+    quelle: Mapped[str] = mapped_column(Text, nullable=False, default="yfinance")
+    geladen_am: Mapped[Optional[datetime]] = mapped_column(DateTime)
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "ticker": self.ticker,
+            "datum": self.datum.isoformat() if self.datum else None,
+            "eps_actual": self.eps_actual,
+            "eps_estimate": self.eps_estimate,
+            "surprise_pct": self.surprise_pct,
+            "quelle": self.quelle,
         }
 
 
