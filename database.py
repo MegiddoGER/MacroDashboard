@@ -359,6 +359,70 @@ class AnalystenRevision(Base):
         }
 
 
+class AccrualKennzahl(Base):
+    """Periodenabgrenzungen eines Geschaeftsjahres, punkt-in-zeit datiert (P2-06).
+
+    Accruals nach Sloan: (Jahresueberschuss - operativer Cashflow) /
+    Bilanzsumme. Ein Gewinn, der nicht als Zahlung ankommt, ist Buchhaltung;
+    die Erwartung der Literatur ist, dass hohe Abgrenzungen *schlechtere*
+    Folgerenditen haben. Das Vorzeichen ist damit umgekehrt zu PEAD und den
+    Analystenrevisionen — beim Lesen der Quintile ist unten gut.
+
+    **Warum SEC und nicht yfinance.** yfinance liefert fuenf Jahres- und sieben
+    Quartalsperioden, also Historie bis 2022. Fuer eine Messung ab 2017 ist das
+    zu wenig.
+
+    **Warum `companyconcept` und nicht `frames`.** Die Rahmen-Schnittstelle
+    waere billiger — ein Abruf je Kennzahl und Periode fuer alle 5.700
+    Unternehmen. Sie liefert aber die zuletzt berichtete Fassung, nicht die
+    urspruengliche: fuer CY2020Q1 stammen nur 7,1 Prozent der Werte aus einer
+    Einreichung des Jahres 2020, 84 Prozent aus 2021. Das sind
+    Vergleichszahlen aus dem Folgejahr. Wer sie mit einem Aufschlag von drei
+    Monaten als bekannt annimmt, misst mit Wissen, das damals ein Jahr in der
+    Zukunft lag.
+
+    `bekannt_ab` ist deshalb keine Schaetzung und kein pauschaler Aufschlag,
+    sondern das spaeteste der drei Einreichungsdaten der drei Bestandteile:
+    vorher war die Kennzahl nicht berechenbar. Der Median liegt bei rund 54
+    Tagen nach Geschaeftsjahresende, einzelne Werte deutlich darueber, wenn
+    ein Bestandteil erst spaeter ausgezeichnet wurde.
+    """
+    __tablename__ = "accrual_kennzahlen"
+    __table_args__ = (
+        UniqueConstraint("ticker", "periode_ende",
+                         name="uq_accrual_ticker_periode"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    ticker: Mapped[str] = mapped_column(Text, nullable=False, index=True)
+    cik: Mapped[Optional[str]] = mapped_column(Text)
+    periode_ende: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    # Ab wann die Kennzahl berechenbar war — spaetestes Einreichungsdatum der
+    # drei Bestandteile. Der Index sitzt hier und nicht auf periode_ende, weil
+    # jede Auswertung nach diesem Datum filtert.
+    bekannt_ab: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
+
+    netto_gewinn: Mapped[Optional[float]] = mapped_column(Float)
+    operativer_cashflow: Mapped[Optional[float]] = mapped_column(Float)
+    bilanzsumme: Mapped[Optional[float]] = mapped_column(Float)
+    accrual: Mapped[Optional[float]] = mapped_column(Float)
+
+    quelle: Mapped[str] = mapped_column(Text, nullable=False, default="sec-xbrl")
+    geladen_am: Mapped[Optional[datetime]] = mapped_column(DateTime)
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "ticker": self.ticker,
+            "periode_ende": self.periode_ende.isoformat() if self.periode_ende else None,
+            "bekannt_ab": self.bekannt_ab.isoformat() if self.bekannt_ab else None,
+            "netto_gewinn": self.netto_gewinn,
+            "operativer_cashflow": self.operativer_cashflow,
+            "bilanzsumme": self.bilanzsumme,
+            "accrual": self.accrual,
+        }
+
+
 class Setting(Base):
     """Key-Value-Store für Dashboard-Einstellungen (z.B. API-Keys)."""
     __tablename__ = "settings"

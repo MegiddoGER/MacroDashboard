@@ -643,6 +643,95 @@ kurzfristiger Kurseffekt kippt.
 
 ---
 
+## 2g. Accruals: der erste wirklich unabhängige Eingang — und er trägt nichts
+
+Dritte Signalfamilie (P2-06), und die einzige, die den Kurs von ihrer
+Konstruktion her nicht berühren kann:
+
+    accrual = (Jahresüberschuss − operativer Cashflow) / Bilanzsumme
+
+**Achtung beim Vorzeichen:** anders als bei §2e und §2f ist hier unten gut.
+Sloan (1996) erwartet, dass **hohe** Abgrenzungen schlechtere Folgerenditen
+haben. `spread_pp` ist deshalb als Q1 minus Q5 gerechnet, damit „positiv"
+auch in diesem Modul „Hypothese bestätigt" heißt.
+
+### Zwei Datenquellen, die nicht gehen — beide gemessen, nicht vermutet
+
+**Insider-Cluster ist auf diesem Bestand nicht messbar** und deshalb gar nicht
+erst gebaut worden. `insider_transactions` reicht bei allen fünf geprüften
+Tickern einheitlich nur bis September/Oktober 2024 zurück. Der Trainingsteil
+endet am 2025-04-20 — es blieben gut sechs Monate Überlappung, und der
+**Holdout hätte mehr Abdeckung als das Training**. Ein Quiver-Token ist nicht
+gesetzt. Die Familie bleibt offen, aber nicht als Versäumnis: sie braucht eine
+andere Quelle.
+
+**Die billige SEC-Schnittstelle ist eine Falle.** `frames` liefert eine
+Kennzahl für rund 5.700 Unternehmen in einem einzigen Abruf — aber die zuletzt
+berichtete Fassung. Gemessen an `CY2020Q1`:
+
+| Einreichungsjahr der gelieferten Zahl | Anteil |
+|---|---|
+| 2020 (das Periodenjahr) | **7,1 %** |
+| 2021 | 84,0 % |
+| 2022 und später | 8,9 % |
+
+Vier Fünftel der Werte stammen also aus der Vergleichsspalte des Folgejahres.
+Ein pauschaler Aufschlag von drei Monaten hätte damit mit Wissen gerechnet,
+das seinerzeit ein Jahr in der Zukunft lag. Verwendet wird deshalb
+`companyconcept` — ein Abruf je Unternehmen und Auszeichnung, dafür mit
+`filed` an jeder einzelnen Zahl. `bekannt_ab` ist das **späteste** der drei
+Einreichungsdaten; ein pauschaler Sicherheitsabstand entfällt dadurch ganz.
+
+Ebenfalls gemessen: **Quartals-Accruals gehen nicht.** Der operative Cashflow
+wird überwiegend kumuliert übers Geschäftsjahr berichtet, weshalb nur das
+erste Quartal eine Dreimonatsdauer trägt — je Ticker blieben rund acht statt
+achtunddreißig verwertbare Quartale. Die Jahresform braucht keine
+Differenzbildung und ist ohnehin die der Literatur.
+
+### Bestand
+
+**6.556 Jahres-Accruals über 459 Ticker.** Ausfälle: 109 ohne CIK (jede
+Auslandsnotierung — die Messung ist wie §2f US-only) und 41 US-Titel, deren
+Filer die drei Bestandteile anders auszeichnen (Banken und Versicherer, dazu
+KO, XOM, V, PYPL). 141.891 von 217.590 Zeilen tragen eine gültige Kennzahl.
+
+### Die Messung (TRAIN, HISTORISCH, Šidák z = 2,57)
+
+| Horizont | Q1 (niedrig) | Q3 | Q5 (hoch) | Spread Q1−Q5 |
+|---|---|---|---|---|
+| 7 Tage | 50,4 % · +0,5 ±0,8 | 49,5 % · −0,4 | 49,4 % · −0,5 | 1,0 pp |
+| 30 Tage | 51,6 % · +1,3 ±1,3 | 49,6 % · −0,7 | 50,5 % · +0,2 | 1,1 pp |
+| 90 Tage | 52,3 % · +2,1 ±2,3 | 48,3 % · −1,9 | 51,4 % · +1,2 | 0,9 pp |
+
+**Keine einzige Zelle übersteht die Korrektur, und die Form ist überall
+falsch.** Sloan sagt einen monotonen Abfall von Q1 nach Q5 voraus; gemessen
+ist ein U — Q1 oben, die Mitte unten, Q5 wieder oben. Q1 liegt auf 30 und 90
+Tagen zwar in der vorhergesagten Richtung, aber ohne Gefälle dahinter ist das
+eine Zelle von fünfzehn.
+
+### Der eigentliche Ertrag: die Kursnähe-Prüfung ist geeicht
+
+**Rangkorrelation zur Kursrendite der vorangegangenen 90 Tage: −0,001**
+(n = 179.648). Zum Vergleich die Zielrevision der Analysten aus §2f: **0,473**.
+
+Damit ist zweierlei belegt:
+
+1. **Die Prüfung aus §2f unterscheidet tatsächlich**, statt nur plausibel zu
+   klingen. Sie liegt bei einem umetikettierten Kurssignal bei 0,47 und bei
+   einer echten Bilanzgröße bei null. Sie steht jetzt als
+   `auswertung/kursnaehe.py` und wird von den Revisions- und
+   Accrual-Auswertungen mitgerechnet.
+2. **Die Erklärung „alle Nullbefunde kommen von der kursbasierten Herkunft"
+   ist erledigt.** Hier ist ein Eingang, der nachweislich nichts vom Kurs
+   abbildet, sauber punkt-in-zeit datiert ist, aus 6.556 geprüften
+   Jahresabschlüssen stammt — und er trägt genauso wenig wie die sechzehn
+   Kursindikatoren. Die Gemeinsamkeit der Nullbefunde liegt nicht in der
+   Herkunft der Eingänge.
+
+Trefferquote bei „plausibles Signal trägt auch": **null von sieben.**
+
+---
+
 ## 3. Erledigt — nicht noch einmal bauen
 
 | Was | Wo |
@@ -685,6 +774,9 @@ kurzfristiger Kurseffekt kippt.
 | **P2-06 Analystenrevisionen: Bestand (175.197 Handlungen)** | `database.AnalystenRevision`, `services/analyst_revisions.py` |
 | **P2-06 Revisionen gemessen, beide Bauweisen negativ** | `auswertung/analyst_revisions.py`, `tests/test_analyst_revisions.py` |
 | **Gemeinsame Zellenrechnung der Kandidatenmessungen** | `auswertung/basis.py` (`zelle_gegen_markt`) |
+| **P2-06 Accruals: SEC-Bestand (6.556 Jahresabschlüsse)** | `database.AccrualKennzahl`, `services/accruals.py` |
+| **P2-06 Accruals gemessen, negativ** | `auswertung/accruals.py`, `tests/test_accruals.py` |
+| **Kursnähe-Prüfung als stehende Regel** | `auswertung/kursnaehe.py` (geeicht: 0,47 vs. −0,001) |
 
 **Wichtig:** Alle 88.033 Bestands-Snapshots tragen `score_version` 1.0.0 — es
 gibt weder welche mit 2.0.0 noch mit 2.1.0 noch mit 2.2.0. Weder der sperrende
@@ -898,12 +990,23 @@ dem nächsten Scheduler-Lauf tragen **2.2.0**.
   7 Tagen beidseitig signifikant, aber nur in sieben von neun Jahren positiv
   (p ≈ 0,18) und zu 0,47 mit der vorangegangenen Kursrendite rangkorreliert —
   also überwiegend recyceltes Momentum. Kommt nicht in den Score.
-  Offen bleiben: relative Stärke je Sektor, Short Interest, Insider-Cluster,
-  Accruals. Dazu zwei Abdeckungslücken, die zusammengehören: für PEAD fehlen
-  19 Xetra-Listings von US-Konzernen (deren Zahlen liegen unter dem
-  US-Kürzel), für die Revisionen fehlen 85 echte Xetra-Titel (die hat Yahoo
-  gar nicht). Eine Zuordnung Xetra→US schlösse die erste Lücke; die zweite
-  bräuchte eine andere Quelle.
+  **Accruals sind ebenfalls erledigt** (§2g): 6.556 Jahresabschlüsse über 459
+  Ticker, punkt-in-zeit aus der SEC. Keine Zelle übersteht die Korrektur, und
+  die Form ist ein U statt des vorhergesagten Gefälles. Wichtiger als der
+  Nullbefund ist die Kursnähe von **−0,001** — der erste nachweislich
+  kursunabhängige Eingang, und er trägt nichts. Damit ist die
+  Herkunfts-Erklärung für die Nullbefunde widerlegt.
+  **Insider-Cluster ist auf diesem Bestand nicht messbar** (§2g):
+  `insider_transactions` reicht nur bis September 2024, der Holdout hätte mehr
+  Abdeckung als das Training; ein Quiver-Token ist nicht gesetzt.
+  Offen bleiben damit: Short Interest und relative Stärke je Sektor (Letztere
+  ist per Konstruktion kursbasiert und liefe in die Falle von §2f).
+  Dazu drei Abdeckungslücken: für PEAD fehlen 19 Xetra-Listings von
+  US-Konzernen (deren Zahlen liegen unter dem US-Kürzel), für die Revisionen
+  85 echte Xetra-Titel (die hat Yahoo gar nicht), für Accruals 109
+  Auslandsnotierungen plus 41 US-Filer mit abweichender Auszeichnung. Eine
+  Zuordnung Xetra→US schlösse die erste; die anderen bräuchten eine andere
+  Quelle.
 
 ### E. Präzision (2 von 9 erledigt)
 - **P4-04** absolute statt volatilitätsrelative Schwellen — RSI 30 bedeutet bei Versorger und Biotech Verschiedenes
@@ -951,15 +1054,21 @@ Arbeit inline erledigt, was sie langsam und einmalig statt wiederholbar macht.
 Kaufseite gegen den Markt.** Weder die sechzehn Indikator-Richtungen noch die
 fünf Kategorien (§2b), noch das Oszillator-Gate in beiden Zweigen (§2a,
 2.1.0/2.2.0), noch Querschnitts-Momentum (§2c), noch die Sektortrennung (§2d),
-noch PEAD (§2e), noch die Analystenrevisionen (§2f).
+noch PEAD (§2e), noch die Analystenrevisionen (§2f), noch die Accruals (§2g).
 
-Die Vermutung, das liege an der **kursbasierten** Herkunft aller Eingänge, ist
-inzwischen zweimal geprüft und trägt nicht, wie sie gemeint war. PEAD ist auf
-der Kaufseite genauso still wie jede Kursformel; was es voraus hat, steht auf
-der Miss-Seite — ein über neun Jahre stabiles Vorzeichen. Und die
-Analystenrevision, die auf der Kaufseite tatsächlich leuchtet, ist bei näherem
-Hinsehen zu 0,47 mit dem Kurs rangkorreliert: eine fundamentale **Quelle** ist
-noch keine fundamentale **Größe**.
+**Die Vermutung, das liege an der kursbasierten Herkunft aller Eingänge, ist
+dreimal geprüft und widerlegt.** PEAD ist auf der Kaufseite genauso still wie
+jede Kursformel; was es voraus hat, steht auf der Miss-Seite — ein über neun
+Jahre stabiles Vorzeichen. Die Analystenrevision, die auf der Kaufseite
+tatsächlich leuchtet, ist zu 0,47 mit dem Kurs rangkorreliert: eine
+fundamentale **Quelle** ist noch keine fundamentale **Größe**. Und die
+Accruals, deren Kursnähe bei −0,001 liegt und die damit als einziger Eingang
+nachweislich nichts vom Kurs abbilden, tragen ebenso wenig.
+
+Damit ist eine Erklärung ausgeschieden und die Frage verschoben: es liegt
+nicht daran, WOHER die Eingänge kommen. Was als Erklärung übrig bleibt, steht
+in §2 und §2b — die Engine misst Zustände, die auf 100 % der Snapshots
+gesättigt sind, gegen einen Markt, dessen Median-Titel ohnehin zurückbleibt.
 
 Zwei Wege, in dieser Reihenfolge:
 
@@ -994,10 +1103,19 @@ Zwei Wege, in dieser Reihenfolge:
    Rangkorrelation zur Kursrendite zur Messung dazu. Sie kostet eine Abfrage
    und trennt einen eigenständigen Eingang von einem umetikettierten.
 
-   Offen und in dieser Reihenfolge: relative Stärke je Sektor (Vorsicht — sie
-   ist per Konstruktion kursbasiert), Short Interest, Insider-Cluster,
-   Accruals. Die letzten drei sind die aussichtsreichsten, weil sie am
-   weitesten vom Kurs entfernt liegen.
+3. **Erledigt: Accruals** (§2g) — und mit ihnen die Leitidee dieses
+   Abschnitts. Der Eingang ist nachweislich kursunabhängig (Kursnähe −0,001
+   gegen 0,473 bei den Revisionen), sauber punkt-in-zeit datiert, aus 6.556
+   Jahresabschlüssen — und er trägt so wenig wie die sechzehn
+   Kursindikatoren. **Die Gemeinsamkeit der Nullbefunde liegt nicht in der
+   Herkunft der Eingänge.** Der Rat „eine andere Signalklasse probieren" ist
+   damit dreimal befolgt und ausgeschöpft; er war richtig, aber er hat die
+   Frage nicht beantwortet.
+
+   Offen aus P2-06 bleiben nur noch Short Interest und relative Stärke je
+   Sektor. Letztere ist per Konstruktion kursbasiert und liefe direkt in die
+   Falle von §2f — sie lohnt nicht ohne vorherige Kursnähe-Prüfung. Insider
+   ist mangels Datentiefe ausgeschieden (§2g).
 
 2. **Parallel das ernten, was keinen Prognosevorteil braucht.** Section C:
    Stop-Historie (P3-01) schaltet R-Multiple, MAE und MFE frei; die
@@ -1037,7 +1155,7 @@ die beste Variante behält, hat ihn zum Trainingsset gemacht — nur langsamer.
 ## 6. Verifikation (es gibt keine CI)
 
 ```
-py -m pytest -q                                   # 269 Tests
+py -m pytest -q                                   # 340 Tests
 py -m mypy <geänderte Dateien>                    # ad hoc, keine Konfiguration im Repo
 py -c "import warnings; warnings.filterwarnings('ignore'); from fastapi.testclient import TestClient; import main; c=TestClient(main.app); c.__enter__(); [print(c.get(u).status_code, u) for u in ['/','/signals','/signals/indikatoren','/signals/positionen','/signals/backfill','/analysis','/screener','/watchlist','/journal','/backtesting','/sectors','/economy','/settings','/lexicon','/sources','/directory']]"
 ```

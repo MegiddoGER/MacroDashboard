@@ -29,6 +29,11 @@ keine vergleichbare Beobachtung. Verdichtet wird über
 
 **Look-ahead** wie bei PEAD über `MIN_ABSTAND_TAGE`; **der Holdout** bleibt
 unberührt, `teil` ist mit TRAIN vorbelegt.
+
+**Kursnähe** wird mitgemessen (`auswertung/kursnaehe`). Dieses Modul ist der
+Fall, der die Prüfung ausgelöst hat: die Zielrevision sah wie ein
+eigenständiger fundamentaler Eingang aus und korreliert mit 0,47 zur
+Kursrendite der vorangegangenen 90 Tage.
 """
 
 import logging
@@ -49,6 +54,7 @@ from snapshot_engine.auswertung.basis import (
     MIN_STICHPROBE, anteil_schlaegt_markt, zelle_gegen_markt, z_korrigiert,
 )
 from snapshot_engine.auswertung.holdout import TRAIN, grenze_lesen, split_filter
+from snapshot_engine.auswertung.kursnaehe import kursnaehe_pruefen
 
 logger = logging.getLogger(__name__)
 
@@ -215,7 +221,8 @@ def _auswerten(gruppen: dict, alle_ueberrenditen: list, horizont: int,
 def zielrevision_auswerten(db: Session, horizont: int = 30,
                            datenmodus: str = "HISTORISCH",
                            teil: Optional[str] = TRAIN,
-                           minimum: int = MIN_STICHPROBE) -> dict:
+                           minimum: int = MIN_STICHPROBE,
+                           mit_kursnaehe: bool = True) -> dict:
     """Quintile der mittleren Kurszielrevision gegen den Markt.
 
     Trägt das Signal, muss Quintil 5 (stärkste Anhebungen) über und Quintil 1
@@ -252,6 +259,14 @@ def zielrevision_auswerten(db: Session, horizont: int = 30,
     ergebnis["teil"] = teil
     ergebnis["spread_pp"] = _spread(ergebnis["gruppen"], "quintil",
                                     QUANTILE, 1)
+
+    # Die stehende Prüfung aus §2f, hier an dem Fall, der sie ausgelöst hat:
+    # gemessen wurden 0,47 zur Kursrendite der vorangegangenen 90 Tage.
+    if mit_kursnaehe:
+        ergebnis["kursnaehe"] = kursnaehe_pruefen(
+            db, raenge,
+            {sid: (d["ticker"], d["zeitpunkt"]) for sid, d in verdichtungen.items()},
+            datenmodus=datenmodus)
     return ergebnis
 
 
