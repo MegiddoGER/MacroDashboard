@@ -36,6 +36,13 @@ DATENQUALITAET_WARNSCHWELLE = 70.0
 # lassen sich aus den gespeicherten Teilscores exakt neu verrechnen.
 #
 # Changelog:
+#   1.2.0 — Der ADX trägt nicht mehr zum TrendHealthScore bei (PC-04). Er misst
+#           Trendstärke, nicht Trendrichtung: ein hoher ADX im Abwärtstrend
+#           brachte +10 Punkte, hob damit zwei Drittel der Cross-Strafe auf
+#           und ließ einen heftigen Absturz gesünder aussehen als einen
+#           milden. Die Einstiegs-Engine führt ihn seit jeher als Info; beide
+#           Engines sind jetzt einig. Ersatzlos entfallen, nicht durch eine
+#           richtungsabhängige Fassung ersetzt — dafür gibt es keinen Beleg.
 #   1.1.0 — Das Fenster für Drawdown und Profit-Giveback reicht jetzt bis zum
 #           tatsächlichen Einstieg statt über die letzten 22 Bars. Aus
 #           denselben Eingaben entsteht damit ein anderer
@@ -47,7 +54,7 @@ DATENQUALITAET_WARNSCHWELLE = 70.0
 #   1.0.0 — Erstfassung. Entspricht dem Stand, den die zwölf Teilscores seit
 #           PC-01/PC-02/PC-03 tragen: Trend-Guard bei fehlender SMA 200,
 #           data_quality als Qualifier statt Summand, RSI ohne Klippe.
-POSITION_SCORE_VERSION = "1.1.0"
+POSITION_SCORE_VERSION = "1.2.0"
 
 
 # Gewichte des Overall-Scores. Die elf Slots summieren sich auf 0,98 — der
@@ -121,11 +128,33 @@ def calc_position_scores(
     elif signals.get("cross_bearish"):
         trend_score -= 15
 
-    adx_val = signals.get("adx_val")
-    if adx_val and adx_val > 25:
-        trend_score += 10
-    elif adx_val and adx_val < 20:
-        trend_score -= 5
+    # ── ADX: ENTFALLEN in 1.2.0 (PC-04) ──────────────────────────
+    # Hier stand:
+    #
+    #     if adx_val > 25:  trend_score += 10
+    #     elif adx_val < 20: trend_score -= 5
+    #
+    # Der ADX misst Trend*stärke*, nicht Trend*richtung*. Ein hoher ADX in
+    # einem Abwärtstrend bedeutet einen starken Abwärtstrend — und bekam
+    # dafür +10 auf die Trendgesundheit. Bei einem Titel mit
+    # trend_macro_bearish (−20) und cross_bearish (−15) hob dieser Bonus zwei
+    # Drittel der Cross-Strafe wieder auf: je heftiger der Absturz, desto
+    # gesünder sah der Trend aus.
+    #
+    # Die Einstiegs-Engine macht es seit jeher richtig und nennt auch den
+    # zweiten Grund (services/scoring.py, `_score_trend`): ein eigener
+    # ADX-Beitrag doppelt zählt, was SMA-Cross bereits misst. Beide Engines
+    # führen ihn jetzt als Information.
+    #
+    # Der zweite Zweig war derselbe Fehler in leiser: ein ADX unter 20 heißt
+    # „Trendsignale sind hier weniger verlässlich" — also Unsicherheit. Die
+    # gehört in `data_quality`, nicht in eine Trendaussage, aus genau dem
+    # Grund, der zehn Zeilen weiter oben für die fehlende SMA 200 steht.
+    #
+    # Bewusst NICHT ersetzt durch eine richtungsabhängige Variante
+    # (+10 bei bullisch, −10 bei bearisch): das wäre ein neues Gewicht ohne
+    # Beleg, und der ADX ist bisher nie gegen ein Ergebnis gemessen worden.
+    # P2-03 hält den Posten offen, ihn als Regime-Gate zu verwenden.
 
     # Kurs vs SMAs
     current = signals.get("current_price", position_data.get("current_price", 0))

@@ -1,6 +1,6 @@
 # CONTEXT.md — Arbeitsstand Signal-Engine
 
-_Stand: 2026-09-01 · auf `7d3d2af` folgend · Branch `main`_
+_Stand: 2026-09-01 · auf `4d720e0` folgend · Branch `main`_
 
 Übergabedatei für eine frische Claude-Session. Sie beantwortet drei Fragen:
 **Was ist erledigt, was ist offen, und was darf nicht noch einmal neu hergeleitet
@@ -427,6 +427,7 @@ echte Ereignisse (CVNA, SMCI, HelloFresh, Fiserv), keine Split-Brüche.
 | **P3-01 Stop-Historie** | `database.PositionStopHistorie`, `services/watchlist.py` |
 | **P3-01 MAE/MFE + Fenster seit Einstieg** | `services/scoring.py`, `position_metrics_engine.py` |
 | **P3-05 Auswertungsfläche Positionspfad** | `auswertung/position.py`, `/signals/positionen` |
+| **PC-04 ADX-Vorzeichenfehler behoben (1.2.0)** | `services/scoring_engine_v2.py` |
 | **Analyse-Router protokolliert** | `routers/analysis.py` (drei stille Fehlerpfade) |
 
 **Wichtig:** Alle 88.033 Bestands-Snapshots tragen `score_version` 1.0.0 — es
@@ -577,7 +578,29 @@ dem nächsten Scheduler-Lauf tragen **2.2.0**.
   Seiten-Feld an, liefert also weiter keine Seite und bekommt LONG. Bewusst so:
   der SHORT-Pfad ist durch Tests gedeckt, nicht durch Benutzung, und eine
   Positionsempfehlung ist eine Aussage über echtes Geld.
-- **PC-04** ADX wird hier gerichtet gewertet — genau umgekehrt zur Entry-Engine, die ihn als Info führt
+- ~~**PC-04** ADX wird hier gerichtet gewertet~~ → erledigt, und es war kein
+  Konventionsstreit, sondern ein **Vorzeichenfehler**. Der ADX misst
+  Trendstärke, nicht Trendrichtung; `adx > 25` brachte trotzdem +10 auf den
+  TrendHealthScore — auch mitten im Absturz. Bei `trend_macro_bearish` (−20)
+  und `cross_bearish` (−15) hob dieser Bonus zwei Drittel der Cross-Strafe
+  auf. Gemessen:
+
+  | Lage | vorher | jetzt |
+  |---|---|---|
+  | **starker** Abwärtstrend (ADX 40) | 25 | **15** |
+  | **schwacher** Abwärtstrend (ADX 15) | 10 | **15** |
+  | Aufwärtstrend (ADX 40) | 95 | 85 |
+
+  Ein heftiger Absturz galt also als gesünder als ein milder. Der zweite
+  Zweig war derselbe Fehler leiser: `adx < 20` heißt „Trendsignale sind hier
+  weniger verlässlich", also Unsicherheit — die gehört in `data_quality`,
+  aus genau dem Grund, der zehn Zeilen darüber für die fehlende SMA 200
+  steht (PC-01). Beide Zweige sind ersatzlos entfallen, **nicht** durch eine
+  richtungsabhängige Fassung ersetzt: das wäre ein neues Gewicht ohne Beleg,
+  und ein eigener ADX-Beitrag doppelt zählt ohnehin, was SMA-Cross misst —
+  der Grund, aus dem die Einstiegs-Engine ihn seit jeher als Info führt.
+  `POSITION_SCORE_VERSION` auf **1.2.0**. P2-03 bleibt offen: den ADX als
+  Regime-Gate zu verwenden, ist eine andere Frage als ihn zu addieren.
 - ~~**PC-06** drei Metriken werden berechnet und nie gelesen~~ → erledigt, und
   es waren **acht**, nicht drei: `distance_to_stop_pct`,
   `distance_to_target_pct`, `invested_capital`, `open_risk`,
@@ -694,7 +717,7 @@ die beste Variante behält, hat ihn zum Trainingsset gemacht — nur langsamer.
 ## 6. Verifikation (es gibt keine CI)
 
 ```
-py -m pytest -q                                   # 227 Tests
+py -m pytest -q                                   # 240 Tests
 py -m mypy <geänderte Dateien>                    # ad hoc, keine Konfiguration im Repo
 py -c "import warnings; warnings.filterwarnings('ignore'); from fastapi.testclient import TestClient; import main; c=TestClient(main.app); c.__enter__(); [print(c.get(u).status_code, u) for u in ['/','/signals','/signals/indikatoren','/signals/positionen','/signals/backfill','/analysis','/screener','/watchlist','/journal','/backtesting','/sectors','/economy','/settings','/lexicon','/sources','/directory']]"
 ```
