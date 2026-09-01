@@ -334,7 +334,7 @@ def vorsprung_signifikant(vorsprung_pp: Optional[float],
 # Kennzahlen
 # ---------------------------------------------------------------------------
 
-def kennzahlen_aus_returns(returns: Sequence[float],
+def kennzahlen_aus_returns(returns: Sequence[Optional[float]],
                            treffer: Optional[Sequence[Optional[bool]]] = None,
                            horizont_tage: int = 0,
                            minimum: int = MIN_STICHPROBE,
@@ -439,3 +439,51 @@ def kennzahlen_aus_returns(returns: Sequence[float],
     })
 
     return ergebnis
+
+
+def zelle_gegen_markt(returns: Sequence[Optional[float]],
+                      ueberrenditen: Sequence[Optional[float]],
+                      basis_markt: Optional[float],
+                      horizont_tage: int,
+                      minimum: int = MIN_STICHPROBE,
+                      z: Optional[float] = None) -> dict:
+    """Kennzahlen einer Gruppe, bewertet als LONG gegen den Markt.
+
+    Der gemeinsame Baustein der Kandidatenmessungen (PEAD, Analysten-
+    Revisionen): eine Gruppe von Beobachtungen — ein Quintil, ein Dezil, ein
+    Wertebereich — wird gefragt, wie oft sie ihren Index schlägt.
+
+    **Immer LONG.** Gefragt ist, ob ein Titel mit dieser Eigenschaft seinen
+    Index schlägt. Eine Short-Lesart derselben Gruppe wäre eine zweite
+    Hypothese und damit ein weiterer Test, der die Korrektur verteuert, ohne
+    neue Information zu liefern — die Gegenrichtung steht bereits in der
+    Gruppe am anderen Ende.
+
+    Args:
+        z: Kritischer z-Wert aus `z_korrigiert`. Ohne ihn entfällt die
+            korrigierte Spanne; die unkorrigierte aus `mit_ueberrendite`
+            bleibt in jedem Fall stehen.
+
+    Returns:
+        Die Zeile aus `mit_ueberrendite`, ergänzt um
+        `fehlerspanne_korrigiert_pp` und `signifikant_korrigiert`. Die
+        korrigierte Spanne tritt NEBEN die unkorrigierte, sie ersetzt sie
+        nicht: die unkorrigierte bleibt mit allen bisher belegten Zahlen
+        vergleichbar, die korrigierte ist die, gegen die ein Fund bestehen
+        muss.
+    """
+    richtungen: list[Optional[int]] = [1] * len(returns)
+    kennzahlen = mit_ueberrendite(
+        kennzahlen_aus_returns(returns, horizont_tage=horizont_tage,
+                               minimum=minimum, richtungen=richtungen),
+        ueberrenditen, richtungen, basis_markt,
+        horizont_tage=horizont_tage, minimum=minimum)
+
+    spanne = (None if z is None else fehlerspanne_korrigiert(
+        kennzahlen.get("markt_trefferquote"), kennzahlen.get("n_effektiv"), z))
+    vorsprung = kennzahlen.get("markt_vorsprung_pp")
+    kennzahlen["fehlerspanne_korrigiert_pp"] = spanne
+    kennzahlen["signifikant_korrigiert"] = (
+        None if (spanne is None or vorsprung is None)
+        else abs(vorsprung) > spanne)
+    return kennzahlen

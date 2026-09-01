@@ -544,6 +544,105 @@ Befund nicht, aber es ist die eine Beobachtung, die gegen ihn steht.
 
 ---
 
+## 2f. Analystenrevisionen: die Kaufseite leuchtet — und ist zur Hälfte der Kurs
+
+Zweite Signalfamilie aus §5 (P2-06). Der Befund ist der bisher lehrreichste,
+weil er zum ersten Mal auf der **Kaufseite** signifikant wird und trotzdem
+nicht trägt.
+
+### Was es historisch gar nicht gibt — geprüft, nicht vermutet
+
+Der klassische Revisionsindikator wäre die Änderung der
+Konsens-Gewinnschätzung. Bei dieser Quelle ist sie **historisch nicht zu
+haben**: `eps_trend`, `eps_revisions`, `earnings_estimate` und
+`recommendations` liefern sämtlich nur ein rollierendes Fenster (aktuell, vor
+7/30/60/90 Tagen bzw. 0m/−1m/−2m/−3m) **ohne Datumsachse**. Sie sind live
+lesbar und rückwirkend wertlos. Wer das nicht prüft, baut eine Messung, die
+auf dem Bestand nie laufen kann.
+
+Verwertbar ist genau eine Quelle: `upgrades_downgrades` — ein Ereignisprotokoll
+mit Datum, Haus, Rating vorher/nachher und Kursziel vorher/nachher, bei
+US-Titeln zurück bis 2012.
+
+### Bestand und seine Schlagseite
+
+**175.197 Handlungen über 523 der 611 Ticker.** Die 88 Ausfälle sind **fast
+ausschließlich nicht-US-Titel**: 85 Xetra-Werte (SAP, Siemens, BMW, Allianz …),
+dazu Paris, Zürich, Seoul. Umgekehrt zu PEAD haben die Xetra-**Listings von
+US-Konzernen** (`MSF.DE`, `ABEA.DE`, `NVD.DE`) sehr wohl Daten.
+
+Die Folge steht in der Messung: von **203.204 gerangten Snapshots stammt kein
+einziger von Xetra** — der deutsche Querschnitt fällt je Woche unter
+`MIN_QUERSCHNITT` und damit ganz heraus. **Diese Auswertung ist US-only.** Ein
+Signal daraus gälte für rund fünf Sechstel des Universums, nicht für alle.
+
+Zwei Fallen der Quelle, beide im Code festgehalten:
+`priorPriceTarget` ist **`0.0`, nicht `NaN`**, wenn kein Vorziel existiert
+(rund ein Fünftel der Zeilen) — auf `notna()` geprüft rechnet man danach gegen
+einen Nenner von null. Und der Median der Zielrevisionen liegt bei **+2,1 %**:
+Analysten heben häufiger an als sie senken, eine absolute Schwelle misst
+deshalb überwiegend diesen Drift. Nur ein Querschnittsrang taugt.
+
+### Die Messung (TRAIN, HISTORISCH, Šidák z = 2,57)
+
+**Netto-Rating** (Heraufstufungen minus Herabstufungen im 90-Tage-Fenster,
+gruppiert nach Wert statt nach Rang, weil die Mehrheit exakt null ist):
+**nichts, auf keinem Horizont.** Spread 0,7 / 0,4 / −0,1 pp, keine einzige
+Zelle signifikant. Erledigt.
+
+**Zielrevision** (mittlere prozentuale Kurszieländerung im Fenster, Quintile):
+
+| Horizont | Q1 | Q5 | Spread | Form |
+|---|---|---|---|---|
+| 7 Tage | 48,8 % · **−1,0 pp ±0,7 SIG** | 50,9 % · **+1,2 pp ±0,7 SIG** | **2,1 pp** | monoton über alle fünf |
+| 30 Tage | 50,9 % · +0,7 ±1,3 | 51,0 % · +0,8 ±1,3 | 0,1 pp | U-Form, beide Enden oben |
+| 90 Tage | 50,4 % · +0,6 ±2,2 | 51,3 % · +1,5 ±2,2 | 0,9 pp | Rauschen |
+
+Auf sieben Tagen ist das der **erste Befund dieses Projekts, bei dem auch die
+Kaufseite signifikant ist**, und der Verlauf ist über alle fünf Quintile
+monoton. Genau deshalb lohnen die zwei Gegenproben.
+
+### Gegenprobe 1: die Regime-Prüfung
+
+Spread je Kalenderjahr (7 Tage): +4,4 · +1,3 · +1,4 · +5,3 · **−3,3** · +3,2 ·
++1,4 · +5,4 · **−5,0**.
+
+**Positiv in sieben von neun Jahren — als Vorzeichentest p ≈ 0,18, also
+Rauschen.** Zum Vergleich: PEADs Miss-Seite stand bei acht von neun und
+p ≈ 0,04. Die beiden Gegenjahre sind zudem keine Nullen, sondern die
+zweit- und drittgrößten Beträge der Reihe, und die drei stärksten positiven
+Jahre (2020, 2022, 2024) sind Hochvolatilitätsjahre. Das sieht nach einer
+Regime-Abhängigkeit aus, nicht nach einer Eigenschaft.
+
+Wie schon bei PEAD widerspricht das jüngste, unvollständige Jahr am
+deutlichsten (−5,0).
+
+### Gegenprobe 2: was misst die Zielrevision eigentlich?
+
+**Rangkorrelation zwischen dem Zielrevisions-Rang und der Kursrendite der
+vorangegangenen 90 Tage: 0,473** (Pearson 0,455, n = 200.620).
+
+Analysten folgen dem Kurs zu rund der Hälfte. Der Eingang ist damit **kein
+unabhängiger fundamentaler Eingang**, sondern zu großen Teilen recyceltes
+Kursmomentum — gemessen auf sieben Tagen, wo kurzfristige Fortsetzung ohnehin
+am ehesten auftritt. Damit erklärt sich auch, warum der Effekt auf 30 Tagen
+verschwindet statt abzuklingen: eine Informationsverarbeitung klänge ab, ein
+kurzfristiger Kurseffekt kippt.
+
+### Was daraus folgt
+
+1. **Kommt nicht in den Score.** Weder Netto-Rating noch Zielrevision.
+2. **Der Anspruch „nicht aus Kursen ableitbar" muss gemessen werden, nicht
+   angenommen.** Die Quelle ist fundamental, die Größe ist es nicht. Für jede
+   künftige Signalfamilie gehört diese Korrelation zur Prüfung dazu — sie
+   kostet eine Abfrage und hätte hier eine Fehlinterpretation verhindert.
+3. **Die Regime-Prüfung bleibt der schärfste Filter.** Sie hat jetzt
+   Querschnitts-Momentum (§2c) und die Zielrevision aussortiert und PEADs
+   Miss-Seite als einziges durchgelassen.
+4. Trefferquote bei „plausibles Signal trägt auch": **null von sechs.**
+
+---
+
 ## 3. Erledigt — nicht noch einmal bauen
 
 | Was | Wo |
@@ -583,6 +682,9 @@ Befund nicht, aber es ist die eine Beobachtung, die gegen ihn steht.
 | **P2-06 PEAD: Earnings-Bestand (47.176 Ereignisse)** | `database.EarningsEvent`, `services/pead.py` |
 | **P2-06 PEAD gemessen, Kaufseite negativ** | `snapshot_engine/auswertung/pead.py`, `tests/test_pead.py` |
 | **Šidák-Korrektur zentral** | `auswertung/basis.py` (`z_korrigiert`, `fehlerspanne_korrigiert`) |
+| **P2-06 Analystenrevisionen: Bestand (175.197 Handlungen)** | `database.AnalystenRevision`, `services/analyst_revisions.py` |
+| **P2-06 Revisionen gemessen, beide Bauweisen negativ** | `auswertung/analyst_revisions.py`, `tests/test_analyst_revisions.py` |
+| **Gemeinsame Zellenrechnung der Kandidatenmessungen** | `auswertung/basis.py` (`zelle_gegen_markt`) |
 
 **Wichtig:** Alle 88.033 Bestands-Snapshots tragen `score_version` 1.0.0 — es
 gibt weder welche mit 2.0.0 noch mit 2.1.0 noch mit 2.2.0. Weder der sperrende
@@ -789,10 +891,19 @@ dem nächsten Scheduler-Lauf tragen **2.2.0**.
   jetzt 47.176 Ereignisse über 592 Ticker und 94 % der auswertbaren Zeilen.
   Ergebnis: Kaufseite (Q5) Rauschen, Miss-Seite (Q1) −1,1 pp über 7 Tage mit
   in acht von neun Jahren gleichem Vorzeichen. **Kommt nicht in den Score**,
-  solange der Holdout nicht gehört wurde. Offen bleiben:
-  Analysten-Revisionen, relative Stärke je Sektor, Short Interest,
-  Insider-Cluster, Accruals — dazu die Zuordnung Xetra-Listing → US-Kürzel,
-  ohne die 19 Ticker ohne Earnings-Historie bleiben.
+  solange der Holdout nicht gehört wurde.
+  **Analysten-Revisionen sind ebenfalls erledigt** (§2f): Konsens-Schätzungen
+  gibt es historisch nicht, das Handlungsprotokoll schon (175.197 Zeilen, 523
+  Ticker). Netto-Rating null auf allen Horizonten; die Zielrevision ist auf
+  7 Tagen beidseitig signifikant, aber nur in sieben von neun Jahren positiv
+  (p ≈ 0,18) und zu 0,47 mit der vorangegangenen Kursrendite rangkorreliert —
+  also überwiegend recyceltes Momentum. Kommt nicht in den Score.
+  Offen bleiben: relative Stärke je Sektor, Short Interest, Insider-Cluster,
+  Accruals. Dazu zwei Abdeckungslücken, die zusammengehören: für PEAD fehlen
+  19 Xetra-Listings von US-Konzernen (deren Zahlen liegen unter dem
+  US-Kürzel), für die Revisionen fehlen 85 echte Xetra-Titel (die hat Yahoo
+  gar nicht). Eine Zuordnung Xetra→US schlösse die erste Lücke; die zweite
+  bräuchte eine andere Quelle.
 
 ### E. Präzision (2 von 9 erledigt)
 - **P4-04** absolute statt volatilitätsrelative Schwellen — RSI 30 bedeutet bei Versorger und Biotech Verschiedenes
@@ -840,13 +951,15 @@ Arbeit inline erledigt, was sie langsam und einmalig statt wiederholbar macht.
 Kaufseite gegen den Markt.** Weder die sechzehn Indikator-Richtungen noch die
 fünf Kategorien (§2b), noch das Oszillator-Gate in beiden Zweigen (§2a,
 2.1.0/2.2.0), noch Querschnitts-Momentum (§2c), noch die Sektortrennung (§2d),
-noch PEAD (§2e).
+noch PEAD (§2e), noch die Analystenrevisionen (§2f).
 
 Die Vermutung, das liege an der **kursbasierten** Herkunft aller Eingänge, ist
-mit §2e geprüft und trägt nur zur Hälfte: die erste fundamentale Größe ist auf
-der Kaufseite genauso still wie die Kursformeln. Was sie voraus hat, steht auf
-der anderen Seite — ein über neun Jahre stabiles Vorzeichen, das keine
-Kursformel je gezeigt hat.
+inzwischen zweimal geprüft und trägt nicht, wie sie gemeint war. PEAD ist auf
+der Kaufseite genauso still wie jede Kursformel; was es voraus hat, steht auf
+der Miss-Seite — ein über neun Jahre stabiles Vorzeichen. Und die
+Analystenrevision, die auf der Kaufseite tatsächlich leuchtet, ist bei näherem
+Hinsehen zu 0,47 mit dem Kurs rangkorreliert: eine fundamentale **Quelle** ist
+noch keine fundamentale **Größe**.
 
 Zwei Wege, in dieser Reihenfolge:
 
@@ -870,9 +983,21 @@ Zwei Wege, in dieser Reihenfolge:
    damit bei null von fünf; die Erwartung an die nächsten Familien sollte
    entsprechend sein.
 
-   Offen und in dieser Reihenfolge: Analysten-Revisionen, relative Stärke je
-   Sektor, Short Interest, Insider-Cluster, Accruals. Keine davon ist aus
-   Kursen ableitbar — das ist ihr Wert hier.
+2. **Erledigt: Analysten-Revisionen** (§2f). Erstmals leuchtet die Kaufseite
+   — Zielrevision über sieben Tage, monoton über alle fünf Quintile, beide
+   Enden signifikant, Spread 2,1 pp. Und trotzdem nichts: nur sieben von neun
+   Jahren positiv (p ≈ 0,18), auf 30 Tagen verschwunden, und mit 0,47
+   rangkorreliert zur vorangegangenen Kursrendite. Die Quelle ist fundamental,
+   die Größe ist es nicht.
+
+   **Daraus eine stehende Prüfung:** für jede weitere Signalfamilie gehört die
+   Rangkorrelation zur Kursrendite zur Messung dazu. Sie kostet eine Abfrage
+   und trennt einen eigenständigen Eingang von einem umetikettierten.
+
+   Offen und in dieser Reihenfolge: relative Stärke je Sektor (Vorsicht — sie
+   ist per Konstruktion kursbasiert), Short Interest, Insider-Cluster,
+   Accruals. Die letzten drei sind die aussichtsreichsten, weil sie am
+   weitesten vom Kurs entfernt liegen.
 
 2. **Parallel das ernten, was keinen Prognosevorteil braucht.** Section C:
    Stop-Historie (P3-01) schaltet R-Multiple, MAE und MFE frei; die

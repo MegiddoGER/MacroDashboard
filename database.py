@@ -290,6 +290,75 @@ class EarningsEvent(Base):
         }
 
 
+class AnalystenRevision(Base):
+    """Eine Analystenhandlung: Rating-Wechsel und/oder Kurszielaenderung (P2-06).
+
+    Zweite Signalfamilie nach PEAD, und wie dort gilt: der Wert liegt in der
+    Herkunft. Eine Kurszielrevision ist aus keiner Kursreihe ableitbar.
+
+    **Was hier NICHT steht, und warum.** Der klassische Revisionsindikator ist
+    die Aenderung der Konsens-Gewinnschaetzung. Die ist bei dieser Quelle
+    historisch nicht zu haben: `eps_trend`, `eps_revisions`, `earnings_estimate`
+    und `recommendations` liefern samtlich nur ein rollierendes Fenster ohne
+    Datumsachse (aktuell / vor 7 / 30 / 60 / 90 Tagen) und lassen sich deshalb
+    nur live lesen, nie rueckwirkend. Historisch verwertbar ist allein das
+    Ereignisprotokoll `upgrades_downgrades` — Rating-Wechsel und Kursziele mit
+    Datum, bei US-Titeln zurueck bis 2012.
+
+    **Die Nullfalle.** `priorPriceTarget` ist `0.0`, nicht `NULL`, wenn es kein
+    Vorziel gibt — bei rund einem Fuenftel der Zeilen (Erstabdeckung, reine
+    Rating-Meldungen). Wer auf `notna()` prueft, haelt diese Zeilen faelschlich
+    fuer brauchbar und rechnet anschliessend gegen einen Nenner von null. Beim
+    Schreiben wird die Null deshalb zu `None` gemacht: hier steht ein Kursziel
+    oder gar keines.
+
+    **Optimismus-Neigung.** Der Median der Zielrevisionen liegt bei rund
+    +2 Prozent — Analysten heben haeufiger an, als sie senken. Eine absolute
+    Schwelle ("Ziel um 5 Prozent erhoeht") misst deshalb ueberwiegend den
+    allgemeinen Drift der Schaetzungen. Auswertungen rangen im Querschnitt.
+    """
+    __tablename__ = "analysten_revisionen"
+    __table_args__ = (
+        UniqueConstraint("ticker", "datum", "firma",
+                         name="uq_revision_ticker_datum_firma"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    ticker: Mapped[str] = mapped_column(Text, nullable=False, index=True)
+    datum: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
+    firma: Mapped[str] = mapped_column(Text, nullable=False)
+
+    # up / down / main / init / reit — Yahoos Bezeichner, unveraendert
+    # uebernommen, damit eine spaetere Nachfrage an der Quelle moeglich bleibt.
+    aktion: Mapped[Optional[str]] = mapped_column(Text)
+    # Raises / Lowers / Maintains / Announces / Removes
+    ziel_aktion: Mapped[Optional[str]] = mapped_column(Text)
+
+    note_neu: Mapped[Optional[str]] = mapped_column(Text)
+    note_alt: Mapped[Optional[str]] = mapped_column(Text)
+
+    # None heisst "kein Kursziel", nie "Kursziel null" — siehe Nullfalle oben.
+    ziel_neu: Mapped[Optional[float]] = mapped_column(Float)
+    ziel_alt: Mapped[Optional[float]] = mapped_column(Float)
+
+    quelle: Mapped[str] = mapped_column(Text, nullable=False, default="yfinance")
+    geladen_am: Mapped[Optional[datetime]] = mapped_column(DateTime)
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "ticker": self.ticker,
+            "datum": self.datum.isoformat() if self.datum else None,
+            "firma": self.firma,
+            "aktion": self.aktion,
+            "ziel_aktion": self.ziel_aktion,
+            "note_neu": self.note_neu,
+            "note_alt": self.note_alt,
+            "ziel_neu": self.ziel_neu,
+            "ziel_alt": self.ziel_alt,
+        }
+
+
 class Setting(Base):
     """Key-Value-Store für Dashboard-Einstellungen (z.B. API-Keys)."""
     __tablename__ = "settings"

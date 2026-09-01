@@ -60,8 +60,7 @@ from snapshot_engine.models import (
     AnalyseModus, AnalyseSnapshot, AnalyseSnapshotOutcome,
 )
 from snapshot_engine.auswertung.basis import (
-    MIN_STICHPROBE, anteil_schlaegt_markt, fehlerspanne_korrigiert,
-    kennzahlen_aus_returns, mit_ueberrendite, z_korrigiert,
+    MIN_STICHPROBE, anteil_schlaegt_markt, zelle_gegen_markt, z_korrigiert,
 )
 from snapshot_engine.auswertung.holdout import TRAIN, grenze_lesen, split_filter
 
@@ -237,34 +236,11 @@ def _beobachtungen(db: Session, horizont: int, datenmodus: str,
 
 def _zelle(gruppe: list[dict], basis_markt: Optional[float], horizont: int,
            minimum: int, z: float) -> dict:
-    """Kennzahlen einer Gruppe, bewertet als LONG gegen den Markt.
-
-    Jede Gruppe wird als LONG gerechnet — gefragt ist, wie oft ein Titel mit
-    dieser Überraschung seinen Index schlägt. Eine Short-Lesart wäre eine
-    zweite Hypothese und damit ein weiterer Test.
-    """
-    returns = [b["outcome_return"] for b in gruppe]
-    ueberrenditen = [b["ueberrendite"] for b in gruppe]
-    richtungen = [1] * len(gruppe)
-
-    kennzahlen = mit_ueberrendite(
-        kennzahlen_aus_returns(returns, horizont_tage=horizont,
-                               minimum=minimum, richtungen=richtungen),
-        ueberrenditen, richtungen, basis_markt,
-        horizont_tage=horizont, minimum=minimum)
-
-    # Die korrigierte Fehlerspanne tritt NEBEN die unkorrigierte aus
-    # `mit_ueberrendite`, sie ersetzt sie nicht: die unkorrigierte bleibt mit
-    # allen bisher belegten Zahlen vergleichbar, die korrigierte ist die,
-    # gegen die ein Fund bestehen muss.
-    spanne = fehlerspanne_korrigiert(
-        kennzahlen.get("markt_trefferquote"), kennzahlen.get("n_effektiv"), z)
-    vorsprung = kennzahlen.get("markt_vorsprung_pp")
-    kennzahlen["fehlerspanne_korrigiert_pp"] = spanne
-    kennzahlen["signifikant_korrigiert"] = (
-        None if (spanne is None or vorsprung is None)
-        else abs(vorsprung) > spanne)
-    return kennzahlen
+    """Kennzahlen einer Quintil- oder Bandgruppe, LONG gegen den Markt."""
+    return zelle_gegen_markt(
+        [b["outcome_return"] for b in gruppe],
+        [b["ueberrendite"] for b in gruppe],
+        basis_markt, horizont, minimum=minimum, z=z)
 
 
 # ---------------------------------------------------------------------------
