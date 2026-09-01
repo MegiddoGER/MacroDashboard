@@ -17,7 +17,10 @@ import warnings
 from datetime import datetime
 import yfinance as yf
 
-from database import get_session, WatchlistItem, Position as PositionRow
+from database import (
+    get_session, WatchlistItem, Position as PositionRow,
+    PositionStopHistorie,
+)
 
 # Pfad zur Watchlist-Datei (im data/ Verzeichnis des Projekts)
 _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -231,6 +234,82 @@ def _new_position_id() -> str:
     return uuid.uuid4().hex[:8]
 
 
+# ---------------------------------------------------------------------------
+# Stop-Historie (P3-01)
+# ---------------------------------------------------------------------------
+
+QUELLE_EROEFFNUNG = "EROEFFNUNG"
+QUELLE_AENDERUNG = "AENDERUNG"
+QUELLE_ALTBESTAND = "ALTBESTAND"
+
+
+def _stop_vermerken(session, position_id: str, stop: float, quelle: str) -> None:
+    """Hängt einen Stop an die Historie an. Ohne commit — der Aufrufer committet."""
+    session.add(PositionStopHistorie(
+        position_id=position_id,
+        stop=round(float(stop), 2),
+        quelle=quelle,
+        gesetzt_am=datetime.now().isoformat(timespec="seconds"),
+    ))
+
+
+def stop_historie(position_id: str) -> list[dict]:
+    """Alle Stop-Setzungen einer Position, älteste zuerst.
+
+    Sortiert nach `id`, nicht nach Zeitstempel: zwei Einträge derselben
+    Sekunde (Altbestand plus Änderung im selben Aufruf) würden sonst in
+    beliebiger Reihenfolge zurückkommen.
+    """
+    session = get_session()
+    try:
+        zeilen = (
+            session.query(PositionStopHistorie)
+            .filter(PositionStopHistorie.position_id == position_id)
+            .order_by(PositionStopHistorie.id.asc())
+            .all()
+        )
+        return [z.to_dict() for z in zeilen]
+    finally:
+        session.close()
+
+
+def initialer_aus_historie(historie: list[dict]) -> float | None:
+    """Der Stop bei Eröffnung — Bezugsgröße des R-Multiple.
+
+    Zählt bewusst NUR einen als EROEFFNUNG vermerkten ersten Eintrag. Ist der
+    älteste Eintrag ein ALTBESTAND, kennt die Historie den Einstiegs-Stop
+    nicht: ALTBESTAND ist der zuletzt bekannte Wert, und ein bereits
+    nachgezogener Stop als Einstiegsrisiko gelesen lässt das R-Multiple
+    systematisch zu gut aussehen. Lieber kein R-Multiple als ein geschöntes.
+
+    Reine Funktion über die Historie — die Regel ist die eigentliche Aussage
+    und soll ohne Datenbank prüfbar bleiben.
+    """
+    if not historie:
+        return None
+    erster = historie[0]
+    return erster["stop"] if erster.get("quelle") == QUELLE_EROEFFNUNG else None
+
+
+def vorheriger_aus_historie(historie: list[dict]) -> float | None:
+    """Der Stop vor dem aktuellen — für die Ratchet-Prüfung.
+
+    Hier genügt jede Herkunft: geprüft wird, ob der Stop gelockert statt
+    nachgezogen wurde, und dafür reicht der zuletzt bekannte Wert.
+    """
+    return historie[-2]["stop"] if len(historie) >= 2 else None
+
+
+def initialer_stop(position_id: str) -> float | None:
+    """Wie initialer_aus_historie, aber liest die Historie selbst."""
+    return initialer_aus_historie(stop_historie(position_id))
+
+
+def vorheriger_stop(position_id: str) -> float | None:
+    """Wie vorheriger_aus_historie, aber liest die Historie selbst."""
+    return vorheriger_aus_historie(stop_historie(position_id))
+
+
 def add_position(ticker: str, buy_price: float, quantity: float,
                  buy_date: str | None = None, stop_loss: float | None = None,
                  take_profit: float | None = None, fees: float = 0.0,
@@ -260,6 +339,10 @@ def add_position(ticker: str, buy_price: float, quantity: float,
         )
         session.add(pos)
         item.status = "Investiert"
+        if pos.stop_loss is not None:
+            # Der einzige Zeitpunkt, zu dem der Einstiegs-Stop zweifelsfrei
+            # bekannt ist (P3-01).
+            _stop_vermerken(session, pos.id, pos.stop_loss, QUELLE_EROEFFNUNG)
         session.commit()
         return pos.to_dict()
     finally:
@@ -306,6 +389,9 @@ def update_position(ticker: str, position_id: str, **kwargs) -> dict | None:
         pos = session.query(PositionRow).filter_by(id=position_id).first()
         if not pos:
             return None
+
+        alter_stop = pos.stop_loss
+
         for key, value in kwargs.items():
             if key in allowed_fields:
                 if key in ("stop_loss", "take_profit") and value is not None:
@@ -313,6 +399,23 @@ def update_position(ticker: str, position_id: str, **kwargs) -> dict | None:
                 elif key == "quantity" and value is not None:
                     value = round(value, 4)
                 setattr(pos, key, value)
+
+        # Stop-Historie fortschreiben (P3-01), nur bei echter Änderung.
+        if "stop_loss" in kwargs and pos.stop_loss != alter_stop:
+            vorhanden = (
+                session.query(PositionStopHistorie)
+                .filter(PositionStopHistorie.position_id == pos.id)
+                .count()
+            )
+            if not vorhanden and alter_stop is not None:
+                # Position bestand schon vor der Historie. Der bisherige Stop
+                # wird vermerkt, damit die Ratchet-Prüfung eine Bezugsgröße
+                # hat — aber als ALTBESTAND, weil niemand mehr weiß, ob es
+                # der Einstiegs-Stop war.
+                _stop_vermerken(session, pos.id, alter_stop, QUELLE_ALTBESTAND)
+            if pos.stop_loss is not None:
+                _stop_vermerken(session, pos.id, pos.stop_loss, QUELLE_AENDERUNG)
+
         session.commit()
         return pos.to_dict()
     finally:

@@ -1424,14 +1424,20 @@ def calc_position_analysis_v2(
     analysis = PositionAnalysis(side=side)
 
     # ── 1. Validierung ────────────────────────────────────────────
+    # P3-01: beide stammen aus der Stop-Historie, sofern die Aufrufstelle eine
+    # gespeicherte Position kennt. Fehlen sie, verhält sich alles wie vorher —
+    # die Prüfung auf gelockerte Stops und das R-Multiple entfallen dann.
+    initial_stop = position_data.get("initial_stop")
+    previous_stop = position_data.get("previous_stop")
+
     validation = validate_target_stop(
         side=side,
         current_price=current_price,
         entry_price=buy_price,
         take_profit=take_profit,
         active_stop=stop_loss,
-        previous_stop=None,  # No previous stop tracking yet
-        initial_stop=None,   # No initial stop tracking yet
+        previous_stop=previous_stop,
+        initial_stop=initial_stop,
     )
     analysis.validation = validation
 
@@ -1453,7 +1459,9 @@ def calc_position_analysis_v2(
         quantity=quantity,
         active_stop=validation.active_stop,
         active_take_profit=validation.active_take_profit,
-        initial_stop=None,
+        # P3-01: hier entsteht das R-Multiple. Ohne den Einstiegs-Stop bleibt
+        # es None — die Stop-Historie liefert ihn, sobald die Position eine hat.
+        initial_stop=initial_stop,
         original_take_profit=take_profit,
         holding_days=holding_days,
         atr_val=atr_val,

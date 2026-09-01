@@ -199,6 +199,45 @@ class AlertRecord(Base):
     trigger_value: Mapped[Optional[float]] = mapped_column(Float)
 
 
+class PositionStopHistorie(Base):
+    """Jede Stop-Loss-Setzung einer Position, in der Reihenfolge ihres Entstehens (P3-01).
+
+    Ohne diese Historie ist der ursprünglich eingegangene Betrag nicht mehr
+    feststellbar, sobald der Stop einmal nachgezogen wurde — und damit sind
+    R-Multiple, MAE und MFE unberechenbar. Die Positionstabelle kennt nur den
+    AKTUELLEN Stop; ein nachgezogener überschreibt den ursprünglichen
+    spurlos.
+
+    `quelle` unterscheidet, wie belastbar ein Eintrag ist:
+
+        EROEFFNUNG   beim Anlegen der Position gesetzt — der echte
+                     Einstiegs-Stop, auf dem das R-Multiple beruhen darf
+        AENDERUNG    späteres Nachziehen
+        ALTBESTAND   nachträglich vermerkt, weil die Position schon vor
+                     Einführung dieser Historie bestand. Der Wert ist der
+                     zuletzt bekannte, NICHT der ursprüngliche — deshalb
+                     taugt er nicht als Bezugsgröße für das R-Multiple.
+    """
+    __tablename__ = "position_stop_historie"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    position_id: Mapped[str] = mapped_column(
+        Text, ForeignKey("positions.id", ondelete="CASCADE"),
+        nullable=False, index=True)
+    stop: Mapped[float] = mapped_column(Float, nullable=False)
+    quelle: Mapped[str] = mapped_column(Text, nullable=False)
+    gesetzt_am: Mapped[Optional[str]] = mapped_column(Text)
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "position_id": self.position_id,
+            "stop": self.stop,
+            "quelle": self.quelle,
+            "gesetzt_am": self.gesetzt_am,
+        }
+
+
 class Setting(Base):
     """Key-Value-Store für Dashboard-Einstellungen (z.B. API-Keys)."""
     __tablename__ = "settings"

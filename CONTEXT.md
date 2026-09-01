@@ -1,6 +1,6 @@
 # CONTEXT.md — Arbeitsstand Signal-Engine
 
-_Stand: 2026-09-01 · auf `1782d55` folgend · Branch `main`_
+_Stand: 2026-09-01 · auf `2b0c064` folgend · Branch `main`_
 
 Übergabedatei für eine frische Claude-Session. Sie beantwortet drei Fragen:
 **Was ist erledigt, was ist offen, und was darf nicht noch einmal neu hergeleitet
@@ -424,6 +424,7 @@ echte Ereignisse (CVNA, SMCI, HelloFresh, Fiserv), keine Split-Brüche.
 | **P2-02 Querschnitts-Momentum, gemessen** | `services/cross_sectional_momentum.py`, `auswertung/momentum.py` |
 | **P3-02 Positionsseite erreichbar** | `services/scoring.py`, `tests/test_position_side.py` |
 | **P4-07 Aufnahmedaten als Quelle** | `services/index_membership.py`, `cache_core.cached_sp500_aufnahmedaten` |
+| **P3-01 Stop-Historie** | `database.PositionStopHistorie`, `services/watchlist.py` |
 | **Analyse-Router protokolliert** | `routers/analysis.py` (drei stille Fehlerpfade) |
 
 **Wichtig:** Alle 88.033 Bestands-Snapshots tragen `score_version` 1.0.0 — es
@@ -518,7 +519,23 @@ dem nächsten Scheduler-Lauf tragen **2.2.0**.
   laufen auf, gelesen werden sie noch nirgends — `/signals` und alle Abfragen in
   `auswertung/` filtern bewusst auf `NEUE_POSITION`. Nächster Schritt, sobald
   genug Zeilen fällig geworden sind.
-- **P3-01** keine Stop-Historie → Ratchet wirkungslos, R-Multiple/MAE/MFE unberechenbar
+- ~~**P3-01** keine Stop-Historie~~ → erledigt. Neue Tabelle
+  `position_stop_historie` (via `create_all`, keine Migration nötig);
+  `add_position` und `update_position` schreiben fort, `initialer_stop()` und
+  `vorheriger_stop()` lesen. Der Einstiegs-Stop erreicht jetzt sowohl
+  `validate_target_stop` (Ratchet) als auch `calc_position_metrics`
+  (R-Multiple) — beide bekamen vorher fest `None`.
+  **Die Herkunftsregel ist der Kern:** ein Eintrag zählt nur dann als
+  Einstiegsrisiko, wenn er als `EROEFFNUNG` vermerkt ist. Positionen, die
+  schon vor der Historie bestanden, bekommen beim ersten Stop-Wechsel einen
+  `ALTBESTAND`-Eintrag — der ist der zuletzt bekannte Stop, nicht der
+  ursprüngliche, und taugt deshalb NICHT als Bezugsgröße. Ein bereits
+  nachgezogener Stop als Einstiegsrisiko gelesen ließe jede Position besser
+  aussehen, als sie war. Für die Ratchet-Prüfung genügt er dagegen.
+  **Folge:** ein R-Multiple erscheint erst für Positionen, die ab jetzt mit
+  Stop eröffnet werden. Die beiden Bestandspositionen haben ohnehin keinen.
+  MAE/MFE bleiben offen — sie brauchen zusätzlich `high_since_entry` und
+  `low_since_entry` über die echte Haltedauer statt der 22-Bar-Näherung.
 - ~~**P3-02** SHORT-Pfad unerreichbar~~ → **halb erledigt.** Die Seite kommt
   jetzt aus `position_data["side"]` statt fest verdrahtet
   (`services/scoring.py`); `tests/test_position_side.py` belegt die
@@ -645,7 +662,7 @@ die beste Variante behält, hat ihn zum Trainingsset gemacht — nur langsamer.
 ## 6. Verifikation (es gibt keine CI)
 
 ```
-py -m pytest -q                                   # 191 Tests
+py -m pytest -q                                   # 202 Tests
 py -m mypy <geänderte Dateien>                    # ad hoc, keine Konfiguration im Repo
 py -c "import warnings; warnings.filterwarnings('ignore'); from fastapi.testclient import TestClient; import main; c=TestClient(main.app); c.__enter__(); [print(c.get(u).status_code, u) for u in ['/','/signals','/signals/indikatoren','/signals/backfill','/analysis','/screener','/watchlist','/journal','/backtesting','/sectors','/economy','/settings','/lexicon','/sources','/directory']]"
 ```

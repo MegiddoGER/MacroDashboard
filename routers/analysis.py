@@ -834,6 +834,7 @@ async def analysis_position_load(
     take_profit: str = Form(""),
     volume_modifier: str = Form("mittel"),
     input_mode: str = Form("manual"),
+    position_select: str = Form(""),
 ):
     import asyncio
     templates = request.app.state.templates
@@ -865,6 +866,7 @@ async def analysis_position_load(
         stop_loss_f if stop_loss_f > 0 else None,
         take_profit_f if take_profit_f > 0 else None,
         volume_modifier,
+        position_select or None,
     )
 
     if isinstance(ctx, str):
@@ -887,8 +889,15 @@ def _build_position_analysis_context(
     stop_loss: float | None,
     take_profit: float | None,
     volume_modifier: str,
+    position_id: str | None = None,
 ) -> dict | str:
-    """Baut den vollständigen Kontext für die Positions-Analyse."""
+    """Baut den vollständigen Kontext für die Positions-Analyse.
+
+    `position_id` ist nur im Portfolio-Modus gesetzt; im manuellen Modus gibt
+    es keine gespeicherte Position und damit keine Stop-Historie. Alles, was
+    daran hängt (R-Multiple, Ratchet-Prüfung), bleibt dann leer — das ist
+    korrekt, nicht defizitär.
+    """
     from datetime import datetime, date
 
     # Resolve ticker
@@ -985,6 +994,18 @@ def _build_position_analysis_context(
         "sma200_dist": sma200_dist,
         "atr_val": atr_val,
     }
+
+    # Stop-Historie (P3-01). Erst damit sind R-Multiple und die Prüfung auf
+    # gelockerte Stops überhaupt berechenbar — die Positionstabelle kennt nur
+    # den aktuellen Stop, ein nachgezogener überschreibt den ursprünglichen.
+    if position_id:
+        try:
+            from services.watchlist import initialer_stop, vorheriger_stop
+            pos_data["initial_stop"] = initialer_stop(position_id)
+            pos_data["previous_stop"] = vorheriger_stop(position_id)
+        except Exception:
+            logger.warning("Stop-Historie für Position %s nicht lesbar.",
+                           position_id, exc_info=True)
 
     # ── Scoring (bestehende Engine wiederverwenden) ─────────────
     sum_data = {}
