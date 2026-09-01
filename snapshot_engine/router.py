@@ -166,6 +166,48 @@ async def indikatoren(request: Request,
 
 
 # ---------------------------------------------------------------------------
+# Positionspfad (P3-05)
+# ---------------------------------------------------------------------------
+
+@router.get("/positionen", response_class=HTMLResponse)
+async def positionen(request: Request, horizont: int = Query(30)):
+    """Auswertung der Snapshots aus dem Positionspfad.
+
+    Getrennt von /signals, und das ist keine Kosmetik: dort bedeutet
+    `confidence` die Einstiegs-Confidence, hier den Positions-Score, und
+    `beitrag_numeric` trägt eine andere Einheit. Gemeinsam gemittelt ergäben
+    beide Pfade Zahlen ohne Bedeutung.
+    """
+    templates = request.app.state.templates
+    session = get_session()
+
+    try:
+        from snapshot_engine.auswertung.position import (
+            bestand, kennzahlen, score_baender, teilscore_leaderboard,
+        )
+        if horizont not in HORIZONTE_TAGE:
+            horizont = HORIZONTE_TAGE[0]
+
+        kontext = {
+            **_basis_kontext(request, "/signals/positionen"),
+            "bestand": bestand(session),
+            "kennzahlen": kennzahlen(session),
+            "baender": score_baender(session, horizont=horizont),
+            "teilscores": teilscore_leaderboard(session, horizont=horizont),
+            "gewaehlter_horizont": horizont,
+        }
+        return templates.TemplateResponse(
+            request=request, name="pages/signal_positionen.html", context=kontext)
+
+    except Exception as e:
+        logger.error("Positions-Auswertung fehlgeschlagen: %s", e, exc_info=True)
+        return HTMLResponse(f"<p>Fehler beim Laden der Positions-Auswertung: {e}</p>",
+                            status_code=500)
+    finally:
+        session.close()
+
+
+# ---------------------------------------------------------------------------
 # Backfill
 # ---------------------------------------------------------------------------
 

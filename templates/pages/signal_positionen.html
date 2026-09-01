@@ -1,0 +1,201 @@
+{% extends "base.html" %}
+
+{% block title %}Positionspfad — Macro Dashboard{% endblock %}
+
+{# Bewusst ohne Inline-Styles: die Nachbarseiten signal_quality.html und
+   signal_indikatoren.html arbeiten damit und fallen sichtbar aus dem
+   Designsystem. Hier stehen nur Komponentenklassen aus components.css und
+   layout.css. #}
+
+{% macro quote(kz) -%}
+    {% if kz and kz.trefferquote is not none %}{{ kz.trefferquote }}%{% else %}<span class="muted">–</span>{% endif %}
+{%- endmacro %}
+
+{% macro vorsprung(wert, belegt) -%}
+    {% if wert is not none %}
+        <span class="{{ ('positive' if wert > 0 else 'negative') if belegt else 'muted' }}">
+            {{ '%+.1f'|format(wert) }} pp</span>
+    {% else %}<span class="muted">–</span>{% endif %}
+{%- endmacro %}
+
+{% block content %}
+<div class="page-header">
+    <h2>Positionspfad</h2>
+    <p class="caption">
+        Wertet die Analysen <strong>bestehender</strong> Positionen aus — getrennt vom
+        Einstiegspfad auf <a href="/signals">/signals</a>, und das ist keine Kosmetik:
+        dort bedeutet die Confidence „wie gut ist dieser Kauf", hier den Positions-Score aus
+        zwölf Teilscores. Gemeinsam gemittelt ergäben beide Zahlen ohne Bedeutung.
+    </p>
+</div>
+
+<!-- Bestand -->
+<div class="grid-4">
+    <div class="metric-card">
+        <div class="metric-label">Snapshots</div>
+        <div class="metric-value">{{ bestand.snapshots }}</div>
+        <div class="metric-delta muted">{{ bestand.ticker }} Ticker</div>
+    </div>
+    <div class="metric-card">
+        <div class="metric-label">Outcomes angelegt</div>
+        <div class="metric-value">{{ bestand.outcomes }}</div>
+        <div class="metric-delta muted">7 / 30 / 90 Tage</div>
+    </div>
+    <div class="metric-card">
+        <div class="metric-label">davon fällig</div>
+        <div class="metric-value">{{ bestand.outcomes_ausgewertet }}</div>
+        <div class="metric-delta muted">erst dann zählt eine Zeile</div>
+    </div>
+    <div class="metric-card">
+        <div class="metric-label">Erfasst seit</div>
+        <div class="metric-value">
+            {% if bestand.erster %}{{ bestand.erster.strftime('%d.%m.%Y') }}{% else %}—{% endif %}
+        </div>
+        <div class="metric-delta muted">
+            {% if bestand.letzter %}zuletzt {{ bestand.letzter.strftime('%d.%m.%Y') }}{% endif %}
+        </div>
+    </div>
+</div>
+
+{% if not bestand.outcomes_ausgewertet %}
+<div class="alert alert-info">
+    <strong>Noch keine fälligen Outcomes.</strong>
+    Der Positionspfad zeichnet erst seit Kurzem auf. Ein Outcome wird frühestens
+    7 Tage nach dem Snapshot fällig, der 90-Tage-Horizont entsprechend später —
+    belastbare Zahlen brauchen entsprechend Zeit und mehrere Positionen.
+    Die Fläche steht, damit sie nicht erst gebaut werden muss, wenn die Daten da sind.
+    {% if not bestand.snapshots %}
+    <br><br>
+    Bisher wurde überhaupt kein Snapshot erfasst. Das passiert automatisch bei jedem
+    Aufruf der Positions-Analyse.
+    {% endif %}
+</div>
+{% else %}
+
+<!-- Ergebnisse je Horizont -->
+<h3 class="section-head">Ergebnisse je Horizont</h3>
+<div class="table-wrapper">
+<table class="data-table">
+    <thead>
+        <tr>
+            <th>Horizont</th><th>n</th>
+            <th>Trefferquote</th><th>Basisrate</th><th>Vorsprung</th>
+            <th>Quote vs. Markt</th><th>Vorsprung vs. Markt</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for h, kz in kennzahlen.horizonte.items() %}
+        <tr>
+            <td><strong>{{ h }} Tage</strong></td>
+            <td>{{ kz.n or 0 }}</td>
+            {% if kz.status == 'ok' %}
+            <td>{{ quote(kz) }}</td>
+            <td class="muted">{{ kz.basis_trefferquote if kz.basis_trefferquote is not none else '–' }}%</td>
+            <td>{{ vorsprung(kz.vorsprung_pp, kz.vorsprung_signifikant) }}</td>
+            <td class="muted">{% if kz.markt_trefferquote is not none %}{{ kz.markt_trefferquote }}%{% else %}–{% endif %}</td>
+            <td>{{ vorsprung(kz.markt_vorsprung_pp, kz.markt_signifikant) }}</td>
+            {% else %}
+            <td colspan="5" class="muted">noch zu wenig unabhängige Beobachtungen</td>
+            {% endif %}
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+</div>
+
+<p class="caption">
+    <strong>Die beiden Spaltenpaare beantworten verschiedene Fragen.</strong>
+    Absolut heißt: war Halten besser als Kasse? Gegen den Markt heißt: war Halten besser
+    als Umschichten in den Index? Welche zählt, entscheidet die Anlagepraxis — deshalb
+    stehen beide da. Ein Halten-Signal gilt als getroffen, wenn die Position danach
+    zulegte; ein Abbau-Signal, wenn sie nachgab.
+</p>
+
+<!-- Je Empfehlung -->
+<h3 class="section-head">Nach Empfehlung ({{ gewaehlter_horizont }} Tage)</h3>
+<div class="table-wrapper">
+<table class="data-table">
+    <thead><tr><th>Empfehlung</th><th>n</th><th>Trefferquote</th><th>Vorsprung</th><th>Quote vs. Markt</th><th>Vorsprung vs. Markt</th></tr></thead>
+    <tbody>
+        {% for signal, kz in (kennzahlen.je_empfehlung[gewaehlter_horizont] or {}).items() %}
+        <tr>
+            <td>
+                <span class="badge {{ 'badge-success' if signal == 'KAUF' else ('badge-danger' if signal == 'VERKAUF' else 'badge-neutral') }}">
+                    {{ 'Halten' if signal == 'KAUF' else ('Abbauen' if signal == 'VERKAUF' else 'Neutral') }}
+                </span>
+            </td>
+            <td>{{ kz.n or 0 }}</td>
+            {% if kz.status == 'ok' %}
+            <td>{{ quote(kz) }}</td>
+            <td>{{ vorsprung(kz.vorsprung_pp, kz.vorsprung_signifikant) }}</td>
+            <td class="muted">{% if kz.markt_trefferquote is not none %}{{ kz.markt_trefferquote }}%{% else %}–{% endif %}</td>
+            <td>{{ vorsprung(kz.markt_vorsprung_pp, kz.markt_signifikant) }}</td>
+            {% else %}
+            <td colspan="4" class="muted">zu wenig Beobachtungen</td>
+            {% endif %}
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+</div>
+
+<!-- Score-Bänder -->
+<h3 class="section-head">Trennt der Positions-Score? ({{ gewaehlter_horizont }} Tage)</h3>
+<div class="table-wrapper">
+<table class="data-table">
+    <thead><tr><th>Score-Band</th><th>n</th><th>Trefferquote</th><th>Vorsprung</th><th>Quote vs. Markt</th><th>Vorsprung vs. Markt</th></tr></thead>
+    <tbody>
+        {% for z in baender %}
+        <tr>
+            <td>{{ z.band }}</td>
+            <td>{{ z.n or 0 }}</td>
+            {% if z.status == 'ok' %}
+            <td>{{ quote(z) }}</td>
+            <td>{{ vorsprung(z.vorsprung_pp, z.vorsprung_signifikant) }}</td>
+            <td class="muted">{% if z.markt_trefferquote is not none %}{{ z.markt_trefferquote }}%{% else %}–{% endif %}</td>
+            <td>{{ vorsprung(z.markt_vorsprung_pp, z.markt_signifikant) }}</td>
+            {% else %}
+            <td colspan="4" class="muted">zu wenig Beobachtungen</td>
+            {% endif %}
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+</div>
+
+<p class="caption">
+    Eine steigende Reihe wäre erst dann ein Beleg, wenn sie auch gegen den Markt
+    bestehen bleibt: in einem steigenden Markt entsteht sie schon dadurch, dass niedrige
+    Scores Abbau-Empfehlungen sind. Dieselbe Falle wie bei der Confidence-Kalibrierung
+    des Einstiegspfads.
+</p>
+
+<!-- Teilscores -->
+{% if teilscores %}
+<h3 class="section-head">Welcher Teilscore trennt? ({{ gewaehlter_horizont }} Tage)</h3>
+<div class="table-wrapper">
+<table class="data-table">
+    <thead><tr><th>Teilscore</th><th>Richtung</th><th>n</th><th>Quote vs. Markt</th><th>Vorsprung vs. Markt</th></tr></thead>
+    <tbody>
+        {% for z in teilscores %}
+        <tr>
+            <td>{{ z.teilscore }}</td>
+            <td class="muted">{{ z.richtung }}</td>
+            <td>{{ z.n or 0 }}</td>
+            <td class="muted">{% if z.markt_trefferquote is not none %}{{ z.markt_trefferquote }}%{% else %}–{% endif %}</td>
+            <td>{{ vorsprung(z.markt_vorsprung_pp, z.markt_signifikant) }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+</div>
+<p class="caption">
+    Die neutrale Mitte eines Teilscores ist <strong>50</strong>, nicht 0 — ein Wert von 20
+    ist eine bearische Aussage, keine schwach bullische. <code>data_quality</code> fehlt
+    hier bewusst: es trägt kein Gewicht im Gesamtscore, und ein Vorsprung ohne
+    Score-Wirkung ließe sich in keine Gewichtung übersetzen.
+</p>
+{% endif %}
+
+{% endif %}
+{% endblock %}

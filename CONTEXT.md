@@ -1,6 +1,6 @@
 # CONTEXT.md — Arbeitsstand Signal-Engine
 
-_Stand: 2026-09-01 · auf `db5f54d` folgend · Branch `main`_
+_Stand: 2026-09-01 · auf `7d3d2af` folgend · Branch `main`_
 
 Übergabedatei für eine frische Claude-Session. Sie beantwortet drei Fragen:
 **Was ist erledigt, was ist offen, und was darf nicht noch einmal neu hergeleitet
@@ -426,6 +426,7 @@ echte Ereignisse (CVNA, SMCI, HelloFresh, Fiserv), keine Split-Brüche.
 | **P4-07 Aufnahmedaten als Quelle** | `services/index_membership.py`, `cache_core.cached_sp500_aufnahmedaten` |
 | **P3-01 Stop-Historie** | `database.PositionStopHistorie`, `services/watchlist.py` |
 | **P3-01 MAE/MFE + Fenster seit Einstieg** | `services/scoring.py`, `position_metrics_engine.py` |
+| **P3-05 Auswertungsfläche Positionspfad** | `auswertung/position.py`, `/signals/positionen` |
 | **Analyse-Router protokolliert** | `routers/analysis.py` (drei stille Fehlerpfade) |
 
 **Wichtig:** Alle 88.033 Bestands-Snapshots tragen `score_version` 1.0.0 — es
@@ -516,10 +517,22 @@ dem nächsten Scheduler-Lauf tragen **2.2.0**.
   die ersten Outcomes werden 7 Tage nach dem ersten Aufruf fällig.
   Dass die Frage überhaupt offen war, lag am fehlenden Protokoll (siehe
   P4-11).
-- **P3-05 (neu)** keine Auswertungsfläche für `BESTEHENDE_POSITION`. Die Daten
-  laufen auf, gelesen werden sie noch nirgends — `/signals` und alle Abfragen in
-  `auswertung/` filtern bewusst auf `NEUE_POSITION`. Nächster Schritt, sobald
-  genug Zeilen fällig geworden sind.
+- ~~**P3-05** keine Auswertungsfläche für `BESTEHENDE_POSITION`~~ → **gebaut,
+  wartet auf Daten.** `snapshot_engine/auswertung/position.py` mit eigener
+  Abfrage und eigener Grundgesamtheit; Seite unter `/signals/positionen`, von
+  `/signals` aus verlinkt. Die Trennung zum Einstiegspfad bleibt bestehen und
+  ist der Grund für ein eigenes Modul statt eines Parameters:
+  `confidence` trägt hier den Positions-Score, `richtungssignal` entsteht aus
+  der Empfehlung statt aus einer Confidence-Schwelle, und `beitrag_numeric`
+  läuft von 0 bis 100 mit **neutraler Mitte 50** statt um 0.
+  **Die Fragestellung ist eine andere, und das steht jetzt in der Fläche:**
+  beim Einstieg lautet sie „wäre der Kauf gut gewesen", bei einer laufenden
+  Position „war Halten besser als Verkaufen" — und der Bezugspunkt hängt
+  davon ab, was mit dem Erlös geschehen wäre. Absolut beantwortet „besser als
+  Kasse", marktbereinigt „besser als Umschichten in den Index". Beide stehen
+  nebeneinander; welche zählt, entscheidet die Anlagepraxis.
+  **Noch keine Zahlen:** 1 Snapshot, 3 Outcomes, 0 davon fällig. Die Seite
+  zeigt das ausdrücklich an, statt wie ein Fehler auszusehen.
 - ~~**P3-01** keine Stop-Historie~~ → erledigt. Neue Tabelle
   `position_stop_historie` (via `create_all`, keine Migration nötig);
   `add_position` und `update_position` schreiben fort, `initialer_stop()` und
@@ -681,9 +694,9 @@ die beste Variante behält, hat ihn zum Trainingsset gemacht — nur langsamer.
 ## 6. Verifikation (es gibt keine CI)
 
 ```
-py -m pytest -q                                   # 215 Tests
+py -m pytest -q                                   # 227 Tests
 py -m mypy <geänderte Dateien>                    # ad hoc, keine Konfiguration im Repo
-py -c "import warnings; warnings.filterwarnings('ignore'); from fastapi.testclient import TestClient; import main; c=TestClient(main.app); c.__enter__(); [print(c.get(u).status_code, u) for u in ['/','/signals','/signals/indikatoren','/signals/backfill','/analysis','/screener','/watchlist','/journal','/backtesting','/sectors','/economy','/settings','/lexicon','/sources','/directory']]"
+py -c "import warnings; warnings.filterwarnings('ignore'); from fastapi.testclient import TestClient; import main; c=TestClient(main.app); c.__enter__(); [print(c.get(u).status_code, u) for u in ['/','/signals','/signals/indikatoren','/signals/positionen','/signals/backfill','/analysis','/screener','/watchlist','/journal','/backtesting','/sectors','/economy','/settings','/lexicon','/sources','/directory']]"
 ```
 
 Alle Routen müssen 200 liefern. Skills unter `.claude/skills/`: `ship-check`,
