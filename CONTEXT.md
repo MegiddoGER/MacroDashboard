@@ -1,6 +1,6 @@
 # CONTEXT.md — Arbeitsstand Signal-Engine
 
-_Stand: 2026-09-01 · auf `4d720e0` folgend · Branch `main`_
+_Stand: 2026-09-01 · auf `04ecba5` folgend · Branch `main`_
 
 Übergabedatei für eine frische Claude-Session. Sie beantwortet drei Fragen:
 **Was ist erledigt, was ist offen, und was darf nicht noch einmal neu hergeleitet
@@ -393,6 +393,66 @@ echte Ereignisse (CVNA, SMCI, HelloFresh, Fiserv), keine Split-Brüche.
 
 ---
 
+## 2d. Sektortrennung: die Nullbefunde sind keine Mischungsartefakte
+
+Die naheliegende Erklärung für §2b war: eine RSI-Schwelle von 30 bedeutet bei
+einem Versorger etwas anderes als bei einem Biotech, und eine Auswertung über
+alle Titel mittelt genau den Vorsprung weg, den es je Sektor gäbe. Der Nutzer
+hat diese Eigenschaft am 2026-08-30 ausdrücklich verlangt („specific on the
+stock that the user inputted"). Sie ist geprüft — **die Erklärung trägt nicht.**
+
+### Erst die Prämisse, und die hält
+
+Die unbedingte Marktquote unterscheidet sich je Sektor deutlich
+(Trainingsteil, 30 Tage, HISTORISCH, 182.692 Beobachtungen, gepoolt 50,4 %):
+
+| Sektor | n | schlägt Index | Abstand zum Pool |
+|---|---|---|---|
+| Information Technology | 26.403 | 53,0 % | +2,6 pp |
+| Industrials | 29.141 | 52,1 % | +1,7 pp |
+| Financials | 28.205 | 51,4 % | +1,0 pp |
+| Consumer Discretionary | 17.381 | 51,0 % | +0,6 pp |
+| Communication Services | 8.316 | 49,5 % | −0,9 pp |
+| Utilities | 11.285 | 49,5 % | −0,9 pp |
+| Materials | 9.131 | 49,3 % | −1,1 pp |
+| Energy | 7.755 | 48,9 % | −1,5 pp |
+| Health Care | 21.456 | 48,7 % | −1,7 pp |
+| Real Estate | 11.143 | 47,5 % | −2,8 pp |
+| Consumer Staples | 12.476 | 46,4 % | −4,0 pp |
+
+**Spannweite 6,6 pp bei ±1,4 pp Fehlerspanne** — weit außerhalb des Rauschens.
+Konsequenz für jede künftige Auswertung: **nach Sektor aufteilen heißt auch,
+gegen die Basis DES SEKTORS zu rechnen.** Gegen die gepoolte Basis bekäme jeder
+Tech-Titel +2,6 pp geschenkt und jeder Basiskonsumtitel −4,0 pp aufgebürdet,
+ohne dass ein Indikator daran beteiligt wäre.
+
+### Dann die Messung, und die ist negativ
+
+Je Sektor, Indikator und Richtung, jede Zelle gegen die Marktquote ihres
+Sektors: **198 auswertbare Zellen.** Bei so vielen Tests wären unkorrigiert
+rund zehn Zufallstreffer zu erwarten, deshalb Šidák-Korrektur wie in
+`schwellensuche.py` — kritischer z-Wert **3,65** statt 1,96.
+
+**Zwei Zellen überleben, beide negativ:**
+
+| Sektor | Indikator | Richtung | n | Vorsprung |
+|---|---|---|---|---|
+| Industrials | Trend (SMA 200) | bearisch | 9.305 | −4,0 pp ±3,4 |
+| Utilities | SMA-Cross (20/50) | bearisch | 4.608 | −5,1 pp ±4,8 |
+
+Keine einzige Zelle mit positivem Vorsprung übersteht die Korrektur; der größte
+positive Wert (Bollinger bearisch in IT, +5,4 pp) fällt durch. **Die
+Sektortrennung macht nichts sichtbar, was das Pooling verdeckt hätte.**
+
+**Nicht weiterverfolgen:** unter den acht besten Zellen steht viermal der RSI
+(Utilities +4,9, Materials beidseitig +4,7, Energy +4,2). Das ist das einzige
+kohärent wirkende Muster — und genau die Beobachtung, aus der ein Fehlbefund
+entsteht, wenn man sie herausgreift und separat nachrechnet. Die Zellen sind
+klein (n = 270–644), keine ist signifikant, und die vier vielversprechendsten
+von 198 zusammenzufassen ist Cherry-Picking mit Zwischenschritt.
+
+---
+
 ## 3. Erledigt — nicht noch einmal bauen
 
 | Was | Wo |
@@ -681,6 +741,17 @@ Querschnitts-Momentum (§2c). Alles Getestete ist **kursbasiert** — und genau
 das ist inzwischen die auffälligste Gemeinsamkeit der Null-Befunde.
 
 Zwei Wege, in dieser Reihenfolge:
+
+0. **Erledigt und negativ: die Sektorhypothese** (§2d). Die Vermutung, das
+   Pooling über alle Titel mittele sektorspezifische Vorsprünge weg, ist
+   geprüft und widerlegt — 198 Zellen, zwei korrigiert signifikante, beide
+   negativ. Damit ist auch die dritte Forderung des Nutzers vom 2026-08-30
+   („specific on the stock that the user inputted") als Erklärung für die
+   Nullbefunde ausgeschieden. Als Konstruktionsprinzip bleibt sie offen: P4-04
+   (volatilitätsrelative statt absoluter Schwellen) und P2-01 (Sektormodelle
+   erreichen den Score nicht) sind davon unberührt — geprüft wurde, ob die
+   bestehenden Indikatoren je Sektor besser messen, nicht ob titelspezifische
+   Schwellen ein besserer Indikator wären.
 
 1. **Eine andere Signalklasse probieren, nicht noch eine Kursformel.** P2-06
    listet die einzigen bisher ungetesteten Familien: PEAD (Ansatz existiert,
