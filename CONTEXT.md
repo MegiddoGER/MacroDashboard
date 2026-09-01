@@ -830,6 +830,96 @@ falls das Regime-Gate trägt.
 
 ---
 
+## 2i. Das Regime-Gate: die Zahl wird besser, die Eigenschaft nicht
+
+P2-03 stand seit jeher als Vermutung im Plan („der ADX wird berechnet und
+verworfen; gehört als Regime-Gate verwendet"). §2h hat ihr einen Beleg
+gegeben — drei unabhängige Signale mit demselben Jahresmuster. Jetzt ist sie
+geprüft.
+
+### Was gemessen wurde, und warum nicht der ADX
+
+Der ADX braucht Tageshochs und -tiefs; der Bestand führt Schlusskurse im
+Achttagetakt. Er ist zudem eine Eigenschaft des **einzelnen Titels**, während
+das Muster aus §2h über alle Titel gleichzeitig auftritt und damit marktweit
+ist. Gemessen wurde deshalb das Regime des **Index**, aus Tagesreihen
+(`services/marktregime.py`):
+
+- `vola_regime` — annualisierte realisierte Volatilität über 63 Handelstage,
+  HOCH wenn über dem **nachlaufenden** Median der letzten zwei Jahre.
+- `richtungs_regime` — Index über oder unter seinem eigenen 200-Tage-Mittel.
+
+**Keine gesuchte Schwelle.** Die Grenze ist der nachlaufende Median der Größe
+selbst; es gibt keinen Kandidatensatz wie in `schwellensuche.py` und damit
+nichts zu korrigieren. Eine Grenze über den Gesamtzeitraum (etwa ein Terzil)
+hätte die Zukunft mitbenutzt.
+
+### Ein Nebenbefund, der wichtiger ist als das Gate
+
+**Die Marktquote unterscheidet sich zwischen den Regimen um 4,2 pp:**
+
+| Regime | n | Anteil, der den Index schlägt |
+|---|---|---|
+| Volatilität HOCH | 108.239 | **51,6 %** |
+| Volatilität NIEDRIG | 96.920 | **47,4 %** |
+
+Das ist **größer als jeder Signalvorsprung, der in diesem Projekt je gemessen
+wurde.** In unruhigen Phasen schlagen mehr Titel ihren Index, in ruhigen
+weniger — dieselbe Marktbreite, die schon §2b erklärt hat, nur regimeabhängig.
+
+**Konsequenz für jede künftige Auswertung, die nach Regime trennt: gegen die
+Basis DES REGIMES rechnen.** Gegen eine gemeinsame Basis bekäme jede
+Hochvolatilitätsbeobachtung +2,1 pp geschenkt, ohne dass ein Signal beteiligt
+wäre. Gleiche Falle wie bei den Sektor-Basisquoten (§2d), nur größer.
+
+### Das Gate selbst (SMA-Cross stetig, 7 Tage, TRAIN, Šidák z = 2,80)
+
+| Regime | Q1 | Q2 | Q3 | Q4 | Q5 | Spread |
+|---|---|---|---|---|---|---|
+| **HOCH** | −2,2 **SIG** | −1,8 **SIG** | +0,4 | +1,4 **SIG** | +2,1 **SIG** | **4,3 pp** |
+| NIEDRIG | −0,2 | −0,8 | −0,2 | −0,1 | +1,3 **SIG** | 1,5 pp |
+
+Gepoolt sieht das aus wie ein Fund: der Spread verdreifacht sich, der Verlauf
+ist monoton, vier von fünf Zellen überstehen die Korrektur. Für „Trend
+(SMA 200)" dasselbe schwächer (2,8 gegen 1,1), für das Richtungsregime
+schwächer und weniger trennscharf (3,9 gegen 2,6).
+
+### Und dann die Jahre
+
+| Jahr | HOCH n | Spread | NIEDRIG n | Spread |
+|---|---|---|---|---|
+| 2018 | 16.311 | +4,4 | 1.497 | −18,7 |
+| 2019 | 16.012 | +1,2 | 4.016 | +4,3 |
+| 2020 | 16.879 | +5,4 | 3.259 | −1,6 |
+| 2021 | 988 | −1,8 | 19.396 | −1,4 |
+| 2022 | 29.099 | **+8,1** | 2.053 | −18,4 |
+| 2023 | 4.665 | **−15,9** | 37.288 | +3,9 |
+| 2024 | 13.262 | **+9,8** | 28.613 | +2,4 |
+| 2025 | 11.023 | −0,9 | 798 | +11,5 |
+
+**Im Hochvolatilitätsregime: fünf von acht Jahren positiv** — genau so
+instabil wie ungegatet (sechs von acht). Die gepoolten 4,3 pp stammen aus
+2018, 2020, 2022 und 2024 und werden von einem einzigen Jahr (2023, −15,9 pp)
+weitgehend aufgezehrt.
+
+**Das Gate verbessert die Zahl, aber nicht die Eigenschaft, auf die es
+ankommt.** Genau das ist der Unterschied zwischen einem gepoolten Vorsprung
+und einem verwendbaren Signal, und genau daran ist in diesem Projekt jetzt
+alles gescheitert.
+
+### Was daraus folgt
+
+1. **P2-03 ist in der marktweiten Fassung geprüft und negativ.** Weder
+   Volatilitäts- noch Richtungsregime machen ein Signal jahresstabil. Die
+   titelbezogene Fassung (ADX je Aktie) bleibt ungeprüft — sie bräuchte einen
+   Nachtrag von Tages-OHLC und ist damit eine andere Größenordnung.
+2. **Die Regime-Basisquoten gehören ab jetzt in jede Auswertung**, die nach
+   Regime trennt (siehe oben, 4,2 pp).
+3. **Nichts davon geht in den Score.**
+4. Trefferquote bei „plausibles Signal trägt auch": **null von acht.**
+
+---
+
 ## 3. Erledigt — nicht noch einmal bauen
 
 | Was | Wo |
@@ -876,6 +966,7 @@ falls das Regime-Gate trägt.
 | **P2-06 Accruals gemessen, negativ** | `auswertung/accruals.py`, `tests/test_accruals.py` |
 | **Kursnähe-Prüfung als stehende Regel** | `auswertung/kursnaehe.py` (geeicht: 0,47 vs. −0,001) |
 | **§2h Stetige Kodierung gegen binäre, Kontrollversuch** | `services/stetige_indikatoren.py`, `auswertung/kodierung.py` |
+| **§2i Regime-Gate geprüft (marktweit), negativ** | `services/marktregime.py`, `auswertung/regime.py`, `tests/test_marktregime.py` |
 
 **Wichtig:** Alle 88.033 Bestands-Snapshots tragen `score_version` 1.0.0 — es
 gibt weder welche mit 2.0.0 noch mit 2.1.0 noch mit 2.2.0. Weder der sperrende
@@ -1082,12 +1173,17 @@ dem nächsten Scheduler-Lauf tragen **2.2.0**.
   im Rest ein einziges Regime (2023-25). **Kommt nicht in den Score.** Die
   Module bleiben — sie messen weiter, und ein Regime-Filter wäre die einzige
   Konstruktion, unter der Momentum hier je etwas beitrüge.
-- **P2-03 ADX wird berechnet und verworfen; gehört als Regime-Gate verwendet.**
-  **Jetzt mit Beleg statt Vermutung (§2h):** drei unabhängig konstruierte
-  Signale — stetiger Trend, stetiger SMA-Cross, Analysten-Zielrevision —
-  zeigen dasselbe Jahresmuster (stark 2020/2022/2024, negativ 2021). Die
-  fehlende Größe ist nicht ein weiteres Signal, sondern die Bedingung, unter
-  der ein Signal gilt. **Höchste Priorität in Abschnitt D.**
+- ~~**P2-03** ADX als Regime-Gate~~ → **in der marktweiten Fassung geprüft
+  und negativ (§2i).** Weder Volatilitäts- noch Richtungsregime des Index
+  machen ein Signal jahresstabil: im Hochvolatilitätsregime trägt der stetige
+  SMA-Cross gepoolt 4,3 statt 1,5 pp, aber weiterhin nur in fünf von acht
+  Jahren. Ein Jahr (2023, −15,9 pp) zehrt vier gute weitgehend auf.
+  **Offen bleibt die titelbezogene Fassung** — der ADX je Aktie braucht
+  Tages-OHLC, die der Bestand nicht führt.
+  **Mitgenommen:** die Marktquote unterscheidet sich zwischen den Regimen um
+  4,2 pp (51,6 % gegen 47,4 %) — mehr als jeder je gemessene Signalvorsprung.
+  Jede Auswertung, die nach Regime trennt, muss gegen die Basis DES REGIMES
+  rechnen.
 - **P2-05** Fundamentalblock (0,30) wird auf 7–90 Tagen gemessen, passt nicht zur Halbwertszeit
 - **P2-06** fehlende Signale. **PEAD ist erledigt und gemessen** (§2e): die
   Abdeckung lag nicht an der Quelle, sondern an einem fehlenden `limit` —
@@ -1161,27 +1257,26 @@ Arbeit inline erledigt, was sie langsam und einmalig statt wiederholbar macht.
 
 ## 5. Empfohlener nächster Schritt
 
-**Das Regime-Gate (P2-03) — und zwar vor allem anderen.**
+**Das Regime-Gate ist geprüft und trägt nicht (§2i).** Damit ist die letzte
+strukturelle Hypothese abgearbeitet, die auf dem Tisch lag. Der gepoolte
+Vorsprung verdreifacht sich im Hochvolatilitätsregime, die Jahresstabilität
+bleibt bei fünf von acht — dieselbe Stelle, an der inzwischen **alles**
+gescheitert ist: ein gepoolter Vorsprung, den ein einzelnes Jahr aufzehrt.
 
-Die Begründung hat sich in §2h von einer Vermutung in einen Befund verwandelt.
-Drei unabhängig konstruierte Signale zeigen dasselbe Jahresmuster: stark 2020,
-2022 und 2024, negativ 2021. Keines ist für sich regimestabil; alle drei
-scheitern an derselben Stelle. Wenn drei verschiedene Bauweisen dieselben
-Jahre gut und dieselben Jahre schlecht finden, fehlt nicht ein viertes Signal,
-sondern **die Bedingung, unter der ein Signal gilt**.
+**Das ist das eigentliche Muster dieser Reihe, und es ist inzwischen achtmal
+belegt.** Nicht die Herkunft der Eingänge (§2g), nicht die Kodierung allein
+(§2h), nicht die Bedingung (§2i) — was fehlt, ist in jedem Fall dasselbe:
+Beständigkeit über die Zeit. Wer als Nächstes etwas vorschlägt, sollte
+zuerst sagen können, warum es **daran** nicht scheitern wird.
 
-Der ADX wird bereits berechnet und weggeworfen. Das ist der billigste
-denkbare erste Versuch: dieselben Messungen aus §2h, aber getrennt nach
-Trendstärke-Regime. Trägt der stetige SMA-Cross in Hochregime-Jahren
-durchgehend und in Niedrigregime-Jahren nicht, ist das Gate belegt — und
-damit zum ersten Mal etwas, das den Holdout wert wäre.
+Was jetzt sinnvoll bleibt, in dieser Reihenfolge:
 
-Daneben, in dieser Reihenfolge:
-
-1. **Die Kodierung reparieren, unabhängig vom Signalbefund** (§2h, BC-04). Die
-   Rundung auf ±1 vernichtet nachweislich eine messbare Größe, und zwar bei
-   allen sechzehn Indikatorrichtungen. Das ist ein Defekt, kein
-   Optimierungsvorschlag. Die Score-Version wäre zu erhöhen (§7).
+1. **Die Kodierung reparieren** (§2h, BC-04) — der einzige Punkt dieser
+   Liste, der **nicht** von einem Signalbefund abhängt. Die Rundung auf ±1
+   vernichtet nachweislich eine messbare Größe, bei allen sechzehn
+   Indikatorrichtungen. Das ist ein Defekt der Engine, kein
+   Optimierungsvorschlag, und er ist unabhängig davon zu beheben, ob am Ende
+   ein Signal trägt. Die Score-Version wäre zu erhöhen (§7).
 2. **Volumen ist nie getestet worden.** Die „volume"-Kategorie misst kein
    Volumen (BC-01): VWMA = Momentum(20), OBV-Slope = Momentum(20), POC =
    Momentum(252). Echter Umsatz, Umsatzspitzen relativ zum eigenen Schnitt,
@@ -1229,7 +1324,7 @@ zum Trainingsset gemacht — nur langsamer.
 ## 6. Verifikation (es gibt keine CI)
 
 ```
-py -m pytest -q                                   # 368 Tests
+py -m pytest -q                                   # 386 Tests
 py -m mypy <geänderte Dateien>                    # ad hoc, keine Konfiguration im Repo
 py -c "import warnings; warnings.filterwarnings('ignore'); from fastapi.testclient import TestClient; import main; c=TestClient(main.app); c.__enter__(); [print(c.get(u).status_code, u) for u in ['/','/signals','/signals/indikatoren','/signals/positionen','/signals/backfill','/analysis','/screener','/watchlist','/journal','/backtesting','/sectors','/economy','/settings','/lexicon','/sources','/directory']]"
 ```
