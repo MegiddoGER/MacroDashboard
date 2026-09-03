@@ -146,6 +146,12 @@ def backfill_ausfuehren(db, jahre: int, mit_smc: bool,
             db.refresh(job)
             _fortschritt_zeigen(job)
 
+            # BC-04: die Rohreihen laufen im selben Durchgang mit. Sichtbar,
+            # damit ein Lauf, der Snapshots erzeugt aber keine Kurszeilen,
+            # sofort auffällt statt erst bei der Auswertung.
+            if ergebnis.get("kurszeilen"):
+                print(f"    {ergebnis['kurszeilen']:,} Kurszeilen geschrieben")
+
             if ergebnis.get("fertig"):
                 break
 

@@ -206,6 +206,7 @@ def backfill_schritt(db: Session,
                     job.id, job.ticker_fertig or 0, job.snapshots_erstellt or 0)
         return {"job_id": job.id, "verarbeitet": 0, "snapshots": 0, "fertig": True}
 
+    from services import kurshistorie
     from services.market_data_batch import batch_download_ohlcv
 
     start_zeit = time.perf_counter()
@@ -218,6 +219,7 @@ def backfill_schritt(db: Session,
 
     verarbeitet = 0
     snapshots_gesamt = 0
+    kurszeilen_gesamt = 0
 
     for eintrag in offene:
         if time.perf_counter() - start_zeit > max_sekunden:
@@ -248,6 +250,22 @@ def backfill_schritt(db: Session,
             continue
 
         try:
+            # BC-04, Schritt 1: die Rohreihe festhalten, BEVOR sie abgespielt
+            # wird. Bisher wurde sie hier abgerufen, durch den Score geschickt
+            # und verworfen — was blieb, war die Deutung (+1/−1). Jede spätere
+            # Frage nach einer anderen Auflösung oder Kennzahl kostete deshalb
+            # einen neuen Durchlauf mit neuen Abrufen.
+            #
+            # Kein zusätzlicher Abruf: `hist` liegt bereits vor.
+            # `auto_adjust=True` in `batch_download_ohlcv` — die Reihe ist
+            # bereinigt, und `angepasst` hält das fest.
+            #
+            # Im selben try/commit wie der Replay: schlägt der Ticker fehl,
+            # rollt auch seine Reihe zurück. Ein halb geschriebener Ticker
+            # wäre schlimmer als ein fehlender.
+            kurszeilen = kurshistorie.reihe_speichern(
+                db, eintrag.ticker, hist, angepasst=True)
+
             anzahl = _ticker_replayen(db, eintrag.ticker, hist, job)
             eintrag.status = BackfillStatus.FERTIG
             eintrag.snapshots_erstellt = anzahl
@@ -255,6 +273,7 @@ def backfill_schritt(db: Session,
             job.ticker_fertig = (job.ticker_fertig or 0) + 1
             job.snapshots_erstellt = (job.snapshots_erstellt or 0) + anzahl
             snapshots_gesamt += anzahl
+            kurszeilen_gesamt += kurszeilen
             db.commit()
 
         except Exception as e:
@@ -274,10 +293,13 @@ def backfill_schritt(db: Session,
 
         verarbeitet += 1
 
-    logger.info("Backfill #%d: %d Ticker verarbeitet, %d Snapshots erzeugt (%.1fs).",
-                job.id, verarbeitet, snapshots_gesamt, time.perf_counter() - start_zeit)
+    logger.info(
+        "Backfill #%d: %d Ticker verarbeitet, %d Snapshots, %d Kurszeilen (%.1fs).",
+        job.id, verarbeitet, snapshots_gesamt, kurszeilen_gesamt,
+        time.perf_counter() - start_zeit)
 
-    return {"job_id": job.id, "verarbeitet": verarbeitet, "snapshots": snapshots_gesamt}
+    return {"job_id": job.id, "verarbeitet": verarbeitet,
+            "snapshots": snapshots_gesamt, "kurszeilen": kurszeilen_gesamt}
 
 
 # ---------------------------------------------------------------------------
