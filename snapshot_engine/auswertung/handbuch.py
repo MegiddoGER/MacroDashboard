@@ -55,7 +55,8 @@ from snapshot_engine.models import (
     AnalyseSnapshotOutcome,
 )
 from snapshot_engine.auswertung.basis import (
-    MIN_STICHPROBE, anteil_schlaegt_markt, z_korrigiert, zelle_gegen_markt,
+    MIN_STICHPROBE, anteil_schlaegt_markt, mittlere_ueberrendite,
+    z_korrigiert, zelle_gegen_markt,
 )
 from snapshot_engine.auswertung.holdout import TRAIN, grenze_lesen, split_filter
 
@@ -277,6 +278,9 @@ def instrument_lesen(db: Session, indikator: str, horizont: int = 7,
         return ergebnis
 
     basis_markt = anteil_schlaegt_markt(alle)
+    # Der Bezugspunkt der RENDITE — nicht null. Ohne ihn misst man die Drift
+    # der Grundgesamtheit statt des Eingangs (siehe `mittlere_ueberrendite`).
+    basis_ertrag = mittlere_ueberrendite(alle)
     if z is None:
         z = z_korrigiert(len(stetig) + len(binaer))
         ergebnis["z_korrigiert"] = round(z, 2)
@@ -286,7 +290,8 @@ def instrument_lesen(db: Session, indikator: str, horizont: int = 7,
             {schluessel: k, "horizont_tage": horizont, "teil": teil,
              **zelle_gegen_markt([r for r, _ in gruppen[k]],
                                  [u for _, u in gruppen[k]],
-                                 basis_markt, horizont, minimum=minimum, z=z)}
+                                 basis_markt, horizont, minimum=minimum, z=z,
+                                 basis_ertrag=basis_ertrag)}
             for k in sorted(gruppen)
         ]
 
@@ -295,6 +300,8 @@ def instrument_lesen(db: Session, indikator: str, horizont: int = 7,
 
     ergebnis.update({
         "basis_markt": round(basis_markt, 1) if basis_markt is not None else None,
+        "basis_ertrag_pp": (round(basis_ertrag, 3)
+                            if basis_ertrag is not None else None),
         "n": sum(len(v) for v in stetig.values()),
         "stetig": zeilen_stetig,
         "binaer": zeilen_binaer,
@@ -385,12 +392,15 @@ def bedingt(db: Session, indikator: str, bedingung: str, horizont: int = 7,
         if 1 not in gruppen or QUANTILE not in gruppen:
             continue
         basis = anteil_schlaegt_markt(basis_je_schicht[schicht])
+        ertrag = mittlere_ueberrendite(basis_je_schicht[schicht])
         oben = zelle_gegen_markt([r for r, _ in gruppen[QUANTILE]],
                                  [u for _, u in gruppen[QUANTILE]],
-                                 basis, horizont, minimum=minimum, z=z)
+                                 basis, horizont, minimum=minimum, z=z,
+                                 basis_ertrag=ertrag)
         unten = zelle_gegen_markt([r for r, _ in gruppen[1]],
                                   [u for _, u in gruppen[1]],
-                                  basis, horizont, minimum=minimum, z=z)
+                                  basis, horizont, minimum=minimum, z=z,
+                                  basis_ertrag=ertrag)
         hoch, tief = oben.get("markt_trefferquote"), unten.get("markt_trefferquote")
         zeilen.append({
             "schicht": schicht,
@@ -491,16 +501,26 @@ def jahresstabilitaet(db: Session, indikator: str, horizont: int = 7,
         if 1 not in gruppen or QUANTILE not in gruppen:
             continue
         basis = anteil_schlaegt_markt(basis_je_jahr[jahr])
+        ertrag = mittlere_ueberrendite(basis_je_jahr[jahr])
         z = z_korrigiert(len(je_jahr) * 2)  # zwei Enden je Jahr
         oben = zelle_gegen_markt([r for r, _ in gruppen[QUANTILE]],
                                  [u for _, u in gruppen[QUANTILE]],
-                                 basis, horizont, minimum=minimum, z=z)
+                                 basis, horizont, minimum=minimum, z=z,
+                                 basis_ertrag=ertrag)
         unten = zelle_gegen_markt([r for r, _ in gruppen[1]],
                                   [u for _, u in gruppen[1]],
-                                  basis, horizont, minimum=minimum, z=z)
+                                  basis, horizont, minimum=minimum, z=z,
+                                  basis_ertrag=ertrag)
         hoch, tief = oben.get("markt_trefferquote"), unten.get("markt_trefferquote")
+        # Der Spread auf der RENDITE, neben dem auf der Quote. Beide koennen
+        # auseinanderlaufen, und dann ist genau das die Information — deshalb
+        # muss die Jahrespruefung fuer beide getrennt laufen.
+        e_hoch = oben.get("ueberrendite_vorsprung_pp")
+        e_tief = unten.get("ueberrendite_vorsprung_pp")
         zeilen.append({
             "jahr": jahr,
+            "ertrag_spread_pp": (None if e_hoch is None or e_tief is None
+                                 else round(e_hoch - e_tief, 3)),
             "n": sum(len(v) for v in gruppen.values()),
             "basis_markt": round(basis, 1) if basis is not None else None,
             "q5_vorsprung_pp": oben.get("markt_vorsprung_pp"),
@@ -512,9 +532,15 @@ def jahresstabilitaet(db: Session, indikator: str, horizont: int = 7,
 
     spreads = [z["spread_pp"] for z in zeilen if z["spread_pp"] is not None]
     positiv = sum(1 for s in spreads if s > 0)
+    ertraege = [z["ertrag_spread_pp"] for z in zeilen
+                if z["ertrag_spread_pp"] is not None]
+    ertrag_positiv = sum(1 for s in ertraege if s > 0)
     return {
         "indikator": indikator, "horizont_tage": horizont, "teil": teil,
         "jahre": zeilen, "jahre_gesamt": len(spreads),
+        "ertrag_jahre_gesamt": len(ertraege),
+        "ertrag_vorzeichen_gleich": max(ertrag_positiv,
+                                        len(ertraege) - ertrag_positiv),
         # Das eigentliche Kriterium: wie oft traegt der Spread dasselbe
         # Vorzeichen wie die Mehrheit? Bei neun Jahren ist fuenf reiner Zufall.
         "vorzeichen_gleich": max(positiv, len(spreads) - positiv),

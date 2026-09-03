@@ -144,6 +144,31 @@ def anteil_schlaegt_markt(ueberrenditen: Sequence[Optional[float]]) -> Optional[
     return sum(1 for u in bewegt if u > 0) / len(bewegt) * 100
 
 
+def mittlere_ueberrendite(ueberrenditen: Sequence[Optional[float]]) -> Optional[float]:
+    """Mittlere Überrendite der GESAMTEN Grundgesamtheit, in Prozentpunkten.
+
+    Der Bezugspunkt für jede Renditeaussage — und er ist **nicht null**.
+    Gemessen auf dem Trainingsteil: +0,04 pp über 7 Tage, +0,30 über 30,
+    +0,83 über 90. Die Überrendite eines Titels ist arithmetisch, ihre
+    Verteilung ist rechtsschief, und der Mittelwert wächst mit dem Horizont.
+
+    **Wer gegen null rechnet, findet überall einen Vorsprung.** Genau das ist
+    beim ersten Anlauf passiert: 47 von 150 Zellen erschienen signifikant, und
+    zwar Q1 UND Q5 desselben Instruments, bei allen zehn Instrumenten, mit
+    Werten proportional zum Horizont. Das war die Drift der Grundgesamtheit,
+    kein Signal.
+
+    Es ist dieselbe Falle wie bei der Trefferquote, nur gespiegelt: dort führt
+    die Nullhypothese 50 % (statt der gemessenen 48,1 %) dazu, dass jede
+    Auswahl zurückzuliegen scheint. Siehe `anteil_schlaegt_markt` und
+    CONTEXT.md §2b.
+    """
+    sauber = [u for u in ueberrenditen if u is not None]
+    if not sauber:
+        return None
+    return statistics.fmean(sauber)
+
+
 def markt_basis(anteil_markt: Optional[float],
                 richtungen: Sequence[Optional[int]]) -> Optional[float]:
     """Was dieselbe Richtungsmischung ohne Prognosefähigkeit erreicht hätte.
@@ -165,7 +190,8 @@ def mit_ueberrendite(kennzahlen: dict,
                      richtungen: Sequence[Optional[int]],
                      anteil_markt: Optional[float] = None,
                      horizont_tage: int = 0,
-                     minimum: int = MIN_STICHPROBE) -> dict:
+                     minimum: int = MIN_STICHPROBE,
+                     basis_ertrag: Optional[float] = None) -> dict:
     """Ergänzt eine Kennzahlenzeile um die Bewertung gegen den Markt.
 
     Tritt NEBEN die absolute Trefferquote, ersetzt sie nicht. Beide werden
@@ -218,6 +244,11 @@ def mit_ueberrendite(kennzahlen: dict,
     kennzahlen.setdefault("markt_vorsprung_pp", None)
     kennzahlen.setdefault("markt_fehler_pp", None)
     kennzahlen.setdefault("markt_signifikant", None)
+    kennzahlen.setdefault("ueberrendite_streuung_pp", None)
+    kennzahlen.setdefault("ueberrendite_fehler_pp", None)
+    kennzahlen.setdefault("ueberrendite_signifikant", None)
+    kennzahlen.setdefault("ueberrendite_basis_pp", None)
+    kennzahlen.setdefault("ueberrendite_vorsprung_pp", None)
 
     n_effektiv = (effektive_stichprobe(len(gerichtet), horizont_tage)
                   if horizont_tage else len(gerichtet))
@@ -232,6 +263,33 @@ def mit_ueberrendite(kennzahlen: dict,
     # ist der Ertrag gegenüber dem Markt, und ein Vorsprung von 0,1 pp ist
     # dafür ein echter Beitrag, nur eben ein kleiner.
     kennzahlen["ueberrendite_mittel_pp"] = round(statistics.fmean(gerichtet), 2)
+
+    # Und seine Fehlerspanne. Ohne sie war der Mittelwert eine Zahl ohne
+    # Urteil — ausgewiesen, aber nie geprüft. Siehe
+    # `fehlerspanne_mittelwert_pp`: die Quote und die Rendite können
+    # auseinanderlaufen, und bis hierher hat dieses Projekt nur die Quote
+    # bewertet.
+    streuung = (statistics.stdev(gerichtet) if len(gerichtet) > 1 else None)
+    kennzahlen["ueberrendite_streuung_pp"] = (
+        None if streuung is None else round(streuung, 2))
+    spanne_mittel = fehlerspanne_mittelwert_pp(streuung, n_effektiv)
+    kennzahlen["ueberrendite_fehler_pp"] = spanne_mittel
+
+    # Geprüft wird gegen die Grundgesamtheit, NICHT gegen null. Ohne diesen
+    # Bezugspunkt misst man die Drift des Bestandes statt des Eingangs — siehe
+    # `mittlere_ueberrendite`. Fehlt er, bleibt das Urteil None: eine
+    # Renditeaussage ohne Basis ist so wenig interpretierbar wie eine
+    # Trefferquote ohne Basisrate.
+    kennzahlen["ueberrendite_basis_pp"] = (
+        None if basis_ertrag is None else round(basis_ertrag, 3))
+    if basis_ertrag is None or spanne_mittel is None:
+        kennzahlen["ueberrendite_vorsprung_pp"] = None
+        kennzahlen["ueberrendite_signifikant"] = None
+    else:
+        vorsprung_ertrag = kennzahlen["ueberrendite_mittel_pp"] - basis_ertrag
+        kennzahlen["ueberrendite_vorsprung_pp"] = round(vorsprung_ertrag, 3)
+        kennzahlen["ueberrendite_signifikant"] = (
+            abs(vorsprung_ertrag) > spanne_mittel)
 
     # Die Quote dagegen zählt nur, was über dem Rauschen liegt -- dieselbe
     # Trennung wie zwischen avg_return und trefferquote.
@@ -315,6 +373,39 @@ def fehlerspanne_korrigiert(trefferquote: Optional[float],
     p = max(0.0, min(1.0, trefferquote / 100.0))
     standardfehler = (p * (1.0 - p) / n_effektiv) ** 0.5
     return round(z * standardfehler * 100.0, 1)
+
+
+def fehlerspanne_mittelwert_pp(streuung_pp: Optional[float],
+                               n_effektiv: Optional[int],
+                               z: float = Z_95) -> Optional[float]:
+    """Halbe Breite des Konfidenzintervalls eines MITTELWERTS, in Prozentpunkten.
+
+    Das Gegenstück zu `fehlerspanne_pp`, und der Grund, warum es das braucht:
+    bis hierher hing jedes Urteil dieses Projekts an der **Trefferquote** —
+    wie oft ein Titel vorn liegt. Die mittlere Überrendite wurde zwar
+    berechnet, aber nie auf Signifikanz geprüft, also nie zu einem Urteil.
+
+    Das ist ein blinder Fleck, denn beide Größen können auseinanderlaufen. Ein
+    Eingang, der nur in 50,3 % der Fälle vorn liegt, dabei aber deutlich mehr
+    gewinnt als verliert, ist nach der Quote Rauschen und nach der Rendite ein
+    Faktor. Die Literatur misst durchgehend das Zweite (Renditespannen von
+    Quantil-Portfolios), dieses Projekt bisher ausschliesslich das Erste.
+
+    **Über die EFFEKTIVE Stichprobe**, aus demselben Grund wie bei der Quote:
+    überlappende Beobachtungen messen weitgehend denselben Kursverlauf. Bei
+    einem 90-Tage-Horizont und 7 Handelstagen Kadenz sind aus 300 Zeilen rund
+    23 unabhängige Beobachtungen — wer hier mit der Zeilenzahl rechnet, teilt
+    durch eine Wurzel, die viermal zu gross ist.
+
+    **Grenze der Aussage.** Der zentrale Grenzwertsatz trägt den Mittelwert
+    auch bei schiefen Verteilungen, und Renditen sind schief (die
+    schlechtesten Beobachtungen liegen bei −55 %, die besten bei +75 %). Bei
+    den hier üblichen Stichproben ist das unkritisch; bei kleinen Zellen wäre
+    ein Bootstrap ehrlicher.
+    """
+    if streuung_pp is None or not n_effektiv or n_effektiv <= 0:
+        return None
+    return round(z * streuung_pp / (n_effektiv ** 0.5), 3)
 
 
 def vorsprung_signifikant(vorsprung_pp: Optional[float],
@@ -446,7 +537,8 @@ def zelle_gegen_markt(returns: Sequence[Optional[float]],
                       basis_markt: Optional[float],
                       horizont_tage: int,
                       minimum: int = MIN_STICHPROBE,
-                      z: Optional[float] = None) -> dict:
+                      z: Optional[float] = None,
+                      basis_ertrag: Optional[float] = None) -> dict:
     """Kennzahlen einer Gruppe, bewertet als LONG gegen den Markt.
 
     Der gemeinsame Baustein der Kandidatenmessungen (PEAD, Analysten-
@@ -477,7 +569,8 @@ def zelle_gegen_markt(returns: Sequence[Optional[float]],
         kennzahlen_aus_returns(returns, horizont_tage=horizont_tage,
                                minimum=minimum, richtungen=richtungen),
         ueberrenditen, richtungen, basis_markt,
-        horizont_tage=horizont_tage, minimum=minimum)
+        horizont_tage=horizont_tage, minimum=minimum,
+        basis_ertrag=basis_ertrag)
 
     spanne = (None if z is None else fehlerspanne_korrigiert(
         kennzahlen.get("markt_trefferquote"), kennzahlen.get("n_effektiv"), z))
@@ -486,4 +579,17 @@ def zelle_gegen_markt(returns: Sequence[Optional[float]],
     kennzahlen["signifikant_korrigiert"] = (
         None if (spanne is None or vorsprung is None)
         else abs(vorsprung) > spanne)
+
+    # Dieselbe Korrektur auf der RENDITE statt auf der Quote. Beide Urteile
+    # stehen nebeneinander und können auseinanderlaufen — genau dafür wurde
+    # das hier ergänzt. Ein Quantil, das nur knapp häufiger vorn liegt, aber
+    # deutlich mehr gewinnt, erscheint erst in dieser Zeile.
+    mittel = kennzahlen.get("ueberrendite_vorsprung_pp")
+    spanne_ertrag = (None if z is None else fehlerspanne_mittelwert_pp(
+        kennzahlen.get("ueberrendite_streuung_pp"),
+        kennzahlen.get("ueberrendite_n_effektiv"), z))
+    kennzahlen["ueberrendite_fehler_korrigiert_pp"] = spanne_ertrag
+    kennzahlen["ueberrendite_signifikant_korrigiert"] = (
+        None if (spanne_ertrag is None or mittel is None)
+        else abs(mittel) > spanne_ertrag)
     return kennzahlen
