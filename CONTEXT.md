@@ -1,6 +1,6 @@
 # CONTEXT.md — Arbeitsstand Signal-Engine
 
-_Stand: 2026-09-01 · auf `1fa08d8` folgend · Branch `main`_
+_Stand: 2026-09-03 · auf `d73d711` folgend · Branch `main`_
 
 Übergabedatei für eine frische Claude-Session. Sie beantwortet drei Fragen:
 **Was ist erledigt, was ist offen, und was darf nicht noch einmal neu hergeleitet
@@ -9,7 +9,7 @@ werden.** Vollständige Fassung mit Belegen und Zahlen:
 
 ---
 
-## 0. Zuerst lesen — drei Dinge, die schiefgehen
+## 0. Zuerst lesen — vier Dinge, die schiefgehen
 
 ### a) Arbeitsbaum gegen HEAD prüfen, BEVOR Quellcode gelesen wird
 
@@ -41,7 +41,34 @@ Historie umschreiben nie ungefragt.
 Vor jedem Commit trotzdem prüfen, dass die beiden Regeln noch in `.gitignore`
 stehen: sie sind schon einmal unbemerkt verschwunden.
 
-### c) Es wird direkt auf `main` gearbeitet — keinen Zweig anlegen
+### c) Die alte Snapshot-Generation ist gelöscht — es gibt eine Sicherung
+
+Am 2026-09-03 wurden die **273.831 HISTORISCH-Snapshots** der Jobs #1 und #2
+gelöscht und durch Job #3 ersetzt (§2j). Die 1.109 LIVE-Snapshots blieben
+unberührt — sie sind der einzige Bestand im Projekt, der sich nicht
+nachproduzieren lässt.
+
+**Die Sicherung liegt unter `data/macrodashboard.sicherung-2026-09-03.db`**
+(1,03 GB, von `.gitignore` erfasst, Integrität geprüft). Sie enthält den
+vollständigen Vorzustand. Nicht löschen, solange die neuen Auswertungen nicht
+über Wochen plausibel sind.
+
+Warum ersetzt und nicht danebengelegt, obwohl zunächst anders entschieden: der
+neue Lauf trägt dieselbe `score_version` 2.2.0 wie der alte, und **keine
+einzige Auswertung filtert auf `backfill_job_id`** (geprüft). Zwei Generationen
+nebeneinander hätten einen Generationsfilter durch acht Auswertungsmodule
+verlangt, und ein übersehenes Modul hätte still doppelt gezählt.
+
+Zweiter Grund, der vorher nicht auf dem Tisch lag: `_ticker_replayen`
+überspringt jeden Stichtag, für den bereits ein HISTORISCH-Snapshot dieses
+Tickers existiert — **unabhängig vom Job**. Ohne Löschen hätte der neue Lauf
+Kurszeilen erzeugt und null neue Indikatorzeilen. Wer das nächste Mal neu
+aufzeichnen will, muss diese Stelle kennen.
+
+Fünf Ticker liessen sich nicht mehr laden (`FDXF`, `HONA`, `Q`, `KCO.DE`,
+`XONA.DE`) — delistet oder umbenannt. Genau dafür existiert die Sicherung.
+
+### d) Es wird direkt auf `main` gearbeitet — keinen Zweig anlegen
 
 Stehende Anweisung des Besitzers: Pushes gehen auf `main`. Seit `52f5795` ist
 das auch der ausgecheckte Zweig, `git push` genügt.
@@ -65,21 +92,41 @@ Zweigwechsel trotzdem `git status` prüfen und nur die Dateien der jeweiligen
 MacroDashboard misst mit der Snapshot-Engine, ob die eigenen Empfehlungen
 eintreffen. Ziel des Besitzers: daraus **automatisch** bessere Analysen ableiten.
 
-Datenbestand (nach dem 10-Jahres-Backfill vom 2026-09-01): **274.940
-Snapshots**, **810.838 ausgewertete Outcomes**, **611 Ticker**, Horizonte
-7/30/90 Tage. Davon 273.831 HISTORISCH über **2017-04 bis 2026-08**, 1.109
-LIVE. Datenbank rund 970 MB.
+Datenbestand (nach der **Neuaufzeichnung vom 2026-09-03**, Backfill-Job #3):
 
-**Versionsmischung im Bestand:** 88.035 Snapshots tragen `score_version` 1.0.0
-(Ur-Backfill), 186.905 tragen 2.2.0 (Nachlauf). Dazwischen liegt 1.1.0 mit
-echten `cat_score`-Änderungen an VWMA und POC. Für kursbasierte Auswertungen
-wie Momentum ohne Belang; Indikator- und Kategorie-Leaderboards mischen ab
-jetzt zwei Bewertungssysteme und müssen getrennt werden. Die
-Vermischungswarnung in `kennzahlen.py` schlägt darauf an.
+| | |
+|---|---|
+| Snapshots HISTORISCH | **188.347** · 2017-04-13 bis 2026-09-03 · 592 Ticker |
+| Snapshots LIVE | **1.109** · unverändert erhalten |
+| Indikatorzeilen | **1.896.557** · davon 1.883.467 mit Rohwert (99,3 %) |
+| Outcomes ausgewertet | **558.683** · zu 100 % marktbereinigt |
+| Kurszeilen (`kurs_historie`) | **1.465.410** · 592 Ticker · 2016-08 bis 2026-09 |
+
+**Es gibt nur noch EINE Generation.** Die 273.831 alten HISTORISCH-Snapshots
+aus den Jobs #1 und #2 sind am 2026-09-03 gelöscht worden, nachdem die
+Neuaufzeichnung sie ersetzt hatte — siehe §0c. Damit entfällt die frühere
+Versionsmischung; jede Auswertung rechnet wieder über einen einheitlichen
+Bestand, ohne Filter auf `backfill_job_id`.
+
+Weniger Snapshots als vorher ist kein Verlust: der alte Bestand war die Summe
+zweier übereinandergelegter Läufe (#1 über 5 Jahre, #2 über 10), #3 ist ein
+einziger sauberer Durchlauf mit einer Kadenz über denselben Zeitraum.
 
 ---
 
 ## 2. Der zentrale Befund — nicht neu herleiten
+
+> ### ⚠ Die Zahlen in §2 bis §2i stammen aus dem STILLGELEGTEN Bestand
+>
+> Sie sind auf den 273.831 Snapshots der Jobs #1 und #2 gerechnet, und diese
+> Zeilen existieren seit dem 2026-09-03 nicht mehr (§0c). **Sie lassen sich
+> gegen die heutige Datenbank nicht reproduzieren.** Als Befunde bleiben sie
+> gültig und sind nicht neu herzuleiten — als Zahlen sind sie historisch.
+>
+> Vor allem: alle Indikatoraussagen dieser Abschnitte beruhen auf der
+> **binären Kodierung** (±1), die inzwischen als Messfehler erwiesen und
+> behoben ist. Der aktuelle Stand steht in **§2j**, und wo beide sich
+> widersprechen, gilt §2j.
 
 **Gewicht ist nicht Einfluss.** Im historischen Modus normalisieren die Gewichte
 auf trend 0,277 / volume 0,185 / **oscillator 0,538**. Der Oszillator hat die
@@ -920,6 +967,150 @@ alles gescheitert.
 
 ---
 
+## 2j. Die Neuaufzeichnung — das Messgerät ist repariert, das Ergebnis bleibt negativ
+
+Der Tag, an dem BC-04 behoben und der Bestand neu vermessen wurde. **Dies ist
+der aktuelle Stand; bei Widerspruch zu §2–§2i gilt dieser Abschnitt.**
+
+### Warum überhaupt neu aufgezeichnet wurde
+
+Von zehn Instrumenten der Einstiegsanalyse liessen sich nur **zwei**
+nachträglich stetig auswerten — und zwar nur deshalb, weil bei ihnen zufällig
+ein Rohwert im Feld `wert` mitgeschrieben wurde. Nachgesehen in
+`snapshot_service.py`:
+
+| Instrument | im Bestand | nachträglich lesbar |
+|---|---|---|
+| Trend (SMA 200), SMA-Cross | ±1 + `sma200_val` / `sma50_val` | ja |
+| RSI, Stochastic, Bollinger | Zeile nur an den Extremen | nein — 89 % fehlten |
+| OBV, VWMA, POC | nur ±1, Rohwert `None` | nein |
+
+Zwei Codezeilen erklären das: `if richtung is None: continue` warf jede
+neutrale Beobachtung weg, und für die drei Volumen-Instrumente war gar kein
+Wert-Schlüssel eingetragen. Eine Reparatur der Kodierung allein hätte daran
+nichts geändert — sie wirkt auf künftige Snapshots, nicht auf das Archiv.
+
+### Was gebaut wurde
+
+- **`database.KursHistorie`** + `services/kurshistorie.py` — die tägliche
+  OHLCV-Reihe als eigener Bestand. Der Backfill hatte sie bisher abgerufen,
+  durch den Score geschickt und verworfen. **Eine Reihe wird immer als GANZES
+  geschrieben**, nie zeilenweise ergänzt: yfinance bereinigt zum
+  Abrufzeitpunkt, und ein Mischbestand aus zwei Abrufen trüge zwei
+  Anpassungsbasen. Ein leerer Abruf löscht nicht.
+- **`wert_numeric`** auf `analyse_snapshot_indikatoren` — die gemessene Größe
+  in ihrer eigenen Einheit. Bewusst der Rohwert und keine Normierung: eine
+  Deutung beim Schreiben einzubacken ist der Fehler, um den es geht.
+- **Neutrale Zeilen** werden geschrieben (Beitrag 0). Die Rohgröße
+  entscheidet, OB eine Beobachtung existiert; die Richtung nur, was sie
+  beiträgt. Die Leaderboards filtern bereits `beitrag_numeric != 0` und
+  schliessen sie von selbst aus.
+- **`auswertung/handbuch.py`** — Quintile der Rohgröße gegen den Markt, plus
+  `jahresstabilitaet()` und `bedingt()`.
+- **`services/volumen.py`** + `auswertung/volumen.py` — echter Umsatz.
+
+**Nebenbefund, mit korrigiert:** `_score_volume` initialisiert
+`obv_bullish`/`vwap_bullish`/`poc_bullish` mit False und lässt sie dort
+stehen, wenn der Indikator gar nicht berechenbar ist. `_aus_bool` las das als
+**bearisch** — der Snapshot trug ein Verkaufssignal, wo das Scoring weder
+`cat_scores` noch `cat_max` erhöht hatte. Die Richtung kommt für diese drei
+jetzt aus dem Vorzeichen der Rohgröße (`_aus_rohwert`).
+
+### Das Handbuch: 10 Instrumente × 3 Horizonte, Šidák über alle 210 Zellen (z = 3,67)
+
+Trainingsteil, HISTORISCH, n = 157.187 je Instrument. **Vier signifikante
+Zellen von 150, alle auf sieben Tagen.** Auf 30 und 90 Tagen trägt nichts.
+
+| | Q1 | Q2 | Q3 | Q4 | Q5 | Spread |
+|---|---|---|---|---|---|---|
+| **FVG** | 48,7 | 49,0 | 49,2 | 50,2 | **51,1** SIG | +2,4 pp, monoton |
+| **MACD** | **50,9** SIG | 50,0 | 49,3 | 49,4 | **48,6** SIG | −2,3 pp |
+| **Trend (SMA 200)** | 49,1 | 48,7 | 49,2 | 50,3 | **50,8** SIG | +1,7 pp |
+| RSI, Stochastic, Bollinger, OBV, VWMA, POC, SMA-Cross | | | | | | nichts |
+
+**Der RSI ist jetzt zum ersten Mal vollständig gemessen**: 21.407 Zeilen unter
+der alten Kodierung gegen 188.347 heute — also 11,4 %, exakt die 89 %, die
+gefehlt haben. Über den ganzen Bereich trägt er **nichts**.
+
+### Die Gegenprobe zu §2h fällt gemischt aus
+
+Das war der eigentliche Grund für den Aufwand: §2h hatte genähert gerechnet
+(acht Tage Kadenz, ~35 Stützstellen statt 200) und die exakte Nachrechnung im
+eigenen Docstring eingefordert.
+
+| | §2h genähert | jetzt exakt |
+|---|---|---|
+| Trend (SMA 200) | 2,0 pp, monoton | 1,7 pp, Q5 signifikant, **nicht monoton** |
+| SMA-Cross (20/50) | **2,9 pp, monoton** | **+0,2 pp — flach, nichts** |
+
+**Der stärkste Befund aus §2h überlebt die exakte Nachrechnung nicht.** Er war
+ein Artefakt der genäherten Reihen. Nicht neu zitieren.
+
+### Jahresstabilität — und was 7 von 9 wert ist
+
+| | | Ausreisser |
+|---|---|---|
+| Trend (SMA 200) | 7 von 9 | 2019 (−1,5), 2022 (−1,1) |
+| FVG | 7 von 9 | 2019 (−0,7), 2022 (−2,8) |
+| MACD | 6 von 9 | Vorzeichen kippt +2,4 bis −6,1 → **erledigt** |
+
+Binomial gegen reinen Zufall — **diese Tabelle gehört ab jetzt an jede
+Jahresprüfung**, sonst liest man 7 von 9 als Bestätigung:
+
+```
+6 von 9 → p = 0,51      7 von 9 → p = 0,18
+8 von 9 → p = 0,039     9 von 9 → p = 0,004
+```
+
+PEADs Miss-Seite (§2e) steht bei 8 von 9 und bleibt damit der einzige Eingang,
+dessen Jahresstabilität sich von Zufall unterscheiden lässt.
+
+### FVG und Trend sind EIN Kandidat, nicht zwei
+
+Rangkorrelation der Rohgrößen **0,729** (Schwelle aus §2f: 0,30). Das erklärt
+die identischen Fehljahre. Die Verbundtabelle zeigt die Konzentration:
+
+```
+           FVG Q1      Q2      Q3      Q4      Q5
+  Trend Q1 24.073   8.535   3.089   1.229     442
+  Trend Q5    459   1.467   4.205   9.861  21.496
+```
+
+Bedingt sieht es asymmetrisch aus (FVG hält in 4 von 5 Trendschichten, Trend
+nur in 2 von 5 FVG-Schichten). **Das ist kein Befund**: die Eckzellen tragen
+442 bis 1.500 Zeilen statt 31.000, und keine Zelle übersteht die Korrektur.
+
+### Echtes Volumen: null von 75 Zellen (BC-01 beantwortet)
+
+Fünf Kennzahlen aus `kurs_historie`, ohne einen neuen Abruf. Šidák über alle
+105 Zellen (z = 3,49):
+
+| Kennzahl | 7 T | 30 T | 90 T |
+|---|---|---|---|
+| Relatives Volumen | +0,6 | +0,0 | −0,4 |
+| Volumen-Trend (20/60) | +0,5 | +0,7 | −0,4 |
+| Ausbruchs-Bestätigung | +0,3 | −0,3 | −1,2 |
+| Tagesspanne | −0,9 | +0,6 | +3,7 |
+| Eröffnungslücke | −1,2 | +1,9 | +3,7 |
+
+**Keine einzige Zelle signifikant.** Die beiden Auffälligkeiten auf 90 Tagen
+sind auf **ihrem** Horizont nachgeprüft (nicht auf sieben): je 5 von 9 Jahren,
+Ausschläge von −12,3 bis +25,4, Gipfel 2020. Das ist der Volatilitätsausbruch,
+nicht die Kennzahl.
+
+### Was daraus folgt
+
+1. **Das Messgerät ist repariert**, der Bestand vollständig neu vermessen.
+   Zehn Instrumente in voller Auflösung statt zwei.
+2. **Es gibt EINEN Kandidaten**: Chartlage, nur 7 Tage, 7 von 9 Jahren
+   (p = 0,18). Nicht belegt, geht nicht in den Score.
+3. **Die Leitidee „weg vom Kurs" ist zweimal widerlegt.** Nach den Accruals
+   (§2g) trägt mit Volumen ein zweiter kursunabhängiger Eingang nichts. Die
+   Gemeinsamkeit der Nullbefunde liegt **nicht** in der Herkunft der Größe.
+4. Trefferquote bei „plausibles Signal trägt auch": **null von neun.**
+
+---
+
 ## 3. Erledigt — nicht noch einmal bauen
 
 | Was | Wo |
@@ -967,12 +1158,28 @@ alles gescheitert.
 | **Kursnähe-Prüfung als stehende Regel** | `auswertung/kursnaehe.py` (geeicht: 0,47 vs. −0,001) |
 | **§2h Stetige Kodierung gegen binäre, Kontrollversuch** | `services/stetige_indikatoren.py`, `auswertung/kodierung.py` |
 | **§2i Regime-Gate geprüft (marktweit), negativ** | `services/marktregime.py`, `auswertung/regime.py`, `tests/test_marktregime.py` |
+| **§2j Kursreihe als eigener Bestand (1,47 Mio Tage)** | `database.KursHistorie`, `services/kurshistorie.py`, `tests/test_kurshistorie.py` |
+| **§2j BC-04 behoben: `wert_numeric` + neutrale Zeilen** | `snapshot_engine/models.py`, `snapshot_service.py`, `services/scoring.py`, `tests/test_indikator_rohwerte.py` |
+| **§2j Backfill hält die Rohreihe fest** | `snapshot_engine/backfill_service.py`, `backfill_cli.py` |
+| **§2j OBV/VWMA/POC: „nicht berechenbar" war bearisch** | `snapshot_service._aus_rohwert`, `services/technical.py` (`obv_slope`) |
+| **§2j Neuaufzeichnung durchgeführt (Job #3)** | 188.347 Snapshots, 5h 55m, 5 Ticker ohne Kursdaten |
+| **§2j Handbuch: Quintile je Instrument** | `auswertung/handbuch.py`, `tests/test_handbuch.py` |
+| **§2j Jahresstabilität als stehendes Kriterium** | `handbuch.jahresstabilitaet()` |
+| **§2j Redundanzprüfung zweier Instrumente** | `handbuch.bedingt()` |
+| **§2j BC-01 beantwortet: echtes Volumen, negativ** | `services/volumen.py`, `auswertung/volumen.py`, `tests/test_volumen.py` |
 
-**Wichtig:** Alle 88.033 Bestands-Snapshots tragen `score_version` 1.0.0 — es
-gibt weder welche mit 2.0.0 noch mit 2.1.0 noch mit 2.2.0. Weder der sperrende
-Zweig noch die Beförderung hat je einen gespeicherten Snapshot beeinflusst;
-beide wirkten ausschließlich auf die angezeigte Empfehlung. Neue Snapshots ab
-dem nächsten Scheduler-Lauf tragen **2.2.0**.
+**Wichtig (überholt seit der Neuaufzeichnung):** Der Satz „alle
+Bestands-Snapshots tragen `score_version` 1.0.0" galt für die stillgelegte
+Generation. Seit Job #3 trägt der gesamte HISTORISCH-Bestand **2.2.0**, und
+die Aussage dahinter bleibt richtig: weder der sperrende Zweig noch die
+Beförderung hat je einen gespeicherten Snapshot beeinflusst, beide wirkten nur
+auf die angezeigte Empfehlung.
+
+**Die Score-Version ist bei 2.2.0 geblieben, obwohl heute erheblich geändert
+wurde.** Das ist Absicht und folgt der Regel aus §7: erhöht wird, wenn aus
+denselben Eingaben ein anderer Teilscore entstünde. BC-04 ändert, was ein
+Snapshot *festhält*, nicht wie *bewertet* wird — keine Zeile in `_finalize_score`
+ist angefasst.
 
 ---
 
@@ -1029,11 +1236,17 @@ dem nächsten Scheduler-Lauf tragen **2.2.0**.
 - **P1-03** Backfill kennt kein Sentiment, misst also ein anderes System als das laufende (Designentscheidung offen)
 
 ### B. Die strukturelle Ursache — Prämisse widerlegt, Umbau ausgesetzt
-- **BC-01** (die volume-Kategorie misst kein Volumen: VWMA = Momentum(20),
-  OBV-Slope = Momentum(20), POC = Momentum(252)) und **BC-03** (fünf von sechs
-  Preis-Positions-Messungen feuern auf 100 % der Snapshots, RSI und Bollinger
-  auf 11 %) sind **weiterhin wahr**. Es sind Aussagen über den Code, nicht über
-  Vorsprünge, und die Sättigungszahlen stehen im Artifact.
+- **BC-01 ist weiterhin wahr, aber nicht mehr offen.** Die volume-Kategorie
+  misst nach wie vor kein Volumen (VWMA = Momentum(20), OBV-Slope =
+  Momentum(20), POC = Momentum(252)) — echtes Volumen ist inzwischen jedoch
+  **gemessen** und trägt nichts (§2j, null von 75 Zellen). Die Lücke, die
+  BC-01 benannte, ist damit geschlossen: nicht durch einen Umbau, sondern
+  durch das Ergebnis.
+- **BC-03 ist behoben.** Fünf von sechs Preis-Positions-Messungen feuerten auf
+  100 % der Snapshots, RSI und Bollinger nur auf 11 %. Seit der
+  Neuaufzeichnung tragen **alle zehn Instrumente 100 % Abdeckung** mit
+  Rohwert; die 11 % waren eine Eigenschaft des Schreibpfads, nicht der
+  Indikatoren.
 - **BC-02 ist widerlegt.** Sie lautete: „die einzige Kategorie mit Vorsprung
   wird von der ohne gekippt" — Grundlage war der Oszillator-Vorsprung. Gegen
   den Markt hat der Oszillator keinen: +0,3 pp bullisch, −0,4 pp bearisch,
@@ -1042,17 +1255,22 @@ dem nächsten Scheduler-Lauf tragen **2.2.0**.
   demselben Beleg: „überverkauft gegen den Trend +4,8 pp". Diese Interaktion
   ist exakt die Mean-Reversion-Beförderung, die in 2.2.0 entfallen ist, weil
   marktbereinigt nichts von ihr bleibt.
-- **BC-04 (neu, §2h): die Kodierung vernichtet die Eingänge, bevor die
-  Arithmetik sie erreicht.** Alle sechzehn Indikatorrichtungen liegen als
-  genau zwei Werte vor (+1/−1), ohne Stärke und ohne Neutralbereich. Im
-  Kontrollversuch auf identischen Zeilen trägt die stetige Fassung derselben
-  Größe 2,0 bzw. 2,9 pp Spread mit monotonem Verlauf, die binäre nichts.
-- **Konsequenz, revidiert:** die frühere Begründung („nichts umbauen, solange
-  kein Eingang einen Vorsprung trägt") war **zirkulär**. Sie prüfte die
-  Eingänge in einer Kodierung, die einen Vorsprung gar nicht sichtbar werden
-  lassen kann. Der Umbau bleibt trotzdem zurückgestellt, aber aus einem
-  anderen Grund: die stetige Fassung ist ohne Regime-Bedingung nicht stabil
-  (§2h). **Erst das Gate, dann die Arithmetik.**
+- ~~**BC-04: die Kodierung vernichtet die Eingänge**~~ → **behoben und
+  nachgemessen (§2j).** Jede Indikatorzeile trägt seit dem 2026-09-03 ihre
+  Rohgröße in `wert_numeric`, neutrale Beobachtungen werden aufgezeichnet, und
+  der Bestand ist damit neu vermessen. Die Diagnose war richtig — die
+  Aufzeichnung hat Information vernichtet.
+  **Der erhoffte Ertrag ist trotzdem ausgeblieben.** In voller Auflösung
+  bleiben vier signifikante Zellen von 150, alle auf sieben Tagen, und der
+  stärkste Beleg aus §2h (SMA-Cross, 2,9 pp monoton) erweist sich als Artefakt
+  der genäherten Reihen: exakt gerechnet sind es +0,2 pp.
+- **Konsequenz, erneut revidiert:** die frühere Begründung („nichts umbauen,
+  solange kein Eingang einen Vorsprung trägt") war zirkulär, weil sie in einer
+  Kodierung prüfte, die einen Vorsprung nicht sichtbar werden lassen konnte.
+  Dieser Einwand ist erledigt — jetzt ist in der richtigen Kodierung geprüft,
+  und es trägt weiterhin nichts. **Der Umbau des Composites bleibt
+  zurückgestellt, und zum ersten Mal ohne Zirkelschluss:** es gibt keinen
+  Eingang, dessen Vorsprung eine andere Arithmetik retten müsste.
 
 ### C. Positionspfad — Messung läuft, Auswertung fehlt
 - ~~**P3-03** erzeugt keine Snapshots~~ → erledigt UND **nachgeprüft**. Der
@@ -1257,54 +1475,59 @@ Arbeit inline erledigt, was sie langsam und einmalig statt wiederholbar macht.
 
 ## 5. Empfohlener nächster Schritt
 
-**Das Regime-Gate ist geprüft und trägt nicht (§2i).** Damit ist die letzte
-strukturelle Hypothese abgearbeitet, die auf dem Tisch lag. Der gepoolte
-Vorsprung verdreifacht sich im Hochvolatilitätsregime, die Jahresstabilität
-bleibt bei fünf von acht — dieselbe Stelle, an der inzwischen **alles**
-gescheitert ist: ein gepoolter Vorsprung, den ein einzelnes Jahr aufzehrt.
+**Der historische Bestand ist ausgemessen.** Seit der Neuaufzeichnung (§2j)
+tragen alle zehn Instrumente ihre Rohgröße, echtes Volumen ist gemessen, und
+die Kodierung als Erklärung ist erledigt. Damit ist zum ersten Mal eine
+belastbare Antwort möglich — und sie lautet:
 
-**Das ist das eigentliche Muster dieser Reihe, und es ist inzwischen achtmal
-belegt.** Nicht die Herkunft der Eingänge (§2g), nicht die Kodierung allein
-(§2h), nicht die Bedingung (§2i) — was fehlt, ist in jedem Fall dasselbe:
-Beständigkeit über die Zeit. Wer als Nächstes etwas vorschlägt, sollte
-zuerst sagen können, warum es **daran** nicht scheitern wird.
+> **In den historischen Daten gibt es kein Signal, das die Schwelle nimmt.**
+> Ein Kandidat (Chartlage, nur 7 Tage, 7 von 9 Jahren, p = 0,18) und PEADs
+> Miss-Seite als Meidungsfilter (8 von 9). Sonst nichts, in neun geprüften
+> Familien.
 
-Was jetzt sinnvoll bleibt, in dieser Reihenfolge:
+**Das Muster ist inzwischen neunmal belegt:** ein gepoolter Vorsprung, den
+die Jahresprüfung aufzehrt. Nicht die Herkunft der Eingänge (§2g Accruals,
+§2j Volumen — beide kursunabhängig, beide ohne Beitrag), nicht die Kodierung
+(§2j), nicht die Bedingung (§2i). Wer als Nächstes etwas vorschlägt, sollte
+zuerst sagen können, warum es **an der Jahresstabilität** nicht scheitert.
 
-1. **Die Kodierung reparieren** (§2h, BC-04) — der einzige Punkt dieser
-   Liste, der **nicht** von einem Signalbefund abhängt. Die Rundung auf ±1
-   vernichtet nachweislich eine messbare Größe, bei allen sechzehn
-   Indikatorrichtungen. Das ist ein Defekt der Engine, kein
-   Optimierungsvorschlag, und er ist unabhängig davon zu beheben, ob am Ende
-   ein Signal trägt. Die Score-Version wäre zu erhöhen (§7).
-2. **Volumen ist nie getestet worden.** Die „volume"-Kategorie misst kein
-   Volumen (BC-01): VWMA = Momentum(20), OBV-Slope = Momentum(20), POC =
-   Momentum(252). Echter Umsatz, Umsatzspitzen relativ zum eigenen Schnitt,
-   Volumen bei Ausbrüchen — davon steht in keinem der 274.940 Snapshots
-   irgendetwas. Braucht einen Nachtrag echter OHLCV-Daten, ist also teurer,
-   aber es ist die einzige Kategorie, über die es **gar keine** Messung gibt.
-3. **Die Oszillatoren existieren nur an den Rändern.** RSI und Bollinger
-   werden nur gespeichert, wenn sie extrem sind — 30.216 statt 274.840 Zeilen.
-   Ihr Verlauf über den ganzen Bereich war nie im Bestand und ist damit auch
-   nie geprüft worden.
-4. **Was keinen Prognosevorteil braucht** (Abschnitt C): Stop-Historie,
+### Was NICHT mehr taugt
+
+- **Noch eine Signalfamilie.** Neun sind geprüft. Beide Erklärungsversuche für
+  die Nullbefunde — falsche Kodierung, falsche Herkunft — sind gemessen und
+  ausgeschieden.
+- **Der Umbau des Composites.** §2j hat den Zirkelschluss aufgelöst: geprüft
+  wurde jetzt in der richtigen Kodierung, und es trägt nichts. Eine andere
+  Arithmetik hat nichts zu retten.
+- **Das Vorschlagspanel für Gewichte** (DX-01). Gewichtstuning hat an dieser
+  Architektur eine Decke, und es gibt keinen Eingang, den es hochzugewichten
+  lohnte.
+- **Der Holdout** — siehe unten.
+
+### Was bleibt, in dieser Reihenfolge
+
+1. **Abschnitt C: was keinen Prognosevorteil braucht.** Stop-Historie,
    R-Multiple, MAE/MFE, der Positionspfad. Realisierte Ergebnisse hängen an
-   Ausstieg und Positionsgröße. Blockiert ist das nicht am Code, sondern an
-   Daten: die beiden offenen Positionen haben weder Stop noch Ziel,
-   `position_stop_historie` ist leer, und das Journal enthält Testdaten
-   (25 Einträge, 24 offen, 18× NVDA zu 0,01).
-
-**Was NICHT mehr als nächster Schritt taugt:** noch eine Signalfamilie. Sieben
-sind geprüft, und §2g hat die Leitidee dahinter erledigt — die Accruals sind
-nachweislich kursunabhängig (Kursnähe −0,001) und tragen trotzdem nichts. Die
-Gemeinsamkeit der Nullbefunde liegt nicht in der Herkunft der Eingänge. Aus
-P2-06 offen bleiben ohnehin nur Short Interest und relative Stärke je Sektor;
-Letztere ist per Konstruktion kursbasiert und liefe in die Falle von §2f.
-
-**Nicht** mit dem Vorschlagspanel für Gewichte anfangen: DX-01 zeigt, dass
-Gewichtstuning an dieser Architektur eine Decke hat — und §2h zeigt, dass die
-Decke schon eine Ebene tiefer liegt, in der Kodierung.
-
+   Ausstieg und Positionsgröße, nicht an Vorhersage — dort zahlt Arbeit
+   verlässlich, unabhängig davon, ob je ein Signal trägt. **Blockiert ist das
+   nicht am Code, sondern an Daten des Besitzers:** die beiden offenen
+   Positionen haben weder Stop noch Ziel, `position_stop_historie` ist leer,
+   und das Journal enthält Testdaten (25 Einträge, 24 offen, 18× NVDA zu 0,01).
+2. **Die LIVE-Uhr laufen lassen.** Die Fundamental- und Sentiment-Hälfte der
+   Analyse (elf Indikatoren) ist historisch **prinzipiell nicht prüfbar** —
+   der Backfill ruft `calc_technical_score()`, weil `_score_fundamental` und
+   `_score_sentiment` ihre Daten aus der Gegenwart beziehen und ein Replay
+   damit Look-Ahead wäre. Diese Hälfte ist nur vorwärts messbar, über
+   LIVE-Snapshots. Davon gibt es 1.109. Das ist eine Uhr, keine Aufgabe —
+   aber es ist der einzige Weg, auf dem diese Hälfte je eine Antwort bekommt.
+3. **Die Oberfläche.** `/signals/indikatoren` zeigt weiterhin das binäre
+   Leaderboard; `handbuch.py` rechnet die Quintile, ist aber nirgends
+   verdrahtet. Nach der stehenden Priorität des Besitzers ausdrücklich
+   nachrangig.
+4. **Die Confidence-Anzeige entschärfen.** Sie sieht aus wie eine
+   Trefferwahrscheinlichkeit und ist messbar keine (§2b: die Kurve trennt
+   nicht). Kostet wenig und führt sonst genau den einen Nutzer in die Irre,
+   für den die App gebaut ist.
 ### Der Holdout
 
 Er steht bei **0 Zugriffen**. Es liegt eine Aussage vor, die er bestätigen
@@ -1314,17 +1537,32 @@ auf dem Trainingsteil bestimmt, korrigiert, in acht von neun Jahren im
 Vorzeichen stabil.
 
 Ob dafür ein Zugriff ausgegeben wird, ist eine Entscheidung des Besitzers.
-Dagegen spricht inzwischen mehr als vorher: das Regime-Gate könnte in Kürze
-eine deutlich größere Aussage liefern, und der Holdout ist einmal verbraucht.
-Wer nach jeder Änderung erneut misst und die beste Variante behält, hat ihn
-zum Trainingsset gemacht — nur langsamer.
+Der Holdout ist einmal verbraucht; wer nach jeder Änderung erneut misst und
+die beste Variante behält, hat ihn zum Trainingsset gemacht — nur langsamer.
+
+**Der Chartlage-Kandidat aus §2j gehört ausdrücklich NICHT dorthin.** 7 von 9
+Jahren entspricht p = 0,18 und ist von Zufall nicht zu unterscheiden. Die
+Regel lautet: der Holdout bestätigt etwas, das die Jahresprüfung bestanden
+hat — und das hat bisher nur PEADs Miss-Seite (8 von 9, p = 0,039).
+
+**Die Grenze wurde am 2026-09-03 bewusst NICHT verschoben**, obwohl vorgeschlagen.
+Sie auf das Tagesdatum zu setzen hätte den Holdout geleert (Sperrzone 90 Tage,
+Daten enden im September) und ihn erst über Jahre aus LIVE-Snapshots wieder
+gefüllt. Stehenlassen erhält alle drei Wege — ausgeben, ins Training falten,
+oder durch ein besseres Verfahren ersetzen. Sein bekannter Mangel bleibt: er
+beginnt am 2025-07-19 und liegt damit vollständig in der KI-Hausse, kann also
+Regimestabilität strukturell nicht prüfen. Dafür ist die Jahresprüfung
+zuständig (`handbuch.jahresstabilitaet`), nicht er.
+
+Die Neuaufzeichnung hat die Grenze nicht berührt: sie ist ein Datum, und Job
+#3 deckt denselben Zeitraum ab.
 
 ---
 
 ## 6. Verifikation (es gibt keine CI)
 
 ```
-py -m pytest -q                                   # 386 Tests
+py -m pytest -q                                   # 445 Tests
 py -m mypy <geänderte Dateien>                    # ad hoc, keine Konfiguration im Repo
 py -c "import warnings; warnings.filterwarnings('ignore'); from fastapi.testclient import TestClient; import main; c=TestClient(main.app); c.__enter__(); [print(c.get(u).status_code, u) for u in ['/','/signals','/signals/indikatoren','/signals/positionen','/signals/backfill','/analysis','/screener','/watchlist','/journal','/backtesting','/sectors','/economy','/settings','/lexicon','/sources','/directory']]"
 ```
