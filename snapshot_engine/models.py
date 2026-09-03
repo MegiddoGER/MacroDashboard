@@ -217,6 +217,29 @@ class AnalyseSnapshotIndikator(Base):
     # Numerisch geparst; None bei "Info"-Indikatoren (fließen nicht in den Score)
     beitrag_numeric: Mapped[Optional[float]] = mapped_column(Float)
 
+    # BC-04: die GEMESSENE GRÖSSE selbst, in ihrer eigenen Einheit — Abstand
+    # zur SMA 200 in Prozent, RSI 0–100, %B im Bollinger-Kanal, Abstand zu
+    # VWMA/POC in Prozent.
+    #
+    # `beitrag_numeric` trägt die *Deutung* (+1 bullisch, −1 bearisch), und
+    # genau daran ist die bisherige Auswertung gescheitert: ein Kurs ein
+    # halbes Prozent über der Linie und einer fünfundvierzig Prozent darüber
+    # sind dort dieselbe Zahl. Der Kontrollversuch in §2h hat auf identischen
+    # 205.159 Zeilen gemessen, was das kostet — die stetige Fassung derselben
+    # Größe trägt 2,0 bzw. 2,9 pp Spread mit monotonem Verlauf, die binäre
+    # nichts.
+    #
+    # Deshalb steht hier der ROHWERT und nicht eine auf [−1, +1] normierte
+    # Fassung: eine Normierung beim Schreiben backt die Deutung wieder in den
+    # Bestand ein und macht jede spätere Revision der Lesart unmöglich. Wie
+    # der Wert gelesen wird — Schwelle, Vorzeichen, Gewicht — gehört in den
+    # Code, nicht in die Datenbank.
+    #
+    # NULL heißt "vor BC-04 geschrieben", nicht "nicht messbar". Die
+    # Bestandszeilen tragen ausschließlich die alte Kodierung; Auswertungen
+    # auf dieser Spalte müssen entsprechend filtern.
+    wert_numeric: Mapped[Optional[float]] = mapped_column(Float)
+
     granularitaet: Mapped[str] = mapped_column(
         Text, nullable=False, default=Granularitaet.INDIKATOR)
 
@@ -231,6 +254,7 @@ class AnalyseSnapshotIndikator(Base):
             "signal_text": self.signal_text,
             "beitrag_raw": self.beitrag_raw,
             "beitrag_numeric": self.beitrag_numeric,
+            "wert_numeric": self.wert_numeric,
             "granularitaet": self.granularitaet,
         }
 
@@ -565,6 +589,13 @@ def _schema_migrieren():
             # SCORE_VERSION eingetragen: nach einer späteren Erhöhung würde
             # SCORE_VERSION sonst Altzeilen fälschlich als neue Formel stempeln.
             "score_version": f"TEXT DEFAULT '{_BESTAND_SCORE_VERSION}'",
+        },
+        "analyse_snapshot_indikatoren": {
+            # BC-04. Ohne DEFAULT: NULL trennt "vor der stetigen Kodierung
+            # geschrieben" von einem echten Messwert. Ein DEFAULT 0 würde die
+            # Bestandszeilen als "Größe war null" ausweisen — das wäre ein
+            # Messwert, den es nie gab.
+            "wert_numeric": "REAL",
         },
         "signal_backfill_jobs": {
             "include_smc": "BOOLEAN DEFAULT 1",

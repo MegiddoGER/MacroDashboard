@@ -423,6 +423,80 @@ class AccrualKennzahl(Base):
         }
 
 
+class KursHistorie(Base):
+    """Taegliche OHLCV-Reihe je Ticker — die Rohdaten hinter allem anderen.
+
+    **Warum diese Tabelle existiert.** Der Backfill laedt je Ticker EINE
+    Kursreihe und spielt sie ab; `calc_technical_score()` bekommt Open, High,
+    Low, Close und Volume uebergeben und rechnet daraus jeden Indikator. Bis
+    hierher wurde von diesen Rohdaten **nichts** festgehalten — nur das
+    Ergebnis der Deutung (+1/-1) landete im Snapshot. Damit war jede spaetere
+    Frage, die eine andere Aufloesung oder eine andere Kennzahl braucht, ein
+    neuer Backfill mit neuen Abrufen.
+
+    Gemessen an den Folgen: von acht Instrumenten der Einstiegsanalyse liessen
+    sich genau zwei nachtraeglich stetig auswerten (Trend und SMA-Cross,
+    §2h) — und nur deshalb, weil dort zufaellig `sma200_val`/`sma50_val` im
+    Feld `wert` mitgeschrieben wurde. Fuer die uebrigen sechs stand nur das
+    Vorzeichen im Bestand.
+
+    Mit dieser Tabelle wird jede kuenftige Frage eine Abfrage statt eines
+    Durchlaufs: eine andere Schwelle, ein neuer Indikator, echtes Volumen,
+    Umsatzspitzen, Tagesspanne, Eroeffnungsluecken. Der Nachtrag kostet keinen
+    zusaetzlichen Abruf — die Daten sind waehrend des Backfills ohnehin im
+    Speicher.
+
+    **Zur Anpassungsbasis.** yfinance liefert split- und dividendenbereinigte
+    Kurse, und die Bereinigung bezieht sich auf den Zeitpunkt des Abrufs: nach
+    einem spaeteren Split traegt dieselbe historische Zeile einen anderen Wert.
+    Reihen aus verschiedenen Abrufen duerfen deshalb nicht gemischt werden.
+    `angepasst` haelt fest, ob bereinigt wurde, `geladen_am` wann — und
+    `services/kurshistorie.py` schreibt eine Reihe immer als Ganzes, nie
+    zeilenweise ergaenzend. Genau diese Eigenschaft traegt die Split-Sicherheit
+    der bestehenden Auswertungen (`auswertung/momentum.py`,
+    `services/stetige_indikatoren.py`), die sie bisher aus der gemeinsamen
+    Herkunft der Snapshot-Kurse ableiten mussten.
+
+    Groessenordnung: rund 611 Ticker x ~2.400 Handelstage seit 2017.
+    """
+    __tablename__ = "kurs_historie"
+    __table_args__ = (
+        UniqueConstraint("ticker", "datum", name="uq_kurshistorie_ticker_datum"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    ticker: Mapped[str] = mapped_column(Text, nullable=False, index=True)
+    datum: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
+
+    eroeffnung: Mapped[Optional[float]] = mapped_column(Float)
+    hoch: Mapped[Optional[float]] = mapped_column(Float)
+    tief: Mapped[Optional[float]] = mapped_column(Float)
+    schluss: Mapped[float] = mapped_column(Float, nullable=False)
+    # Stueckzahl, nicht Umsatz in Waehrung. Nullable, weil einzelne Handelsplaetze
+    # und Indizes kein Volumen liefern — das ist ein Normalfall, kein Fehler,
+    # und muss von "Volumen war null" unterscheidbar bleiben.
+    volumen: Mapped[Optional[float]] = mapped_column(Float)
+
+    # Ob die Reihe split-/dividendenbereinigt geladen wurde. Siehe Docstring:
+    # entscheidet, ob zwei Zeilen ueberhaupt vergleichbar sind.
+    angepasst: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    quelle: Mapped[str] = mapped_column(Text, nullable=False, default="yfinance")
+    geladen_am: Mapped[Optional[datetime]] = mapped_column(DateTime)
+
+    def to_dict(self) -> dict:
+        return {
+            "ticker": self.ticker,
+            "datum": self.datum.isoformat() if self.datum else None,
+            "eroeffnung": self.eroeffnung,
+            "hoch": self.hoch,
+            "tief": self.tief,
+            "schluss": self.schluss,
+            "volumen": self.volumen,
+            "angepasst": self.angepasst,
+            "quelle": self.quelle,
+        }
+
+
 class Setting(Base):
     """Key-Value-Store für Dashboard-Einstellungen (z.B. API-Keys)."""
     __tablename__ = "settings"
