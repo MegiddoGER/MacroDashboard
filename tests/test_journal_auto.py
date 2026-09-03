@@ -196,3 +196,201 @@ def test_alterhinweis_ist_nur_ein_hinweis():
     alt ist.
     """
     assert ANALYSE_ALTER_HINWEIS_TAGE > 0
+
+
+# ---------------------------------------------------------------------------
+# Die Insert-Reihenfolge — der Fehler, der die Stop-Historie leer hielt
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def echte_db(monkeypatch):
+    """In-Memory-Datenbank mit AKTIVEN Fremdschluesseln.
+
+    Der Pragma-Teil ist der ganze Punkt: ohne `foreign_keys=ON` liefe der
+    fehlerhafte Code klaglos durch, und dieser Test waere eine leere Huelle,
+    die Sicherheit vortaeuscht. Deshalb wird unten geprueft, dass die Pruefung
+    wirklich aktiv ist.
+    """
+    from sqlalchemy import create_engine, event, text
+    from sqlalchemy.orm import sessionmaker
+
+    import services.watchlist as wl
+    from database import Base
+    # Die Snapshot-Tabellen haengen an derselben Base, werden aber erst durch
+    # den Import registriert. Ohne ihn faende `_einstiegsanalyse` keine
+    # Tabelle und der Test der Verknuepfung waere nicht moeglich.
+    import snapshot_engine.models  # noqa: F401
+
+    engine = create_engine("sqlite://")
+
+    @event.listens_for(engine, "connect")
+    def _fk_an(dbapi_conn, _):
+        cur = dbapi_conn.cursor()
+        cur.execute("PRAGMA foreign_keys=ON")
+        cur.close()
+
+    Base.metadata.create_all(engine)
+    fabrik = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
+
+    with engine.connect() as conn:
+        assert conn.execute(text("PRAGMA foreign_keys")).scalar() == 1, (
+            "Fremdschluesselpruefung inaktiv — der Test koennte den Fehler "
+            "nicht mehr sehen.")
+
+    monkeypatch.setattr(wl, "get_session", fabrik)
+    yield fabrik
+    engine.dispose()
+
+
+def test_kauf_mit_stop_schreibt_die_historie(echte_db):
+    """Der Regressionstest fuer den Fehler, der Abschnitt C blockiert hat.
+
+    `PositionStopHistorie.position_id` traegt einen Fremdschluessel auf
+    `positions.id`, aber keine `relationship()`. SQLAlchemy kannte die
+    Abhaengigkeit deshalb nicht und schrieb die Historie, BEVOR die Position
+    existierte — mit aktiven Fremdschluesseln scheiterte jeder Kauf mit
+    Stop-Loss an einem IntegrityError.
+
+    Sichtbar war das nur daran, dass `position_stop_historie` dauerhaft bei
+    null Zeilen stand. Die Diagnose lautete jahrelang "der Besitzer traegt
+    keine Stops ein"; tatsaechlich konnte das Programm sie nicht speichern.
+    """
+    import services.watchlist as wl
+    from database import JournalEntry, PositionStopHistorie, WatchlistItem
+
+    sitzung = echte_db()
+    sitzung.add(WatchlistItem(ticker="AAPL", name="Apple", status="Beobachtet"))
+    sitzung.commit()
+    sitzung.close()
+
+    pos = wl.add_position("AAPL", buy_price=100.0, quantity=10.0,
+                          buy_date="2026-01-05", stop_loss=90.0,
+                          take_profit=130.0)
+    assert pos is not None, "Der Kauf selbst darf nicht scheitern."
+
+    sitzung = echte_db()
+    historie = sitzung.query(PositionStopHistorie).all()
+    eintrag = sitzung.query(JournalEntry).first()
+
+    assert len(historie) == 1
+    assert historie[0].quelle == wl.QUELLE_EROEFFNUNG
+    assert historie[0].stop == pytest.approx(90.0)
+
+    # Und der Journaleintrag entsteht in derselben Transaktion.
+    assert eintrag is not None
+    assert eintrag.quelle == QUELLE_JOURNAL_AUTO
+    assert eintrag.stop_initial == pytest.approx(90.0)
+    assert eintrag.position_id == pos["id"]
+    sitzung.close()
+
+
+def test_kauf_ohne_stop_erzeugt_keine_historie_aber_ein_journal(echte_db):
+    """Ohne Stop gibt es nichts zu vermerken — der Eintrag entsteht trotzdem."""
+    import services.watchlist as wl
+    from database import JournalEntry, PositionStopHistorie, WatchlistItem
+
+    sitzung = echte_db()
+    sitzung.add(WatchlistItem(ticker="SAP.DE", name="SAP", status="Beobachtet"))
+    sitzung.commit()
+    sitzung.close()
+
+    pos = wl.add_position("SAP.DE", buy_price=200.0, quantity=5.0,
+                          buy_date="2026-01-05")
+    assert pos is not None
+
+    sitzung = echte_db()
+    assert sitzung.query(PositionStopHistorie).count() == 0
+    eintrag = sitzung.query(JournalEntry).first()
+    assert eintrag is not None
+    assert eintrag.stop_initial is None
+    sitzung.close()
+
+
+def test_verkauf_schliesst_den_eintrag_ueber_den_echten_pfad(echte_db):
+    """Kauf und Verkauf durch die oeffentlichen Funktionen, nicht am Modell vorbei."""
+    import services.watchlist as wl
+    from database import JournalEntry, WatchlistItem
+
+    sitzung = echte_db()
+    sitzung.add(WatchlistItem(ticker="MSFT", name="Microsoft", status="Beobachtet"))
+    sitzung.commit()
+    sitzung.close()
+
+    pos = wl.add_position("MSFT", buy_price=100.0, quantity=10.0,
+                          buy_date="2026-01-05", stop_loss=90.0)
+    wl.close_position("MSFT", pos["id"], sell_price=120.0,
+                      sell_date="2026-02-04", sell_fees=5.0)
+
+    sitzung = echte_db()
+    eintrag = sitzung.query(JournalEntry).first()
+    assert eintrag.status == "Gewonnen"
+    assert eintrag.pnl_eur == pytest.approx(195.0)
+    assert eintrag.r_multiple == pytest.approx(2.0)
+    assert eintrag.haltedauer_tage == 30
+    sitzung.close()
+
+
+def test_die_einstiegsanalyse_muss_vor_dem_kauf_liegen(echte_db):
+    """Der Kern der Verknuepfung — und die Stelle, an der Nachwissen
+    einsickern wuerde.
+
+    Verknuepft werden darf nur eine Analyse, die zum Kaufzeitpunkt bereits
+    existierte. Eine spaetere zu verlinken hiesse, den Trade gegen Wissen zu
+    bewerten, das damals niemand hatte; die Auswertung "wie liefen meine
+    Trades bei Signal X" waere dann systematisch geschoent.
+    """
+    from datetime import datetime as dt
+
+    import services.watchlist as wl
+    from database import JournalEntry, WatchlistItem
+    from snapshot_engine.models import AnalyseModus, AnalyseSnapshot, Datenmodus
+
+    sitzung = echte_db()
+    sitzung.add(WatchlistItem(ticker="AAPL", name="Apple", status="Beobachtet"))
+    # Drei Analysen: zwei vor dem Kauf, eine danach.
+    for tag, conf, signal in [("2025-12-20", 55.0, "NEUTRAL"),
+                              ("2026-01-02", 71.0, "KAUF"),
+                              ("2026-01-20", 88.0, "KAUF")]:
+        sitzung.add(AnalyseSnapshot(
+            ticker="AAPL", snapshot_zeitpunkt=dt.strptime(tag, "%Y-%m-%d"),
+            kurs_bei_snapshot=100.0, confidence=conf, richtungssignal=signal,
+            analyse_modus=AnalyseModus.NEUE_POSITION,
+            datenmodus=Datenmodus.LIVE))
+    sitzung.commit()
+    sitzung.close()
+
+    wl.add_position("AAPL", buy_price=100.0, quantity=10.0,
+                    buy_date="2026-01-05", stop_loss=90.0)
+
+    sitzung = echte_db()
+    eintrag = sitzung.query(JournalEntry).first()
+    # Die juengste VOR dem Kauf, nicht die beste und nicht die spaetere.
+    assert eintrag.einstiegs_confidence == pytest.approx(71.0)
+    assert eintrag.einstiegs_signal == "KAUF"
+    assert eintrag.einstiegs_analyse_alter_tage == 3
+    sitzung.close()
+
+
+def test_ohne_vorherige_analyse_bleiben_die_felder_leer(echte_db):
+    """None heisst "keine Analyse vorhanden" — nicht "neutrale Analyse".
+
+    Wer beides gleich behandelt, zaehlt Trades ohne jede Grundlage als
+    Beleg fuer ein Signal.
+    """
+    import services.watchlist as wl
+    from database import JournalEntry, WatchlistItem
+
+    sitzung = echte_db()
+    sitzung.add(WatchlistItem(ticker="SAP.DE", name="SAP", status="Beobachtet"))
+    sitzung.commit()
+    sitzung.close()
+
+    wl.add_position("SAP.DE", buy_price=200.0, quantity=5.0,
+                    buy_date="2026-01-05")
+
+    sitzung = echte_db()
+    eintrag = sitzung.query(JournalEntry).first()
+    assert eintrag.einstiegs_snapshot_id is None
+    assert eintrag.einstiegs_confidence is None
+    assert eintrag.einstiegs_analyse_alter_tage is None
+    sitzung.close()
