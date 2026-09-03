@@ -271,10 +271,16 @@ def _score_trend(close, high, low, volume, result: ScoreResult):
 
     macd_bullish = False
     macd_bearish = False
+    macd_histogramm_pct = None
     macd_line, signal_line, _ = calc_macd(close)
     if not macd_line.dropna().empty and not signal_line.dropna().empty:
         last_macd = float(macd_line.dropna().iloc[-1])
         last_signal = float(signal_line.dropna().iloc[-1])
+        # Das Histogramm, am Kurs relativiert: der absolute MACD-Abstand
+        # skaliert mit dem Kursniveau und wäre zwischen Titeln nicht
+        # vergleichbar (BC-04).
+        if current_price:
+            macd_histogramm_pct = ((last_macd - last_signal) / current_price) * 100
         # MACD wird als Info-Indikator geführt, NICHT im Score gezählt
         # (vermeidet Redundanz mit SMA 20/50 Cross — beide messen kurzfristiges Momentum)
         if last_macd > last_signal:
@@ -335,6 +341,21 @@ def _score_trend(close, high, low, volume, result: ScoreResult):
         "sma50_val": sma50,
         "sma200_val": sma200,
         "current_price": current_price,
+        # ── Rohgrößen (BC-04) ────────────────────────────────────────
+        # Die gemessenen Größen selbst, nicht ihr Vorzeichen. Die Flags
+        # oberhalb sind aus ihnen ableitbar, umgekehrt nicht: ein Kurs ein
+        # halbes Prozent über der SMA 200 und einer fünfundvierzig Prozent
+        # darüber sind beide `trend_macro_bullish`. Der Kontrollversuch in
+        # §2h hat gemessen, was diese Rundung kostet — 2,0 bzw. 2,9 pp
+        # Spread mit monotonem Verlauf gegen nichts.
+        #
+        # Prozentual und nicht absolut: der absolute Abstand skaliert mit dem
+        # Kursniveau und wäre zwischen Titeln nicht vergleichbar.
+        "trend_sma200_abstand_pct": (
+            ((current_price - sma200) / sma200) * 100 if sma200 else None),
+        "cross_spreizung_pct": (
+            ((sma20 - sma50) / sma50) * 100 if (sma20 and sma50) else None),
+        "macd_histogramm_pct": macd_histogramm_pct,
     })
 
 
@@ -397,9 +418,17 @@ def _score_oscillators(close, high, low, result: ScoreResult):
 
     upper, middle, lower = calc_bollinger(close)
     bollinger_state = "Neutral"
+    bollinger_pct_b = None
     if not upper.dropna().empty and not lower.dropna().empty:
         last_u = float(upper.dropna().iloc[-1])
         last_l = float(lower.dropna().iloc[-1])
+        # %B — die Position im Kanal: 0 = unteres Band, 1 = oberes, Werte
+        # außerhalb bedeuten einen Ausbruch. Das ist die stetige Fassung
+        # dessen, was `bollinger_state` als drei Texte ausdrückt (BC-04).
+        # Der Kanal kann bei einer stillstehenden Reihe die Breite null
+        # haben; dann gibt es keine Position darin.
+        if last_u > last_l:
+            bollinger_pct_b = (current_price - last_l) / (last_u - last_l)
         result.cat_max["oscillator"] += 1
         if current_price >= last_u:
             bollinger_state = "Am oberen Band"
@@ -423,6 +452,12 @@ def _score_oscillators(close, high, low, result: ScoreResult):
         "stoch_overbought": stoch_overbought,
         "stoch_oversold": stoch_oversold,
         "stoch_val": stoch_val,
+        # ── Rohgröße (BC-04) ─────────────────────────────────────────
+        # `rsi_val` und `stoch_val` stehen bereits oben und sind über den
+        # ganzen Bereich definiert. Bisher landeten sie nur dann in einem
+        # Snapshot, wenn der Indikator EXTREM war — der Mittelbereich, also
+        # rund 89 % aller Beobachtungen, existiert im Bestand gar nicht.
+        "bollinger_pct_b": bollinger_pct_b,
     })
 
 
@@ -494,10 +529,23 @@ def _score_volume(high, low, close, volume, result: ScoreResult):
                 result.checklist.append({"Indikator": "Volumen-Cluster (POC)", "Wert": f"{poc:,.2f}",
                     "Signal": "Kurs exakt am stärksten Volumen", "Beitrag": "0"})
 
+    vwap_val = flow.get("vwap_val") if flow else None
+    poc_val = flow.get("poc_price") if flow else None
+
     result.signals.update({
         "obv_bullish": obv_bullish,
         "vwap_bullish": vwap_bullish,
         "poc_bullish": poc_bullish,
+        # ── Rohgrößen (BC-04) ────────────────────────────────────────
+        # Diese drei Instrumente standen bisher AUSSCHLIESSLICH als ±1 im
+        # Bestand — `_SIGNAL_INDIKATOREN` führte für sie nicht einmal einen
+        # Wert-Schlüssel. Sie waren damit die einzigen, für die sich auch
+        # nachträglich nichts rekonstruieren ließ.
+        "obv_slope": flow.get("obv_slope") if flow else None,
+        "vwma_abstand_pct": (
+            ((current_price - vwap_val) / vwap_val) * 100 if vwap_val else None),
+        "poc_abstand_pct": (
+            ((current_price - poc_val) / poc_val) * 100 if poc_val else None),
     })
 
 
@@ -550,6 +598,10 @@ def _score_smc(hist, result: ScoreResult):
                 "unmitigated_bear": unmitigated_bear,
                 "nearest_eqh": nearest_eqh,
                 "nearest_eql": nearest_eql,
+                # Rohgröße (BC-04): der Überhang, nicht sein Vorzeichen.
+                # "drei bullische gegen null bearische" und "zwei gegen eine"
+                # waren im Bestand dieselbe +1.
+                "fvg_saldo": float(unmitigated_bull - unmitigated_bear),
             })
     except Exception as exc:
         warnings.warn(f"_score_smc: SMC-Analyse fehlgeschlagen: {exc}")

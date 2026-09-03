@@ -476,7 +476,11 @@ def calc_order_flow(high: pd.Series, low: pd.Series,
     else:
         obv_signal = "neutral"
         obv_desc = "—"
-        obv_slope = 0
+        # None und nicht 0: "kein OBV-Trend berechenbar" ist keine Steigung von
+        # null. Die Unterscheidung entscheidet, ob der Snapshot dafür eine
+        # Indikatorzeile anlegt (BC-04) — eine 0 wäre dort ein Messwert, den es
+        # nie gab.
+        obv_slope = None
 
     # ── Volume-Profil (Preis-Bins mit Volumenverteilung) ──
     # Beschränkt auf die letzten 252 Handelstage (~1 Jahr) für relevante POCs
@@ -523,6 +527,10 @@ def calc_order_flow(high: pd.Series, low: pd.Series,
         "obv": obv,
         "obv_signal": obv_signal,
         "obv_desc": obv_desc,
+        # Die Steigung selbst, auf das Ø Tagesvolumen normiert und damit über
+        # Titel hinweg vergleichbar. Stand bisher nur als formatierter Text in
+        # `obv_desc` — die Zahl dahinter war für keine Auswertung erreichbar.
+        "obv_slope": obv_slope,
         "vol_profile": vol_profile_df,
         "poc_price": poc_price,
         "spike_dates": spike_dates,

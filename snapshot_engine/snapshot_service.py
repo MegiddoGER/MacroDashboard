@@ -193,6 +193,58 @@ def _stochastic_richtung(signals: dict) -> Optional[int]:
     return _aus_gegensatz(signals, "stoch_oversold", "stoch_overbought")
 
 
+def _rohwert(signals: dict, schluessel: Optional[str]) -> Optional[float]:
+    """Rohgröße als Float. NaN und Unparsbares zählen als nicht gemessen.
+
+    Bools werden ausgeschlossen: `True` als 1.0 zu lesen wäre genau die
+    Rundung, um die es hier geht.
+    """
+    if not schluessel:
+        return None
+    wert = signals.get(schluessel)
+    if wert is None or isinstance(wert, bool):
+        return None
+    try:
+        zahl = float(wert)
+    except (TypeError, ValueError):
+        return None
+    return None if zahl != zahl else zahl  # NaN != NaN
+
+
+def _aus_rohwert(signals: dict, schluessel: str,
+                 null_bearisch: bool = True) -> Optional[int]:
+    """Richtung aus dem Vorzeichen der Rohgröße statt aus einem Bool.
+
+    Korrigiert eine stille Fehlaufzeichnung bei OBV, VWMA und POC.
+    `_score_volume` initialisiert `obv_bullish`/`vwap_bullish`/`poc_bullish`
+    mit False und lässt sie dort stehen, wenn der Indikator gar nicht
+    berechenbar war (kein VWAP mangels Volumen, kein OBV-Trend mangels
+    Stützstellen). `_aus_bool` las dieses False als **bearisch** — der
+    Snapshot trug damit ein Verkaufssignal, wo das Scoring nichts gezählt
+    hatte (weder `cat_scores` noch `cat_max`).
+
+    Über die Rohgröße ist der Fall sauber getrennt: kein Wert, keine Zeile.
+    Das Vorzeichenverhalten bleibt identisch zu `_score_volume` — dessen
+    else-Zweig zählt auch die exakte Null als bearisch, weshalb
+    `null_bearisch` voreingestellt ist. Nur beim POC ist die Gleichheit ein
+    eigener, neutraler Fall.
+    """
+    wert = _rohwert(signals, schluessel)
+    if wert is None:
+        return None
+    if wert > 0:
+        return 1
+    if wert < 0:
+        return -1
+    return -1 if null_bearisch else None
+
+
+def _signaltext(richtung: Optional[int]) -> str:
+    if richtung is None:
+        return "neutral"
+    return "bullisch" if richtung > 0 else "bearisch"
+
+
 # ADX fehlt hier bewusst: er misst Trendstärke, nicht Trendrichtung — als
 # Prognose "steigt/fällt" ist er nicht auswertbar (scoring.py führt ihn
 # konsequenterweise ebenfalls nur als Info-Indikator).
@@ -201,23 +253,42 @@ def _stochastic_richtung(signals: dict) -> Optional[int]:
 # hier aber Zeilen mit beitrag_numeric ±1 und erschien im Leaderboard, als
 # wäre er Teil des Systems. Er wird weiter gemessen — aber als INFO markiert,
 # damit keine Gewichtungsentscheidung über einen wirkungslosen Indikator fällt.
+# Fünfter Eintrag (BC-04): der Schlüssel der ROHGRÖSSE in `signals` — die
+# gemessene Zahl in ihrer eigenen Einheit, nicht ihr Vorzeichen. Er entscheidet
+# zugleich, ob eine Beobachtung überhaupt existiert (siehe
+# `indikatoren_schreiben`). Bis hierher trugen drei der Instrumente gar keinen
+# Wert-Schlüssel und drei weitere nur an ihren Extremen eine Zeile; genau
+# deshalb ließen sich von acht nur zwei nachträglich stetig auswerten (§2h).
 _SIGNAL_INDIKATOREN: tuple = (
     ("Trend (SMA 200)", "trend",
      lambda s: _aus_gegensatz(s, "trend_macro_bullish", "trend_macro_bearish"),
-     "sma200_val", True),
+     "sma200_val", "trend_sma200_abstand_pct", True),
     ("SMA-Cross (20/50)", "trend",
-     lambda s: _aus_gegensatz(s, "cross_bullish", "cross_bearish"), "sma50_val", True),
+     lambda s: _aus_gegensatz(s, "cross_bullish", "cross_bearish"),
+     "sma50_val", "cross_spreizung_pct", True),
     ("MACD", "trend",
-     lambda s: _aus_gegensatz(s, "macd_bullish", "macd_bearish"), None, False),
-    ("FVG (Fair Value Gap)", "trend", _fvg_richtung, "unmitigated_bull", True),
-    ("RSI (14)", "oscillator", _rsi_richtung, "rsi_val", True),
-    ("Stochastic (14)", "oscillator", _stochastic_richtung, "stoch_val", True),
-    ("Bollinger Bänder", "oscillator", _bollinger_richtung, "bollinger_state", True),
-    ("OBV Trend", "volume", lambda s: _aus_bool(s, "obv_bullish"), None, True),
-    ("VWMA (20T)", "volume", lambda s: _aus_bool(s, "vwap_bullish"), None, True),
-    ("Volumen-Cluster (POC)", "volume", lambda s: _aus_bool(s, "poc_bullish"), None, True),
-    ("News Sentiment", "sentiment", _sentiment_richtung, "sentiment_avg", True),
-    ("Earnings Surprise", "sentiment", _earnings_richtung, "last_earnings_surprise", True),
+     lambda s: _aus_gegensatz(s, "macd_bullish", "macd_bearish"),
+     None, "macd_histogramm_pct", False),
+    ("FVG (Fair Value Gap)", "trend", _fvg_richtung,
+     "unmitigated_bull", "fvg_saldo", True),
+    ("RSI (14)", "oscillator", _rsi_richtung, "rsi_val", "rsi_val", True),
+    ("Stochastic (14)", "oscillator", _stochastic_richtung,
+     "stoch_val", "stoch_val", True),
+    ("Bollinger Bänder", "oscillator", _bollinger_richtung,
+     "bollinger_state", "bollinger_pct_b", True),
+    ("OBV Trend", "volume", lambda s: _aus_rohwert(s, "obv_slope"),
+     None, "obv_slope", True),
+    ("VWMA (20T)", "volume", lambda s: _aus_rohwert(s, "vwma_abstand_pct"),
+     None, "vwma_abstand_pct", True),
+    # Kurs exakt auf dem POC ist keine Richtungsaussage — `_score_volume`
+    # zählt diesen Fall weder in cat_scores noch in cat_max.
+    ("Volumen-Cluster (POC)", "volume",
+     lambda s: _aus_rohwert(s, "poc_abstand_pct", null_bearisch=False),
+     None, "poc_abstand_pct", True),
+    ("News Sentiment", "sentiment", _sentiment_richtung,
+     "sentiment_avg", "sentiment_avg", True),
+    ("Earnings Surprise", "sentiment", _earnings_richtung,
+     "last_earnings_surprise", "last_earnings_surprise", True),
 )
 
 
@@ -235,13 +306,33 @@ def indikatoren_schreiben(db: Session, snapshot: AnalyseSnapshot, score_result) 
     signals = getattr(score_result, "signals", None) or {}
     geschrieben = 0
 
-    for name, kategorie, richtung_fn, wert_schluessel, zaehlt_im_score in _SIGNAL_INDIKATOREN:
+    for (name, kategorie, richtung_fn, wert_schluessel, roh_schluessel,
+         zaehlt_im_score) in _SIGNAL_INDIKATOREN:
         try:
             richtung = richtung_fn(signals)
         except Exception:
             richtung = None
-        if richtung is None:
-            continue  # Nicht berechenbar oder kein gerichtetes Signal
+
+        gemessen = _rohwert(signals, roh_schluessel)
+
+        # BC-04: die ROHGRÖSSE entscheidet, ob eine Beobachtung existiert —
+        # die Richtung nur, was sie zum Score beiträgt.
+        #
+        # Bisher stand hier `if richtung is None: continue`, und das warf zwei
+        # verschiedene Fälle in denselben Topf: "nicht berechenbar" (kein RSI
+        # mangels Historie) und "berechenbar, aber neutral" (RSI 47). Der
+        # zweite ist eine vollwertige Beobachtung. Weil er verworfen wurde,
+        # tragen von 274.840 Snapshots nur 30.216 eine RSI-Zeile — der
+        # gesamte Mittelbereich, rund 89 %, existiert im Bestand nicht, und
+        # eine Frage nach dem Verlauf des RSI war deshalb nie beantwortbar.
+        #
+        # Ein Instrument ohne Rohgröße (kein `roh_schluessel`, oder der Wert
+        # ist None) bleibt beim alten Verhalten: dann trägt allein die
+        # Richtung die Information, und ohne sie gibt es nichts zu schreiben.
+        if gemessen is None and richtung is None:
+            continue
+
+        beitrag = float(richtung) if richtung is not None else 0.0
 
         rohwert = signals.get(wert_schluessel) if wert_schluessel else None
         db.add(AnalyseSnapshotIndikator(
@@ -250,9 +341,14 @@ def indikatoren_schreiben(db: Session, snapshot: AnalyseSnapshot, score_result) 
             kategorie=kategorie,
             wert=(f"{rohwert:.2f}" if isinstance(rohwert, (int, float))
                   else str(rohwert)[:200] if rohwert is not None else None),
-            signal_text="bullisch" if richtung > 0 else "bearisch",
-            beitrag_raw=str(richtung),
-            beitrag_numeric=float(richtung),
+            signal_text=_signaltext(richtung),
+            beitrag_raw=str(richtung if richtung is not None else 0),
+            # 0.0 statt None für die neutrale Zeile: die bestehenden
+            # Leaderboards filtern `beitrag_numeric != 0` und schließen sie
+            # damit von selbst aus. NULL wäre dort nicht unterscheidbar von
+            # den Info-Zeilen.
+            beitrag_numeric=beitrag,
+            wert_numeric=gemessen,
             granularitaet=(Granularitaet.INDIKATOR if zaehlt_im_score
                            else Granularitaet.INFO),
         ))
