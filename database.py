@@ -136,6 +136,27 @@ class Position(Base):
 
 
 class JournalEntry(Base):
+    """Ein Trade im Journal — seit der Automatisierung eine AUSGABE, keine Eingabe.
+
+    Vorher war das Journal eine handgefuehrte Parallelaufzeichnung von etwas,
+    das das System bereits wusste: die Position stand in `positions`, die
+    Analyse im Snapshot, das Ergebnis im Kurs. Wer beides pflegen muss, pflegt
+    am Ende keines — im Bestand standen 25 Testeintraege und kein echter Trade.
+
+    Jetzt traegt der Nutzer die Position ein, und `services/watchlist.py`
+    schreibt den Journaleintrag beim Kauf und schliesst ihn beim Verkauf.
+
+    **Das eigentliche Ziel der Verknuepfung** ist `einstiegs_snapshot_id`: sie
+    zeigt auf die NEUE_POSITION-Analyse, die die Entscheidung getragen hat.
+    Erst damit wird die Frage beantwortbar, fuer die die Snapshot-Engine
+    ueberhaupt gebaut wurde — nicht "wie oft trifft die Engine gegen den
+    Markt", sondern **"wie sind MEINE Trades gelaufen, wenn die Engine dieses
+    Signal gab"**. Diese Schleife war nie geschlossen.
+
+    `einstiegs_analyse_alter_tage` haelt fest, wie alt diese Analyse beim Kauf
+    war. Ohne die Angabe saehe eine drei Monate alte Analyse aus wie eine vom
+    Kauftag, und die Auswertung waere still falsch.
+    """
     __tablename__ = "journal"
 
     id: Mapped[str] = mapped_column(Text, primary_key=True)
@@ -152,6 +173,34 @@ class JournalEntry(Base):
     pnl_eur: Mapped[Optional[float]] = mapped_column(Float)
     pnl_pct: Mapped[Optional[float]] = mapped_column(Float)
     review_notes: Mapped[Optional[str]] = mapped_column(Text)
+
+    # ── Automatisch gefuehrt (ab 2026-09-04) ─────────────────────────
+    # "auto" oder "manuell". Trennt die vom Programm gefuehrten Eintraege von
+    # handgeschriebenen — eine Auswertung ueber realisierte Ergebnisse darf
+    # nicht beide mischen, weil nur die automatischen vollstaendig sind.
+    quelle: Mapped[Optional[str]] = mapped_column(Text)
+    position_id: Mapped[Optional[str]] = mapped_column(Text, index=True)
+
+    # Die Analyse, die die Entscheidung getragen hat. Siehe Klassen-Docstring:
+    # ohne sie misst die Engine nur gegen den Markt, nie gegen die eigenen
+    # Trades.
+    einstiegs_snapshot_id: Mapped[Optional[int]] = mapped_column(Integer)
+    einstiegs_confidence: Mapped[Optional[float]] = mapped_column(Float)
+    einstiegs_signal: Mapped[Optional[str]] = mapped_column(Text)
+    # Alter der Analyse in Tagen zum Kaufzeitpunkt. NULL heisst "keine Analyse
+    # gefunden", nicht "am selben Tag" — die Unterscheidung entscheidet, ob
+    # ein Eintrag fuer die Auswertung taugt.
+    einstiegs_analyse_alter_tage: Mapped[Optional[int]] = mapped_column(Integer)
+
+    # Stop und Ziel bei Eroeffnung. Bewusst hier dupliziert und nicht nur in
+    # `positions`: der initiale Stop wandert dort, sobald er nachgezogen wird,
+    # und das R-Multiple braucht den urspruenglichen.
+    stop_initial: Mapped[Optional[float]] = mapped_column(Float)
+    ziel_initial: Mapped[Optional[float]] = mapped_column(Float)
+
+    # Beim Abschluss berechnet.
+    r_multiple: Mapped[Optional[float]] = mapped_column(Float)
+    haltedauer_tage: Mapped[Optional[int]] = mapped_column(Integer)
 
 
 class SignalRecord(Base):
@@ -545,9 +594,53 @@ def set_setting(key: str, value: str):
 # Initialisierung & Migration
 # ---------------------------------------------------------------------------
 
+# Additive Spaltenmigration. `create_all` legt fehlende TABELLEN an, aber keine
+# fehlenden SPALTEN — ein neues Feld an einem bestehenden Modell bliebe sonst
+# unbemerkt, bis eine Abfrage darauf zur Laufzeit scheitert. Gleiche Bauart wie
+# `snapshot_engine.models._schema_migrieren`, nur fuer die Kerntabellen.
+#
+# Ausschliesslich ADD COLUMN, nie DROP: eine Spalte zu verlieren ist
+# unumkehrbar, eine ueberfluessige kostet nichts.
+_ZUSATZSPALTEN: dict[str, dict[str, str]] = {
+    "journal": {
+        # Ohne DEFAULT: NULL heisst "vor der Automatisierung geschrieben" und
+        # ist damit von einem automatischen Eintrag unterscheidbar.
+        "quelle": "TEXT",
+        "position_id": "TEXT",
+        "einstiegs_snapshot_id": "INTEGER",
+        "einstiegs_confidence": "REAL",
+        "einstiegs_signal": "TEXT",
+        "einstiegs_analyse_alter_tage": "INTEGER",
+        "stop_initial": "REAL",
+        "ziel_initial": "REAL",
+        "r_multiple": "REAL",
+        "haltedauer_tage": "INTEGER",
+    },
+}
+
+
+def _spalten_ergaenzen():
+    """Ergaenzt fehlende Spalten an bestehenden Tabellen. Idempotent."""
+    from sqlalchemy import inspect, text
+
+    inspector = inspect(engine)
+    vorhandene = set(inspector.get_table_names())
+    for tabelle, spalten in _ZUSATZSPALTEN.items():
+        if tabelle not in vorhandene:
+            continue
+        da = {c["name"] for c in inspector.get_columns(tabelle)}
+        with engine.begin() as conn:
+            for name, definition in spalten.items():
+                if name not in da:
+                    conn.execute(text(
+                        f"ALTER TABLE {tabelle} ADD COLUMN {name} {definition}"))
+                    print(f"[DB] Spalte {name} zu {tabelle} ergänzt.")
+
+
 def init_db():
     """Erstellt alle Tabellen (falls nicht vorhanden) und migriert JSON-Daten."""
     Base.metadata.create_all(engine)
+    _spalten_ergaenzen()
     _migrate_json_if_needed()
 
 

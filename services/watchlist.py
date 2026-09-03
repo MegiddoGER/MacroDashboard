@@ -19,7 +19,7 @@ import yfinance as yf
 
 from database import (
     get_session, WatchlistItem, Position as PositionRow,
-    PositionStopHistorie,
+    PositionStopHistorie, JournalEntry,
 )
 
 # Pfad zur Watchlist-Datei (im data/ Verzeichnis des Projekts)
@@ -310,6 +310,167 @@ def vorheriger_stop(position_id: str) -> float | None:
     return vorheriger_aus_historie(stop_historie(position_id))
 
 
+# ---------------------------------------------------------------------------
+# Journal — automatisch gefuehrt (2026-09-04)
+# ---------------------------------------------------------------------------
+
+QUELLE_JOURNAL_AUTO = "auto"
+
+# Aelter als das ist eine Einstiegsanalyse keine Entscheidungsgrundlage mehr.
+# Der Wert wird NICHT zum Ausschluss verwendet — der Eintrag entsteht trotzdem,
+# nur mit ausgewiesenem Alter. Eine Auswertung kann dann selbst entscheiden,
+# ab wann sie eine Analyse noch gelten laesst; ein hart gesetzter Schnitt hier
+# waere eine Annahme, die spaeter niemand mehr sieht.
+ANALYSE_ALTER_HINWEIS_TAGE = 14
+
+
+def _einstiegsanalyse(session, ticker: str, kaufdatum: str) -> dict:
+    """Die letzte NEUE_POSITION-Analyse vor dem Kauf.
+
+    Das ist der Kern der Journal-Automatisierung: nicht was die Engine heute
+    sagt, sondern was sie sagte, **als die Entscheidung fiel**. Ein spaeter
+    erzeugter Snapshot waere ein anderer Zustand und wuerde die Auswertung
+    still faelschen.
+
+    Gesucht wird der juengste Snapshot mit `snapshot_zeitpunkt <= Kauftag`.
+    Findet sich keiner, bleiben alle Felder None — das ist ein ehrliches
+    "keine Analyse vorhanden" und darf nicht mit einer neutralen Analyse
+    verwechselt werden.
+    """
+    leer = {"snapshot_id": None, "confidence": None, "signal": None,
+            "alter_tage": None}
+    try:
+        from snapshot_engine.models import AnalyseModus, AnalyseSnapshot
+    except Exception:
+        return leer
+
+    try:
+        stichtag = datetime.strptime(kaufdatum, "%Y-%m-%d")
+    except (TypeError, ValueError):
+        stichtag = datetime.now()
+    # Bis zum Ende des Kauftages: eine Analyse am Morgen des Kaufs zaehlt.
+    grenze = stichtag.replace(hour=23, minute=59, second=59)
+
+    try:
+        snap = (
+            session.query(AnalyseSnapshot)
+            .filter(AnalyseSnapshot.ticker.ilike(ticker))
+            .filter(AnalyseSnapshot.analyse_modus == AnalyseModus.NEUE_POSITION)
+            .filter(AnalyseSnapshot.snapshot_zeitpunkt <= grenze)
+            .order_by(AnalyseSnapshot.snapshot_zeitpunkt.desc())
+            .first()
+        )
+    except Exception as exc:
+        warnings.warn(f"Einstiegsanalyse für {ticker} nicht lesbar: {exc}")
+        return leer
+
+    if snap is None:
+        return leer
+    return {
+        "snapshot_id": snap.id,
+        "confidence": snap.confidence,
+        "signal": snap.richtungssignal,
+        "alter_tage": max(0, (stichtag - snap.snapshot_zeitpunkt).days),
+    }
+
+
+def _journaleintrag_anlegen(session, pos: PositionRow) -> str | None:
+    """Legt beim Kauf den Journaleintrag an. Laeuft in der Transaktion des Kaufs.
+
+    Bewusst KEIN eigener Session-Aufruf: SQLite laesst im WAL-Modus nur einen
+    Schreiber zu, und ein zweiter Commit waehrend der offenen Kauftransaktion
+    liefe in eine Sperre. Ausserdem soll beides gemeinsam entstehen oder gar
+    nicht — ein Kauf ohne Journaleintrag waere genau die Luecke, die dieses
+    Vorhaben schliesst.
+
+    Der Freitext bleibt leer. Er ist das einzige Feld, das sich nicht
+    rekonstruieren laesst, und deshalb freiwillig — aber es ist die Zeile, die
+    spaeter erklaert, warum gegen die Engine entschieden wurde.
+    """
+    analyse = _einstiegsanalyse(session, pos.ticker, pos.buy_date)
+    eintrag_id = str(uuid.uuid4())[:8]
+    session.add(JournalEntry(
+        id=eintrag_id,
+        ticker=pos.ticker,
+        trade_type="Long",
+        setup_type="",
+        entry_date=pos.buy_date,
+        entry_price=pos.buy_price,
+        conviction=3,
+        entry_notes="",
+        status="Offen",
+        quelle=QUELLE_JOURNAL_AUTO,
+        position_id=pos.id,
+        einstiegs_snapshot_id=analyse["snapshot_id"],
+        einstiegs_confidence=analyse["confidence"],
+        einstiegs_signal=analyse["signal"],
+        einstiegs_analyse_alter_tage=analyse["alter_tage"],
+        stop_initial=pos.stop_loss,
+        ziel_initial=pos.take_profit,
+    ))
+    return eintrag_id
+
+
+def _r_multiple(einstieg: float, ausstieg: float,
+                stop: float | None) -> float | None:
+    """Ergebnis in Vielfachen des urspruenglich riskierten Betrags.
+
+    Die einzige Groesse, die Trades verschiedener Positionsgroessen
+    vergleichbar macht. +2R heisst: doppelt so viel gewonnen wie geplant
+    riskiert — unabhaengig davon, ob es 200 oder 2.000 Euro waren.
+
+    Bezug ist der INITIALE Stop, nicht der zuletzt gueltige. Wer gegen einen
+    nachgezogenen Stop rechnet, teilt durch einen immer kleineren Nenner und
+    erzeugt beliebig grosse R-Multiples aus einem gewoehnlichen Trade.
+
+    None, wenn kein Stop gesetzt war: dann gab es kein definiertes Risiko, und
+    eine Zahl waere hier eine Erfindung.
+    """
+    if stop is None or not einstieg:
+        return None
+    risiko = einstieg - stop
+    if risiko <= 0:
+        # Stop ueber dem Einstieg — bei einer Long-Position kein definiertes
+        # Risiko, sondern ein Eingabefehler.
+        return None
+    return round((ausstieg - einstieg) / risiko, 2)
+
+
+def _journaleintrag_abschliessen(session, pos: PositionRow) -> bool:
+    """Schliesst den Journaleintrag beim Verkauf. In der Transaktion des Verkaufs."""
+    eintrag = (session.query(JournalEntry)
+               .filter(JournalEntry.position_id == pos.id).first())
+    if eintrag is None:
+        return False
+
+    einstieg = pos.buy_price or 0.0
+    ausstieg = pos.sell_price or 0.0
+    menge = pos.quantity or 0.0
+    gebuehren = (pos.fees or 0.0) + (pos.sell_fees or 0.0)
+
+    pnl_eur = round((ausstieg - einstieg) * menge - gebuehren, 2)
+    pnl_pct = (round((ausstieg - einstieg) / einstieg * 100, 2)
+               if einstieg else None)
+
+    eintrag.exit_date = pos.sell_date
+    eintrag.exit_price = ausstieg
+    eintrag.pnl_eur = pnl_eur
+    eintrag.pnl_pct = pnl_pct
+    # Break-Even nach GEBUEHREN, nicht nach Kurs: ein Trade, der die Kosten
+    # nicht einspielt, ist kein Nullergebnis.
+    eintrag.status = ("Gewonnen" if pnl_eur > 0
+                      else "Verloren" if pnl_eur < 0 else "Break-Even")
+    eintrag.r_multiple = _r_multiple(einstieg, ausstieg, eintrag.stop_initial)
+
+    try:
+        gekauft = datetime.strptime(pos.buy_date, "%Y-%m-%d")
+        verkauft = datetime.strptime(pos.sell_date, "%Y-%m-%d")
+        eintrag.haltedauer_tage = max(0, (verkauft - gekauft).days)
+    except (TypeError, ValueError):
+        eintrag.haltedauer_tage = None
+    return True
+
+
 def add_position(ticker: str, buy_price: float, quantity: float,
                  buy_date: str | None = None, stop_loss: float | None = None,
                  take_profit: float | None = None, fees: float = 0.0,
@@ -338,11 +499,32 @@ def add_position(ticker: str, buy_price: float, quantity: float,
             sell_fees=0.0,
         )
         session.add(pos)
+        # Die Position muss in der Datenbank stehen, BEVOR etwas auf sie
+        # verweist. `PositionStopHistorie.position_id` traegt einen
+        # Fremdschluessel auf `positions.id`, aber keine `relationship()` —
+        # SQLAlchemy kennt die Abhaengigkeit deshalb nicht und ordnet die
+        # Inserts frei an. Mit `PRAGMA foreign_keys=ON` scheiterte dann der
+        # ganze Kauf an einem IntegrityError.
+        #
+        # Das war kein Randfall: JEDE Position mit Stop-Loss ist daran
+        # gescheitert, und genau deshalb stand `position_stop_historie` bei
+        # null Zeilen. Abschnitt C war nicht an fehlender Disziplin
+        # blockiert, sondern an diesem Fehler.
+        session.flush()
+
         item.status = "Investiert"
         if pos.stop_loss is not None:
             # Der einzige Zeitpunkt, zu dem der Einstiegs-Stop zweifelsfrei
             # bekannt ist (P3-01).
             _stop_vermerken(session, pos.id, pos.stop_loss, QUELLE_EROEFFNUNG)
+
+        # Journal automatisch mitschreiben — in derselben Transaktion, damit
+        # ein Kauf ohne Eintrag nicht vorkommen kann. Scheitert die
+        # Verknuepfung mit der Einstiegsanalyse, entsteht der Eintrag trotzdem
+        # (mit leeren Analysefeldern): ein Journal ohne Analyse ist brauchbar,
+        # ein Kauf ohne Journal nicht.
+        _journaleintrag_anlegen(session, pos)
+
         session.commit()
         return pos.to_dict()
     finally:
@@ -361,6 +543,11 @@ def close_position(ticker: str, position_id: str, sell_price: float,
         pos.sell_date = sell_date or datetime.now().strftime("%Y-%m-%d")
         pos.sell_price = round(sell_price, 2)
         pos.sell_fees = round(sell_fees, 2)
+
+        # Journaleintrag mit abschliessen: P&L, R-Multiple, Haltedauer. Alles
+        # aus Daten, die hier ohnehin vorliegen — nichts davon muss jemand
+        # nachtragen.
+        _journaleintrag_abschliessen(session, pos)
 
         # Prüfe ob noch offene Positionen existieren
         open_count = session.query(PositionRow).filter(
