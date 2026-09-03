@@ -309,6 +309,115 @@ def instrument_lesen(db: Session, indikator: str, horizont: int = 7,
 # Das Handbuch
 # ---------------------------------------------------------------------------
 
+def bedingt(db: Session, indikator: str, bedingung: str, horizont: int = 7,
+            datenmodus: str = "HISTORISCH", teil: Optional[str] = TRAIN,
+            minimum: int = MIN_STICHPROBE) -> dict:
+    """Traegt `indikator` noch etwas, wenn man auf `bedingung` bedingt?
+
+    Die Redundanzpruefung. Zwei Instrumente, die dieselbe Groesse messen,
+    liefern nicht zwei Belege, sondern einen — und sie versagen in denselben
+    Jahren, was von aussen wie eine Bestaetigung aussieht.
+
+    Gemessen wird der Q5-minus-Q1-Spread des Indikators **innerhalb jedes
+    Quintils der Bedingung**. Haelt er in allen fuenf Schichten, ist der
+    Indikator etwas Eigenes. Verschwindet er, war er die Bedingung.
+
+    Jede Schicht bekommt ihre eigene Marktbasis — aus demselben Grund wie in
+    `jahresstabilitaet`: die Grundgesamtheit einer Trendlage schlaegt ihren
+    Index anders oft als die Gesamtheit, und wer gegen eine gemeinsame Basis
+    rechnet, misst diesen Unterschied statt des Signals.
+
+    Dazu die Rangkorrelation der beiden Rohgroessen — dieselbe Pruefung, die
+    §2f zur stehenden Regel gemacht hat, nur gegen ein anderes Instrument
+    statt gegen den Kurs.
+
+    Returns:
+        {"indikator", "bedingung", "rangkorrelation", "schichten": [...],
+         "schichten_mit_vorsprung", "zaehlwerk"}
+    """
+    from snapshot_engine.auswertung.kursnaehe import rangkorrelation
+
+    werte_i, zuordnung_i, _ = _werte(db, indikator, datenmodus)
+    werte_b, zuordnung_b, _ = _werte(db, bedingung, datenmodus)
+    raenge_i = _raenge(werte_i, zuordnung_i)
+    raenge_b = _raenge(werte_b, zuordnung_b)
+
+    gemeinsam = sorted(set(raenge_i) & set(raenge_b))
+    korrelation = rangkorrelation([werte_i[s] for s in gemeinsam],
+                                  [werte_b[s] for s in gemeinsam])
+
+    query = (
+        db.query(AnalyseSnapshot.id,
+                 AnalyseSnapshotOutcome.outcome_return,
+                 AnalyseSnapshotOutcome.benchmark_return)
+        .join(AnalyseSnapshotOutcome,
+              AnalyseSnapshotOutcome.snapshot_id == AnalyseSnapshot.id)
+        .filter(AnalyseSnapshotOutcome.horizont_tage == horizont)
+        .filter(AnalyseSnapshotOutcome.ausgewertet.is_(True))
+        .filter(AnalyseSnapshotOutcome.outcome_return.isnot(None))
+        .filter(AnalyseSnapshot.datenmodus == datenmodus)
+        .filter(AnalyseSnapshot.analyse_modus == AnalyseModus.NEUE_POSITION)
+    )
+    if teil:
+        query = split_filter(query, teil, grenze_lesen())
+
+    # {schicht: {quintil: [(rendite, ueberrendite)]}}
+    schichten: dict[int, dict[int, list]] = defaultdict(lambda: defaultdict(list))
+    basis_je_schicht: dict[int, list] = defaultdict(list)
+    zaehlwerk = {"zeilen": 0, "ohne_rang": 0, "verwertet": 0}
+
+    for snapshot_id, ret, benchmark in query.all():
+        zaehlwerk["zeilen"] += 1
+        qi = quintil(raenge_i.get(snapshot_id))
+        qb = quintil(raenge_b.get(snapshot_id))
+        if qi is None or qb is None:
+            zaehlwerk["ohne_rang"] += 1
+            continue
+        zaehlwerk["verwertet"] += 1
+        u = ueberrendite(ret, benchmark)
+        schichten[qb][qi].append((ret, u))
+        basis_je_schicht[qb].append(u)
+
+    z = z_korrigiert(len(schichten) * 2)  # zwei Enden je Schicht
+    zeilen = []
+    for schicht in sorted(schichten):
+        gruppen = schichten[schicht]
+        if 1 not in gruppen or QUANTILE not in gruppen:
+            continue
+        basis = anteil_schlaegt_markt(basis_je_schicht[schicht])
+        oben = zelle_gegen_markt([r for r, _ in gruppen[QUANTILE]],
+                                 [u for _, u in gruppen[QUANTILE]],
+                                 basis, horizont, minimum=minimum, z=z)
+        unten = zelle_gegen_markt([r for r, _ in gruppen[1]],
+                                  [u for _, u in gruppen[1]],
+                                  basis, horizont, minimum=minimum, z=z)
+        hoch, tief = oben.get("markt_trefferquote"), unten.get("markt_trefferquote")
+        zeilen.append({
+            "schicht": schicht,
+            "n": sum(len(v) for v in gruppen.values()),
+            "basis_markt": round(basis, 1) if basis is not None else None,
+            "q1_vorsprung_pp": unten.get("markt_vorsprung_pp"),
+            "q5_vorsprung_pp": oben.get("markt_vorsprung_pp"),
+            "spread_pp": (None if hoch is None or tief is None
+                          else round(hoch - tief, 1)),
+            "q5_signifikant": oben.get("signifikant_korrigiert"),
+        })
+
+    spreads = [z_["spread_pp"] for z_ in zeilen if z_["spread_pp"] is not None]
+    return {
+        "indikator": indikator, "bedingung": bedingung,
+        "horizont_tage": horizont, "teil": teil,
+        "rangkorrelation": (None if korrelation is None
+                            else round(korrelation, 3)),
+        "n_gemeinsam": len(gemeinsam),
+        "schichten": zeilen,
+        "schichten_mit_vorsprung": sum(1 for s in spreads if s > 0),
+        "schichten_gesamt": len(spreads),
+        "z_korrigiert": round(z, 2),
+        "zaehlwerk": zaehlwerk,
+    }
+
+
 def jahresstabilitaet(db: Session, indikator: str, horizont: int = 7,
                       datenmodus: str = "HISTORISCH",
                       teil: Optional[str] = TRAIN,
