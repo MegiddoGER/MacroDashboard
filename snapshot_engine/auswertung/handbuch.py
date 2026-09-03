@@ -309,6 +309,109 @@ def instrument_lesen(db: Session, indikator: str, horizont: int = 7,
 # Das Handbuch
 # ---------------------------------------------------------------------------
 
+def jahresstabilitaet(db: Session, indikator: str, horizont: int = 7,
+                      datenmodus: str = "HISTORISCH",
+                      teil: Optional[str] = TRAIN,
+                      minimum: int = MIN_STICHPROBE,
+                      vorberechnet: Optional[tuple] = None) -> dict:
+    """Haelt der Spread ueber die Kalenderjahre sein Vorzeichen?
+
+    **Das schaerfste Kriterium dieses Projekts.** Acht von acht bisherigen
+    Kandidaten sind hier gestorben, und zwar immer auf dieselbe Weise: gepoolt
+    ein Vorsprung, nach Jahren getrennt ein einzelnes Regime, das ihn traegt,
+    und andere, die ihn umkehren. Querschnitts-Momentum trug in genau einem
+    von fuenf Regimen (+4,8 pp) und kehrte sich 2020 um (unterstes Dezil
+    +11,9 pp). Gepoolt blieben +0,2 pp.
+
+    **Die Raenge werden global gebildet, nicht je Jahr.** Dieselbe
+    Entscheidung wie in `regime.py`: ein Rang je Jahr wuerde die Frage
+    veraendern — dann verglichen sich Titel nur noch innerhalb desselben
+    Jahres, und die Aussage waere eine andere als die des Handbuchs.
+
+    **Jedes Jahr bekommt seine eigene Marktbasis.** Der Anteil der Titel, die
+    ihren Index schlagen, schwankt erheblich zwischen Marktphasen — in §2i
+    lagen 44,3 % und 58,7 % nebeneinander, also 4,2 pp Unterschied allein aus
+    der Basis. Wer gegen eine gemeinsame Basis rechnet, misst die Marktbreite
+    des Jahres statt des Signals.
+
+    Returns:
+        {"indikator", "horizont_tage", "jahre": [...], "vorzeichen_gleich",
+         "jahre_gesamt", "spread_gepoolt_pp"}
+    """
+    if vorberechnet is None:
+        werte, zuordnung, alt = _werte(db, indikator, datenmodus)
+        raenge = _raenge(werte, zuordnung)
+    else:
+        werte, zuordnung, alt, raenge = vorberechnet
+
+    query = (
+        db.query(AnalyseSnapshot.id,
+                 AnalyseSnapshotOutcome.outcome_return,
+                 AnalyseSnapshotOutcome.benchmark_return)
+        .join(AnalyseSnapshotOutcome,
+              AnalyseSnapshotOutcome.snapshot_id == AnalyseSnapshot.id)
+        .filter(AnalyseSnapshotOutcome.horizont_tage == horizont)
+        .filter(AnalyseSnapshotOutcome.ausgewertet.is_(True))
+        .filter(AnalyseSnapshotOutcome.outcome_return.isnot(None))
+        .filter(AnalyseSnapshot.datenmodus == datenmodus)
+        .filter(AnalyseSnapshot.analyse_modus == AnalyseModus.NEUE_POSITION)
+    )
+    if teil:
+        query = split_filter(query, teil, grenze_lesen())
+
+    # {jahr: {quintil: [(rendite, ueberrendite)]}} plus alle Ueberrenditen
+    # des Jahres fuer dessen eigene Basis.
+    je_jahr: dict[int, dict[int, list]] = defaultdict(lambda: defaultdict(list))
+    basis_je_jahr: dict[int, list] = defaultdict(list)
+
+    for snapshot_id, ret, benchmark in query.all():
+        wert = werte.get(snapshot_id)
+        if wert is None:
+            continue
+        q = quintil(raenge.get(snapshot_id))
+        if q is None:
+            continue
+        jahr = zuordnung[snapshot_id][1].year
+        u = ueberrendite(ret, benchmark)
+        je_jahr[jahr][q].append((ret, u))
+        basis_je_jahr[jahr].append(u)
+
+    zeilen = []
+    for jahr in sorted(je_jahr):
+        gruppen = je_jahr[jahr]
+        if 1 not in gruppen or QUANTILE not in gruppen:
+            continue
+        basis = anteil_schlaegt_markt(basis_je_jahr[jahr])
+        z = z_korrigiert(len(je_jahr) * 2)  # zwei Enden je Jahr
+        oben = zelle_gegen_markt([r for r, _ in gruppen[QUANTILE]],
+                                 [u for _, u in gruppen[QUANTILE]],
+                                 basis, horizont, minimum=minimum, z=z)
+        unten = zelle_gegen_markt([r for r, _ in gruppen[1]],
+                                  [u for _, u in gruppen[1]],
+                                  basis, horizont, minimum=minimum, z=z)
+        hoch, tief = oben.get("markt_trefferquote"), unten.get("markt_trefferquote")
+        zeilen.append({
+            "jahr": jahr,
+            "n": sum(len(v) for v in gruppen.values()),
+            "basis_markt": round(basis, 1) if basis is not None else None,
+            "q5_vorsprung_pp": oben.get("markt_vorsprung_pp"),
+            "q1_vorsprung_pp": unten.get("markt_vorsprung_pp"),
+            "spread_pp": (None if hoch is None or tief is None
+                          else round(hoch - tief, 1)),
+            "q5_signifikant": oben.get("signifikant_korrigiert"),
+        })
+
+    spreads = [z["spread_pp"] for z in zeilen if z["spread_pp"] is not None]
+    positiv = sum(1 for s in spreads if s > 0)
+    return {
+        "indikator": indikator, "horizont_tage": horizont, "teil": teil,
+        "jahre": zeilen, "jahre_gesamt": len(spreads),
+        # Das eigentliche Kriterium: wie oft traegt der Spread dasselbe
+        # Vorzeichen wie die Mehrheit? Bei neun Jahren ist fuenf reiner Zufall.
+        "vorzeichen_gleich": max(positiv, len(spreads) - positiv),
+    }
+
+
 def handbuch(db: Session, horizonte: Sequence[int] = HORIZONTE,
              namen: Optional[Sequence[str]] = None,
              datenmodus: str = "HISTORISCH",
