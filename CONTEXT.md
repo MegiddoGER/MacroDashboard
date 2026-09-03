@@ -1,6 +1,6 @@
 # CONTEXT.md — Arbeitsstand Signal-Engine
 
-_Stand: 2026-09-03 · auf `d73d711` folgend · Branch `main`_
+_Stand: 2026-09-04 · auf `01646e9` folgend · Branch `main`_
 
 Übergabedatei für eine frische Claude-Session. Sie beantwortet drei Fragen:
 **Was ist erledigt, was ist offen, und was darf nicht noch einmal neu hergeleitet
@@ -1111,6 +1111,140 @@ nicht die Kennzahl.
 
 ---
 
+## 2k. Die Renditespanne — der letzte blinde Fleck, und er war leer (S6)
+
+Bis hierher hing **jedes** Urteil dieses Projekts an der **Trefferquote**. Die
+mittlere Überrendite wurde berechnet, aber nie auf Signifikanz geprüft, also
+nie zu einem Urteil. Beide Größen können auseinanderlaufen: ein Eingang, der
+selten recht hat und dabei viel gewinnt, ist nach der Quote Rauschen und nach
+der Rendite ein Faktor. Die Literatur misst durchgehend das Zweite.
+
+`basis.fehlerspanne_mittelwert_pp()` schließt das — über die **effektive**
+Stichprobe, wie bei der Quote.
+
+### Ein Fehler, der hier stehen bleibt, weil er lehrreich ist
+
+Der erste Durchlauf meldete **47 signifikante Zellen von 150** statt vier. Das
+Muster hat ihn verraten: **Q1 UND Q5 desselben Instruments positiv**, bei allen
+zehn Instrumenten, mit Werten proportional zum Horizont. Ein Signal kann nicht
+an beiden Enden gleichzeitig gut sein.
+
+```
+Grundgesamtheit TRAIN, mittlere Überrendite:
+   7 Tage  +0,040 pp     30 Tage  +0,304 pp     90 Tage  +0,832 pp
+```
+
+Die vermeintlichen Funde lagen genau darauf. Geprüft wurde gegen **null** statt
+gegen die Grundgesamtheit — dieselbe Falle wie 50 % statt 48,1 % bei der Quote
+(§2b), nur gespiegelt: **gegen null sieht jede Auswahl nach einem Vorsprung
+aus.** `mittlere_ueberrendite()` liefert den Bezugspunkt jetzt, je Jahr und je
+Schicht getrennt; ein Regressionstest hält den Fehler fest.
+
+Korrigiert: **47 → 8** Zellen im Handbuch, **18 → 13** beim Volumen.
+
+### Was übrig blieb — und woran es starb
+
+Die Rendite sah tatsächlich etwas, das die Quote nicht sah: Mean Reversion bei
+**allen drei** Oszillatoren, beide Enden, entgegengesetztes Vorzeichen.
+
+```
+RSI 7T    Q1 +0,13 ±0,10    Q5 −0,08 ±0,08
+Stoch     Q1 +0,13 ±0,10    Q5 −0,11 ±0,08
+Bollinger                   Q5 −0,12 ±0,08
+```
+
+Die Jahresprüfung, jetzt auch auf der Rendite (`ertrag_vorzeichen_gleich`),
+erledigt es: RSI **5 von 9**, Stochastic und Bollinger je **7 von 9**
+(p = 0,18). Der Verlauf zeigt, woher es kommt — **2020 trägt −1,20 / −1,29 /
+−1,18**, das Vier- bis Sechsfache jedes anderen Jahres. Ohne 2020 bleibt
+Streuung um null.
+
+Ebenso beim Volumen: Tagesspanne und Eröffnungslücke tragen auf der Rendite
+monoton über alle fünf Quintile (90 Tage: −1,00 / −0,81 / −0,07 / … / +2,24),
+sind aber **Volatilitätsmaße**. Ein volatiler Titel hat allein wegen der
+Rechtsschiefe seiner Verteilung einen höheren arithmetischen Mittelwert, ohne
+häufiger vorn zu liegen — Konvexität, keine Prognose. Jahresweise 5 von 9,
+Gipfel 2020.
+
+**S6 ist geschlossen: der blinde Fleck war echt, und er war leer.** Beide
+Metriken stehen ab jetzt nebeneinander in jeder Zelle.
+
+---
+
+## 2l. Das Journal wird automatisch geführt — und ein Fehler wird korrigiert
+
+### Der Fehler zuerst, weil er eine Diagnose in §5 widerlegt
+
+`PositionStopHistorie.position_id` trägt einen Fremdschlüssel auf
+`positions.id`, aber **keine `relationship()`**. SQLAlchemy kannte die
+Abhängigkeit deshalb nicht und ordnete die Inserts frei an; mit
+`PRAGMA foreign_keys=ON` scheiterte die Historie an einem `IntegrityError`,
+bevor die Position geschrieben war.
+
+**Jeder Kauf mit Stop-Loss ist daran gescheitert.** Genau deshalb stand
+`position_stop_historie` bei null Zeilen. Die frühere Diagnose — Abschnitt C
+sei an Daten des Besitzers blockiert — **war falsch.** Ein `session.flush()`
+vor dem Vermerken behebt es; fünf Tests gegen eine In-Memory-Datenbank mit
+aktivem Pragma halten es fest (die Fixture prüft, dass der Pragma wirklich
+greift — sonst wäre der Test eine leere Hülle).
+
+### Die Automatik
+
+Der Nutzer trägt die Position ein, das Programm schreibt den Rest.
+
+```
+add_position()    legt den Journaleintrag an — in DERSELBEN Transaktion
+close_position()  schließt ihn ab: P&L, Status, R-Multiple, Haltedauer
+```
+
+Kein zweiter Session-Aufruf: SQLite lässt im WAL-Modus nur einen Schreiber zu,
+und beides soll gemeinsam entstehen oder gar nicht.
+
+**Der eigentliche Zweck ist `einstiegs_snapshot_id`.** Sie zeigt auf die
+`NEUE_POSITION`-Analyse, die die Entscheidung getragen hat — die letzte **vor**
+dem Kauf, nicht die aktuelle. Damit wird zum ersten Mal die Frage beantwortbar,
+für die die Snapshot-Engine gebaut wurde: nicht „wie oft trifft die Engine
+gegen den Markt", sondern **„wie sind MEINE Trades gelaufen, wenn die Engine
+dieses Signal gab"**. `einstiegs_analyse_alter_tage` hält fest, wie alt sie beim
+Kauf war — ohne die Angabe sähe eine drei Monate alte aus wie eine vom Kauftag.
+
+Das R-Multiple rechnet gegen den **initialen** Stop, nicht gegen den
+nachgezogenen: derselbe Trade ergibt gegen einen auf 99 nachgezogenen Stop
++20 R statt +2 R. Deshalb liegt `stop_initial` im Journaleintrag und nicht in
+der Position, die sich mitbewegt.
+
+**Entscheidungen des Besitzers (2026-09-04):** die 25 Testeinträge sind
+gelöscht; Altbestand wird **nicht** nachgetragen, die Automatik läuft ab dem
+nächsten Kauf. Der Freitext bleibt optional — er ist das einzige Feld, das
+sich nicht rekonstruieren lässt.
+
+---
+
+## 2m. Die Oberfläche erfand eine zweite Empfehlung
+
+`templates/partials/analysis_content.html` leitete aus der Confidence **eigene**
+Schwellen ab:
+
+```
+Template   KAUFEN 70 | HALTEN 55 | NEUTRAL 40 | NICHT KAUFEN darunter
+Engine     75 Starkes Kaufsignal | 60 Kauftendenz | 45 Neutral | 30 Kein
+           Einstieg | darunter Meiden
+```
+
+Bei Confidence 72 stand im Kasten „KAUFEN" und direkt darüber „Kauftendenz" —
+zwei Wahrheiten für dieselbe Zahl, und die lautere stand kleiner. **2.1.0 und
+2.2.0 haben die Empfehlungslogik zweimal geändert, ohne dass dieses Duplikat
+mitgezogen hätte.** Das Template zeigt jetzt `score_label` der Engine und
+leitet nichts mehr ab.
+
+Zugleich heißt die Zahl nicht mehr „/ 100", sondern **„Einigkeit"**, mit einem
+Satz darunter: sie misst, wie einig sich die Indikatoren sind, nicht wie
+wahrscheinlich der Kurs steigt. Marktbereinigt trennt die Kurve nicht (§2b).
+Die Zahl bleibt als Sortier- und Filtergröße stehen; nur die Deutung als
+Wahrscheinlichkeit ist weg.
+
+---
+
 ## 3. Erledigt — nicht noch einmal bauen
 
 | Was | Wo |
@@ -1167,6 +1301,12 @@ nicht die Kennzahl.
 | **§2j Jahresstabilität als stehendes Kriterium** | `handbuch.jahresstabilitaet()` |
 | **§2j Redundanzprüfung zweier Instrumente** | `handbuch.bedingt()` |
 | **§2j BC-01 beantwortet: echtes Volumen, negativ** | `services/volumen.py`, `auswertung/volumen.py`, `tests/test_volumen.py` |
+| **§2k Fehlerspanne auf der Rendite (S6)** | `auswertung/basis.py` (`fehlerspanne_mittelwert_pp`, `mittlere_ueberrendite`), `tests/test_renditespanne.py` |
+| **§2k Jahresprüfung auch auf der Rendite** | `handbuch.jahresstabilitaet` (`ertrag_vorzeichen_gleich`) |
+| **§2l Journal automatisch geführt** | `services/watchlist.py`, `database.JournalEntry`, `tests/test_journal_auto.py` |
+| **§2l Fremdschlüssel-Fehler in der Stop-Historie behoben** | `services/watchlist.py` (`session.flush()`) |
+| **§2l Additive Spaltenmigration für Kerntabellen** | `database._spalten_ergaenzen()` |
+| **§2m Confidence = Einigkeit, Template ohne eigene Schwellen** | `templates/partials/analysis_content.html` |
 
 **Wichtig (überholt seit der Neuaufzeichnung):** Der Satz „alle
 Bestands-Snapshots tragen `score_version` 1.0.0" galt für die stillgelegte
@@ -1475,10 +1615,14 @@ Arbeit inline erledigt, was sie langsam und einmalig statt wiederholbar macht.
 
 ## 5. Empfohlener nächster Schritt
 
-**Der historische Bestand ist ausgemessen.** Seit der Neuaufzeichnung (§2j)
-tragen alle zehn Instrumente ihre Rohgröße, echtes Volumen ist gemessen, und
-die Kodierung als Erklärung ist erledigt. Damit ist zum ersten Mal eine
-belastbare Antwort möglich — und sie lautet:
+> **Für eine frische Sitzung:** Lies §0, §1, §2j–§2m und diesen Abschnitt.
+> Der Rest ist Beleg. §2–§2i beschreibt einen Bestand, den es nicht mehr gibt.
+
+**Der historische Bestand ist ausgemessen — auf BEIDEN Metriken.** Seit der
+Neuaufzeichnung (§2j) tragen alle zehn Instrumente ihre Rohgröße, echtes
+Volumen ist gemessen, die Kodierung als Erklärung ist erledigt, und seit §2k
+wird neben der Trefferquote auch die Renditespanne auf Signifikanz geprüft.
+Damit ist zum ersten Mal eine belastbare Antwort möglich — und sie lautet:
 
 > **In den historischen Daten gibt es kein Signal, das die Schwelle nimmt.**
 > Ein Kandidat (Chartlage, nur 7 Tage, 7 von 9 Jahren, p = 0,18) und PEADs
@@ -1488,8 +1632,15 @@ belastbare Antwort möglich — und sie lautet:
 **Das Muster ist inzwischen neunmal belegt:** ein gepoolter Vorsprung, den
 die Jahresprüfung aufzehrt. Nicht die Herkunft der Eingänge (§2g Accruals,
 §2j Volumen — beide kursunabhängig, beide ohne Beitrag), nicht die Kodierung
-(§2j), nicht die Bedingung (§2i). Wer als Nächstes etwas vorschlägt, sollte
-zuerst sagen können, warum es **an der Jahresstabilität** nicht scheitert.
+(§2j), nicht die Bedingung (§2i), nicht die Metrik (§2k). Wer als Nächstes
+etwas vorschlägt, sollte zuerst sagen können, warum es **an der
+Jahresstabilität** nicht scheitert.
+
+**Und auffällig oft heißt die Antwort 2020.** Momentum kehrt sich dort um
+(unterstes Dezil +11,9 pp), die Oszillator-Mean-Reversion trägt dort das
+Vier- bis Sechsfache jedes anderen Jahres, Tagesspanne und Eröffnungslücke
+haben dort ihren Gipfel. Ein Kandidat, dessen Vorsprung 2020 entsteht,
+ist bis zum Beweis des Gegenteils der COVID-Einbruch mit seiner Erholung.
 
 ### Was NICHT mehr taugt
 
@@ -1506,13 +1657,12 @@ zuerst sagen können, warum es **an der Jahresstabilität** nicht scheitert.
 
 ### Was bleibt, in dieser Reihenfolge
 
-1. **Abschnitt C: was keinen Prognosevorteil braucht.** Stop-Historie,
-   R-Multiple, MAE/MFE, der Positionspfad. Realisierte Ergebnisse hängen an
-   Ausstieg und Positionsgröße, nicht an Vorhersage — dort zahlt Arbeit
-   verlässlich, unabhängig davon, ob je ein Signal trägt. **Blockiert ist das
-   nicht am Code, sondern an Daten des Besitzers:** die beiden offenen
-   Positionen haben weder Stop noch Ziel, `position_stop_historie` ist leer,
-   und das Journal enthält Testdaten (25 Einträge, 24 offen, 18× NVDA zu 0,01).
+1. ~~**Abschnitt C**~~ → **entblockt, sammelt jetzt von selbst.** Die frühere
+   Diagnose „blockiert an Daten des Besitzers" war falsch: `add_position()`
+   scheiterte bei jedem Stop an einem Fremdschlüsselfehler (§2l). Behoben, das
+   Journal wird automatisch geführt, die Stop-Historie füllt sich ab dem
+   nächsten Kauf. **Ab hier ist es eine Uhr, keine Aufgabe** — es braucht echte
+   Trades, keinen Code.
 2. **Die LIVE-Uhr laufen lassen.** Die Fundamental- und Sentiment-Hälfte der
    Analyse (elf Indikatoren) ist historisch **prinzipiell nicht prüfbar** —
    der Backfill ruft `calc_technical_score()`, weil `_score_fundamental` und
@@ -1520,14 +1670,51 @@ zuerst sagen können, warum es **an der Jahresstabilität** nicht scheitert.
    damit Look-Ahead wäre. Diese Hälfte ist nur vorwärts messbar, über
    LIVE-Snapshots. Davon gibt es 1.109. Das ist eine Uhr, keine Aufgabe —
    aber es ist der einzige Weg, auf dem diese Hälfte je eine Antwort bekommt.
-3. **Die Oberfläche.** `/signals/indikatoren` zeigt weiterhin das binäre
-   Leaderboard; `handbuch.py` rechnet die Quintile, ist aber nirgends
-   verdrahtet. Nach der stehenden Priorität des Besitzers ausdrücklich
-   nachrangig.
-4. **Die Confidence-Anzeige entschärfen.** Sie sieht aus wie eine
-   Trefferwahrscheinlichkeit und ist messbar keine (§2b: die Kurve trennt
-   nicht). Kostet wenig und führt sonst genau den einen Nutzer in die Irre,
-   für den die App gebaut ist.
+3. ~~**Die Confidence-Anzeige entschärfen**~~ → erledigt, §2m.
+
+### Vom Besitzer beauftragt, noch nicht begonnen (Stand 2026-09-04)
+
+Die drei folgenden Punkte sind ausdrücklich freigegeben — **ohne weitere
+Rückfrage umsetzen**, in dieser Reihenfolge. Aufwand geschätzt: rund 5–8
+Stunden Arbeit plus über 70 Stunden Rechenzeit, fast vollständig Punkt C.
+
+**A · Literaturrecherche, als Lesedokument.** Neun Familien wurden ohne
+Vorauswahl geprüft; die zehnte soll es nicht. Der Suchbegriff ist **nicht**
+„Investment Banking" (das lehrt Bewertung: DCF, Comps, LBO), sondern
+**empirical asset pricing / cross-sectional return predictability**.
+Ergebnis: was gilt als repliziert, wie wird es konstruiert, was ist mit
+diesen Daten baubar. Erwartung vorwegnehmen — diese Literatur sagt über sich
+selbst, dass rund zwei Drittel der publizierten Anomalien eine saubere
+Replikation nicht überstehen (Hou/Xue/Zhang 2020), publizierte Effekte nach
+Veröffentlichung ~58 % verlieren (McLean/Pontiff 2016) und die t-Schwelle bei
+~3,0 statt 2,0 liegen müsste (Harvey/Liu/Zhu 2016). **Das hiesige z = 3,67
+ist strenger als das, was die Literatur für sich selbst fordert.** Der
+Nullbefund ist der Normalfall, sauber gemessen.
+
+**B · Insiderkäufe aus SEC Form 4.** Die offene Signalfamilie, die die
+Bewertungsfrage des Besitzers direkt trifft: jemand mit Informationsvorsprung
+kauft, während der Chart fällt. Kursunabhängig, punkt-in-zeit datierbar, nach
+dem Muster von §2g (`services/accruals.py`, `config.SEC_USER_AGENT`).
+**Ausdrücklich NICHT über Quiver:** `services/quiver.py` ist angebunden, aber
+es ist **kein Token hinterlegt** (alles läuft über den yfinance-Fallback), die
+Endpunkte sind `/live/...` und liefern keine Historie, und drei
+`TODO: verify`-Stellen zeigen, dass die Feldnamen nie gegen eine echte Antwort
+geprüft wurden. Quiver lohnt erst für Kongress-Trades, und die sind das
+schwächere Signal.
+
+**C · Universum erweitern — gezielt, nicht „alles".** Der S&P 500 ist der
+schwerste Ort, um eine Anomalie zu finden; die Literatur verortet Effekte in
+Small und Mid Cap, und das hiesige Universum ist praktisch reines Large Cap.
+Empfehlung: **NASDAQ + NYSE + AMEX ohne ETFs, plus CDAX.** `stock_listings.csv`
+führt 17.001 Zeilen, davon NYSE ARCA 2.728 (fast nur ETFs) und OTC 3.816
+(nicht sinnvoll handelbar) — realistisch bleiben 6.000–7.000 Stammaktien.
+Deutsche Titel fehlen in der Datei ganz und brauchen eine eigene Quelle.
+Kosten: ~65 h Backfill, DB 10–15 GB.
+**Warnung, die dazugehört:** Survivorship wird dann zum Hauptproblem.
+Delistete Firmen sind bei yfinance nicht mehr abrufbar (schon bei 597 Tickern
+gingen 5 verloren), und der Mitgliedschaftsfilter aus P4-07 lässt sich auf ein
+allgemeines Universum nicht übertragen. Ohne eine Antwort darauf ist jeder
+Befund nach oben verzerrt.
 ### Der Holdout
 
 Er steht bei **0 Zugriffen**. Es liegt eine Aussage vor, die er bestätigen
@@ -1562,7 +1749,7 @@ Die Neuaufzeichnung hat die Grenze nicht berührt: sie ist ein Datum, und Job
 ## 6. Verifikation (es gibt keine CI)
 
 ```
-py -m pytest -q                                   # 445 Tests
+py -m pytest -q                                   # 475 Tests
 py -m mypy <geänderte Dateien>                    # ad hoc, keine Konfiguration im Repo
 py -c "import warnings; warnings.filterwarnings('ignore'); from fastapi.testclient import TestClient; import main; c=TestClient(main.app); c.__enter__(); [print(c.get(u).status_code, u) for u in ['/','/signals','/signals/indikatoren','/signals/positionen','/signals/backfill','/analysis','/screener','/watchlist','/journal','/backtesting','/sectors','/economy','/settings','/lexicon','/sources','/directory']]"
 ```
