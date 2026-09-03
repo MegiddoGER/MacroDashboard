@@ -915,27 +915,50 @@ function filterCongress(type, btn) {
 <hr>
 <h4> Zusammenfassung</h4>
 {% set confidence = sum_data.get('confidence', 50) %}
+{#
+  Die Schwellen stammen AUS DER ENGINE (services/scoring.py, _finalize_score):
+  75 / 60 / 45 / 30. Hier standen zuvor eigene Werte (70 / 55 / 40), die eine
+  zweite, abweichende Empfehlung erzeugten — bei Confidence 72 sagte das
+  Template "KAUFEN", die Engine daneben "Kauftendenz". Zwei Wahrheiten fuer
+  dieselbe Zahl. Das Template leitet jetzt nichts mehr ab, es zeigt an.
+#}
 {% if confidence >= 60 %}{% set conf_color = "#22c55e" %}
 {% elif confidence >= 45 %}{% set conf_color = "#eab308" %}
 {% else %}{% set conf_color = "#ef4444" %}{% endif %}
 
 <div class="card" style="margin-bottom:12px;">
   <div style="display:flex;align-items:center;gap:24px;">
-    <div style="text-align:center;min-width:80px;">
+    <div style="text-align:center;min-width:88px;">
       <span style="font-size:2.5rem;font-weight:bold;color:{{ conf_color }};">{{ "%.0f"|format(confidence) }}</span><br>
-      <span class="caption">/ 100</span>
+      <span class="caption">Einigkeit</span>
     </div>
     <div>
       <h5 style="margin:0;">{{ sum_data.score_label }}</h5>
       <p class="caption">{{ sum_data.get('confidence_label','') }}</p>
     </div>
   </div>
+  {#
+    Der Wert sieht aus wie eine Trefferwahrscheinlichkeit und ist messbar
+    keine: ueber 188.347 Snapshots trennt die Kurve marktbereinigt nicht —
+    das Band 75-100 liegt +0,6 pp vor der Marktbasis, das Band 60-74 -0,8 pp,
+    beides innerhalb der Fehlerspanne. Absolut steigt sie sauber an, aber das
+    ist die Aufwaertsdrift des Marktes, nicht Prognosequalitaet.
+
+    Die Zahl bleibt stehen, weil sie als Sortier- und Filtergroesse taugt.
+    Nur die Deutung als Wahrscheinlichkeit muss weg — es ist die einzige
+    Stelle, an der die Anwendung ihren Nutzer aktiv in die Irre fuehrt.
+  #}
+  <p class="caption" style="margin:10px 0 0;border-top:1px solid var(--border,#2a2f3a);padding-top:8px;">
+    Misst, wie <b>einig</b> sich die Indikatoren sind — nicht, wie wahrscheinlich
+    der Kurs steigt. Gegen 188.347 Snapshots geprueft: hohe Werte treffen
+    marktbereinigt <b>nicht haeufiger</b> als mittlere.
+  </p>
 </div>
 
-{% if confidence >= 70 %}<div class="alert alert-success"><b>KAUFEN</b> | {{ "%.0f"|format(confidence) }}/100</div>
-{% elif confidence >= 55 %}<div class="alert alert-warning"><b>HALTEN</b> | {{ "%.0f"|format(confidence) }}/100</div>
-{% elif confidence >= 40 %}<div class="alert alert-info"><b>NEUTRAL</b> | {{ "%.0f"|format(confidence) }}/100</div>
-{% else %}<div class="alert alert-danger"><b>NICHT KAUFEN</b> | {{ "%.0f"|format(confidence) }}/100</div>{% endif %}
+{% if confidence >= 75 %}<div class="alert alert-success"><b>{{ sum_data.score_label }}</b> | Einigkeit {{ "%.0f"|format(confidence) }}/100</div>
+{% elif confidence >= 60 %}<div class="alert alert-warning"><b>{{ sum_data.score_label }}</b> | Einigkeit {{ "%.0f"|format(confidence) }}/100</div>
+{% elif confidence >= 45 %}<div class="alert alert-info"><b>{{ sum_data.score_label }}</b> | Einigkeit {{ "%.0f"|format(confidence) }}/100</div>
+{% else %}<div class="alert alert-danger"><b>{{ sum_data.score_label }}</b> | Einigkeit {{ "%.0f"|format(confidence) }}/100</div>{% endif %}
 
 {% if sum_data.get('macro') %}
 <div class="card" style="margin-top:12px;">
