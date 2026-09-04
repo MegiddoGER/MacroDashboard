@@ -1,6 +1,6 @@
 # CONTEXT.md — Arbeitsstand Signal-Engine
 
-_Stand: 2026-09-04 · auf `01646e9` folgend · Branch `main`_
+_Stand: 2026-09-04 · auf `abfaab2` folgend · Branch `main`_
 
 Übergabedatei für eine frische Claude-Session. Sie beantwortet drei Fragen:
 **Was ist erledigt, was ist offen, und was darf nicht noch einmal neu hergeleitet
@@ -1245,6 +1245,164 @@ Wahrscheinlichkeit ist weg.
 
 ---
 
+## 2n. Insiderkäufe: der erste Kandidat, der die Jahresprüfung besteht (Auftrag B)
+
+Zehnte Signalfamilie, vierte mit eigener Quelle — und **der erste Eingang seit
+Beginn dieser Arbeit, dessen Vorsprung die Jahresprüfung überlebt.** Er ist
+damit nicht bewiesen; er ist der erste, der nicht schon an der Hürde stirbt,
+an der neun andere gestorben sind.
+
+### Die Quelle, und warum es nicht die beiden naheliegenden sind
+
+§2g hatte diese Familie ausdrücklich offengelassen: `insider_transactions` bei
+yfinance reicht nur bis September/Oktober 2024 zurück, der Trainingsteil endet
+am 2025-04-20 — der Holdout hätte mehr Abdeckung gehabt als das Training.
+Quiver war laut §5 B ausgeschlossen (kein Token, `/live/...` ohne Historie).
+
+Verwendet werden die **vierteljährlichen Form-345-Datensätze der SEC**. Ein
+ZIP je Quartal statt eines Abrufs je Einreichung: der Weg über `submissions`
+plus Form-4-XML hätte denselben Bestand in rund 300.000 Abrufen geliefert,
+also etwa zehn Stunden. So waren es **41 Abrufe und rund eine Minute.**
+Verfügbar ist die Reihe 2006Q1–2026Q1; 2026Q2 und Q3 waren am 2026-09-04 noch
+nicht veröffentlicht (geprüft, nicht angenommen) — der Trainingsteil ist
+vollständig abgedeckt.
+
+**Die Feldnamen sind gegen den echten Datensatz 2024Q1 geprüft**, nicht aus
+einer Dokumentation übernommen. Drei Messungen daraus haben den Entwurf
+verändert:
+
+| Gemessen an 2024Q1 | Zahl | Folge für den Code |
+|---|---|---|
+| Meldeverzug FILING_DATE − TRANS_DATE | Median 2 Tage, p90 4, **Maximum 2.332**, 6 negativ | `bekannt_ab` ist FILING_DATE, nie TRANS_DATE |
+| Widersprüchliche Erwerbskennung (P als Veräußerung) | 61 von 32.354 (0,19 %) | Zeile wird verworfen |
+| Schreibweisen des 10b5-1-Hakens | `0`, `1`, `false`, `true`, leer — nebeneinander | `bool("false")` wäre True gewesen; eigene Umwandlung |
+
+Der Meldeverzug ist der wichtigste davon. Nach `trans_datum` datiert hätte
+eine einzelne Zeile mit Wissen gerechnet, das erst **sechs Jahre später**
+öffentlich wurde.
+
+### Bestand
+
+**232.101 offene Geschäfte über 497 Ticker und 10.234 Personen**, 2016-01 bis
+2026-03. Davon **16.816 Käufe** und 215.285 Verkäufe — Käufe am Markt sind
+7,2 % der offenen Insidergeschäfte. 114 der 611 Ticker fehlen ganz: Form 4
+gibt es nur für SEC-Registrierte, die Messung ist wie §2f und §2g **US-only**.
+15.483 Zeilen stammen aus Gemeinschaftsmeldungen (2,2 % der Einreichungen
+tragen mehrere Meldende); sie bleiben eine Zeile mit der kleinsten CIK, weil
+eine Zeile je Meldendem die Stückzahl vervielfachen würde.
+
+Gespeichert werden nur die Codes **P und S**. Zuteilungen, Optionsausübungen
+und Steuereinbehalte sind zusammen die Mehrheit aller Zeilen, aber keine
+Entscheidung, zu diesem Kurs zu handeln.
+
+### Die Quintile funktionieren hier nicht — und das ist der Befund, kein Fehler
+
+Die Kennzahl der Literatur ist `npr = (Käufer − Verkäufer) / (Käufer +
+Verkäufer)` über sechs Monate, **je Person gezählt**. Über Ränge gerechnet
+bricht sie in diesem Universum zusammen: Verkäufe sind Alltag, Käufe selten,
+also liegt die Masse der Titel bei npr = −1. **Quintil 1 bleibt leer, Quintil 2
+trägt 81.359 der 116.421 Zeilen.** Ein Spread Q5−Q1 ist damit nicht bildbar.
+
+Die tragfähige Form ist deshalb die **Ereignisgruppe** — hat überhaupt jemand
+gekauft, und waren es mehrere. Sie braucht keinen Querschnitt und ist zugleich
+das Cluster-Kriterium von Lakonishok/Lee. Die Schwelle steht bei **zwei**
+Käufern statt der drei der Literatur, sonst bliebe die Gruppe zu dünn; das ist
+ausgewiesen, nicht versteckt.
+
+### Die Messung (TRAIN, HISTORISCH, Šidák über 33 Zellen: z = 3,16)
+
+| Horizont | 0 Käufer | 1 Käufer | 2+ Käufer | Spread |
+|---|---|---|---|---|
+| 7 Tage | +0,1 | −0,3 | −0,3 | −0,4 pp |
+| 30 Tage | −0,2 | +0,3 | **+1,2** ±2,7 | 1,4 pp |
+| 90 Tage | −0,6 | +0,9 | **+3,1** ±4,7 | **3,7 pp** |
+
+Angaben in Prozentpunkten Vorsprung gegenüber der Marktbasis des Bestandes.
+Auf 90 Tagen ist die Reihe **monoton**, das Vorzeichen ist das erwartete, und
+der Vorsprung wächst mit dem Horizont — die Form, die die Hypothese
+vorhersagt. Auf der Rendite dasselbe Bild: die Clustergruppe liegt bei +2,02 pp
+gegen eine Basis von +0,97, also **+1,05 pp Vorsprung**.
+
+**Signifikant ist nichts davon.** +3,1 pp braucht ±2,9 unkorrigiert und ±4,7
+nach Šidák; die Rendite liegt mit +1,05 gegen ±1,05 exakt auf der
+unkorrigierten Linie. Der Grund ist die effektive Stichprobe: 10.166 Zeilen
+sind auf 90 Tagen nur **1.106 unabhängige Beobachtungen**.
+
+### Die Jahresprüfung — hier weicht dieser Kandidat von allen neun ab
+
+| Jahr | 2017 | 2018 | 2019 | 2020 | 2021 | 2022 | 2023 | 2024 | 2025 |
+|---|---|---|---|---|---|---|---|---|---|
+| Spread 90 T (pp) | +1,3 | +3,8 | +0,2 | +7,2 | +4,1 | +1,8 | +2,3 | +5,4 | **−6,5** |
+| Ertrag (pp) | −0,7 | +1,3 | +0,9 | +2,3 | +1,2 | +0,8 | +1,7 | +0,2 | **−3,5** |
+
+**Acht von neun Jahren im Vorzeichen stabil** (p = 0,039), auf der Rendite
+sieben von neun. Auf 30 Tagen sind es nur sechs von neun — die Aussage gilt
+für 90 Tage, nicht allgemein.
+
+Drei Einordnungen gehören dazu:
+
+1. **2020 ist der stärkste Jahrgang (+7,2)**, und §5 warnt zu Recht vor
+   Kandidaten, deren Vorsprung dort entsteht. Hier trägt er ihn nicht allein:
+   **ohne 2020 bleiben sieben von acht Jahren positiv.** Das unterscheidet
+   diesen Fall von Momentum und der Oszillator-Mean-Reversion.
+2. **Das einzige negative Jahr ist das dünnste.** 2025 endet mit dem
+   Trainingsteil am 2025-04-20 und trägt 272 Cluster-Zeilen gegen 1.000–2.000
+   in den Vorjahren. Es bleibt als negatives Jahr gezählt — herausgerechnet
+   wäre die Prüfung acht von acht, und genau so entstehen Befunde, die später
+   nicht halten.
+3. **Der Vorsprung ist klein.** 3,1 pp Trefferquote und 1,05 pp Rendite auf
+   90 Tagen sind kein Handelssystem. Sie sind ein Vorzeichen, das nicht
+   verschwindet.
+
+### Zwei Gegenproben
+
+**Kursnähe: −0,057** für die Käuferzahl, **0,005** für die npr-Ränge
+(n = 134.000 bzw. 133.000). Zum Vergleich: die Zielrevision der Analysten aus
+§2f lag bei 0,473, die Accruals aus §2g bei −0,001. Insider kaufen also
+minimal häufiger nach Kursrückgängen, aber der Eingang ist **keine
+umetikettierte Umkehr** — der Einwand, an dem §2f gestorben ist, greift hier
+nicht.
+
+**Die Routine-Trennung ist gebaut und ändert nichts.** Cohen/Malloy/Pomorski
+(2012) waren in `LITERATUR.md` als Bedingung vermerkt: ohne die Trennung in
+kalendergetriebene und anlassbezogene Insider messe man überwiegend Rauschen.
+Gemessen: **20,8 % der Käufe** und 11,6 % der Verkäufe sind routinemäßig
+(gleiche Person, gleicher Kalendermonat, drei aufeinanderfolgende Vorjahre,
+punkt-in-zeit geprüft). Auf Snapshot-Ebene bewegt das die Gruppen jedoch fast
+nicht — 10.128 statt 10.166 Cluster-Zeilen. Der Grund ist die
+Fenster-Konstruktion: fällt ein Routinekäufer weg, bleibt meist ein anderer
+Käufer stehen, und die Gruppe wechselt nicht. **Die Trennung ist damit für die
+Firmenkennzahl unerheblich**, obwohl sie auf Personenebene greift. Sie steht
+trotzdem im Code: auf einem Universum mit weniger Insidern je Firma (Auftrag C)
+kann sie wieder relevant werden.
+
+### Der Einwand, der offen bleibt
+
+**Survivorship, und er zieht in die günstige Richtung.** Das Universum stammt
+aus yfinance, delistete Firmen sind dort nicht mehr abrufbar (§0c).
+Clusterkäufe von Insidern häufen sich in Firmen unter Druck — also genau dort,
+wo Delisting am wahrscheinlichsten ist. Die überlebenden Fälle sind damit
+systematisch die besseren, und **+3,1 pp ist eine Obergrenze, keine
+Schätzung.** Dieselbe Warnung, die §5 zu Auftrag C ausspricht, gilt diesem
+Befund bereits heute.
+
+### Was daraus folgt
+
+Der Kandidat beantwortet die Vorabfrage aus §5 („warum scheitert es nicht an
+der Jahresstabilität?") als erster **nachträglich statt vorher** — er hat die
+Prüfung bestanden. Damit gibt es jetzt **zwei** Aussagen, die für einen
+Holdout-Zugriff in Frage kommen: PEADs Miss-Seite (8 von 9, Meidungsfilter)
+und dieser Clusterkauf (8 von 9, Kaufseite). Der Holdout ist einmal
+verbraucht; welche der beiden ihn bekommt — oder ob er auf ein größeres
+Universum wartet — ist eine Entscheidung des Besitzers und wurde hier **nicht**
+getroffen. Der Holdout steht weiterhin bei **0 Zugriffen**.
+
+Trefferquote bei „plausibles Signal trägt auch": formal bleibt es **null von
+acht**, weil die Signifikanz fehlt. Aber zum ersten Mal ist der Grund für das
+Ausbleiben die Stichprobengröße und nicht das Vorzeichen.
+
+---
+
 ## 3. Erledigt — nicht noch einmal bauen
 
 | Was | Wo |
@@ -1307,6 +1465,9 @@ Wahrscheinlichkeit ist weg.
 | **§2l Fremdschlüssel-Fehler in der Stop-Historie behoben** | `services/watchlist.py` (`session.flush()`) |
 | **§2l Additive Spaltenmigration für Kerntabellen** | `database._spalten_ergaenzen()` |
 | **§2m Confidence = Einigkeit, Template ohne eigene Schwellen** | `templates/partials/analysis_content.html` |
+| **§2n Insider-Bestand aus SEC Form 4 (232.101 Geschäfte)** | `database.InsiderGeschaeft`, `services/insider.py` |
+| **§2n Insiderkäufe gemessen: 8 von 9 Jahren, nicht signifikant** | `auswertung/insider.py`, `tests/test_insider.py` |
+| **§2n Routine/opportunistisch nach Cohen/Malloy/Pomorski** | `services/insider.ist_routine` (punkt-in-zeit) |
 
 **Wichtig (überholt seit der Neuaufzeichnung):** Der Satz „alle
 Bestands-Snapshots tragen `score_version` 1.0.0" galt für die stillgelegte
@@ -1615,7 +1776,7 @@ Arbeit inline erledigt, was sie langsam und einmalig statt wiederholbar macht.
 
 ## 5. Empfohlener nächster Schritt
 
-> **Für eine frische Sitzung:** Lies §0, §1, §2j–§2m und diesen Abschnitt.
+> **Für eine frische Sitzung:** Lies §0, §1, §2j–§2n und diesen Abschnitt.
 > Der Rest ist Beleg. §2–§2i beschreibt einen Bestand, den es nicht mehr gibt.
 
 **Der historische Bestand ist ausgemessen — auf BEIDEN Metriken.** Seit der
@@ -1624,10 +1785,11 @@ Volumen ist gemessen, die Kodierung als Erklärung ist erledigt, und seit §2k
 wird neben der Trefferquote auch die Renditespanne auf Signifikanz geprüft.
 Damit ist zum ersten Mal eine belastbare Antwort möglich — und sie lautet:
 
-> **In den historischen Daten gibt es kein Signal, das die Schwelle nimmt.**
-> Ein Kandidat (Chartlage, nur 7 Tage, 7 von 9 Jahren, p = 0,18) und PEADs
-> Miss-Seite als Meidungsfilter (8 von 9). Sonst nichts, in neun geprüften
-> Familien.
+> **In den historischen Daten nimmt kein Signal die Signifikanzschwelle.**
+> Drei Kandidaten stehen darunter: die Chartlage (nur 7 Tage, 7 von 9 Jahren,
+> p = 0,18), PEADs Miss-Seite als Meidungsfilter (8 von 9) und — seit §2n —
+> der **Insider-Clusterkauf auf 90 Tagen** (+3,1 pp, 8 von 9 Jahren, ohne 2020
+> 7 von 8). Sonst nichts, in zehn geprüften Familien.
 
 **Das Muster ist inzwischen neunmal belegt:** ein gepoolter Vorsprung, den
 die Jahresprüfung aufzehrt. Nicht die Herkunft der Eingänge (§2g Accruals,
@@ -1635,6 +1797,12 @@ die Jahresprüfung aufzehrt. Nicht die Herkunft der Eingänge (§2g Accruals,
 (§2j), nicht die Bedingung (§2i), nicht die Metrik (§2k). Wer als Nächstes
 etwas vorschlägt, sollte zuerst sagen können, warum es **an der
 Jahresstabilität** nicht scheitert.
+
+**Die zehnte Familie ist die erste Ausnahme** (§2n): der Insider-Clusterkauf
+zehrt die Jahresprüfung nicht auf. Was ihm fehlt, ist nicht das Vorzeichen,
+sondern die Stichprobe — 10.166 Zeilen sind auf 90 Tagen 1.106 unabhängige
+Beobachtungen. Das ändert die Vorabfrage für den nächsten Vorschlag nicht,
+aber es zeigt, wie eine Antwort darauf aussieht.
 
 **Und auffällig oft heißt die Antwort 2020.** Momentum kehrt sich dort um
 (unterstes Dezil +11,9 pp), die Oszillator-Mean-Reversion trägt dort das
@@ -1644,9 +1812,11 @@ ist bis zum Beweis des Gegenteils der COVID-Einbruch mit seiner Erholung.
 
 ### Was NICHT mehr taugt
 
-- **Noch eine Signalfamilie.** Neun sind geprüft. Beide Erklärungsversuche für
+- **Noch eine Signalfamilie.** Zehn sind geprüft. Beide Erklärungsversuche für
   die Nullbefunde — falsche Kodierung, falsche Herkunft — sind gemessen und
-  ausgeschieden.
+  ausgeschieden. Die zehnte (§2n) besteht die Jahresprüfung und scheitert an
+  der Stichprobe; die Folgerung daraus ist **mehr Titel**, nicht eine elfte
+  Familie.
 - **Der Umbau des Composites.** §2j hat den Zirkelschluss aufgelöst: geprüft
   wurde jetzt in der richtigen Kodierung, und es trägt nichts. Eine andere
   Arithmetik hat nichts zu retten.
@@ -1705,7 +1875,19 @@ Veröffentlichung ~58 % verlieren (McLean/Pontiff 2016) und die t-Schwelle bei
 ist strenger als das, was die Literatur für sich selbst fordert.** Der
 Nullbefund ist der Normalfall, sauber gemessen.
 
-**B · Insiderkäufe aus SEC Form 4.** Die offene Signalfamilie, die die
+**B · Insiderkäufe aus SEC Form 4.** → **erledigt am 2026-09-04, gemessen in
+§2n.** Quelle sind die vierteljährlichen Form-345-Datensätze (nicht die
+Einzeleinreichungen: 41 Abrufe statt 300.000), Bestand **232.101 offene
+Geschäfte über 497 Ticker und 10.234 Personen**. Ergebnis: die Clustergruppe
+(zwei oder mehr verschiedene Käufer in sechs Monaten) liegt auf 90 Tagen
+**+3,1 pp** vor der Marktbasis und **+1,05 pp** auf der Rendite — nicht
+signifikant (Šidák verlangt ±4,7), aber **in acht von neun Jahren im
+Vorzeichen stabil, und ohne 2020 in sieben von acht**. Kursnähe −0,057, also
+keine umetikettierte Umkehr. Die Routine-Trennung nach Cohen/Malloy/Pomorski
+ist gebaut, greift auf Personenebene (20,8 % der Käufe) und ändert an der
+Firmenkennzahl fast nichts. Offener Einwand: Survivorship zieht nach oben.
+
+Der ursprüngliche Auftragstext, als Beleg: Die offene Signalfamilie, die die
 Bewertungsfrage des Besitzers direkt trifft: jemand mit Informationsvorsprung
 kauft, während der Chart fällt. Kursunabhängig, punkt-in-zeit datierbar, nach
 dem Muster von §2g (`services/accruals.py`, `config.SEC_USER_AGENT`).
@@ -1715,6 +1897,13 @@ Endpunkte sind `/live/...` und liefern keine Historie, und drei
 `TODO: verify`-Stellen zeigen, dass die Feldnamen nie gegen eine echte Antwort
 geprüft wurden. Quiver lohnt erst für Kongress-Trades, und die sind das
 schwächere Signal.
+
+**Und ein Nachtrag, den §2n erzwingt:** Auftrag C ist damit nicht mehr nur der
+Vorschlag der Literatur, sondern die **Gegenprobe zu einem eigenen Befund**.
+Der Insidereffekt ist nach Lakonishok/Lee in kleineren Firmen konzentriert —
+findet er sich auf einem Small- und Mid-Cap-Universum stärker wieder, ist er
+belegt; verschwindet er dort, war er Rauschen. Das ist die aussagekräftigere
+Prüfung als ein Holdout-Zugriff, und sie verbraucht nichts.
 
 **C · Universum erweitern — gezielt, nicht „alles".** Der S&P 500 ist der
 schwerste Ort, um eine Anomalie zu finden; die Literatur verortet Effekte in
@@ -1731,11 +1920,22 @@ allgemeines Universum nicht übertragen. Ohne eine Antwort darauf ist jeder
 Befund nach oben verzerrt.
 ### Der Holdout
 
-Er steht bei **0 Zugriffen**. Es liegt eine Aussage vor, die er bestätigen
-könnte — PEADs Miss-Seite (§2e): „das unterste Quintil der
-Ergebnisüberraschung schlägt den Markt über sieben Tage rund 1,1 pp seltener",
-auf dem Trainingsteil bestimmt, korrigiert, in acht von neun Jahren im
-Vorzeichen stabil.
+Er steht bei **0 Zugriffen**. Es liegen inzwischen **zwei** Aussagen vor, die
+er bestätigen könnte, beide mit acht von neun Jahren:
+
+- **PEADs Miss-Seite** (§2e): „das unterste Quintil der Ergebnisüberraschung
+  schlägt den Markt über sieben Tage rund 1,1 pp seltener" — ein
+  Meidungsfilter.
+- **Der Insider-Clusterkauf** (§2n): „Titel, bei denen in sechs Monaten
+  mindestens zwei verschiedene Insider am Markt gekauft haben, schlagen ihren
+  Index über 90 Tage rund 3,1 pp häufiger" — eine Kaufaussage, und damit die,
+  die die Frage des Besitzers beantwortet.
+
+Beide sind auf dem Trainingsteil bestimmt und korrigiert. **Vor einem Zugriff
+gibt es aber einen besseren Zug:** der Insidereffekt ist nach Lakonishok/Lee
+in kleineren Firmen konzentriert. Auftrag C prüft ihn dort, kostet keinen
+Zugriff und ist die schärfere Gegenprobe — verschwindet er auf Small und Mid
+Cap, war er Rauschen; verstärkt er sich, ist der Holdout gut angelegt.
 
 Ob dafür ein Zugriff ausgegeben wird, ist eine Entscheidung des Besitzers.
 Der Holdout ist einmal verbraucht; wer nach jeder Änderung erneut misst und
@@ -1744,7 +1944,8 @@ die beste Variante behält, hat ihn zum Trainingsset gemacht — nur langsamer.
 **Der Chartlage-Kandidat aus §2j gehört ausdrücklich NICHT dorthin.** 7 von 9
 Jahren entspricht p = 0,18 und ist von Zufall nicht zu unterscheiden. Die
 Regel lautet: der Holdout bestätigt etwas, das die Jahresprüfung bestanden
-hat — und das hat bisher nur PEADs Miss-Seite (8 von 9, p = 0,039).
+hat — und das haben bisher nur PEADs Miss-Seite und der Insider-Clusterkauf
+aus §2n (je 8 von 9, p = 0,039).
 
 **Die Grenze wurde am 2026-09-03 bewusst NICHT verschoben**, obwohl vorgeschlagen.
 Sie auf das Tagesdatum zu setzen hätte den Holdout geleert (Sperrzone 90 Tage,

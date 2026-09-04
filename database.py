@@ -472,6 +472,98 @@ class AccrualKennzahl(Base):
         }
 
 
+class InsiderGeschaeft(Base):
+    """Ein offenes Insidergeschaeft aus SEC Form 4 (Auftrag B).
+
+    Die Signalfamilie, die §2g offenlassen musste: yfinance'
+    `insider_transactions` reicht bei allen fuenf geprueften Tickern nur bis
+    September 2024 zurueck, der Trainingsteil endet aber am 2025-04-20 — der
+    Holdout haette mehr Abdeckung gehabt als das Training. Quiver scheidet
+    ausdruecklich aus: kein hinterlegtes Token, `/live/...`-Endpunkte ohne
+    Historie, drei ungeprueft gebliebene Feldnamen.
+
+    **Die Quelle sind die vierteljaehrlichen Form-345-Datensaetze der SEC** —
+    ein ZIP je Quartal statt eines Abrufs je Einreichung. Gemessen an 2024Q1:
+    67.671 Einreichungen und 111.404 Geschaefte in einer Datei von 13,9 MB.
+    Der Weg ueber `submissions` + Form-4-XML haette denselben Bestand in rund
+    300.000 Einzelabrufen geliefert.
+
+    **`bekannt_ab` ist FILING_DATE, nie TRANS_DATE.** Der Meldeverzug betraegt
+    im Median zwei Tage (2024Q1), im 90. Perzentil vier — aber der groesste
+    gemessene Wert liegt bei **2.332 Tagen**, und sechs Zeilen tragen ein
+    Einreichungsdatum VOR dem Handelstag. Wer nach `trans_datum` datiert,
+    rechnet in Einzelfaellen mit Wissen, das erst sechs Jahre spaeter oeffentlich
+    wurde. Der Handelstag bleibt trotzdem gespeichert: die Routine-Erkennung
+    nach Cohen/Malloy/Pomorski braucht den Kalendermonat des Geschaefts.
+
+    **`owner_cik` ist die eigentliche Neuerung gegenueber jeder frueheren
+    Quelle.** Ohne die Historie je PERSON laesst sich die Trennung in
+    routinemaessige und opportunistische Insider nicht bilden — und ohne sie
+    misst man laut Cohen/Malloy/Pomorski (2012) ueberwiegend Rauschen:
+    Routinegeschaefte tragen null, opportunistische 82 bp/Monat.
+
+    Gespeichert werden nur `code` P und S, also Kaeufe und Verkaeufe am Markt.
+    Zuteilungen (A), Optionsausuebungen (M), Steuereinbehalte (F) und
+    Schenkungen (G) sind keine Entscheidung, zu diesem Kurs zu handeln.
+    """
+    __tablename__ = "insider_geschaefte"
+    __table_args__ = (
+        # NONDERIV_TRANS_SK ist der Flaechenschluessel der SEC und innerhalb
+        # eines Quartals eindeutig (gemessen: 0 Doppel auf 111.404 Zeilen).
+        # Ueber Quartale hinweg ist das nicht zugesichert, deshalb zusammen
+        # mit der Einreichungsnummer.
+        UniqueConstraint("accession", "sec_sk", name="uq_insider_accession_sk"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    ticker: Mapped[str] = mapped_column(Text, nullable=False, index=True)
+    issuer_cik: Mapped[Optional[str]] = mapped_column(Text)
+    accession: Mapped[str] = mapped_column(Text, nullable=False)
+    sec_sk: Mapped[str] = mapped_column(Text, nullable=False)
+
+    # Die meldende Person. 97,8 Prozent der Einreichungen tragen genau einen
+    # Meldenden (gemessen: 66.198 von 67.671); bei Gemeinschaftsmeldungen
+    # steht hier der alphabetisch erste und `mehrere_meldende` ist True.
+    owner_cik: Mapped[Optional[str]] = mapped_column(Text, index=True)
+    owner_name: Mapped[Optional[str]] = mapped_column(Text)
+    beziehung: Mapped[Optional[str]] = mapped_column(Text)
+    mehrere_meldende: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    trans_datum: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    # Der Index sitzt hier und nicht auf trans_datum: jede Auswertung filtert
+    # nach dem Bekanntwerden. Dieselbe Begruendung wie bei AccrualKennzahl.
+    bekannt_ab: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
+
+    code: Mapped[str] = mapped_column(Text, nullable=False)
+    stueck: Mapped[Optional[float]] = mapped_column(Float)
+    kurs: Mapped[Optional[float]] = mapped_column(Float)
+    wert: Mapped[Optional[float]] = mapped_column(Float)
+    # 10b5-1-Plan laut Einreichung. Erst ab 2023 verpflichtend anzukreuzen und
+    # in vier Schreibweisen kodiert ('0'/'1'/'false'/'true'), deshalb optional
+    # und NICHT als Routine-Kriterium verwendbar — dafuer waere die Spalte
+    # ueber den halben Messzeitraum leer.
+    plan_10b5_1: Mapped[Optional[bool]] = mapped_column(Boolean)
+
+    quelle: Mapped[str] = mapped_column(Text, nullable=False, default="sec-form345")
+    geladen_am: Mapped[Optional[datetime]] = mapped_column(DateTime)
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "ticker": self.ticker,
+            "owner_cik": self.owner_cik,
+            "owner_name": self.owner_name,
+            "beziehung": self.beziehung,
+            "trans_datum": self.trans_datum.isoformat() if self.trans_datum else None,
+            "bekannt_ab": self.bekannt_ab.isoformat() if self.bekannt_ab else None,
+            "code": self.code,
+            "stueck": self.stueck,
+            "kurs": self.kurs,
+            "wert": self.wert,
+            "plan_10b5_1": self.plan_10b5_1,
+        }
+
+
 class KursHistorie(Base):
     """Taegliche OHLCV-Reihe je Ticker — die Rohdaten hinter allem anderen.
 

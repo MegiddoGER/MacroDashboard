@@ -484,3 +484,15 @@ dass er bestätigt. Die Entscheidung bleibt beim Besitzer.
 > braucht die **Historie je Person**, nicht nur je Unternehmen. Das ist eine
 > Anforderung an das Datenmodell von B und muss vor dem Bestandsaufbau
 > feststehen, nicht danach.
+
+> **Nachtrag vom 2026-09-04 — Auftrag B ist umgesetzt, siehe CONTEXT.md §2n.**
+> Die Anforderung war richtig und wurde erfüllt: `owner_cik` steht im
+> Datenmodell, die Trennung läuft punkt-in-zeit. Gemessen sind **20,8 % der
+> Käufe** routinemäßig, nicht „über die Hälfte" — die Zahl der Literatur gilt
+> für alle Insidergeschäfte, und die sind hier zu 93 % Verkäufe. Auf der
+> Firmenkennzahl ändert die Trennung fast nichts, weil ein wegfallender
+> Routinekäufer die Clustergruppe selten leert. Der Befund hängt also nicht an
+> ihr. Ebenfalls bestätigt: Lakonishok/Lees Größenschnitt ist der offene
+> Einwand — der gemessene Vorsprung (8 von 9 Jahren, nicht signifikant) ist auf
+> Large Cap gefunden und gehört auf Small und Mid Cap gegengeprüft, also in
+> Auftrag C.
