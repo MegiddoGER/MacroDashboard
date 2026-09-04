@@ -564,6 +564,85 @@ class InsiderGeschaeft(Base):
         }
 
 
+class EmittentPunktInZeit(Base):
+    """Welche Ticker es WANN gab — die Liste, die Ueberlebende nicht bevorzugt.
+
+    **Das Problem, das diese Tabelle loest.** Jedes Universum dieses Projekts
+    stammt bisher aus einer Quelle, die nur die Gegenwart kennt: der Screener
+    liest die heutige S&P-500-Liste, `data/stock_listings.csv` das heutige
+    Verzeichnis. Wer daraus ein Universum baut, waehlt ausschliesslich Firmen
+    aus, die bis heute ueberlebt haben — und misst dann Renditen auf einer
+    Stichprobe, aus der jeder Totalausfall vorher entfernt wurde.
+
+    Das ist keine theoretische Sorge, es ist gemessen. Aus den
+    vierteljaehrlichen Form-345-Datensaetzen der SEC (denselben Dateien, die
+    schon `InsiderGeschaeft` fuellen — kein zusaetzlicher Abruf) ergibt sich
+    fuer 2016Q1-2026Q1 ein Bestand von **11.921 verschiedenen Emittenten**.
+    Von den 7.757, die 2016-2019 aktiv waren, sind heute noch **45,0 Prozent**
+    ueberhaupt gelistet und **39,8 Prozent** an einer echten Boerse. Das
+    Universum von Auftrag B dagegen besteht zu **99,6 Prozent** aus
+    Ueberlebenden und deckt 4,2 Prozent der Emittenten ab.
+
+    **Wichtig, weil es der naheliegenden Abhilfe widerspricht:** das Universum
+    zu vergroessern behebt das NICHT. `stock_listings.csv` enthaelt heutige
+    Listings, also per Konstruktion nur Ueberlebende — 5.216 statt 500
+    Ueberlebende bleiben 100 Prozent Ueberlebende. Die Verzerrung schrumpft
+    nicht, sie wird nur breiter verteilt.
+
+    Was diese Tabelle deshalb leistet, ist nicht die Behebung, sondern die
+    **Bezifferung**: zu jedem Befund laesst sich sagen, wie viele der damals
+    existierenden Emittenten er gesehen hat und wie viele ihm fehlen.
+    `services.universum.abdeckung()` rechnet das aus.
+
+    **Zur Deutung von `heute_gelistet`.** Ein fehlender Ticker ist nicht
+    gleichbedeutend mit einem Totalverlust. Gemessen an den
+    Transaktionskursen der Form-4-Daten selbst — der einzigen Kursquelle, die
+    auch fuer delistete Firmen noch existiert — verlassen die Verschwundenen
+    den Bestand zweigeteilt: 20,8 Prozent zum letzten Insiderhandel unter dem
+    halben Vorjahreskurs (Notlage), 22,5 Prozent ueber dem Anderthalbfachen
+    (Uebernahmepraemie). Der Median liegt bei 0,99. Verschwinden ist also
+    beides, und wer es pauschal als Ausfall verbucht, verzerrt in die
+    Gegenrichtung.
+    """
+    __tablename__ = "emittenten_punkt_in_zeit"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    ticker: Mapped[str] = mapped_column(Text, nullable=False, unique=True, index=True)
+
+    # Erstes und letztes Quartal mit einer Form-4-Einreichung, als 'JJJJqN'.
+    # Sortierbar als Text, weil das Quartal einstellig ist.
+    erstes_quartal: Mapped[str] = mapped_column(Text, nullable=False)
+    letztes_quartal: Mapped[str] = mapped_column(Text, nullable=False, index=True)
+    quartale_aktiv: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+    # In wie vielen Quartalen gab es mindestens einen Marktkauf (Code P) und
+    # in wie vielen mindestens zwei verschiedene Kaeufer? Das Cluster-Kriterium
+    # aus Paragraph 2n, hier auf Quartalsebene vorgerechnet, damit die
+    # Abdeckungsfrage ohne einen Lauf ueber 232.101 Geschaefte beantwortbar ist.
+    quartale_mit_kauf: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    quartale_mit_cluster: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+    # Steht der Ticker heute noch in data/stock_listings.csv, und wenn ja: an
+    # einer echten Boerse oder nur noch OTC? Beides ist ein Stand von
+    # `geprueft_am`, kein dauerhaftes Merkmal.
+    heute_gelistet: Mapped[bool] = mapped_column(Boolean, default=False)
+    heute_boerse: Mapped[Optional[str]] = mapped_column(Text)
+
+    geprueft_am: Mapped[Optional[datetime]] = mapped_column(DateTime)
+
+    def to_dict(self) -> dict:
+        return {
+            "ticker": self.ticker,
+            "erstes_quartal": self.erstes_quartal,
+            "letztes_quartal": self.letztes_quartal,
+            "quartale_aktiv": self.quartale_aktiv,
+            "quartale_mit_kauf": self.quartale_mit_kauf,
+            "quartale_mit_cluster": self.quartale_mit_cluster,
+            "heute_gelistet": self.heute_gelistet,
+            "heute_boerse": self.heute_boerse,
+        }
+
+
 class KursHistorie(Base):
     """Taegliche OHLCV-Reihe je Ticker — die Rohdaten hinter allem anderen.
 

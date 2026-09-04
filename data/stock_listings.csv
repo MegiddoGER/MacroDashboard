@@ -889,7 +889,7 @@ APD,"Air Products and Chemicals, Inc. Common Stock",NYSE
 APDB,Aptus April Deep Buffer ETF,BATS
 APEI,"American Public Education, Inc. - Common Stock",NASDAQ
 APG,APi Group Corporation Common Stock,NYSE
-APGE,"Apogee Therapeutics, Inc. - Common Stock",NASDAQ
+APGE,"Apogee Therapeutics, Inc.",OTC
 APGH,AleeanPeace Group Holdings Ltd,OTC
 APGOF,Apollo Silver Corp,OTC
 APH,Amphenol Corporation Common Stock,NYSE
@@ -2414,7 +2414,7 @@ BTLN,"Brightline Interactive, Inc. - Common Stock",NASDAQ
 BTMD,Biote Corp. - Class A common stock,NASDAQ
 BTO,John Hancock Financial Opportunities Fund Common Stock,NYSE
 BTOC,Armlogi Holding Corp. - common stock,NASDAQ
-BTOG,Bit Origin Limited - Class A Ordinary Shares,NASDAQ
+BTOG,BIT ORIGIN Ltd,OTC
 BTOT,iShares Total USD Fixed Income Market ETF,NYSE ARCA
 BTQ,BTQ Technologies Corp. - Common Stock,NASDAQ
 BTR,Beacon Tactical Risk ETF,NYSE ARCA
@@ -3046,7 +3046,7 @@ CIGL,Concorde International Group Ltd - Class A Ordinary Shares,NASDAQ
 CII,"BlackRock Enhanced Large Cap Core Fund, Inc. Common Stock",NYSE
 CIIT,"Tianci International, Inc. - Common Stock",NASDAQ
 CIIX,Chineseinvestors.com Inc Common Stock,OTC
-CIK,"Credit Suisse Asset Management Income Fund, Inc. Common Stock",AMEX
+CIK,"UBS Asset Management Income Fund, Inc. Common Stock",AMEX
 CILFY,CHINA LIFE INSURANCE CO LTD,OTC
 CILJF,CHINA LIFE INSURANCE CO LTD,OTC
 CIM,Chimera Investment Corporation Common Stock,NYSE
@@ -4110,7 +4110,7 @@ DHSB,Day Hagan Smart Buffer ETF,NYSE ARCA
 DHT,"DHT Holdings, Inc.",NYSE
 DHTI,"Dalrada Technology Group, Inc.",OTC
 DHX,"DHI Group, Inc. Common Stock",NYSE
-DHY,Credit Suisse High Yield Credit Fund Common Stock,AMEX
+DHY,UBS Asset Management High Yield Credit Fund Common Stock,AMEX
 DIA,State Street SPDR Dow Jones Industrial Average ETF Trust,NYSE ARCA
 DIAL,Columbia Diversified Fixed Income Allocation ETF,NYSE ARCA
 DIBS,"1stdibs.com, Inc. - Common Stock",NASDAQ
@@ -8183,7 +8183,7 @@ JETMF,Global Crossing Airlines Group Inc.,OTC
 JETS,U.S. Global Jets ETF,NYSE ARCA
 JETU,MAX Airlines 3X Leveraged ETNs,NYSE ARCA
 JF,J and Friends Holdings Limited - American Depositary Shares,NASDAQ
-JFB,JFB Construction Holdings - Class A Common Stock,NASDAQ
+JFB,JFB Construction Holdings,OTC
 JFIL,"Jubilant Flame International, Ltd",OTC
 JFIN,Jiayin Group Inc. - American Depositary Shares,NASDAQ
 JFLI,JPMorgan Flexible Income ETF,NYSE ARCA
@@ -8267,7 +8267,8 @@ JOE,St. Joe Company (The) Common Stock,NYSE
 JOET,Virtus Terranova U.S. Quality Momentum ETF,NYSE ARCA
 JOF,Japan Smaller Capitalization Fund Inc Common Stock,NYSE
 JOJO,ATAC Credit Rotation ETF,NYSE ARCA
-JONE,Jones Ventures INTL Acquisition1 Corp,OTC
+JONE,Jones Ventures INTL Acquisition1 Corp - Class A Ordinary Shares,NASDAQ
+JONER,Jones Ventures INTL Acquisition1 Corp - Rights,NASDAQ
 JONEU,Jones Ventures INTL Acquisition1 Corp - Units,NASDAQ
 JOUL,Corgi High Voltage Grid Equipment ETF,BATS
 JOUT,Johnson Outdoors Inc. - Class A Common Stock,NASDAQ
@@ -10415,7 +10416,7 @@ NHKSY,NHK Spring Co. Ltd/ADR,OTC
 NHLE,Nhale Inc. Common Share,OTC
 NHLTY,Nightingale Health Plc,OTC
 NHP,"National Healthcare Properties, Inc. - Class A Common Stock",NASDAQ
-NHPAP,"National Healthcare Properties, Inc. - 7.375% Series A Cumulative Redeemable Perpetual Preferred Stock",NASDAQ
+NHPAP,"National Healthcare Properties, Inc.",OTC
 NHPBP,"National Healthcare Properties, Inc. - 7.125% Series B Cumulative Redeemable Perpetual Preferred Stock",NASDAQ
 NHS,Neuberger High Yield Strategies Fund Inc. Common Stock,AMEX
 NHTC,Natural Health Trends Corp. - Common Stock,NASDAQ
@@ -10490,6 +10491,7 @@ NMAY,Innovator Growth-100 Power Buffer ETF - May,BATS
 NMB,Simplify National Muni Bond ETF,NYSE ARCA
 NMBL,NovaTide Flexible Allocation ETF,NYSE ARCA
 NMCO,Nuveen Municipal Credit Opportunities Fund Common Shares,NYSE
+NMCO.V,"Nuveen Municipal Credit Opportunities Fund Rights (expiring October 7, 2026) Rights when issued",NYSE
 NMCPF,Nuvau Minerals Corp,OTC
 NMEX,NORTHERN MINERALS & EXPLORATION LTD.,OTC
 NMFC,New Mountain Finance Corporation - Common Stock,NASDAQ
@@ -11691,6 +11693,7 @@ PJAN,Innovator U.S. Equity Power Buffer ETF - January,BATS
 PJFG,PGIM Jennison Focused Growth ETF,NYSE ARCA
 PJFM,PGIM Jennison Focused Mid-Cap ETF,BATS
 PJFV,PGIM Jennison Focused Value ETF,NYSE ARCA
+PJIN,PGIM Jennison International Core Equity ETF,NYSE ARCA
 PJIO,PGIM Jennison Focused International Equity ETF,NYSE ARCA
 PJP,Invesco Pharmaceuticals ETF,NYSE ARCA
 PJSM,PGIM Jennison Small-Mid Cap Core Equity ETF,NYSE ARCA
@@ -12794,7 +12797,7 @@ RIV,"RiverNorth Opportunities Fund, Inc. Common Stock",NYSE
 RIV$A,"RiverNorth Opportunities Fund, Inc. 6.00% Series A Perpetual Preferred Stock",NYSE
 RIV-PA,"RIVERNORTH OPPORTUNITIES FUND, INC.",OTC
 RIV-RW,"RIVERNORTH OPPORTUNITIES FUND, INC.",OTC
-RIV.V,"RiverNorth Opportunities Fund, Inc. Rights (expiring September 23, 2026) Rights when issued",NYSE
+RIV.R,"RiverNorth Opportunities Fund, Inc. Rights (expiring September 23, 2026) Rights",NYSE
 RIVC,Corgi RIVN 2x Daily ETF,BATS
 RIVN,"Rivian Automotive, Inc. - Class A Common Stock",NASDAQ
 RIZE,Principal Inflation Protection ETF,BATS
@@ -13530,6 +13533,7 @@ SGRB,SigmaBroadband Co. Common,OTC
 SGRP,"SPAR Group, Inc.",OTC
 SGRT,SMART Earnings Growth 30 ETF,NYSE ARCA
 SGRW,Harbor Active Small Cap Growth ETF,NYSE ARCA
+SGRX,SANGRIX INC. - Class A Ordinary Shares,NASDAQ
 SGRY,"Surgery Partners, Inc. - Common Stock",NASDAQ
 SGST,"Strategic Storage Trust VI, Inc.",OTC
 SGU,Star Group L.P. Common Stock,NYSE
@@ -16723,7 +16727,7 @@ XTJL,Innovator U.S. Equity Accelerated Plus ETF - July,BATS
 XTL,State Street SPDR S&P Telecom ETF,NYSE ARCA
 XTLB,XTL Biopharmaceuticals Ltd. - American Depositary Shares,NASDAQ
 XTN,State Street SPDR S&P Transportation ETF,NYSE ARCA
-XTND,"Xtend AI Robotics, Inc.",OTC
+XTND,"Xtend AI Robotics, Inc. Common Stock",NYSE
 XTNT,"Xtant Medical Holdings, Inc. Common Stock",AMEX
 XTOC,Innovator U.S. Equity Accelerated Plus ETF - October,BATS
 XTR,Global X S&P 500 Tail Risk ETF,NYSE ARCA
