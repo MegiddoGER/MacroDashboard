@@ -73,7 +73,7 @@ BOERSEN = ("NASDAQ", "NYSE", "AMEX")
 # Datei vom 2026-09-04: 8.838 Zeilen an den drei Plaetzen, davon 3.622
 # aussortiert, 5.216 bleiben.
 _AUSSCHLUSS = re.compile(
-    r"\b(ETFs?|ETNs?|ETVs?|Funds?|Trust|Depositary|Preferred|Warrants?"
+    r"\b(?:ETFs?|ETNs?|ETVs?|Funds?|Trust|Depositary|Preferred|Warrants?"
     r"|Rights?|Units?|Notes?|Debentures?|Bonds?|Index|Portfolio"
     r"|SPDR|iShares|Invesco|ProShares|Direxion|VanEck|WisdomTree|Vanguard)\b",
     re.IGNORECASE)
@@ -374,3 +374,70 @@ def abdeckung_text(werte: dict) -> str:
         f"{100 * werte['ueberlebensquote_fehlend']:.1f} % gelistet, "
         f"von den gesehenen {100 * werte['ueberlebensquote_gesehen']:.1f} %."
     )
+
+
+# ---------------------------------------------------------------------------
+# Deutsche Titel
+# ---------------------------------------------------------------------------
+
+# DAX, MDAX und SDAX aus data/xetra_stocks.csv. Das Snapshot-Universum nahm
+# bisher nur DAX und MDAX (90 Titel) — SDAX ist das deutsche Small-Cap-Segment
+# und damit genau der Zuschnitt, um den es in Auftrag C geht.
+#
+# CONTEXT.md nennt als Ziel den CDAX (rund 380 Titel). Der ist damit NICHT
+# erreicht: die lokale Datei fuehrt 129 Titel, eine vollstaendige
+# CDAX-Mitgliederliste braucht eine eigene Quelle (Deutsche Boerse oder
+# Wikipedia) und ist hier nicht gebaut. Fuer die Insider-Gegenprobe aus §2n
+# ist das ohne Belang — Form 4 gibt es nur fuer SEC-Registrierte, der
+# deutsche Querschnitt faellt dort ohnehin heraus (wie in §2f und §2g).
+DEUTSCHE_INDIZES = ("DAX", "MDAX", "SDAX")
+
+
+def deutsche_titel(indizes: Iterable[str] = DEUTSCHE_INDIZES) -> list[str]:
+    """Deutsche Aktien aus dem lokalen Xetra-Verzeichnis.
+
+    Returns:
+        Sortierte Kuerzelliste mit `.DE`-Endung. Leer, wenn die Datei fehlt —
+        der Aufrufer entscheidet, ob das ein Abbruchgrund ist.
+    """
+    import csv
+    import os
+
+    pfad = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+        "data", "xetra_stocks.csv")
+    if not os.path.exists(pfad):
+        logger.warning("Universum: %s fehlt, keine deutschen Titel.", pfad)
+        return []
+
+    erlaubt = {i.upper() for i in indizes}
+    tickers: set[str] = set()
+    try:
+        with open(pfad, "r", encoding="utf-8") as datei:
+            for zeile in csv.DictReader(datei):
+                kuerzel = (zeile.get("Kürzel") or "").strip().upper()
+                index = (zeile.get("Index") or "").strip().upper()
+                if kuerzel and index in erlaubt:
+                    tickers.add(kuerzel)
+    except OSError as e:
+        logger.error("Universum: %s nicht lesbar: %s", pfad, e)
+        return []
+
+    logger.info("Universum: %d deutsche Titel aus %s.",
+                len(tickers), "/".join(sorted(erlaubt)))
+    return sorted(tickers)
+
+
+def erweitertes_universum(db: Optional[Session] = None,
+                          nur_mit_sec_historie: bool = False,
+                          mit_deutschen: bool = True) -> list[str]:
+    """Das Universum von Auftrag C: US-Stammaktien plus deutsche Titel.
+
+    Die Reihenfolge ist stabil sortiert, damit ein abgebrochener und wieder
+    aufgenommener Lauf dieselbe Abfolge sieht.
+    """
+    tickers = handelbares_universum(nur_mit_sec_historie, db)
+    if mit_deutschen:
+        tickers = sorted(set(tickers) | set(deutsche_titel()))
+    logger.info("Erweitertes Universum: %d Ticker.", len(tickers))
+    return tickers
