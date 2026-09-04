@@ -1678,7 +1678,21 @@ Die drei folgenden Punkte sind ausdrücklich freigegeben — **ohne weitere
 Rückfrage umsetzen**, in dieser Reihenfolge. Aufwand geschätzt: rund 5–8
 Stunden Arbeit plus über 70 Stunden Rechenzeit, fast vollständig Punkt C.
 
-**A · Literaturrecherche, als Lesedokument.** Neun Familien wurden ohne
+**A · Literaturrecherche, als Lesedokument.** → **erledigt am 2026-09-04,
+liegt als `LITERATUR.md`.** Die drei wichtigsten Ergebnisse: (1) der neunfache
+Nullbefund hat eine bisher **nicht ausgeschlossene** Erklärung — das Universum,
+denn Anomalien konzentrieren sich in Microcaps und liegen ab 2006 ohne sie im
+Median bei 7 bp/Monat (Chen/Velikov 2023); (2) **acht der zehn Instrumente**
+gehören einer Familie an, für die diese Literatur nie eine Behauptung
+aufgestellt hat; (3) drei der 13 replizierten Themen — Bilanzwachstum,
+Cash-Profitabilität, Gewinnwachstum — sind **ohne einen einzigen neuen Abruf**
+messbar, weil `accrual_kennzahlen` `bilanzsumme`, `netto_gewinn` und
+`operativer_cashflow` bereits punkt-in-zeit trägt. Stärkster Einzelkandidat:
+die **Nettoemission** über SEC `companyconcept`. Und: PEADs Miss-Seite hat mit
+Martineau (2022) eine benannte Gegenhypothese — das gehört auf den Tisch, bevor
+ein Holdout-Zugriff dafür ausgegeben wird.
+
+Der ursprüngliche Auftragstext, als Beleg: Neun Familien wurden ohne
 Vorauswahl geprüft; die zehnte soll es nicht. Der Suchbegriff ist **nicht**
 „Investment Banking" (das lehrt Bewertung: DCF, Comps, LBO), sondern
 **empirical asset pricing / cross-sectional return predictability**.
