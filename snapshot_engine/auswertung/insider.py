@@ -53,7 +53,9 @@ from snapshot_engine.auswertung.basis import (
     MIN_STICHPROBE, anteil_schlaegt_markt, mittlere_ueberrendite,
     zelle_gegen_markt, z_korrigiert,
 )
-from snapshot_engine.auswertung.holdout import TRAIN, grenze_lesen, split_filter
+from snapshot_engine.auswertung.holdout import (
+    TRAIN, grenze_lesen, split_filter, split_zuordnen,
+)
 from snapshot_engine.auswertung.kursnaehe import kursnaehe_pruefen
 from snapshot_engine.benchmark import benchmark_fuer, ueberrendite
 from snapshot_engine.models import (
@@ -103,16 +105,17 @@ def kaeufergruppe(anzahl: int) -> str:
 # Zuordnung und Ränge
 # ---------------------------------------------------------------------------
 
-def _kennzahlen_je_snapshot(db: Session, datenmodus: str,
-                            fenster_tage: int = FENSTER_TAGE
-                            ) -> tuple[dict[int, dict], dict[int, tuple]]:
-    """Je Snapshot der Netto-Insiderhandel der vorangegangenen Monate.
+def _kennzahlen_zu_zuordnung(db: Session, zuordnung: dict[int, tuple],
+                             fenster_tage: int = FENSTER_TAGE
+                             ) -> tuple[dict[int, dict], dict[int, tuple]]:
+    """Zu jeder (ticker, zeitpunkt)-Zeile der Netto-Insiderhandel davor.
 
-    Returns:
-        ({snapshot_id: Kennzahlen aus `kennzahl_vor`},
-         {snapshot_id: (ticker, zeitpunkt)})
+    Die Zuordnung stammt entweder aus den Snapshots
+    (`_kennzahlen_je_snapshot`) oder aus dem Kurspanel von Auftrag C
+    (`auswertung/kurspanel.py`). Beide Quellen liefern dieselbe Form, damit
+    die Auswertung darunter nicht zwei Pfade führen muss.
 
-    Snapshots ohne jede Meldung im Fenster tragen **keine** Kennzahl — sie
+    Zeilen ohne jede Meldung im Fenster tragen **keine** Kennzahl — sie
     fallen heraus statt als „null Käufer, null Verkäufer" zu zählen. Ein
     Titel, über den nichts gemeldet wurde, ist nicht dasselbe wie einer, bei
     dem Insider verkauft und nicht gekauft haben.
@@ -122,6 +125,28 @@ def _kennzahlen_je_snapshot(db: Session, datenmodus: str,
     logger.info("Insider: %d Ticker mit Geschäften, %d Personen-Monate im "
                 "Kalender.", len(reihen), len(kalender))
 
+    werte: dict[int, dict] = {}
+    behalten: dict[int, tuple] = {}
+    ohne = 0
+    for zeilen_id, (ticker, zeitpunkt) in zuordnung.items():
+        kennzahl = kennzahl_vor(reihen.get(ticker), zeitpunkt, kalender,
+                                fenster_tage=fenster_tage,
+                                min_abstand_tage=MIN_ABSTAND_TAGE)
+        if kennzahl is None:
+            ohne += 1
+            continue
+        werte[zeilen_id] = kennzahl
+        behalten[zeilen_id] = (ticker, zeitpunkt)
+
+    logger.info("Insider: %d Zeilen mit Meldung im %d-Tage-Fenster, %d ohne.",
+                len(werte), fenster_tage, ohne)
+    return werte, behalten
+
+
+def _kennzahlen_je_snapshot(db: Session, datenmodus: str,
+                            fenster_tage: int = FENSTER_TAGE
+                            ) -> tuple[dict[int, dict], dict[int, tuple]]:
+    """Je Snapshot der Netto-Insiderhandel der vorangegangenen Monate."""
     snapshots = (
         db.query(AnalyseSnapshot.id, AnalyseSnapshot.ticker,
                  AnalyseSnapshot.snapshot_zeitpunkt)
@@ -129,23 +154,9 @@ def _kennzahlen_je_snapshot(db: Session, datenmodus: str,
         .filter(AnalyseSnapshot.analyse_modus == AnalyseModus.NEUE_POSITION)
         .all()
     )
-
-    werte: dict[int, dict] = {}
-    zuordnung: dict[int, tuple] = {}
-    ohne = 0
-    for snapshot_id, ticker, zeitpunkt in snapshots:
-        kennzahl = kennzahl_vor(reihen.get(ticker), zeitpunkt, kalender,
-                                fenster_tage=fenster_tage,
-                                min_abstand_tage=MIN_ABSTAND_TAGE)
-        if kennzahl is None:
-            ohne += 1
-            continue
-        werte[snapshot_id] = kennzahl
-        zuordnung[snapshot_id] = (ticker, zeitpunkt)
-
-    logger.info("Insider: %d Snapshots mit Meldung im %d-Tage-Fenster, %d ohne.",
-                len(werte), fenster_tage, ohne)
-    return werte, zuordnung
+    zuordnung = {sid: (ticker, zeitpunkt)
+                 for sid, ticker, zeitpunkt in snapshots}
+    return _kennzahlen_zu_zuordnung(db, zuordnung, fenster_tage)
 
 
 def npr_raenge(werte: dict[int, dict], zuordnung: dict[int, tuple],
@@ -210,7 +221,8 @@ def insider_auswerten(db: Session, horizont: int = 30,
                       minimum: int = MIN_STICHPROBE,
                       fenster_tage: int = FENSTER_TAGE,
                       z_tests: Optional[int] = None,
-                      mit_kursnaehe: bool = True) -> dict:
+                      mit_kursnaehe: bool = True,
+                      panel: Optional[list] = None) -> dict:
     """Netto-Insiderhandel gegen den Markt — als Quintile und als Ereignis.
 
     Args:
@@ -218,6 +230,18 @@ def insider_auswerten(db: Session, horizont: int = 30,
             die Zellen DIESES Aufrufs korrigiert. Ein Durchlauf über mehrere
             Horizonte muss die Gesamtzahl übergeben, sonst ist die Korrektur
             zu milde — derselbe Fehler, den `handbuch()` vermeidet.
+        panel: Beobachtungen aus `auswertung/kurspanel.py` statt aus den
+            Snapshot-Outcomes — der Weg von Auftrag C. Damit läuft dieselbe
+            Auswertung auf einem Universum, für das es keine Snapshots gibt
+            und deren Aufzeichnung zwei Tage kosten würde. `datenmodus`
+            bleibt dann unbeachtet; die Holdout-Trennung greift über den
+            Stichtag statt über die Query, siehe `split_zuordnen`.
+
+            **Die Kursnähe-Prüfung entfällt auf diesem Weg** — sie liest
+            Snapshot-Kurse, die es hier nicht gibt. Für §2n war sie mit
+            −0,057 unauffällig; entfiele sie unbemerkt, stünde ein
+            umetikettiertes Kurssignal ungeprüft im Ergebnis. Deshalb wird
+            `kursnaehe` ausdrücklich auf None gesetzt und nicht weggelassen.
 
     Returns:
         {"basis_markt", "basis_ertrag", "n_gesamt", "quintile", "spread_pp",
@@ -228,7 +252,28 @@ def insider_auswerten(db: Session, horizont: int = 30,
     `spread_pp` ist **Q5 minus Q1** — hoher minus niedriger Nettokauf. Positiv
     heißt: die Hypothese bestätigt sich.
     """
-    werte, zuordnung = _kennzahlen_je_snapshot(db, datenmodus, fenster_tage)
+    if panel is not None:
+        from snapshot_engine.auswertung.kurspanel import als_auswertungsform
+        panel_zuordnung, panel_zeilen = als_auswertungsform(panel)
+        werte, zuordnung = _kennzahlen_zu_zuordnung(
+            db, panel_zuordnung, fenster_tage)
+        # Die Holdout-Trennung greift hier über den Stichtag. Ohne sie liefe
+        # die Gegenprobe über den gesamten Bestand und verbrauchte den
+        # Holdout stillschweigend — der teuerste denkbare Fehler an dieser
+        # Stelle, weil er nicht rückgängig zu machen ist.
+        grenze = grenze_lesen()
+        if teil:
+            panel_zeilen = [
+                z for z in panel_zeilen
+                if z[0] in zuordnung
+                and split_zuordnen(zuordnung[z[0]][1], grenze) == teil
+            ]
+        beobachtungen = panel_zeilen
+        mit_kursnaehe = False
+    else:
+        werte, zuordnung = _kennzahlen_je_snapshot(db, datenmodus, fenster_tage)
+        beobachtungen = _beobachtungen(db, horizont, datenmodus, teil)
+
     raenge = npr_raenge(werte, zuordnung)
 
     zaehlwerk = {"zeilen": 0, "ohne_kennzahl": 0, "ohne_rang": 0,
@@ -238,8 +283,7 @@ def insider_auswerten(db: Session, horizont: int = 30,
     gruppen_opp: dict[str, list[tuple]] = defaultdict(list)
     alle: list[Optional[float]] = []
 
-    for snapshot_id, ret, benchmark in _beobachtungen(
-            db, horizont, datenmodus, teil):
+    for snapshot_id, ret, benchmark in beobachtungen:
         zaehlwerk["zeilen"] += 1
         kennzahl = werte.get(snapshot_id)
         if kennzahl is None:
@@ -347,7 +391,8 @@ def insider_jahresstabilitaet(db: Session, horizont: int = 30,
                               datenmodus: str = "HISTORISCH",
                               teil: Optional[str] = TRAIN,
                               minimum: int = MIN_STICHPROBE,
-                              fenster_tage: int = FENSTER_TAGE) -> dict:
+                              fenster_tage: int = FENSTER_TAGE,
+                              panel: Optional[list] = None) -> dict:
     """Hält der Cluster-Vorsprung über die Kalenderjahre sein Vorzeichen?
 
     **Das schärfste Kriterium dieses Projekts** (siehe
@@ -368,13 +413,27 @@ def insider_jahresstabilitaet(db: Session, horizont: int = 30,
         {"jahre": [...], "jahre_gesamt", "vorzeichen_gleich",
          "ertrag_jahre_gesamt", "ertrag_vorzeichen_gleich", ...}
     """
-    werte, zuordnung = _kennzahlen_je_snapshot(db, datenmodus, fenster_tage)
+    if panel is not None:
+        from snapshot_engine.auswertung.kurspanel import als_auswertungsform
+        panel_zuordnung, panel_zeilen = als_auswertungsform(panel)
+        werte, zuordnung = _kennzahlen_zu_zuordnung(
+            db, panel_zuordnung, fenster_tage)
+        grenze = grenze_lesen()
+        if teil:
+            panel_zeilen = [
+                z for z in panel_zeilen
+                if z[0] in zuordnung
+                and split_zuordnen(zuordnung[z[0]][1], grenze) == teil
+            ]
+        beobachtungen = panel_zeilen
+    else:
+        werte, zuordnung = _kennzahlen_je_snapshot(db, datenmodus, fenster_tage)
+        beobachtungen = _beobachtungen(db, horizont, datenmodus, teil)
 
     je_jahr: dict[int, dict[str, list]] = defaultdict(lambda: defaultdict(list))
     basis_je_jahr: dict[int, list] = defaultdict(list)
 
-    for snapshot_id, ret, benchmark in _beobachtungen(
-            db, horizont, datenmodus, teil):
+    for snapshot_id, ret, benchmark in beobachtungen:
         kennzahl = werte.get(snapshot_id)
         if kennzahl is None:
             continue
