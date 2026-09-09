@@ -1,6 +1,6 @@
 # CONTEXT.md — Arbeitsstand Signal-Engine
 
-_Stand: 2026-09-09 · auf `a2fd423` folgend · Branch `main`_
+_Stand: 2026-09-09 · auf `4d5b085` folgend · Branch `main`_
 
 Übergabedatei für eine frische Claude-Session. Sie beantwortet drei Fragen:
 **Was ist erledigt, was ist offen, und was darf nicht noch einmal neu hergeleitet
@@ -1588,6 +1588,141 @@ Projekts — und er sagt, dass Clusterkäufe kurzfristig ein schwaches
 
 ---
 
+## 2p. Nettoemission: der erste Eingang, der beide Huerden nimmt — und ein Widerspruch
+
+Elfte Signalfamilie, fuenfte mit eigener Quelle, und der staerkste
+Einzelkandidat aus `LITERATUR.md` §6.3. Pontiff/Woodgate (2008): Firmen, die
+Aktien ausgeben, laufen schlechter als Firmen, die zurueckkaufen.
+
+    nettoemission = ln(Aktienzahl / Aktienzahl im Vorjahr)
+
+**Unten ist gut**, wie bei den Accruals. `spread_pp` ist Q1 minus Q5, damit
+positiv auch hier „Hypothese bestaetigt" heisst.
+
+Warum gerade diese Familie: sie ist die **einzige** gepruefte, fuer die die
+Literatur ausdruecklich Robustheit ueber kleine UND grosse Firmen berichtet.
+Genau daran ist §2n gestorben. Die Messung lief deshalb von vornherein ueber
+das erweiterte Universum (§2o), ueber `auswertung/kurspanel.py` und ohne einen
+einzigen Snapshot.
+
+### Der Split war die Falle, und sie ist gemessen worden
+
+Aktienzahlen der SEC sind roh und nicht split-bereinigt, und **eine
+Einreichung stellt ihre Vergleichsperioden auf die aktuelle Split-Basis um.**
+Gemessen an NVDA (10:1 im Juni 2024), dieselbe Periode 2023-01-29:
+
+| Einreichung | Aktien |
+|---|---|
+| 2024-02-21 | 2.487,0 Mio |
+| 2025-02-26 | **24.870,0 Mio** |
+
+Faktor zehn, reiner Split. Wer die Zahlen zweier Einreichungen vergleicht,
+misst fuer NVDA im Jahr 2024 eine Nettoemission von **+887 Prozent**, wo
+tatsaechlich ein Rueckkauf von einem halben Prozent stattfand — ein frei
+erfundener Extremwert in genau dem Quintil, das die Aussage traegt.
+
+**Deshalb stammen beide Aktienzahlen aus derselben Accession.** Innerhalb
+einer Einreichung ist das Verhaeltnis sauber (NVDA ueber vier Jahre: 0,996 /
+0,993 / 0,995 / 0,992). Das ist split-immun per Konstruktion und braucht
+keinen Splitbestand als eigene Quelle — also auch keine Bereinigung, die
+selbst falsch sein koennte. Jede Zeile traegt ihre `accession`, damit das
+nachpruefbar bleibt.
+
+Zweite Messung, die den Entwurf geaendert hat: **nicht der erste Treffer
+gewinnt, sondern der bestabgedeckte.** GOOGL liefert aus
+`WeightedAverageNumberOfSharesOutstandingBasic` drei Paare, aus
+`CommonStockSharesOutstanding` elf; MSFT 18 gegen 19.
+
+### Bestand
+
+**39.177 Kennzahlen ueber 3.644 Ticker**, Perioden 1998 bis 2026. Von 4.161
+Tickern: 133 ohne CIK (Auslandsnotierungen — die Messung ist wie §2f, §2g und
+§2n US-only), 384 ohne verwertbare Auszeichnung. Abdeckung **87,6 %**.
+
+### Die Messung (TRAIN, 4.161 Ticker, Sidak ueber 15 Zellen: z = 2,93)
+
+**1.224.764 verwertete Zeilen, 245.060 je Quintil.** Zum Vergleich: §2n hatte
+10.166 Zeilen in der Clustergruppe.
+
+| Horizont | Marktbasis | Q1 (Rueckkauf) | Q5 (Emission) | Spread |
+|---|---|---|---|---|
+| 7 Tage | 47,5 % | **+1,8 ±0,3** | **−2,6 ±0,3** | **+4,4 pp** |
+| 30 Tage | 46,1 % | **+2,8 ±0,5** | **−4,2 ±0,5** | **+7,0 pp** |
+| 90 Tage | 44,7 % | **+3,9 ±0,9** | **−6,1 ±0,9** | **+9,9 pp** |
+
+**Auf allen drei Horizonten monoton ueber alle fuenf Quintile, beide Enden
+nach Sidak signifikant, und der Effekt waechst mit dem Horizont** — die Form,
+die die Hypothese vorhersagt.
+
+Die Jahrespruefung, an der neun Familien gestorben sind:
+**10 von 10 Jahren im Vorzeichen, auf jedem Horizont** (p = 0,001). Kein
+einziges Gegenjahr. 2020 ist mit +1,0 / +1,5 / +3,2 pp das *schwaechste* Jahr
+— dieser Kandidat lebt also gerade nicht vom COVID-Einbruch, vor dem §5 warnt.
+
+**Das ist mit Abstand der staerkste Befund dieses Projekts.** Nichts zuvor kam
+gepoolt ueber rund 4 pp, und nichts ausser PEADs Miss-Seite hat die
+Jahrespruefung ueberhaupt bestanden — die bei 8 von 9 (p = 0,039).
+
+### Und jetzt der Widerspruch: die Rendite zeigt in die Gegenrichtung
+
+Seit §2k stehen beide Metriken nebeneinander, und hier laufen sie auseinander:
+
+| Horizont | Spread Trefferquote | Spread Rendite | Jahre (Rendite) |
+|---|---|---|---|
+| 7 Tage | +4,4 pp | **−1,06 pp** | 6 von 10 |
+| 30 Tage | +7,0 pp | **−0,81 pp** | 6 von 10 |
+| 90 Tage | +9,9 pp | **−1,80 pp** | 7 von 10 |
+
+Die Emittenten (Q5) schlagen ihren Index **seltener**, tragen aber die
+**hoehere** mittlere Ueberrendite (+0,82 / +0,47 / +0,97 pp gegen −0,24 /
+−0,34 / −0,83 bei den Rueckkaeufern). Wer Q1 kauft und Q5 meidet, liegt
+oefter richtig und verdient im Mittel weniger.
+
+Das ist die Rechtsschiefe, die §2k bei Tagesspanne und Eroeffnungsluecke
+beschrieben hat: Emittenten sind ueberwiegend kleine, volatile Titel, und ein
+volatiler Titel hat allein wegen der Schiefe seiner Verteilung einen hoeheren
+arithmetischen Mittelwert, ohne haeufiger vorn zu liegen. **Konvexitaet, keine
+Prognose.**
+
+Dafuer spricht, dass der Renditespread seine eigene Jahrespruefung **nicht
+besteht** (6 bzw. 7 von 10, p = 0,51 / 0,18 — Rauschen) und von zwei Jahren
+getragen wird: 2020 mit −36,2 pp und 2021 mit +11,2 pp auf 90 Tagen. Die
+Trefferquote steht dagegen bei 10 von 10.
+
+**Beides gehoert nebeneinander stehen gelassen, nicht aufgeloest.** Die
+ehrliche Fassung lautet: als *Meidungsfilter* („keine schweren Emittenten
+kaufen") ist der Befund stabil und gross; als *Handelssystem* mit Long Q1 und
+Short Q5 ist er durch die Rendite nicht gedeckt.
+
+### Zwei offene Einwaende — beide VOR einem Holdout-Zugriff zu klaeren
+
+1. **Ist es die Groesse und nicht die Emission?** Emittenten sind
+   systematisch kleinere Titel, und §2d wie §2i haben dieselbe Falle schon
+   zweimal gezeigt: wer nach einem Merkmal trennt, muss gegen die Basis
+   **dieser Gruppe** rechnen. Hier laeuft alles gegen die gepoolte Marktbasis.
+   Solange das nicht getrennt ist, kann der Befund ein Groesseneffekt in
+   anderer Verpackung sein. **Das ist der wichtigste offene Punkt.**
+2. **Die Kursnaehe-Pruefung fehlt.** Sie ist seit §2f stehende Regel und wird
+   auf dem Panel-Weg ausdruecklich auf `None` gesetzt, weil sie Snapshot-Kurse
+   liest, die es dort nicht gibt. Die Kennzahl ist zwar aus Bilanzdaten
+   gerechnet und kann den Kurs konstruktiv nicht enthalten — aber genau diese
+   Begruendung stand auch bei §2f, bevor gemessen wurde, dass die
+   Zielrevision zu 0,47 mit der Vorrendite korreliert.
+
+### Was daraus folgt
+
+1. **Der erste Eingang des Projekts, der Signifikanz UND Jahresstabilitaet
+   gleichzeitig traegt.** Trefferquote bei „plausibles Signal traegt auch":
+   **eins von elf** — und damit zum ersten Mal nicht null.
+2. **Er geht trotzdem noch nicht in den Score.** Erst sind die beiden
+   Einwaende oben zu klaeren; beide kosten keinen Holdout-Zugriff, und §2o hat
+   gezeigt, was eine Gegenprobe vor dem Zugriff wert ist.
+3. **Der Holdout steht weiter bei 0 Zugriffen.** Wenn er je ausgegeben wird,
+   dann fuer diesen Kandidaten und nicht fuer PEADs Miss-Seite — aber erst
+   nach der Groessentrennung.
+
+---
+
 ## 3. Erledigt — nicht noch einmal bauen
 
 | Was | Wo |
@@ -1658,6 +1793,9 @@ Projekts — und er sagt, dass Clusterkäufe kurzfristig ein schwaches
 | **§2o Kurslauf über das Universum (9,25 Mio Zeilen)** | `kurs_backfill_cli.py` (99,6 % gedeckt) |
 | **§2o Auswertung ohne Snapshots, direkt aus den Kursreihen** | `auswertung/kurspanel.py`, `tests/test_kurspanel.py` |
 | **§2o Insider-Gegenprobe gelaufen: §2n falsifiziert** | `gegenprobe_cli.py` (90 T: −0,0 pp ±1,1) |
+| **§2p Nettoemission: Bestand aus SEC (39.177 Kennzahlen)** | `database.NettoemissionKennzahl`, `services/nettoemission.py` |
+| **§2p Split-Immunitaet ueber die Accession** | `nettoemission.paare_aus_einreichungen`, `tests/test_nettoemission.py` |
+| **§2p Nettoemission gemessen: 10 von 10 Jahren, signifikant** | `auswertung/nettoemission.py`, `nettoemission_cli.py` |
 
 **Wichtig (überholt seit der Neuaufzeichnung):** Der Satz „alle
 Bestands-Snapshots tragen `score_version` 1.0.0" galt für die stillgelegte
@@ -1975,7 +2113,7 @@ Arbeit inline erledigt, was sie langsam und einmalig statt wiederholbar macht.
 
 ## 5. Empfohlener nächster Schritt
 
-> **Für eine frische Sitzung:** Lies §0, §1, §2j–§2o und diesen Abschnitt.
+> **Für eine frische Sitzung:** Lies §0, §1, §2j–§2p und diesen Abschnitt.
 > Der Rest ist Beleg. §2–§2i beschreibt einen Bestand, den es nicht mehr gibt.
 
 **Der historische Bestand ist ausgemessen — auf BEIDEN Metriken.** Seit der
@@ -1984,12 +2122,21 @@ Volumen ist gemessen, die Kodierung als Erklärung ist erledigt, und seit §2k
 wird neben der Trefferquote auch die Renditespanne auf Signifikanz geprüft.
 Damit ist zum ersten Mal eine belastbare Antwort möglich — und sie lautet:
 
-> **In den historischen Daten nimmt kein Signal die Signifikanzschwelle.**
-> Nach §2o steht darunter noch **ein** Kandidat: PEADs Miss-Seite als
-> Meidungsfilter (8 von 9 Jahren). Die Chartlage (7 von 9, p = 0,18) war nie
-> einer, und der Insider-Clusterkauf aus §2n ist auf dem erweiterten Universum
-> **falsifiziert** (90 Tage: −0,0 pp ±1,1). Sonst nichts, in zehn geprüften
-> Familien.
+> **Seit §2p gibt es einen Eingang, der die Schwelle nimmt.** Die
+> Nettoemission trägt auf 90 Tagen +9,9 pp Spread, beide Enden nach Šidák
+> signifikant, monoton über alle fünf Quintile, **10 von 10 Jahren im
+> Vorzeichen** (p = 0,001) — gemessen auf 1,22 Mio Zeilen des erweiterten
+> Universums. Das ist der erste Kandidat in elf Familien, der Signifikanz und
+> Jahresstabilität zugleich trägt.
+>
+> **Mit einem Widerspruch, der dazugehört:** die Renditespanne zeigt in die
+> Gegenrichtung (−1,8 pp auf 90 Tagen) und besteht ihre eigene Jahresprüfung
+> nicht (7 von 10). Als Meidungsfilter ist der Befund gedeckt, als
+> Long/Short-System nicht. Und die Größentrennung steht noch aus — siehe §2p.
+>
+> Daneben bleibt PEADs Miss-Seite (8 von 9). Die Chartlage (7 von 9,
+> p = 0,18) war nie ein Kandidat, und der Insider-Clusterkauf aus §2n ist auf
+> dem erweiterten Universum **falsifiziert** (90 Tage: −0,0 pp ±1,1).
 
 **Das Muster ist inzwischen neunmal belegt:** ein gepoolter Vorsprung, den
 die Jahresprüfung aufzehrt. Nicht die Herkunft der Eingänge (§2g Accruals,
@@ -2065,16 +2212,25 @@ ist bis zum Beweis des Gegenteils der COVID-Einbruch mit seiner Erholung.
    Bewusst eine Anmelde-Aufgabe und kein Dienst: `pystray` braucht eine
    interaktive Sitzung, in Sitzung 0 erschiene das Tray-Symbol nie.
    `-Status` zeigt den Zustand, `-Entfernen` nimmt es zurück.
-3. **Nettoemission über SEC `companyconcept`** — der stärkste Einzelkandidat
-   aus `LITERATUR.md` §6.3, und nach §2o der nächste inhaltliche Schritt.
-   Kursunabhängig, punkt-in-zeit datierbar, wenige Minuten Rechenzeit über den
-   in `services/accruals.py` bereits gelösten Weg. Vor allem: die einzige
-   geprüfte Familie, für die die Literatur **Robustheit über kleine und grosse
-   Firmen** berichtet — sie überlebt damit die Grössenwarnung, an der §2n
-   gestorben ist. Dazu drei Kennzahlen ohne jeden Abruf (Bilanzwachstum,
-   Cash-Profitabilität, Gewinnwachstum), die bereits in `accrual_kennzahlen`
-   liegen (`LITERATUR.md` §6.1).
-4. ~~**Die Confidence-Anzeige entschärfen**~~ → erledigt, §2m.
+3. ~~**Nettoemission über SEC `companyconcept`**~~ → **erledigt am 2026-09-09,
+   gemessen in §2p, und der erste Treffer des Projekts.** Was jetzt an seiner
+   Stelle steht, in dieser Reihenfolge:
+   1. **Die Grössentrennung.** Emittenten sind systematisch kleinere Titel.
+      §2d und §2i haben dieselbe Falle zweimal gezeigt: gegen die Basis DER
+      GRUPPE rechnen, nicht gegen die gepoolte. Solange das offen ist, kann
+      §2p ein Grösseneffekt in anderer Verpackung sein. **Das entscheidet, ob
+      der Befund hält** — und es kostet keinen Holdout-Zugriff, genau wie die
+      Gegenprobe in §2o.
+   2. **Die Kursnähe-Prüfung auf dem Panel-Weg.** Sie ist seit §2f stehende
+      Regel und fehlt dort (`None`, weil sie Snapshot-Kurse liest). Bei §2f
+      klang „das ist doch fundamental" auch plausibel, bis 0,47 gemessen war.
+   3. **Erst danach** die Frage, ob der Holdout dafür ausgegeben wird.
+4. **Drei Kennzahlen ohne jeden Abruf** — Bilanzwachstum,
+   Cash-Profitabilität, Gewinnwachstum liegen bereits in
+   `accrual_kennzahlen` (`LITERATUR.md` §6.1). Ein Auswertungsmodul, null
+   Netzlast. Nach §2p zusätzlich interessant, weil Bilanzwachstum derselben
+   Themenfamilie (Investment) angehört und damit als Gegenprobe taugt.
+5. ~~**Die Confidence-Anzeige entschärfen**~~ → erledigt, §2m.
 
 ### Vom Besitzer beauftragt — alle drei erledigt (Stand 2026-09-09)
 
@@ -2170,10 +2326,17 @@ allgemeines Universum nicht übertragen. Ohne eine Antwort darauf ist jeder
 Befund nach oben verzerrt.
 ### Der Holdout
 
-Er steht bei **0 Zugriffen**, auch nach §2o — die Gegenprobe lief auf TRAIN.
+Er steht bei **0 Zugriffen**, auch nach §2o und §2p — beide Messungen liefen
+auf TRAIN.
 
-Von den zwei Aussagen, die zwischenzeitlich für einen Zugriff in Frage kamen,
-ist **eine übrig**:
+**Seit §2p gibt es zum ersten Mal einen Kandidaten, für den sich ein Zugriff
+lohnen könnte** — die Nettoemission, mit 10 von 10 Jahren und beiden Enden
+signifikant. Ausgegeben wird er trotzdem noch nicht: die Größentrennung und
+die Kursnähe-Prüfung (§2p) können ihn widerlegen, **ohne den Holdout
+anzufassen**. Genau das war die Lehre aus §2o, wo eine Gegenprobe einen
+Kandidaten erledigt hat, für den der Zugriff sonst verbraucht worden wäre.
+
+Daneben stehen die älteren Aussagen:
 
 - **PEADs Miss-Seite** (§2e): „das unterste Quintil der Ergebnisüberraschung
   schlägt den Markt über sieben Tage rund 1,1 pp seltener" — ein

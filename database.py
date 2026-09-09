@@ -472,6 +472,78 @@ class AccrualKennzahl(Base):
         }
 
 
+class NettoemissionKennzahl(Base):
+    """Nettoemission eines Geschaeftsjahres, punkt-in-zeit datiert (P2-06).
+
+    Nach Pontiff/Woodgate (2008) und Daniel/Titman (2006): Firmen, die Aktien
+    ausgeben, liefern schlechtere Folgerenditen als Firmen, die
+    zurueckkaufen. `nettoemission` ist der natuerliche Logarithmus des
+    Verhaeltnisses der Aktienzahl zum Vorjahr — **unten ist gut**, wie bei
+    den Accruals und anders als bei PEAD.
+
+    Die Kennzahl ist der staerkste Kandidat aus `LITERATUR.md` §6.3: sie ist
+    kursunabhaengig, punkt-in-zeit datierbar, und die einzige der geprueften
+    Familien, fuer die die Literatur ausdruecklich Robustheit ueber kleine
+    UND grosse Firmen berichtet. Genau daran ist der Insider-Clusterkauf
+    gescheitert (CONTEXT.md §2o).
+
+    **Der Kern der Konstruktion: beide Aktienzahlen stammen aus DERSELBEN
+    Einreichung.** Aktienzahlen der SEC sind roh, nicht split-bereinigt, und
+    eine Einreichung stellt ihre Vergleichsperioden auf die *aktuelle*
+    Split-Basis um. Gemessen an NVDA (10:1 im Juni 2024): die Periode
+    2023-01-29 steht in der Einreichung von 2024 mit 2.487,0 Mio Aktien und
+    in der von 2025 mit 24.870,0 Mio — Faktor zehn, reiner Split. Wer die
+    Zahlen zweier Einreichungen vergleicht, misst fuer NVDA eine
+    Nettoemission von +887 Prozent, wo tatsaechlich ein Rueckkauf von 0,5
+    Prozent stattfand.
+
+    Innerhalb einer Einreichung ist das Verhaeltnis dagegen sauber (NVDA:
+    0,996 / 0,993 / 0,995 / 0,992 ueber vier Jahre). Deshalb traegt jede
+    Zeile `accession` — beide Werte kommen daher, und ein Splitbestand als
+    eigene Quelle wird nicht gebraucht.
+
+    `bekannt_ab` ist das Einreichungsdatum dieser Accession: vorher war die
+    Vorjahresvergleichszahl auf dieser Basis nicht oeffentlich.
+    """
+    __tablename__ = "nettoemission_kennzahlen"
+    __table_args__ = (
+        UniqueConstraint("ticker", "periode_ende",
+                         name="uq_nettoemission_ticker_periode"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    ticker: Mapped[str] = mapped_column(Text, nullable=False, index=True)
+    cik: Mapped[Optional[str]] = mapped_column(Text)
+    periode_ende: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    bekannt_ab: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
+
+    # Die Accession, aus der BEIDE Aktienzahlen stammen. Sie ist der Beleg
+    # dafuer, dass das Verhaeltnis split-konsistent ist — ohne sie liesse
+    # sich das im Nachhinein nicht mehr pruefen.
+    accession: Mapped[Optional[str]] = mapped_column(Text)
+    konzept: Mapped[Optional[str]] = mapped_column(Text)
+
+    aktien: Mapped[Optional[float]] = mapped_column(Float)
+    aktien_vorjahr: Mapped[Optional[float]] = mapped_column(Float)
+    nettoemission: Mapped[Optional[float]] = mapped_column(Float)
+
+    quelle: Mapped[str] = mapped_column(Text, nullable=False, default="sec-xbrl")
+    geladen_am: Mapped[Optional[datetime]] = mapped_column(DateTime)
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "ticker": self.ticker,
+            "periode_ende": self.periode_ende.isoformat() if self.periode_ende else None,
+            "bekannt_ab": self.bekannt_ab.isoformat() if self.bekannt_ab else None,
+            "accession": self.accession,
+            "konzept": self.konzept,
+            "aktien": self.aktien,
+            "aktien_vorjahr": self.aktien_vorjahr,
+            "nettoemission": self.nettoemission,
+        }
+
+
 class InsiderGeschaeft(Base):
     """Ein offenes Insidergeschaeft aus SEC Form 4 (Auftrag B).
 
