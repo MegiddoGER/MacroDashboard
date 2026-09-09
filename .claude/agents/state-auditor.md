@@ -1,6 +1,6 @@
 ---
 name: state-auditor
-description: "Reconstructs the true Arbeitsstand of the signal-engine work — what is done, what is open, what the next action is — by auditing CONTEXT.md against the git history, the live database and the test suite. Use at the start of a fresh session, before planning, or whenever someone asks for a recap or status. Read-only: it reports drift and state, it does not patch or update documents."
+description: "Reconstructs the true Arbeitsstand of the project — what is done, what is open, what the next action is — by auditing CONTEXT.md against the git history, the live database and the test suite. Use at the start of a fresh session, before planning, or whenever someone asks for a recap or status. Read-only: it reports drift and state, it does not patch or update documents."
 tools: Read, Grep, Glob, Bash
 model: opus
 color: cyan

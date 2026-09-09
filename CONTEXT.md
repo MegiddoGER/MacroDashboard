@@ -2053,11 +2053,18 @@ ist bis zum Beweis des Gegenteils der COVID-Einbruch mit seiner Erholung.
    `calc_technical_score()`, weil `_score_fundamental` und `_score_sentiment`
    ihre Daten aus der Gegenwart beziehen und ein Replay damit Look-Ahead
    wäre. Diese Hälfte ist nur vorwärts messbar, über LIVE-Snapshots.
-   **Stand 2026-09-09: 1.112 Stück, der jüngste vom 2026-09-04** — seit fünf
-   Tagen läuft die Uhr nicht, weil die Anwendung nicht lief. Der Scheduler
-   startet aus `main.py`'s Lifespan (18:30 CET); ohne laufenden Prozess gibt
-   es keinen Snapshot, und ein nicht aufgezeichneter Tag ist **unwiederbring-
-   lich**. Das ist eine Uhr, keine Aufgabe — aber sie muss ticken.
+   **Stand 2026-09-09: 1.112 Stück, der jüngste vom 2026-09-04** — die Uhr
+   stand fünf Tage still, weil die Anwendung nicht lief. Der Scheduler startet
+   aus `main.py`'s Lifespan (18:30 CET); ohne laufenden Prozess gibt es keinen
+   Snapshot, und ein nicht aufgezeichneter Tag ist **unwiederbringlich**.
+   **Behoben am 2026-09-09**: `autostart_einrichten.ps1` registriert eine
+   Anmelde-Aufgabe („MacroDashboard"), die `launcher.py` über `pyw.exe` startet
+   — ohne Konsolenfenster, mit Tray-Symbol, ohne Zeitlimit und auch im
+   Akkubetrieb. Ende-zu-Ende geprüft: die Aufgabe startet die Anwendung, Port
+   8501 antwortet, der Drain-Job feuert im Drei-Minuten-Takt.
+   Bewusst eine Anmelde-Aufgabe und kein Dienst: `pystray` braucht eine
+   interaktive Sitzung, in Sitzung 0 erschiene das Tray-Symbol nie.
+   `-Status` zeigt den Zustand, `-Entfernen` nimmt es zurück.
 3. **Nettoemission über SEC `companyconcept`** — der stärkste Einzelkandidat
    aus `LITERATUR.md` §6.3, und nach §2o der nächste inhaltliche Schritt.
    Kursunabhängig, punkt-in-zeit datierbar, wenige Minuten Rechenzeit über den
