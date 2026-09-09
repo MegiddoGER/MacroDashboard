@@ -51,6 +51,7 @@
     <button class="tab" data-tab="tab-returns"> Renditen</button>
     <button class="tab" data-tab="tab-5y">️ 5 Jahre</button>
     <button class="tab" data-tab="tab-corr"> Korrelation</button>
+    <button class="tab" data-tab="tab-kursverhalten">Kursverhalten</button>
   </div>
 
   <div id="tab-candle" class="tab-content active">
@@ -127,6 +128,131 @@
     {% if corr_chart != "null" %}
     <div id="chart-corr" class="chart-container" style="height:450px;"></div>
     {% else %}<div class="alert alert-info">Korrelationsdaten nicht verfügbar.</div>{% endif %}
+  </div>
+
+  <!-- ═══ Kursverhalten: Kerzenmuster ═══ -->
+  <div id="tab-kursverhalten" class="tab-content">
+    {% set kv = kursverhalten %}
+    {% set wg = kv.lage.waehrung or "" %}
+    <h5>Kursverhalten — erkannte Kerzenmuster</h5>
+    <p class="caption">
+      Anerkannte Muster nach Nison, erkannt auf der Tagesreihe des letzten Jahres.
+      <b>Keine Kauf- oder Verkaufsempfehlung.</b> Ein Muster ist hier eine
+      <i>Beobachtung mit einer definierten Marke</i>, ab der die Ablesung widerlegt
+      ist — nicht mehr. Für Kerzenmuster als Prognose ist in der Fachliteratur kein
+      Wert belegt (Marshall/Young/Rose 2006; Marshall/Young/Cahan 2008, 30 Jahre
+      Börse Tokio). Nützlich ist die Marke, nicht die Richtung.
+    </p>
+
+    {% if not kv.verfuegbar %}
+      <div class="alert alert-info">Keine ausreichende Kurshistorie für die Mustererkennung.</div>
+    {% else %}
+
+      {# ── Jüngstes Muster mit Ungültigkeitsmarke ── #}
+      {% if kv.setup %}
+        {% set s = kv.setup %}
+        <div class="alert {{ 'alert-success' if s.richtung == 'long' else 'alert-warning' }}">
+          <b>{{ s.muster }}</b> vom {{ s.datum.strftime('%d.%m.%Y') }} ·
+          {{ 'bullische' if s.richtung == 'long' else 'bärische' }} Ablesung
+          {% if s.umsatz_verhaeltnis %} · {{ "%.1f"|format(s.umsatz_verhaeltnis) }}× Umsatz
+            gegenüber dem 60-Tage-Median{% endif %}
+        </div>
+        <div class="table-container">
+          <table class="data-table">
+            <tr>
+              <th>Ablesung widerlegt bei</th>
+              <td><b>{{ "%.2f"|format(s.ungueltig_bei) }} {{ wg }}</b></td>
+              <td>{{ "%+.2f"|format(s.ungueltig_prozent) }} %</td>
+              <td>{% if s.ungueltig_atr %}{{ s.ungueltig_atr }} ATR{% else %}—{% endif %}</td>
+            </tr>
+            <tr>
+              <th>Nächstes Swing-{{ 'Hoch' if s.richtung == 'long' else 'Tief' }}</th>
+              <td>{% if s.ziel %}{{ "%.2f"|format(s.ziel) }} {{ wg }}{% else %}—{% endif %}</td>
+              <td>{% if s.ziel_prozent %}{{ "%+.2f"|format(s.ziel_prozent) }} %{% else %}—{% endif %}</td>
+              <td>{% if s.ziel_atr %}{{ s.ziel_atr }} ATR{% else %}—{% endif %}</td>
+            </tr>
+            {% if s.verhaeltnis %}
+            <tr>
+              <th>Verhältnis Abstand Swing zu Abstand Marke</th>
+              <td colspan="3">1 : {{ s.verhaeltnis }}</td>
+            </tr>
+            {% endif %}
+          </table>
+        </div>
+        <p class="caption">
+          Das Swing-Niveau ist ein Ort, an dem der Kurs zuletzt gedreht hat — kein
+          Kursziel und keine Wahrscheinlichkeit. Das Verhältnis setzt zwei Abstände
+          ins Verhältnis, es ist keine Ertragserwartung.
+        </p>
+      {% else %}
+        <div class="alert alert-info">Im letzten Jahr kein gerichtetes Muster erkannt.</div>
+      {% endif %}
+
+      {# ── Trefferliste ── #}
+      {% if kv.treffer %}
+      <h5 style="margin-top:16px;">Zuletzt erkannt</h5>
+      <div class="table-container">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Datum</th><th>Muster</th><th>Richtung</th>
+              <th>Vortrend</th><th>Umsatz</th><th>Ungültig bei</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for t in kv.treffer %}
+            <tr>
+              <td>{{ t.datum.strftime('%d.%m.%Y') }}</td>
+              <td>{{ t.muster }}</td>
+              <td>{{ '▲ bullisch' if t.richtung == 'long' else '▼ bärisch' }}</td>
+              <td>{% if t.vortrend > 0 %}aufwärts{% elif t.vortrend < 0 %}abwärts{% else %}unklar{% endif %}</td>
+              <td>{% if t.umsatz_verhaeltnis %}{{ "%.1f"|format(t.umsatz_verhaeltnis) }}×{% else %}—{% endif %}</td>
+              <td>{% if t.ungueltig_bei %}{{ "%.2f"|format(t.ungueltig_bei) }} {{ wg }}{% else %}—{% endif %}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <p class="caption">
+        Ein Tag kann mehrere Muster tragen, auch gegenläufige — das wird nicht
+        unterdrückt. Hammer und Hanging Man sind dieselbe Kerze; nur der Vortrend
+        trennt sie.
+      </p>
+      {% endif %}
+
+      {# ── Lage-Kontext ── #}
+      <h5 style="margin-top:16px;">Lage des Titels</h5>
+      <div class="table-container">
+        <table class="data-table">
+          <tr>
+            <th>Marktkapitalisierung</th>
+            <td>{% if kv.lage.market_cap %}{{ fmt_big(kv.lage.market_cap) }} EUR{% else %}—{% endif %}</td>
+            <td>{{ kv.lage.groessenklasse or "—" }}</td>
+          </tr>
+          <tr>
+            <th>Tagesumsatz (60 Tage)</th>
+            <td>{% if kv.lage.dollar_umsatz %}{{ fmt_big(kv.lage.dollar_umsatz) }} {{ wg }}{% else %}—{% endif %}</td>
+            <td>{{ kv.lage.liquiditaet or "—" }}</td>
+          </tr>
+          <tr>
+            <th>Lage im 52-Wochen-Band</th>
+            <td>{% if kv.lage.position_52w is not none %}{{ kv.lage.position_52w }} %{% else %}—{% endif %}</td>
+            <td>{% if kv.lage.tief_52w and kv.lage.hoch_52w %}{{ "%.2f"|format(kv.lage.tief_52w) }}–{{ "%.2f"|format(kv.lage.hoch_52w) }} {{ wg }}{% endif %}</td>
+          </tr>
+          <tr>
+            <th>Abstand SMA 200</th>
+            <td>{% if kv.lage.abstand_sma200 is not none %}{{ "%+.1f"|format(kv.lage.abstand_sma200) }} %{% else %}—{% endif %}</td>
+            <td>KGV {{ "%.1f"|format(kv.lage.kgv) if kv.lage.kgv else "—" }}</td>
+          </tr>
+        </table>
+      </div>
+      <p class="caption">
+        Dasselbe Muster liest sich bei einem eng gehandelten Nebenwert nahe dem
+        Jahrestief anders als bei einem Schwergewicht im Aufwärtstrend. Kurse in
+        Originalwährung{% if wg %} ({{ wg }}){% endif %}, Marktkapitalisierung in EUR.
+      </p>
+
+    {% endif %}
   </div>
 </div>
 

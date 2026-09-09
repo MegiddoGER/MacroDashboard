@@ -208,12 +208,29 @@ def _build_analysis_context(raw_input: str, time_filter: str) -> dict | str:
     sma_50_sel = selected_close.rolling(50).mean() if len(selected_close) >= 50 else None
     sma_200_sel = selected_close.rolling(200).mean() if len(selected_close) >= 200 else None
 
+    # --- Kerzenmuster (Reiter „Kursverhalten") ---
+    # Die Auswertung laeuft auf `hist` (ein Jahr, immer aussagekraeftig), die
+    # Chart-Markierungen dagegen auf `selected_hist`, damit sie zu dem passen,
+    # was tatsaechlich gezeichnet wird. Beides kostet je rund 30 ms auf einer
+    # bereits geladenen Reihe — deshalb kein eigener Cache.
+    kursverhalten_data = {"verfuegbar": False, "treffer": [], "lage": {}, "setup": None}
+    muster_marker = None
+    try:
+        from services.kerzenmuster import alle_treffer, kerzen_aus_dataframe
+        from services.kursverhalten import kursverhalten
+
+        kursverhalten_data = kursverhalten(hist, stats)
+        muster_marker = [t for t in alle_treffer(kerzen_aus_dataframe(selected_hist))
+                         if t.richtung != "keine"]
+    except Exception:
+        logger.exception("Kerzenmuster fuer %s nicht berechenbar", ticker)
+
     # --- Charts (CPU-bound, fast) ---
     try:
         charts["candlestick"] = fig_to_json(plot_candlestick(
             selected_hist, f"{ticker} — Candlestick ({time_filter})",
             sma_20=sma_20_sel, sma_50=sma_50_sel,
-            sma_200=sma_200_sel,
+            sma_200=sma_200_sel, treffer=muster_marker,
         ))
     except Exception:
         charts["candlestick"] = "null"
@@ -761,6 +778,7 @@ def _build_analysis_context(raw_input: str, time_filter: str) -> dict | str:
         "quant_data": quant_data,
         "signal_history": signal_history,
         "corr_chart": corr_chart,
+        "kursverhalten": kursverhalten_data,
         "ps_defaults": ps_defaults,
         "info_data": info_data,
         "fmt_price": _fmt_price,

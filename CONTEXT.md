@@ -7,6 +7,13 @@ _Stand: 2026-09-09 · auf `4d5b085` folgend · Branch `main`_
 werden.** Vollständige Fassung mit Belegen und Zahlen:
 <https://claude.ai/code/artifact/0dbcfa21-4049-4568-800b-edfc83b2f3cb>
 
+**Abgrenzung: `KERZENMUSTER.md` gehört NICHT hierher.** Es ist ein
+Oberflächen-Vorhaben des Dashboards (Reiter „Kursverhalten" in der Analyse) und
+**speist den Score nicht**. Kein Auftrag, kein Kandidat, keine Signalfamilie —
+es taucht in §2 bis §5 bewusst nicht auf. Wer es mit der Signal-Engine
+vermischt, hebt die Trennung auf, die der Besitzer am 2026-09-09 ausdrücklich
+gezogen hat.
+
 ---
 
 ## 0. Zuerst lesen — vier Dinge, die schiefgehen

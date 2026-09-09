@@ -112,7 +112,15 @@ def plot_timeseries(df, title: str, y_col: str = "Close",
 # ---------------------------------------------------------------------------
 
 def plot_candlestick(df: pd.DataFrame, title: str,
-                     sma_20=None, sma_50=None, sma_200=None) -> go.Figure:
+                     sma_20=None, sma_50=None, sma_200=None,
+                     treffer=None) -> go.Figure:
+    """Kerzenchart mit SMAs und Volumen.
+
+    `treffer` ist optional und nimmt die Kerzenmuster aus
+    `services/kerzenmuster.py` entgegen (Reiter „Kursverhalten"). Zusaetzlicher
+    Parameter mit Vorgabe `None`, damit die bestehenden Aufrufer unveraendert
+    bleiben.
+    """
     fig = make_subplots(
         rows=2, cols=1, shared_xaxes=True,
         row_heights=[0.75, 0.25], vertical_spacing=0.03,
@@ -134,6 +142,28 @@ def plot_candlestick(df: pd.DataFrame, title: str,
             fig.add_trace(go.Scatter(
                 x=sma.index, y=sma, mode="lines",
                 line=dict(color=color, width=1, dash="dot"), name=name,
+            ), row=1, col=1)
+
+    # Kerzenmuster als Markierungen: Dreieck unter bullischen, über bärischen
+    # Treffern. Bewusst am Tief/Hoch der Signalkerze versetzt und nicht am
+    # Schlusskurs — sonst verschwindet das Zeichen im Körper der Kerze.
+    if treffer:
+        for richtung, symbol, farbe, versatz in [
+            ("long", "triangle-up", "#22c55e", 0.985),
+            ("short", "triangle-down", "#ef4444", 1.015),
+        ]:
+            punkte = [t for t in treffer if t.richtung == richtung]
+            if not punkte:
+                continue
+            fig.add_trace(go.Scatter(
+                x=[t.datum for t in punkte],
+                y=[(t.ungueltig_bei or t.kurs) * versatz for t in punkte],
+                mode="markers",
+                marker=dict(symbol=symbol, size=9, color=farbe,
+                            line=dict(width=1, color="rgba(255,255,255,0.6)")),
+                name="Muster bullisch" if richtung == "long" else "Muster bärisch",
+                text=[t.muster for t in punkte],
+                hovertemplate="%{text}<br>%{x|%d.%m.%Y}<extra></extra>",
             ), row=1, col=1)
 
     # Unsichtbare Puffer-Punkte für angenehmes Zoom/Pan-Verhalten
