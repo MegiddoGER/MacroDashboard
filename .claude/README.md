@@ -18,6 +18,7 @@ rewritten to cancel it out.
 
 | Task | Use |
 |---|---|
+| Start a fresh session — find out where the work actually stands | agent **`state-auditor`** |
 | Finish any Python change — know it actually works | skill **`ship-check`** |
 | Add error handling, or replace `print()` with logging | skill **`observability`** |
 | Write tests for a calculation engine | skill **`quant-testing`** |
@@ -28,6 +29,13 @@ rewritten to cancel it out.
 | Get test coverage onto an engine (one per invocation, parallelizable) | agent **`test-author`** |
 | Confirm an API's real field names before trusting a mapping | agent **`data-source-scout`** |
 | Find general bugs in a diff | built-in `/code-review` |
+
+`state-auditor` is not an orchestrator and does not plan work. It answers one question —
+*where does this actually stand?* — by checking `CONTEXT.md` against the git history, the live
+database and the test suite, and reporting where the two have drifted apart. It is an agent
+rather than a skill because doing it properly means reading a 2,000-line document and querying
+a 3 GB database, and none of that belongs in the main session's context once the answer is
+known. It is read-only in the strong sense: it may not update `CONTEXT.md`, only recommend it.
 
 `quant-reviewer` and `/code-review` do different jobs. `/code-review` finds bugs in code
 that is wrong *as code*; `quant-reviewer` finds code that is valid Python and computes the

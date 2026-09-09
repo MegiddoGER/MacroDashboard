@@ -1,6 +1,6 @@
 # CONTEXT.md — Arbeitsstand Signal-Engine
 
-_Stand: 2026-09-04 · auf `abfaab2` folgend · Branch `main`_
+_Stand: 2026-09-09 · auf `a2fd423` folgend · Branch `main`_
 
 Übergabedatei für eine frische Claude-Session. Sie beantwortet drei Fragen:
 **Was ist erledigt, was ist offen, und was darf nicht noch einmal neu hergeleitet
@@ -100,7 +100,14 @@ Datenbestand (nach der **Neuaufzeichnung vom 2026-09-03**, Backfill-Job #3):
 | Snapshots LIVE | **1.109** · unverändert erhalten |
 | Indikatorzeilen | **1.896.557** · davon 1.883.467 mit Rohwert (99,3 %) |
 | Outcomes ausgewertet | **558.683** · zu 100 % marktbereinigt |
-| Kurszeilen (`kurs_historie`) | **1.465.410** · 592 Ticker · 2016-08 bis 2026-09 |
+| Kurszeilen (`kurs_historie`) | **9.249.373** · 4.162 Ticker · 2015-01 bis 2026-09 |
+| Insidergeschäfte (SEC Form 4) | **806.862** · 3.851 Ticker · davon 165.170 Käufe |
+| Emittenten punkt-in-zeit | **11.921** · 2016Q1–2026Q1 · enthält delistete |
+
+Die letzten drei Zeilen stammen aus Auftrag C (§2o) und decken **4.161 Ticker**
+statt der 592 des Snapshot-Bestands. Die Kursreihen sind die erste Hälfte eines
+möglichen grossen Backfills; Snapshots gibt es für dieses Universum **nicht**,
+und die Insider-Gegenprobe brauchte auch keine.
 
 **Es gibt nur noch EINE Generation.** Die 273.831 alten HISTORISCH-Snapshots
 aus den Jobs #1 und #2 sind am 2026-09-03 gelöscht worden, nachdem die
@@ -1247,6 +1254,18 @@ Wahrscheinlichkeit ist weg.
 
 ## 2n. Insiderkäufe: der erste Kandidat, der die Jahresprüfung besteht (Auftrag B)
 
+> ### ⚠ Dieser Kandidat ist in §2o falsifiziert
+>
+> Alles hier Gemessene gilt für **Large Cap** (S&P 500 + DAX/MDAX, 592 Ticker)
+> und ist als solches richtig. Die Gegenprobe auf 4.161 Titeln ergibt auf
+> 90 Tagen **−0,0 pp ±1,1** statt +3,1 pp ±4,7 — der Effekt ist verschwunden,
+> obwohl die Literatur ihn auf kleineren Firmen *stärker* vorhersagt.
+>
+> **Lies diesen Abschnitt als Vorgeschichte, nicht als offenen Kandidaten.**
+> Insbesondere die Sätze über einen möglichen Holdout-Zugriff sind überholt:
+> der Zugriff wurde nie ausgegeben und wird für diese Aussage auch nicht mehr
+> gebraucht. Bei Widerspruch gilt §2o.
+
 Zehnte Signalfamilie, vierte mit eigener Quelle — und **der erste Eingang seit
 Beginn dieser Arbeit, dessen Vorsprung die Jahresprüfung überlebt.** Er ist
 damit nicht bewiesen; er ist der erste, der nicht schon an der Hürde stirbt,
@@ -1401,6 +1420,172 @@ Trefferquote bei „plausibles Signal trägt auch": formal bleibt es **null von
 acht**, weil die Signifikanz fehlt. Aber zum ersten Mal ist der Grund für das
 Ausbleiben die Stichprobengröße und nicht das Vorzeichen.
 
+> **Überholt durch §2o.** Die Gegenprobe auf dem erweiterten Universum ist
+> gelaufen. Der Befund dieses Abschnitts hält nicht — auf 90 Tagen bleibt
+> **−0,0 pp**. Was hier steht, bleibt als Messung auf Large Cap richtig; als
+> Kandidat ist er erledigt. Bei Widerspruch gilt §2o.
+
+---
+
+## 2o. Auftrag C: das grössere Universum — und der Insider-Befund zerfällt
+
+Der Auftrag lautete, das Universum auf Small und Mid Cap zu erweitern, weil die
+Literatur (§2a von `LITERATUR.md`) dort die Anomalien verortet. Er hat zwei
+Ergebnisse geliefert, und das zweite beendet den einzigen Kandidaten, den
+dieses Projekt je hatte.
+
+### Die Erweiterung behebt Survivorship nicht — und das ist eine Tautologie
+
+CONTEXT.md führte „Universum erweitern" und „Survivorship" unter einem
+Stichwort („Survivorship wird dann zum Hauptproblem"). Es sind zwei Probleme,
+und die Erweiterung löst nur das erste.
+
+`data/stock_listings.csv` führt die **heute** gelisteten Symbole. Jeder Ticker
+darin hat per Konstruktion überlebt. Aus 500 Überlebenden werden 5.235
+Überlebende — der Anteil bleibt bei 100 %, es ändert sich die
+Grössenverteilung, nicht die Auswahl nach Überleben. Gemessen, Zeitraum
+2016-2019:
+
+| Universum | gesehene Emittenten | Überlebensquote gesehen | fehlend |
+|---|---|---|---|
+| Auftrag B (S&P 500 + DAX/MDAX) | 462 von 7.757 (6,0 %) | 99,6 % | 41,5 % |
+| Auftrag C (NASDAQ/NYSE/AMEX) | 2.572 von 7.757 (33,2 %) | **100,0 %** | 17,7 % |
+
+Die Stichprobe wächst um das 5,5-fache, die Überlebendenauswahl wird dabei
+**schärfer statt schwächer.**
+
+**Was stattdessen möglich ist, ist die Bezifferung.** Die vierteljährlichen
+Form-345-Datensätze der SEC nennen zu jeder Einreichung das Handelssymbol des
+Emittenten — auch für Firmen, die es heute nicht mehr gibt. Daraus entsteht
+eine Emittentenliste, die Überlebende nicht bevorzugt: **11.921 Ticker** für
+2016Q1–2026Q1 gegen 4.035 heute handelbare (`emittenten_punkt_in_zeit`,
+`services/universum.pit_aufbauen`). Es sind dieselben ZIPs wie in §2n, also
+kein einziger zusätzlicher Abruf.
+
+Der Abgang selbst ist zweigeteilt, gemessen an den Transaktionskursen der
+Form-4-Daten (die einzige Kursquelle, die auch für delistete Firmen noch
+existiert, 1,16 Mio Kurspunkte über 9.708 Ticker): **20,8 % verlassen den
+Bestand unter dem halben Vorjahreskurs, 22,5 % über dem Anderthalbfachen,
+Median 0,99.** Verschwinden pauschal als Ausfall zu buchen verzerrt in die
+Gegenrichtung.
+
+### Eine Korrektur an §2n, die dort nicht stehen konnte
+
+§2n schreibt, +3,1 pp sei eine **Obergrenze**, weil Clusterkäufe sich in Firmen
+unter Druck häufen und delistete bei yfinance fehlen. **Die Richtung ist nicht
+belegt:** von den 2016-2019 aktiven Emittenten überleben die mit Clusterkauf zu
+**49,2 %**, die ganz ohne Marktkauf nur zu **34,9 %**. Die Vergleichsgruppe
+verliert also mehr Mitglieder als die Clustergruppe, was in die Gegenrichtung
+zieht. Beide Mechanismen sind da; welcher überwiegt, entscheidet diese Messung
+nicht.
+
+### Das Universum, und was es nicht ist
+
+**4.161 Ticker**: 4.032 US-Stammaktien an NASDAQ, NYSE und AMEX mit
+SEC-Historie, dazu 129 deutsche Titel. Ohne die SEC-Einschränkung wären es
+5.365.
+
+**Der CDAX ist NICHT erreicht.** §5 C nennt ihn (rund 380 Titel), die lokale
+`data/xetra_stocks.csv` führt 129 aus DAX, MDAX und SDAX. Neu ist immerhin der
+SDAX — das deutsche Small-Cap-Segment. Für die Insider-Gegenprobe ist der
+deutsche Querschnitt ohnehin ohne Belang: Form 4 gibt es nur für
+SEC-Registrierte, wie schon in §2f und §2g.
+
+**Die Zahl wandert, und das ist eine Falle.** `market_data.get_stock_listings()`
+lädt `stock_listings.csv` neu, sobald sie älter als 24 Stunden ist. Ein Lauf am
+2026-09-09 sah deshalb 4.161 Ticker, wo der Commit vom 2026-09-04 noch 4.164
+zählte. **Ein Universum ist nur reproduzierbar, wenn die CSV mit dem Commit
+festgehalten wird** — und weil jede Auffrischung frisch delistete Namen
+herauswirft, verschärft sie die Tautologie von oben mit jedem Mal. Deshalb
+liegt die Datei bei dieser Messung wie schon bei `a34d4df` im Commit.
+
+### Der Kurslauf, und warum er nicht der Backfill ist
+
+Snapshots aufzuzeichnen kostete bei Job #3 rund 35 Sekunden je Ticker, auf
+4.161 Titeln gut zwei Tage. Die Gegenprobe braucht davon nichts: sie braucht je
+Beobachtung den Kurs am Stichtag und den Kurs 90 Tage später, und beides steht
+in `kurs_historie`. Der Lauf (`kurs_backfill_cli.py`) holt nur die Reihen und
+ist damit die **erste Hälfte** des grossen Backfills, nicht sein Ersatz — sind
+die Reihen da, kostet ein späterer Snapshot-Lauf für diese Titel keinen
+zusätzlichen Abruf.
+
+Stand: **9.249.373 Kurszeilen über 4.162 Ticker**, 2015-01 bis 2026-09.
+**4.143 der 4.161 Titel gedeckt (99,6 %).** Von den 18 Ausfällen sind drei
+(`BRK.A`, `BRK.B`, `BH.A`) kein Survivorship, sondern ein Formatproblem:
+yfinance erwartet `BRK-B`, und nirgends im Pfad wird Punkt auf Bindestrich
+abgebildet. Berkshire fehlt also still im Universum. Der Rest ist der
+Survivorship-Rand.
+
+### Die Auswertung braucht keine Snapshots mehr
+
+Die Gegenprobe braucht keinen einzigen Indikator — ihre Frage ist, ob in den
+sechs Monaten vor dem Stichtag mehrere Insider gekauft haben und wie der Titel
+danach gegen seinen Index lief. Auf 4.161 Titeln ist das der Unterschied
+zwischen zwei Tagen Rechenzeit und einer halben Stunde.
+`auswertung/kurspanel.py` baut die Beobachtungen direkt aus den Kursreihen;
+`insider_auswerten(panel=…)` nimmt sie entgegen. Der Weg über die Outcomes
+bleibt der Standard.
+
+Drei Stellen, die still schieflaufen könnten und deshalb geregelt sind:
+
+- **`MAX_ABSTAND_TAGE = 4`.** `kurs_am_stichtag` nimmt den nächsten Handelstag
+  ohne Obergrenze. Endet eine Reihe im März und fällt der Zielstichtag in den
+  April, liefert `searchsorted` still den letzten Kurs vor dem Ende — aus 90
+  Tagen würde unbemerkt ein beliebig langer Horizont. Das ist der
+  Survivorship-Rand, und er gehört gezählt, nicht gefüllt.
+- **Die Holdout-Trennung greift hier über den Stichtag** (`split_zuordnen`)
+  statt über die Query. Ohne sie liefe die Gegenprobe über den Gesamtbestand
+  und verbrauchte den Holdout stillschweigend.
+- **Die Kursnähe-Prüfung entfällt** und wird ausdrücklich auf `None` gesetzt
+  statt weggelassen — sie liest Snapshot-Kurse, die es hier nicht gibt.
+
+### Die Gegenprobe (TRAIN, 4.161 Ticker, Šidák über 33 Zellen: z = 3,16)
+
+Panel 1,76–1,81 Mio Beobachtungen, **961.963 verwertete Zeilen** je Horizont —
+gegen 116.421 in §2n. Clustergruppe **204.760 Zeilen** gegen 10.166.
+
+| Horizont | Marktbasis | Cluster gegen Marktbasis | §2n auf Large Cap |
+|---|---|---|---|
+| 7 Tage | 48,1 % | **−0,6 pp ±0,3 SIGNIFIKANT** | −0,4 pp ±4,7 |
+| 30 Tage | — | −0,5 pp ±0,6 | +1,2 pp ±4,7 |
+| **90 Tage** | 45,8 % | **−0,0 pp ±1,1** | **+3,1 pp ±4,7** |
+
+**Die Stichprobenfrage ist beantwortet, und die Antwort ist null.** §2n
+scheiterte nicht am Vorzeichen, sondern an der Stichprobe: 10.166 Zeilen waren
+auf 90 Tagen nur 1.106 unabhängige Beobachtungen, die Fehlerspanne ±4,7. Jetzt
+liegt sie bei ±1,1 — und der Effekt, den sie messen sollte, ist verschwunden.
+
+Die Jahresprüfung auf 90 Tagen: **8 von 10 Jahren im Vorzeichen — dem
+negativen.** Die zwei positiven sind 2016 (+7,7) und 2020 (+0,8); ab 2021, wo
+die Jahres-n über 110.000 liegen, steht die Reihe bei −0,8 / −0,2 / −0,7 /
+−0,7 / −1,0. Die grossen Ausschläge sitzen in den dünnsten Jahren und
+schrumpfen mit wachsendem n — das Muster eines Effekts, den es nicht gibt.
+
+Auf 7 Tagen ist der negative Vorsprung **signifikant und in 9 von 10 Jahren
+stabil**. Das ist der erste korrigiert signifikante, jahresstabile Befund des
+Projekts — und er sagt, dass Clusterkäufe kurzfristig ein schwaches
+*Gegen*signal sind.
+
+### Was daraus folgt
+
+1. **§2n war Rauschen, und zwar falsifiziert, nicht bloss unbestätigt.**
+   Lakonishok/Lee sagen den Effekt auf kleineren Firmen **stärker** voraus.
+   Gemessen ist er dort null. Das ist die Vorhersage, an der der Kandidat
+   scheitern konnte, und er ist an ihr gescheitert.
+2. **Die Gegenprobe war der richtige Zug vor dem Holdout.** Sie hat den
+   Kandidaten erledigt und **null Zugriffe** gekostet. Der Holdout steht
+   weiterhin bei 0.
+3. **Es bleibt ein Kandidat**: PEADs Miss-Seite (§2e, 8 von 9 Jahren,
+   Meidungsfilter). Der Chartlage-Kandidat aus §2j (7 von 9, p = 0,18) war nie
+   einer.
+4. **Das Muster ist jetzt zehnmal belegt** — ein gepoolter Vorsprung, den die
+   Prüfung aufzehrt. Zum ersten Mal war es nicht die Jahresprüfung, sondern
+   ein grösseres Universum. Trefferquote bei „plausibles Signal trägt auch":
+   **null von zehn.**
+5. **Der teuerste Teil von Auftrag C ist damit erspart.** Der grosse
+   Snapshot-Backfill (~65 h) war dazu gedacht, den Insiderbefund zu erhärten.
+   Es gibt nichts mehr zu erhärten; die Kursreihen liegen für später bereit.
+
 ---
 
 ## 3. Erledigt — nicht noch einmal bauen
@@ -1468,6 +1653,11 @@ Ausbleiben die Stichprobengröße und nicht das Vorzeichen.
 | **§2n Insider-Bestand aus SEC Form 4 (232.101 Geschäfte)** | `database.InsiderGeschaeft`, `services/insider.py` |
 | **§2n Insiderkäufe gemessen: 8 von 9 Jahren, nicht signifikant** | `auswertung/insider.py`, `tests/test_insider.py` |
 | **§2n Routine/opportunistisch nach Cohen/Malloy/Pomorski** | `services/insider.ist_routine` (punkt-in-zeit) |
+| **§2o Erweitertes Universum (4.161 Ticker)** | `services/universum.py`, `tests/test_universum.py` |
+| **§2o Punkt-in-Zeit-Emittenten aus SEC (11.921 Ticker)** | `database.EmittentPunktInZeit`, `universum.pit_aufbauen` |
+| **§2o Kurslauf über das Universum (9,25 Mio Zeilen)** | `kurs_backfill_cli.py` (99,6 % gedeckt) |
+| **§2o Auswertung ohne Snapshots, direkt aus den Kursreihen** | `auswertung/kurspanel.py`, `tests/test_kurspanel.py` |
+| **§2o Insider-Gegenprobe gelaufen: §2n falsifiziert** | `gegenprobe_cli.py` (90 T: −0,0 pp ±1,1) |
 
 **Wichtig (überholt seit der Neuaufzeichnung):** Der Satz „alle
 Bestands-Snapshots tragen `score_version` 1.0.0" galt für die stillgelegte
@@ -1722,9 +1912,10 @@ ist angefasst.
   Nullbefund ist die Kursnähe von **−0,001** — der erste nachweislich
   kursunabhängige Eingang, und er trägt nichts. Damit ist die
   Herkunfts-Erklärung für die Nullbefunde widerlegt.
-  **Insider-Cluster ist auf diesem Bestand nicht messbar** (§2g):
-  `insider_transactions` reicht nur bis September 2024, der Holdout hätte mehr
-  Abdeckung als das Training; ein Quiver-Token ist nicht gesetzt.
+  **Insider-Cluster ist gebaut, gemessen und erledigt** (§2n, §2o): die
+  yfinance-Quelle war untauglich (nur bis September 2024), die SEC-Form-345-
+  Datensätze sind es nicht. Auf Large Cap +3,1 pp mit 8 von 9 Jahren, auf
+  4.161 Titeln **−0,0 pp ±1,1**. Falsifiziert, ohne Holdout-Zugriff.
   Offen bleiben damit: Short Interest und relative Stärke je Sektor (Letztere
   ist per Konstruktion kursbasiert und liefe in die Falle von §2f).
   Dazu drei Abdeckungslücken: für PEAD fehlen 19 Xetra-Listings von
@@ -1748,17 +1939,25 @@ ist angefasst.
   Sie wirkt allerdings gegen gefundene Effekte, ist also die ungefährlichere
   der beiden. Zum Schließen bräuchte es eine Quelle historischer
   Index-Zusammensetzungen und einen Backfill der entfernten Ticker.
-- **P4-10 (neu)** `basis_kurs` ist auf **allen 264.102** Outcomes NULL. Das Feld
-  existiert, `models.py` führt es als split-sichere Outcome-Basis, und
-  `snapshot_service` füllt es für neue Zeilen — nur hat keine einzige
-  Bestandszeile es je bekommen. Alle gespeicherten `outcome_return` sind damit
-  gegen `kurs_bei_snapshot` gerechnet, mit einem Outcome-Kurs aus einem anderen
-  Download: genau die Konstellation, gegen die das Feld eingeführt wurde. Der
-  sichtbare Schaden ist klein — 26 von 87.523 Sieben-Tage-Zeilen über ±40 %,
-  und die tragen bekannte Namen (CVNA, SMCI, ECHO, ACX.DE), sind also echte
-  Ereignisse. Der Schutz war trotzdem nie in Kraft. Eine echte Reparatur hieße,
-  die Outcomes aus einer frisch geladenen, einheitlich angepassten Reihe neu zu
-  rechnen (593 Ticker).
+- ~~**P4-10 (neu)** `basis_kurs` ist auf allen 264.102 Outcomes NULL~~ →
+  **grösstenteils durch die Neuaufzeichnung erledigt, gemessen am 2026-09-09.**
+  Die Aussage galt für die stillgelegte Generation. Heute:
+
+  | | ausgewertet | davon `basis_kurs` NULL |
+  |---|---|---|
+  | HISTORISCH | 558.496 | **0** |
+  | LIVE | 776 | **768** |
+
+  Jede *nicht* ausgewertete Zeile ist NULL, weil sie noch nicht fällig ist —
+  das ist kein Defekt, und die frühere Zahl 264.102 hat beides vermengt.
+  `outcomes_nachtragen` setzt das Feld für jede Zeile, die es auswertet
+  (`snapshot_service.py:885`), und Job #3 hat den gesamten HISTORISCH-Bestand
+  damit versorgt.
+  **Offen bleiben 768 ausgewertete LIVE-Outcomes** aus der Zeit vor der
+  Reparatur; sie tragen weiter die split-anfällige Semantik. Der Posten ist
+  klein, sitzt aber im einzigen Bestand, der sich laut §0c **nicht
+  nachproduzieren lässt.** Reparatur hiesse, diese 768 Zeilen aus einer frisch
+  geladenen, einheitlich angepassten Reihe neu zu rechnen.
 - **P4-11 (neu)** Stille Fehlerpfade außerhalb von `snapshot_engine/`.
   `routers/analysis.py` ist umgestellt (drei Stellen: `warnings.warn` und
   `traceback.print_exc` → `logger`), weil dort die Unsicherheit über P3-03
@@ -1776,7 +1975,7 @@ Arbeit inline erledigt, was sie langsam und einmalig statt wiederholbar macht.
 
 ## 5. Empfohlener nächster Schritt
 
-> **Für eine frische Sitzung:** Lies §0, §1, §2j–§2n und diesen Abschnitt.
+> **Für eine frische Sitzung:** Lies §0, §1, §2j–§2o und diesen Abschnitt.
 > Der Rest ist Beleg. §2–§2i beschreibt einen Bestand, den es nicht mehr gibt.
 
 **Der historische Bestand ist ausgemessen — auf BEIDEN Metriken.** Seit der
@@ -1786,10 +1985,11 @@ wird neben der Trefferquote auch die Renditespanne auf Signifikanz geprüft.
 Damit ist zum ersten Mal eine belastbare Antwort möglich — und sie lautet:
 
 > **In den historischen Daten nimmt kein Signal die Signifikanzschwelle.**
-> Drei Kandidaten stehen darunter: die Chartlage (nur 7 Tage, 7 von 9 Jahren,
-> p = 0,18), PEADs Miss-Seite als Meidungsfilter (8 von 9) und — seit §2n —
-> der **Insider-Clusterkauf auf 90 Tagen** (+3,1 pp, 8 von 9 Jahren, ohne 2020
-> 7 von 8). Sonst nichts, in zehn geprüften Familien.
+> Nach §2o steht darunter noch **ein** Kandidat: PEADs Miss-Seite als
+> Meidungsfilter (8 von 9 Jahren). Die Chartlage (7 von 9, p = 0,18) war nie
+> einer, und der Insider-Clusterkauf aus §2n ist auf dem erweiterten Universum
+> **falsifiziert** (90 Tage: −0,0 pp ±1,1). Sonst nichts, in zehn geprüften
+> Familien.
 
 **Das Muster ist inzwischen neunmal belegt:** ein gepoolter Vorsprung, den
 die Jahresprüfung aufzehrt. Nicht die Herkunft der Eingänge (§2g Accruals,
@@ -1798,11 +1998,21 @@ die Jahresprüfung aufzehrt. Nicht die Herkunft der Eingänge (§2g Accruals,
 etwas vorschlägt, sollte zuerst sagen können, warum es **an der
 Jahresstabilität** nicht scheitert.
 
-**Die zehnte Familie ist die erste Ausnahme** (§2n): der Insider-Clusterkauf
-zehrt die Jahresprüfung nicht auf. Was ihm fehlt, ist nicht das Vorzeichen,
-sondern die Stichprobe — 10.166 Zeilen sind auf 90 Tagen 1.106 unabhängige
-Beobachtungen. Das ändert die Vorabfrage für den nächsten Vorschlag nicht,
-aber es zeigt, wie eine Antwort darauf aussieht.
+**Die zehnte Familie sah wie die erste Ausnahme aus** (§2n) — und war es
+nicht. Ihr fehlte nicht das Vorzeichen, sondern die Stichprobe: 10.166 Zeilen
+waren auf 90 Tagen 1.106 unabhängige Beobachtungen. §2o hat die Stichprobe
+beschafft (204.760 Cluster-Zeilen, Fehlerspanne ±1,1 statt ±4,7) — und der
+Effekt ist auf **null** zusammengefallen, obwohl die Literatur ihn auf
+kleineren Firmen **stärker** vorhersagt.
+
+**Das ist der methodisch wertvollste Vorgang des Projekts bisher.** Der
+Kandidat ist nicht an einer Meinung gestorben, sondern an einer
+Vorhersage, die er hätte bestehen können. Und die Prüfung hat **keinen
+Holdout-Zugriff** gekostet. Wer den nächsten Kandidaten vorschlägt, sollte
+neben der Jahresstabilität auch sagen können, **welche Messung ihn
+widerlegen würde** — §2n hatte darauf zum ersten Mal eine Antwort, und genau
+deshalb ließ er sich in einem Tag erledigen statt in einem Holdout zu
+versanden.
 
 **Und auffällig oft heißt die Antwort 2020.** Momentum kehrt sich dort um
 (unterstes Dezil +11,9 pp), die Oszillator-Mean-Reversion trägt dort das
@@ -1812,11 +2022,15 @@ ist bis zum Beweis des Gegenteils der COVID-Einbruch mit seiner Erholung.
 
 ### Was NICHT mehr taugt
 
-- **Noch eine Signalfamilie.** Zehn sind geprüft. Beide Erklärungsversuche für
-  die Nullbefunde — falsche Kodierung, falsche Herkunft — sind gemessen und
-  ausgeschieden. Die zehnte (§2n) besteht die Jahresprüfung und scheitert an
-  der Stichprobe; die Folgerung daraus ist **mehr Titel**, nicht eine elfte
-  Familie.
+- **Noch eine Signalfamilie.** Zehn sind geprüft. **Alle drei**
+  Erklärungsversuche für die Nullbefunde sind inzwischen gemessen und
+  ausgeschieden: falsche Kodierung (§2j), falsche Herkunft (§2g, §2j) und
+  seit §2o auch **das zu kleine, zu grosse Universum**. Die zehnte Familie
+  (§2n) sah nach der Ausnahme aus und ist auf 4.161 Titeln zerfallen.
+  Damit ist die naheliegendste verbleibende Erklärung nicht mehr eine elfte
+  Familie, sondern **dass es hier nichts zu finden gibt** — was `LITERATUR.md`
+  §1 als den Normalfall der Disziplin ausweist, nicht als Versagen der
+  Messung.
 - **Der Umbau des Composites.** §2j hat den Zirkelschluss aufgelöst: geprüft
   wurde jetzt in der richtigen Kodierung, und es trägt nichts. Eine andere
   Arithmetik hat nichts zu retten.
@@ -1833,20 +2047,35 @@ ist bis zum Beweis des Gegenteils der COVID-Einbruch mit seiner Erholung.
    Journal wird automatisch geführt, die Stop-Historie füllt sich ab dem
    nächsten Kauf. **Ab hier ist es eine Uhr, keine Aufgabe** — es braucht echte
    Trades, keinen Code.
-2. **Die LIVE-Uhr laufen lassen.** Die Fundamental- und Sentiment-Hälfte der
-   Analyse (elf Indikatoren) ist historisch **prinzipiell nicht prüfbar** —
-   der Backfill ruft `calc_technical_score()`, weil `_score_fundamental` und
-   `_score_sentiment` ihre Daten aus der Gegenwart beziehen und ein Replay
-   damit Look-Ahead wäre. Diese Hälfte ist nur vorwärts messbar, über
-   LIVE-Snapshots. Davon gibt es 1.109. Das ist eine Uhr, keine Aufgabe —
-   aber es ist der einzige Weg, auf dem diese Hälfte je eine Antwort bekommt.
-3. ~~**Die Confidence-Anzeige entschärfen**~~ → erledigt, §2m.
+2. **Die LIVE-Uhr laufen lassen — und sie steht.** Die Fundamental- und
+   Sentiment-Hälfte der Analyse (elf Indikatoren) ist historisch
+   **prinzipiell nicht prüfbar** — der Backfill ruft
+   `calc_technical_score()`, weil `_score_fundamental` und `_score_sentiment`
+   ihre Daten aus der Gegenwart beziehen und ein Replay damit Look-Ahead
+   wäre. Diese Hälfte ist nur vorwärts messbar, über LIVE-Snapshots.
+   **Stand 2026-09-09: 1.112 Stück, der jüngste vom 2026-09-04** — seit fünf
+   Tagen läuft die Uhr nicht, weil die Anwendung nicht lief. Der Scheduler
+   startet aus `main.py`'s Lifespan (18:30 CET); ohne laufenden Prozess gibt
+   es keinen Snapshot, und ein nicht aufgezeichneter Tag ist **unwiederbring-
+   lich**. Das ist eine Uhr, keine Aufgabe — aber sie muss ticken.
+3. **Nettoemission über SEC `companyconcept`** — der stärkste Einzelkandidat
+   aus `LITERATUR.md` §6.3, und nach §2o der nächste inhaltliche Schritt.
+   Kursunabhängig, punkt-in-zeit datierbar, wenige Minuten Rechenzeit über den
+   in `services/accruals.py` bereits gelösten Weg. Vor allem: die einzige
+   geprüfte Familie, für die die Literatur **Robustheit über kleine und grosse
+   Firmen** berichtet — sie überlebt damit die Grössenwarnung, an der §2n
+   gestorben ist. Dazu drei Kennzahlen ohne jeden Abruf (Bilanzwachstum,
+   Cash-Profitabilität, Gewinnwachstum), die bereits in `accrual_kennzahlen`
+   liegen (`LITERATUR.md` §6.1).
+4. ~~**Die Confidence-Anzeige entschärfen**~~ → erledigt, §2m.
 
-### Vom Besitzer beauftragt, noch nicht begonnen (Stand 2026-09-04)
+### Vom Besitzer beauftragt — alle drei erledigt (Stand 2026-09-09)
 
-Die drei folgenden Punkte sind ausdrücklich freigegeben — **ohne weitere
-Rückfrage umsetzen**, in dieser Reihenfolge. Aufwand geschätzt: rund 5–8
-Stunden Arbeit plus über 70 Stunden Rechenzeit, fast vollständig Punkt C.
+Die drei folgenden Punkte waren ausdrücklich freigegeben (**ohne weitere
+Rückfrage umsetzen**). A und B liefen am 2026-09-04, C am 2026-09-09.
+Die geschätzten „über 70 Stunden Rechenzeit" sind **nicht angefallen**: der
+teure Snapshot-Backfill war für die Insider-Gegenprobe gar nicht nötig, weil
+diese ohne Snapshots direkt aus den Kursreihen rechnet (§2o).
 
 **A · Literaturrecherche, als Lesedokument.** → **erledigt am 2026-09-04,
 liegt als `LITERATUR.md`.** Die drei wichtigsten Ergebnisse: (1) der neunfache
@@ -1905,7 +2134,21 @@ findet er sich auf einem Small- und Mid-Cap-Universum stärker wieder, ist er
 belegt; verschwindet er dort, war er Rauschen. Das ist die aussagekräftigere
 Prüfung als ein Holdout-Zugriff, und sie verbraucht nichts.
 
-**C · Universum erweitern — gezielt, nicht „alles".** Der S&P 500 ist der
+**C · Universum erweitern.** → **erledigt am 2026-09-09, gemessen in §2o —
+und anders ausgefallen als der Auftrag annahm.** Gebaut sind 4.161 Ticker
+(4.032 US mit SEC-Historie + 129 DE), 9,25 Mio Kurszeilen bei 99,6 %
+Abdeckung, eine punkt-in-zeit-Emittentenliste aus der SEC (11.921 Ticker) und
+eine Auswertung, die ohne Snapshots direkt aus den Kursreihen rechnet.
+Zwei Ergebnisse: **die Erweiterung behebt Survivorship nicht** (die
+Listing-Datei führt nur Überlebende — eine Tautologie, die vorher niemand
+ausgesprochen hatte), und **der Insider-Clusterkauf aus §2n ist
+falsifiziert** (90 Tage: −0,0 pp ±1,1 gegen +3,1 pp ±4,7).
+**Der grosse Snapshot-Backfill (~65 h) ist damit hinfällig** — er sollte den
+Insiderbefund erhärten, und es gibt nichts mehr zu erhärten. Die Kursreihen
+liegen bereit, falls er je gebraucht wird.
+Nicht erreicht: der CDAX (129 statt ~380 deutsche Titel).
+
+Der ursprüngliche Auftragstext, als Beleg: Der S&P 500 ist der
 schwerste Ort, um eine Anomalie zu finden; die Literatur verortet Effekte in
 Small und Mid Cap, und das hiesige Universum ist praktisch reines Large Cap.
 Empfehlung: **NASDAQ + NYSE + AMEX ohne ETFs, plus CDAX.** `stock_listings.csv`
@@ -1920,22 +2163,27 @@ allgemeines Universum nicht übertragen. Ohne eine Antwort darauf ist jeder
 Befund nach oben verzerrt.
 ### Der Holdout
 
-Er steht bei **0 Zugriffen**. Es liegen inzwischen **zwei** Aussagen vor, die
-er bestätigen könnte, beide mit acht von neun Jahren:
+Er steht bei **0 Zugriffen**, auch nach §2o — die Gegenprobe lief auf TRAIN.
+
+Von den zwei Aussagen, die zwischenzeitlich für einen Zugriff in Frage kamen,
+ist **eine übrig**:
 
 - **PEADs Miss-Seite** (§2e): „das unterste Quintil der Ergebnisüberraschung
   schlägt den Markt über sieben Tage rund 1,1 pp seltener" — ein
-  Meidungsfilter.
-- **Der Insider-Clusterkauf** (§2n): „Titel, bei denen in sechs Monaten
-  mindestens zwei verschiedene Insider am Markt gekauft haben, schlagen ihren
-  Index über 90 Tage rund 3,1 pp häufiger" — eine Kaufaussage, und damit die,
-  die die Frage des Besitzers beantwortet.
+  Meidungsfilter, 8 von 9 Jahren.
+- ~~Der Insider-Clusterkauf (§2n)~~ — **erledigt durch §2o**, ohne Zugriff.
 
-Beide sind auf dem Trainingsteil bestimmt und korrigiert. **Vor einem Zugriff
-gibt es aber einen besseren Zug:** der Insidereffekt ist nach Lakonishok/Lee
-in kleineren Firmen konzentriert. Auftrag C prüft ihn dort, kostet keinen
-Zugriff und ist die schärfere Gegenprobe — verschwindet er auf Small und Mid
-Cap, war er Rauschen; verstärkt er sich, ist der Holdout gut angelegt.
+**Und das ist die Lehre, die hier stehen bleibt.** Der bessere Zug vor einem
+Holdout-Zugriff war eine unabhängige Gegenprobe, und er hat sich ausgezahlt:
+der Kandidat, der die Frage des Besitzers beantwortet hätte, war Rauschen.
+Wäre der Holdout stattdessen dafür ausgegeben worden, wäre er jetzt verbraucht
+— und bei ±4,7 pp Fehlerspanne hätte er die Frage nicht einmal entschieden.
+Vor jedem künftigen Zugriff gilt dieselbe Frage: **gibt es eine Messung, die
+den Kandidaten widerlegen kann, ohne den Holdout anzufassen?**
+
+Für PEADs Miss-Seite lautet die Antwort vorerst ja — Martineau (2022) ist als
+benannte Gegenhypothese in `LITERATUR.md` vermerkt und gehört auf den Tisch,
+bevor ein Zugriff erwogen wird.
 
 Ob dafür ein Zugriff ausgegeben wird, ist eine Entscheidung des Besitzers.
 Der Holdout ist einmal verbraucht; wer nach jeder Änderung erneut misst und
