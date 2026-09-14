@@ -789,6 +789,69 @@ class KursHistorie(Base):
         }
 
 
+class TickerZuordnung(Base):
+    """Bruecke von einer auslaendischen Notierung zum SEC-Emittenten.
+
+    **Das Problem.** Die SEC kennt nur US-Ticker. Wer ABEA.DE (Alphabet in
+    Frankfurt) oder ORC.DE (Oracle) im Dashboard fuehrt, bekommt fuer diese
+    Titel keine einzige Fundamentalkennzahl — obwohl das Unternehmen dahinter
+    vollstaendig bei der SEC einreicht. Von neun Titeln einer realen Watchlist
+    waren acht auf diese Weise blind, beide offenen Positionen eingeschlossen.
+
+    **Warum NICHT ueber den Tickerstamm.** Der naheliegende Weg — Endung
+    abschneiden und nachschlagen — ist still katastrophal:
+
+        ALV.DE  ist Allianz SE.       `ALV`  bei der SEC ist **Autoliv**.
+        DTE.DE  ist Deutsche Telekom. `DTE`  bei der SEC ist **DTE Energy**.
+
+    Beide wuerden eine Zuordnung finden, beide waeren falsch, und niemand
+    saehe es je: die Kennzahlen kaemen plausibel aussehend an und gehoerten zu
+    einem anderen Unternehmen. Deshalb ist der Ticker an der Zuordnung
+    **nicht beteiligt**.
+
+    **Woran stattdessen.** An der Firmenidentitaet: `longName` der Notierung
+    gegen `title` im SEC-Verzeichnis, beide normalisiert (Rechtsformen und
+    Satzzeichen entfernt). Verlangt wird ein **eindeutiger Treffer auf
+    CIK-Ebene** — gemessen an 10.422 Eintraegen fallen 8.011 normalisierte
+    Namen an, davon nur **11 auf mehr als eine CIK**. Aktienklassen
+    (GOOGL/GOOG/GOOGM) kollabieren korrekt auf dieselbe CIK, Allianz SE
+    findet null Treffer und bekommt keine Zuordnung.
+
+    `quelle` haelt fest, wie die Zeile entstand (`auto-name` oder `manuell`),
+    `firmenname` und `land` sind der Beleg, an dem eine falsche Zuordnung
+    auffaellt, ohne dass man sie nachrechnen muesste.
+    """
+    __tablename__ = "ticker_zuordnung"
+
+    # Die Notierung, wie sie im Dashboard gefuehrt wird (z. B. "ABEA.DE").
+    notierung: Mapped[str] = mapped_column(Text, primary_key=True)
+    cik: Mapped[Optional[str]] = mapped_column(Text, index=True)
+    # Primaerer US-Ticker desselben Emittenten — der Schluessel, unter dem die
+    # bestehenden Bestaende (Accruals, Nettoemission, PEAD) bereits liegen.
+    us_ticker: Mapped[Optional[str]] = mapped_column(Text, index=True)
+    firmenname: Mapped[Optional[str]] = mapped_column(Text)
+    land: Mapped[Optional[str]] = mapped_column(Text)
+    quelle: Mapped[str] = mapped_column(Text, nullable=False, default="auto-name")
+    # False heisst ausdruecklich "kein Emittent gefunden" und ist ein
+    # Ergebnis, kein Fehlen: sonst wuerde jeder Seitenaufruf neu suchen.
+    gefunden: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    begruendung: Mapped[Optional[str]] = mapped_column(Text)
+    geprueft_am: Mapped[Optional[datetime]] = mapped_column(DateTime)
+
+    def to_dict(self) -> dict:
+        return {
+            "notierung": self.notierung,
+            "cik": self.cik,
+            "us_ticker": self.us_ticker,
+            "firmenname": self.firmenname,
+            "land": self.land,
+            "quelle": self.quelle,
+            "gefunden": self.gefunden,
+            "begruendung": self.begruendung,
+            "geprueft_am": self.geprueft_am,
+        }
+
+
 class Setting(Base):
     """Key-Value-Store für Dashboard-Einstellungen (z.B. API-Keys)."""
     __tablename__ = "settings"
