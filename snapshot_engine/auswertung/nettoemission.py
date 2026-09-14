@@ -58,7 +58,9 @@ from snapshot_engine.auswertung.basis import (
 from snapshot_engine.auswertung.holdout import (
     TRAIN, grenze_lesen, split_filter, split_zuordnen,
 )
-from snapshot_engine.auswertung.kursnaehe import kursnaehe_pruefen
+from snapshot_engine.auswertung.kursnaehe import (
+    kursnaehe_pruefen, kursnaehe_pruefen_panel,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -217,6 +219,12 @@ def _vorbereiten(db: Session, horizont: int, datenmodus: str,
     Beide brauchen dieselben drei Dinge (Werte, Raenge, Beobachtungen) und
     dieselbe Holdout-Behandlung. Sie zweimal zu schreiben hiesse, dass eine
     spaetere Korrektur nur an einer Stelle ankommt.
+
+    Der letzte Rueckgabewert ist seit der Kursnaehe-Nachruestung **der Weg**
+    (`"panel"` oder `"snapshot"`) und nicht mehr ein Ja/Nein zur
+    Kursnaehe-Pruefung: beide Wege koennen sie jetzt, nur aus verschiedenen
+    Quellen. Der Aufrufer entscheidet ueber `mit_kursnaehe`, welche Funktion
+    er nimmt.
     """
     if panel is not None:
         from snapshot_engine.auswertung.kurspanel import als_auswertungsform
@@ -234,16 +242,14 @@ def _vorbereiten(db: Session, horizont: int, datenmodus: str,
                 and split_zuordnen(zuordnung[z[0]][1], grenze) == teil
             ]
         beobachtungen = panel_zeilen
-        # Die Kursnaehe-Pruefung liest Snapshot-Kurse, die es hier nicht gibt.
-        # Ausdruecklich auf None, nicht weggelassen: sonst ginge ein
-        # umetikettiertes Kurssignal ungeprueft durch (§2f).
-        mit_kursnaehe = False
+        weg = "panel"
     else:
         werte, zuordnung = _werte_je_snapshot(db, datenmodus)
         beobachtungen = _beobachtungen(db, horizont, datenmodus, teil)
+        weg = "snapshot"
 
     raenge = nettoemission_raenge(werte, zuordnung)
-    return werte, zuordnung, raenge, beobachtungen, mit_kursnaehe
+    return werte, zuordnung, raenge, beobachtungen, weg
 
 
 # ---------------------------------------------------------------------------
@@ -274,7 +280,7 @@ def nettoemission_auswerten(db: Session, horizont: int = 90,
     `spread_pp` ist **Q1 minus Q5** — Rueckkaeufer minus Emittenten. Positiv
     heisst: die Hypothese von Pontiff/Woodgate bestaetigt sich.
     """
-    werte, zuordnung, raenge, beobachtungen, mit_kursnaehe = _vorbereiten(
+    werte, zuordnung, raenge, beobachtungen, weg = _vorbereiten(
         db, horizont, datenmodus, teil, panel, mit_kursnaehe)
 
     zaehlwerk = {"zeilen": 0, "ohne_kennzahl": 0, "ohne_rang": 0, "verwertet": 0}
@@ -332,8 +338,12 @@ def nettoemission_auswerten(db: Session, horizont: int = 90,
     if mit_kursnaehe:
         # Auf den Raengen, nicht auf den Rohwerten — gefragt ist die Naehe
         # dessen, was tatsaechlich gemessen wurde (§2f/§2g).
-        ergebnis["kursnaehe"] = kursnaehe_pruefen(
-            db, raenge, zuordnung, datenmodus=datenmodus)
+        if weg == "panel":
+            ergebnis["kursnaehe"] = kursnaehe_pruefen_panel(
+                db, raenge, zuordnung)
+        else:
+            ergebnis["kursnaehe"] = kursnaehe_pruefen(
+                db, raenge, zuordnung, datenmodus=datenmodus)
 
     return ergebnis
 
@@ -403,14 +413,21 @@ def nettoemission_nach_groesse(db: Session, horizont: int = 90,
     §2p falsifiziert wie §2n durch §2o.
     """
     from snapshot_engine.auswertung.groesse import FENSTER_TAGE, groessen_klassen
-    from snapshot_engine.auswertung.kursnaehe import rangkorrelation
+    from snapshot_engine.auswertung.kursnaehe import (
+        kursnaehe_pruefen_panel, rangkorrelation, vorrendite_je_beobachtung,
+    )
 
-    werte, zuordnung, _, beobachtungen, _ = _vorbereiten(
+    werte, zuordnung, raenge_global, beobachtungen, weg = _vorbereiten(
         db, horizont, datenmodus, teil, panel, mit_kursnaehe=False)
 
     klasse_je_id, umsatz = groessen_klassen(
         db, zuordnung, benchmark_fuer, klassen=klassen,
         fenster=fenster if fenster is not None else FENSTER_TAGE)
+
+    # Die Vorrendite einmal fuer alle Schichten. Ein Durchgang ueber 4.161
+    # Kursreihen kostet spuerbar; fuenfmal derselbe waere Verschwendung.
+    vorrendite = (vorrendite_je_beobachtung(db, zuordnung)
+                  if weg == "panel" else None)
 
     # Wie stark laufen die beiden Groessen ueberhaupt zusammen? Dieselbe
     # Pruefung, die §2f zur stehenden Regel gemacht hat, nur gegen die Groesse
@@ -471,6 +488,15 @@ def nettoemission_nach_groesse(db: Session, horizont: int = 90,
             for q in sorted(gruppen)
         ]
 
+        # Die Kursnaehe auf den Raengen DIESER Schicht: eine Kennzahl kann
+        # global unauffaellig sein und trotzdem innerhalb einer Groessenklasse
+        # den Kurs abbilden.
+        schicht_kursnaehe = (
+            kursnaehe_pruefen_panel(db, raenge_k,
+                                    {i: zuordnung[i] for i in ids},
+                                    vorrendite=vorrendite)
+            if vorrendite is not None else None)
+
         schichten.append({
             "klasse": k,
             "n": sum(len(v) for v in gruppen.values()),
@@ -481,6 +507,7 @@ def nettoemission_nach_groesse(db: Session, horizont: int = 90,
             "spread_pp": _spread(quintil_zeilen, "markt_trefferquote"),
             "ertrag_spread_pp": _spread(quintil_zeilen,
                                         "ueberrendite_vorsprung_pp", 2),
+            "kursnaehe": schicht_kursnaehe,
         })
 
     mit_vorsprung = sum(1 for s in schichten
@@ -495,6 +522,11 @@ def nettoemission_nach_groesse(db: Session, horizont: int = 90,
         "schichten_gesamt": len(schichten),
         "schichten_mit_vorsprung": mit_vorsprung,
         "rangkorrelation": korrelation,
+        # Die Kursnaehe ueber alle Schichten hinweg, auf den GLOBALEN Raengen
+        # — das ist der Wert, den §2p schuldig geblieben ist.
+        "kursnaehe": (kursnaehe_pruefen_panel(db, raenge_global, zuordnung,
+                                              vorrendite=vorrendite)
+                      if vorrendite is not None else None),
         "basis_je_schicht": {s["klasse"]: s["basis_markt"] for s in schichten},
         "z_korrigiert": round(z, 2),
         "zaehlwerk": zaehlwerk,
@@ -542,13 +574,36 @@ def nettoemission_jahresstabilitaet(db: Session, horizont: int = 90,
         alle_je_jahr[jahr].append(u)
         je_jahr[jahr][q].append((ret, u))
 
-    zeilen = []
-    for jahr in sorted(je_jahr):
-        gruppen = je_jahr[jahr]
+    zeilen = _jahreszeilen(je_jahr, alle_je_jahr, horizont)
+    vorzeichen, gesamt = _vorzeichenbilanz(zeilen, "spread_pp")
+    ertrag_vorzeichen, ertrag_gesamt = _vorzeichenbilanz(zeilen,
+                                                         "ertrag_spread_pp")
+
+    return {"jahre": zeilen, "vorzeichen_gleich": vorzeichen,
+            "jahre_gesamt": gesamt,
+            "ertrag_vorzeichen_gleich": ertrag_vorzeichen,
+            "ertrag_jahre_gesamt": ertrag_gesamt,
+            "horizont_tage": horizont, "teil": teil}
+
+
+def _jahreszeilen(gruppen_je_jahr: dict, alle_je_jahr: dict,
+                  horizont: int) -> list[dict]:
+    """Q1-gegen-Q5 je Jahr, jedes Jahr gegen seine eigene Basis.
+
+    Herausgeloest aus `nettoemission_jahresstabilitaet`, weil die
+    Schichtpruefung dieselbe Rechnung je Groessenklasse braucht. Zwei Kopien
+    hiessen, dass eine spaetere Korrektur nur in einer ankommt — derselbe
+    Grund wie bei `_vorbereiten`.
+
+    Die Basis je Jahr statt gepoolt ist nicht optional: die Marktquote
+    schwankt zwischen den Jahren um mehr als jeder je gemessene
+    Signalvorsprung (§2i).
+    """
+    zeilen: list[dict] = []
+    for jahr in sorted(gruppen_je_jahr):
+        gruppen = gruppen_je_jahr[jahr]
         if 1 not in gruppen or QUANTILE not in gruppen:
             continue
-        # Die Basis je Jahr, nicht gepoolt: die Marktquote schwankt zwischen
-        # den Jahren um mehr als jeder je gemessene Signalvorsprung (§2i).
         basis = anteil_schlaegt_markt(alle_je_jahr[jahr])
         basis_ertrag = mittlere_ueberrendite(alle_je_jahr[jahr])
         if basis is None:
@@ -560,35 +615,148 @@ def nettoemission_jahresstabilitaet(db: Session, horizont: int = 90,
         q5 = zelle_gegen_markt([r for r, _ in gruppen[QUANTILE]],
                                [u for _, u in gruppen[QUANTILE]], basis,
                                horizont, basis_ertrag=basis_ertrag)
-        if q1.get("markt_trefferquote") is None or q5.get("markt_trefferquote") is None:
+        if (q1.get("markt_trefferquote") is None
+                or q5.get("markt_trefferquote") is None):
             continue
 
         zeilen.append({
             "jahr": jahr,
             "n": len(gruppen[1]) + len(gruppen[QUANTILE]),
-            "spread_pp": round(q1["markt_trefferquote"] - q5["markt_trefferquote"], 1),
+            "spread_pp": round(q1["markt_trefferquote"]
+                               - q5["markt_trefferquote"], 1),
             "ertrag_spread_pp": (
                 None if q1.get("ueberrendite_vorsprung_pp") is None
                 or q5.get("ueberrendite_vorsprung_pp") is None
                 else round(q1["ueberrendite_vorsprung_pp"]
                            - q5["ueberrendite_vorsprung_pp"], 2)),
         })
+    return zeilen
 
-    def _gleich(schluessel: str) -> tuple[int, int]:
-        werte_ = [z[schluessel] for z in zeilen if z.get(schluessel) is not None]
-        if not werte_:
-            return 0, 0
-        positiv = sum(1 for w in werte_ if w > 0)
-        return max(positiv, len(werte_) - positiv), len(werte_)
 
-    vorzeichen, gesamt = _gleich("spread_pp")
-    ertrag_vorzeichen, ertrag_gesamt = _gleich("ertrag_spread_pp")
+def _vorzeichenbilanz(zeilen: list[dict], schluessel: str) -> tuple[int, int]:
+    """(haeufigeres Vorzeichen, auswertbare Jahre).
 
-    return {"jahre": zeilen, "vorzeichen_gleich": vorzeichen,
+    Gezaehlt wird das **haeufigere** Vorzeichen, nicht das positive: eine
+    Familie, die zehn von zehn Jahren in die Gegenrichtung zeigt, ist ebenso
+    stabil wie eine, die zehnmal bestaetigt — nur eben widerlegt. Die
+    Binomialtafel aus §2j gilt fuer beide Faelle gleich.
+    """
+    werte = [z[schluessel] for z in zeilen if z.get(schluessel) is not None]
+    if not werte:
+        return 0, 0
+    positiv = sum(1 for w in werte if w > 0)
+    return max(positiv, len(werte) - positiv), len(werte)
+
+
+def nettoemission_jahresstabilitaet_nach_groesse(
+        db: Session, horizont: int = 90, datenmodus: str = "HISTORISCH",
+        teil: Optional[str] = TRAIN, panel: Optional[list] = None,
+        klassen: int = 5, fenster: Optional[int] = None) -> dict:
+    """Haelt der Spread in JEDER Groessenklasse auch ueber die Jahre?
+
+    Die dritte und schaerfste Pruefung des Kandidaten aus §2p, und die
+    Kombination der beiden Filter, an denen bisher alles gestorben ist:
+
+      * §2p besteht die Jahrespruefung **gepoolt** mit 10 von 10.
+      * §2q besteht die Groessentrennung **im Querschnitt** mit 15 von 15.
+
+    Keine der beiden Aussagen schliesst aus, dass eine einzelne Groessenklasse
+    das Jahresergebnis traegt — etwa weil die Mikrowerte in zwei starken
+    Jahren einen Vorsprung liefern, der die uebrigen Klassen mitzieht. Genau
+    diese Luecke schliesst diese Funktion: **Klasse mal Jahr**, und jede Zelle
+    gegen die Basis ihres eigenen Jahres innerhalb ihrer eigenen Klasse.
+
+    Die Quintile werden wie in `nettoemission_nach_groesse` **innerhalb der
+    Klasse** neu gerangt, nicht global — sonst waeren die Schichten entartet.
+
+    Returns:
+        {"schichten": [{"klasse", "jahre": [...], "vorzeichen_gleich",
+                        "jahre_gesamt", "ertrag_vorzeichen_gleich",
+                        "ertrag_jahre_gesamt", "n"}],
+         "schwaechste_schicht", "schichten_voll_stabil", "schichten_gesamt",
+         "horizont_tage", "teil"}
+
+    **Wie zu lesen.** `schwaechste_schicht` ist die Klasse mit der wenigsten
+    Vorzeichentreue — sie entscheidet, nicht der Durchschnitt. Die
+    Binomialtafel aus §2j gilt je Schicht: bei zehn Jahren ist 10/10 p=0,001,
+    8/10 aber schon p=0,11 und damit kein Beleg. Eine Schicht, die nur 6 von
+    10 traegt, ist in dieser Klasse Rauschen — auch wenn der Querschnitt in
+    §2q dort einen positiven Spread zeigte.
+    """
+    from snapshot_engine.auswertung.groesse import FENSTER_TAGE, groessen_klassen
+
+    werte, zuordnung, _, beobachtungen, _ = _vorbereiten(
+        db, horizont, datenmodus, teil, panel, mit_kursnaehe=False)
+
+    klasse_je_id, _umsatz = groessen_klassen(
+        db, zuordnung, benchmark_fuer, klassen=klassen,
+        fenster=fenster if fenster is not None else FENSTER_TAGE)
+
+    je_klasse: dict[int, list[tuple]] = defaultdict(list)
+    for beobachtung_id, ret, benchmark in beobachtungen:
+        if beobachtung_id not in werte:
+            continue
+        k = klasse_je_id.get(beobachtung_id)
+        if k is None:
+            continue
+        je_klasse[k].append((beobachtung_id, ret, benchmark))
+
+    schichten: list[dict] = []
+    for k in sorted(je_klasse):
+        zeilen_der_schicht = je_klasse[k]
+        ids = {b_id for b_id, _, _ in zeilen_der_schicht}
+        raenge_k = nettoemission_raenge({i: werte[i] for i in ids},
+                                        {i: zuordnung[i] for i in ids})
+
+        gruppen_je_jahr: dict[int, dict[int, list[tuple]]] = defaultdict(
+            lambda: defaultdict(list))
+        alle_je_jahr: dict[int, list[Optional[float]]] = defaultdict(list)
+
+        for beobachtung_id, ret, benchmark in zeilen_der_schicht:
+            q = quintil(raenge_k.get(beobachtung_id))
+            if q is None:
+                continue
+            jahr = zuordnung[beobachtung_id][1].year
+            u = ueberrendite(ret, benchmark)
+            alle_je_jahr[jahr].append(u)
+            gruppen_je_jahr[jahr][q].append((ret, u))
+
+        jahreszeilen = _jahreszeilen(gruppen_je_jahr, alle_je_jahr, horizont)
+        vorzeichen, gesamt = _vorzeichenbilanz(jahreszeilen, "spread_pp")
+        e_vorzeichen, e_gesamt = _vorzeichenbilanz(jahreszeilen,
+                                                   "ertrag_spread_pp")
+
+        schichten.append({
+            "klasse": k,
+            "n": len(zeilen_der_schicht),
+            "jahre": jahreszeilen,
+            "vorzeichen_gleich": vorzeichen,
             "jahre_gesamt": gesamt,
-            "ertrag_vorzeichen_gleich": ertrag_vorzeichen,
-            "ertrag_jahre_gesamt": ertrag_gesamt,
-            "horizont_tage": horizont, "teil": teil}
+            "ertrag_vorzeichen_gleich": e_vorzeichen,
+            "ertrag_jahre_gesamt": e_gesamt,
+        })
+
+    voll_stabil = sum(1 for s in schichten
+                      if s["jahre_gesamt"]
+                      and s["vorzeichen_gleich"] == s["jahre_gesamt"])
+    schwaechste = min(
+        (s for s in schichten if s["jahre_gesamt"]),
+        key=lambda s: s["vorzeichen_gleich"] / s["jahre_gesamt"],
+        default=None)
+
+    logger.info("Jahresstabilitaet nach Groesse (%dT): %d von %d Schichten "
+                "voll stabil; schwaechste Klasse %s.",
+                horizont, voll_stabil, len(schichten),
+                None if schwaechste is None else schwaechste["klasse"])
+
+    return {
+        "schichten": schichten,
+        "schichten_gesamt": len(schichten),
+        "schichten_voll_stabil": voll_stabil,
+        "schwaechste_schicht": schwaechste,
+        "horizont_tage": horizont,
+        "teil": teil,
+    }
 
 
 def _spread(zeilen: list[dict], schluessel: str,

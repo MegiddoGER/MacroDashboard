@@ -146,3 +146,118 @@ def kursnaehe_pruefen(db: Session, werte: dict[int, float],
     logger.info("Kursnähe: n=%d, Rangkorrelation=%s (Schwelle %.2f).",
                 ergebnis["n"], ergebnis["rangkorrelation"], SCHWELLE_KURSNAH)
     return ergebnis
+
+
+# ---------------------------------------------------------------------------
+# Der Panel-Weg — dieselbe Prüfung ohne Snapshots
+# ---------------------------------------------------------------------------
+
+def vorrendite_je_beobachtung(db: Session, zuordnung: dict[int, tuple],
+                              fenster_tage: int = FENSTER_TAGE
+                              ) -> dict[int, float]:
+    """Kursrendite der letzten `fenster_tage` VOR dem Stichtag, aus `KursHistorie`.
+
+    Der Gegenpart zu `kursreihen()` für Messungen, die über
+    `auswertung/kurspanel.py` laufen und deshalb keine Snapshots haben. §2p
+    musste die Prüfung auf diesem Weg auf `None` setzen — nicht weil die Frage
+    dort keine wäre, sondern weil die Quelle fehlte. Sie fehlt nicht: die
+    Kursreihe ist seit §2j ein eigener Bestand.
+
+    **Split-Sicherheit** gilt aus demselben Grund wie bei den Snapshots:
+    `services/kurshistorie.py` schreibt eine Reihe immer als Ganzes aus einem
+    Abruf, nie zeilenweise ergänzend, und `angepasst` hält die Anpassungsbasis
+    fest. Ein Verhältnis zweier Kurse desselben Tickers stammt damit aus
+    derselben Basis — genau die Eigenschaft, auf der schon `momentum.py` und
+    `kurspanel.py` aufsetzen.
+
+    **Kein Look-ahead, und strenger als der Snapshot-Weg.** Dort holt
+    `naechster_kurs(reihe, zeitpunkt - 1 Tag)` den nächsten Kurs *ab* diesem
+    Datum, was bei einem Wochenende auf den Stichtag selbst fallen kann. Hier
+    ist das Fensterende der letzte Handelstag **strikt vor** dem Stichtag
+    (`bisect_left(...) - 1`). Der Unterschied ist ein Tag und in der Sache
+    selten, aber eine Vorrendite, die den Stichtagskurs enthält, korrelierte
+    mit sich selbst.
+
+    Returns:
+        {beobachtung_id: Rendite in Prozent}. Beobachtungen ohne ausreichende
+        Reihe fehlen.
+    """
+    from bisect import bisect_left
+    from collections import defaultdict as _defaultdict
+
+    from snapshot_engine.auswertung.kurspanel import _reihe_laden
+
+    je_ticker: dict[str, list[tuple]] = _defaultdict(list)
+    for beobachtung_id, (ticker, zeitpunkt) in zuordnung.items():
+        je_ticker[ticker].append((beobachtung_id, zeitpunkt))
+
+    ergebnis: dict[int, float] = {}
+    ohne_reihe = ohne_fenster = 0
+
+    for ticker, eintraege in je_ticker.items():
+        daten, kurse = _reihe_laden(db, ticker)
+        if not daten:
+            ohne_reihe += len(eintraege)
+            continue
+
+        for beobachtung_id, zeitpunkt in eintraege:
+            # Letzter Handelstag strikt VOR dem Stichtag.
+            ende_i = bisect_left(daten, zeitpunkt) - 1
+            if ende_i < 0:
+                ohne_fenster += 1
+                continue
+            # Erster Handelstag am oder nach dem Fensterbeginn.
+            beginn_i = bisect_left(daten, zeitpunkt - timedelta(days=fenster_tage))
+            if beginn_i >= ende_i:
+                # Kein echtes Fenster — eine Rendite über null Tage ist keine.
+                ohne_fenster += 1
+                continue
+            lauf = momentum_roh(kurse[beginn_i], kurse[ende_i])
+            if lauf is None:
+                continue
+            ergebnis[beobachtung_id] = lauf
+
+    logger.info("Vorrendite: %d von %d Beobachtungen belegt "
+                "(%d ohne Reihe, %d ohne Fenster).",
+                len(ergebnis), len(zuordnung), ohne_reihe, ohne_fenster)
+    return ergebnis
+
+
+def kursnaehe_pruefen_panel(db: Session, werte: dict[int, float],
+                            zuordnung: dict[int, tuple],
+                            fenster_tage: int = FENSTER_TAGE,
+                            vorrendite: Optional[dict[int, float]] = None
+                            ) -> dict:
+    """`kursnaehe_pruefen` für Messungen auf dem Kurspanel.
+
+    Gleiche Frage, gleiche Schwelle, gleiche Rückgabe — nur die
+    Vergleichsrendite kommt aus `KursHistorie` statt aus Snapshot-Kursen.
+
+    Args:
+        werte: {beobachtung_id: Signalwert oder Rang}. Wie beim Snapshot-Weg
+            gehören hier die **Ränge** hinein und nicht die Rohwerte: gefragt
+            ist die Nähe dessen, was tatsächlich gemessen wurde (§2f/§2g).
+        vorrendite: Vorberechnete Renditen, falls ein Aufrufer sie schon hat.
+            Spart bei mehreren Auswertungen denselben Durchgang über 4.161
+            Kursreihen.
+    """
+    if vorrendite is None:
+        vorrendite = vorrendite_je_beobachtung(db, zuordnung, fenster_tage)
+
+    gemeinsam = [i for i in werte
+                 if werte[i] is not None and i in vorrendite]
+    signal = [float(werte[i]) for i in gemeinsam]
+    rendite = [vorrendite[i] for i in gemeinsam]
+
+    korrelation = rangkorrelation(signal, rendite)
+    ergebnis = {
+        "n": len(signal),
+        "rangkorrelation": None if korrelation is None else round(korrelation, 3),
+        "kursnah": (None if korrelation is None
+                    else abs(korrelation) >= SCHWELLE_KURSNAH),
+        "fenster_tage": fenster_tage,
+        "quelle": "kurs_historie",
+    }
+    logger.info("Kursnähe (Panel): n=%d, Rangkorrelation=%s (Schwelle %.2f).",
+                ergebnis["n"], ergebnis["rangkorrelation"], SCHWELLE_KURSNAH)
+    return ergebnis

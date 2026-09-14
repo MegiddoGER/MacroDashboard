@@ -1854,6 +1854,103 @@ die Mikrowerte in eine eigene Schicht sperrt, widerspricht sie nicht mehr.
 
 ---
 
+## 2r. Die zwei letzten Pruefungen: der Befund gilt — aber nicht ueberall
+
+Beide offenen Einwaende aus §2p sind gemessen, beide ohne Holdout-Zugriff.
+Einer faellt zugunsten des Befundes, der andere **halbiert seinen
+Geltungsbereich**.
+
+### Einwand 2 (Kursnaehe): erledigt, der Eingang ist eigenstaendig
+
+§2p musste die Pruefung schuldig bleiben, weil sie Snapshot-Kurse liest und
+der Panel-Weg keine Snapshots hat. Sie stand auf `None` mit der Begruendung,
+die Kennzahl sei aus Bilanzdaten gerechnet. **Genau diese Begruendung stand
+auch bei §2f**, bevor gemessen wurde, dass die Zielrevision zu 0,47 mit der
+Vorrendite korreliert. Sie laeuft jetzt aus `KursHistorie`:
+
+| Horizont | n | Rangkorrelation | Urteil |
+|---|---|---|---|
+| 7 Tage | 1.462.790 | **−0,093** | eigenstaendig |
+| 30 Tage | 1.451.714 | **−0,093** | eigenstaendig |
+| 90 Tage | 1.423.162 | **−0,092** | eigenstaendig |
+
+Schwelle ist 0,30. Je Groessenklasse (90 Tage): −0,151 / −0,123 / −0,046 /
+−0,011 / −0,017 — bei den Mikrowerten haengt die Kennzahl noch schwach am
+Kurs, bei den grossen gar nicht. **Die Nettoemission ist kein umetikettiertes
+Kurssignal.** Das ist der erste gepruefte Eingang, der diese Pruefung klar
+besteht.
+
+Der Panel-Weg ist dabei **strenger** als der Snapshot-Weg: das Fenster endet
+am letzten Handelstag strikt vor dem Stichtag (`bisect_left(...) - 1`),
+waehrend `naechster_kurs(zeitpunkt - 1 Tag)` ueber ein Wochenende auf den
+Stichtag selbst fallen kann.
+
+### Die Jahrespruefung JE SCHICHT: hier bricht es
+
+§2p besteht die Jahrespruefung **gepoolt** mit 10 von 10. §2q besteht die
+Groessentrennung **im Querschnitt** mit 15 von 15. Keine der beiden Aussagen
+schliesst aus, dass eine einzelne Klasse das Jahresergebnis traegt — und
+genau das ist der Fall.
+
+Vorzeichentreue der Trefferquote, je Klasse und Horizont:
+
+| Klasse | Median-Umsatz | 7T | 30T | 90T | p (90T) |
+|---|---|---|---|---|---|
+| 1 (kleinste) | 0,1 Mio | 9/10 | 9/10 | **9/10** | 0,004 |
+| 2 | 1,5 Mio | 9/10 | 8/10 | **9/10** | 0,004 |
+| 3 | 8,2 Mio | 8/10 | 9/10 | **10/10** | 0,001 |
+| 4 | 31,7 Mio | 6/10 | 6/10 | 7/10 | **0,180** |
+| 5 (groesste) | 159,7 Mio | 6/10 | 6/10 | 7/10 | **0,180** |
+
+**Die Trennlinie liegt zwischen Klasse 3 und 4**, also bei rund 10 bis 30 Mio
+Dollar Tagesumsatz, und sie liegt auf allen drei Horizonten an derselben
+Stelle. In den Klassen 1–3 haelt das Vorzeichen mit p zwischen 0,001 und
+0,039. In den Klassen 4–5 ist es mit 6 bis 7 von 10 **Rauschen** (p = 0,18
+bis 0,51) — die Marke, an der neun Signalfamilien gestorben sind.
+
+### Warum die grossen Titel durchfallen: zwei Jahre tragen alles
+
+Spread je Jahr, 90 Tage:
+
+| Klasse | 2016 | 2017 | 2018 | 2019 | 2020 | **2021** | **2022** | 2023 | 2024 | 2025 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | +12,4 | +10,4 | +7,0 | +1,8 | −4,1 | +16,9 | +15,8 | +4,2 | +12,5 | +6,1 |
+| 3 | +9,3 | +2,1 | +4,9 | +4,9 | +7,1 | +15,8 | +14,5 | +5,0 | +5,1 | +1,4 |
+| 5 | +5,3 | +4,7 | **−5,9** | **−2,6** | +2,2 | **+21,0** | **+14,3** | +0,8 | +0,2 | **−1,5** |
+
+Rechnet man in Klasse 5 die Jahre 2021 und 2022 heraus, bleiben +5,3 / +4,7 /
+−5,9 / −2,6 / +2,2 / +0,8 / +0,2 / −1,5 — fuenf positive, drei negative Jahre,
+alle klein. **Der Befund in den grossen Titeln ist der Emissionsboom
+2021 und seine Abwicklung 2022, nicht mehr.** Genau das Muster, vor dem §5
+warnt und an dem §2k die Renditespanne gemessen hat. In Klasse 1 und 3 bleiben
+ohne diese zwei Jahre sieben bzw. acht von acht Jahren positiv.
+
+### Die Rendite haelt ihre Jahre weiterhin nicht
+
+Vorzeichentreue des Ertrag-Spreads (90 Tage): 6 / **8** / 6 / 6 / 7 von 10.
+Nur Klasse 2 erreicht p = 0,039. Die Aufloesung des Widerspruchs aus §2q gilt
+also fuer die **Richtung** der Rendite im Querschnitt, nicht fuer ihre
+Jahresstabilitaet. Wer daraus ein Long/Short-System bauen wollte, haette
+weiterhin keine Deckung.
+
+### Was daraus folgt
+
+1. **Der Befund ueberlebt, aber halbiert:** er ist belegt fuer Titel bis rund
+   10 Mio Dollar Tagesumsatz (Klassen 1–3, rund 60 % des Universums nach
+   Zeilen) und **nicht belegt** darueber.
+2. **Als Meidungsfilter fuer Neben- und Mittelwerte ist er der erste Eingang
+   des Projekts, der alle drei Pruefungen besteht** — Signifikanz,
+   Jahresstabilitaet je Schicht, Kursnaehe.
+3. **Fuer Large Caps gilt er nicht.** Das ist die praktisch wichtigste
+   Einschraenkung, weil ein normales Depot ueberwiegend dort liegt.
+4. **Offen bleibt die Rendite-Jahresstabilitaet** — sie traegt in keiner
+   Klasse ausser 2. Der Eingang taugt zum Meiden, nicht zum Stellen einer
+   Gegenposition.
+5. **Der Holdout steht weiter bei 0 Zugriffen.** Vor und nach dem Lauf
+   geprueft.
+
+---
+
 ## 3. Erledigt — nicht noch einmal bauen
 
 | Was | Wo |
@@ -1930,6 +2027,9 @@ die Mikrowerte in eine eigene Schicht sperrt, widerspricht sie nicht mehr.
 | **§2q Groessenklassen aus Dollar-Umsatz (split-immun)** | `auswertung/groesse.py`, `tests/test_groesse.py` |
 | **§2q Wochen-Querschnitt als gemeinsame Funktion** | `cross_sectional_momentum.raenge_je_woche` |
 | **§2q Groessentrennung gemessen: 15 von 15 Schichten** | `nettoemission.nettoemission_nach_groesse`, `--groessentrennung` |
+| **§2r Kursnaehe auf dem Panel-Weg (ohne Snapshots)** | `kursnaehe.vorrendite_je_beobachtung`, `kursnaehe_pruefen_panel`, `tests/test_kursnaehe_panel.py` |
+| **§2r Jahrespruefung je Groessenschicht** | `nettoemission.nettoemission_jahresstabilitaet_nach_groesse`, `tests/test_jahresstabilitaet_schicht.py` |
+| **§2r Jahresrechnung als gemeinsame Funktion** | `nettoemission._jahreszeilen`, `_vorzeichenbilanz` |
 
 **Wichtig (überholt seit der Neuaufzeichnung):** Der Satz „alle
 Bestands-Snapshots tragen `score_version` 1.0.0" galt für die stillgelegte
@@ -2277,16 +2377,33 @@ Damit ist zum ersten Mal eine belastbare Antwort möglich — und sie lautet:
 > +5,855 pp gegen +0,286 pp in der größten Klasse steht. Sobald sie in einer
 > eigenen Schicht sitzen, widersprechen sie nicht mehr.
 
+> **Beide offenen Einwände sind seit §2r gemessen** — und das Ergebnis ist
+> geteilt. Die Kursnähe fällt zugunsten des Befundes aus (−0,09 auf allen drei
+> Horizonten, Schwelle 0,30): die Nettoemission ist kein umetikettiertes
+> Kurssignal, der erste geprüfte Eingang, für den das gilt. Die
+> **Jahresprüfung je Schicht halbiert dagegen den Geltungsbereich**: Klassen
+> 1–3 tragen ihr Vorzeichen mit 9/10, 9/10 und 10/10 (p ≤ 0,004), Klassen 4
+> und 5 nur mit 7/10 (p = 0,18) — und dort auch nur, weil 2021 und 2022 alles
+> tragen. Rechnet man die beiden Jahre heraus, bleibt in der größten Klasse
+> Rauschen.
+
+**Der Stand des Kandidaten:** belegt für Titel bis rund 10 Mio Dollar
+Tagesumsatz, nicht belegt darüber. Als **Meidungsfilter für Neben- und
+Mittelwerte** ist er der erste Eingang des Projekts, der alle drei Prüfungen
+besteht. Als Long/Short-System weiterhin nicht gedeckt: die Rendite hält ihre
+Jahre in keiner Klasse außer 2.
+
 **Der nächste Schritt, in dieser Reihenfolge:**
 
-1. **Jahresstabilität je Größenschicht.** §2p besteht sie gepoolt mit 10 von
-   10, §2q hat die Schichten aber nur im Querschnitt geprüft. Hält jede Klasse
-   einzeln über die Jahre, oder trägt eine einzelne Schicht das Ergebnis?
-   Kostet keinen Holdout-Zugriff.
-2. **Die Kursnähe-Prüfung** (Einwand 2 aus §2p) — auf dem Panel-Weg noch
-   ausdrücklich auf `None` gesetzt, weil sie Snapshot-Kurse liest.
-3. **Erst danach** die Frage, ob der Holdout für diesen Kandidaten ausgegeben
-   wird. §2o hat gezeigt, was eine Gegenprobe vor dem Zugriff wert ist.
+1. **Die Entscheidung des Besitzers:** reicht „belegt für Neben- und
+   Mittelwerte" als Grundlage, um den Eingang in den Score zu nehmen — oder
+   soll ein Eingang gelten, der für Large Caps ausdrücklich nicht trägt, gar
+   nicht erst hinein? Das ist keine Messfrage mehr.
+2. **Wenn ja:** Aufnahme als Meidungsfilter mit harter Umsatzgrenze, nicht als
+   symmetrischer Score-Beitrag — und mit einer Score-Versionserhöhung nach der
+   Regel aus §7.
+3. **Erst danach** die Frage, ob der Holdout ausgegeben wird. §2o hat gezeigt,
+   was eine Gegenprobe vor dem Zugriff wert ist; der Zugriff ist einmalig.
 >
 > Daneben bleibt PEADs Miss-Seite (8 von 9). Die Chartlage (7 von 9,
 > p = 0,18) war nie ein Kandidat, und der Insider-Clusterkauf aus §2n ist auf
@@ -2536,7 +2653,7 @@ Die Neuaufzeichnung hat die Grenze nicht berührt: sie ist ein Datum, und Job
 ## 6. Verifikation (es gibt keine CI)
 
 ```
-py -m pytest -q                                   # 657 Tests
+py -m pytest -q                                   # 675 Tests
 py -m mypy <geänderte Dateien>                    # ad hoc, keine Konfiguration im Repo
 py -c "import warnings; warnings.filterwarnings('ignore'); from fastapi.testclient import TestClient; import main; c=TestClient(main.app); c.__enter__(); [print(c.get(u).status_code, u) for u in ['/','/signals','/signals/indikatoren','/signals/positionen','/signals/backfill','/analysis','/screener','/watchlist','/journal','/backtesting','/sectors','/economy','/settings','/lexicon','/sources','/directory']]"
 ```

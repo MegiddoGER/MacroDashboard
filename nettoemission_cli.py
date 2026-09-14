@@ -95,6 +95,61 @@ def _mrd(wert) -> str:
     return f"{wert / 1e6:,.1f} Mio"
 
 
+def _kursnaehe_zeile(kursnaehe, praefix: str) -> None:
+    """Die §2f-Pruefung in einer Zeile — Korrelation, Urteil, Stichprobe."""
+    if not kursnaehe:
+        print(f"{praefix}— (nicht gemessen)")
+        return
+    r = kursnaehe.get("rangkorrelation")
+    urteil = kursnaehe.get("kursnah")
+    etikett = {True: "KURSNAH", False: "eigenstaendig",
+               None: "kein Urteil"}[urteil]
+    print(f"{praefix}{'—' if r is None else f'{r:+.3f}'} "
+          f"({etikett}, n = {kursnaehe.get('n', 0):,}, "
+          f"Fenster {kursnaehe.get('fenster_tage')} T)")
+
+
+def _jahresschichttabelle(ergebnis: dict) -> None:
+    """Jahresstabilitaet je Groessenklasse — die schaerfste der drei Pruefungen."""
+    schichten = ergebnis.get("schichten") or []
+    if not schichten:
+        print("\n  Keine auswertbare Schicht.")
+        return
+
+    print(f"\n  {'Klasse':<14} {'Vorzeichen':>12} {'p':>8}  "
+          f"{'Rendite':>10} {'n':>12}")
+    for s in schichten:
+        etikett = {1: "1 (kleinste)", 5: "5 (groesste)"}.get(
+            s["klasse"], str(s["klasse"]))
+        gleich, gesamt = s["vorzeichen_gleich"], s["jahre_gesamt"]
+        p = BINOMIAL.get(gleich) if gesamt else None
+        treffer = f"{gleich} von {gesamt}"
+        ertrag = f"{s['ertrag_vorzeichen_gleich']} von {s['ertrag_jahre_gesamt']}"
+        p_text = "—" if p is None else f"{p:.3f}"
+        print(f"  {etikett:<14} {treffer:>12} {p_text:>8}  "
+              f"{ertrag:>10} {s['n']:>12,}")
+
+    for s in schichten:
+        etikett = {1: "1 (kleinste)", 5: "5 (groesste)"}.get(
+            s["klasse"], str(s["klasse"]))
+        jahre = ", ".join(f"{z['jahr']}: {z['spread_pp']:+.1f}"
+                          for z in s.get("jahre", []))
+        print(f"\n    Klasse {etikett} je Jahr: {jahre}")
+
+    voll = ergebnis.get("schichten_voll_stabil")
+    gesamt = ergebnis.get("schichten_gesamt")
+    schwach = ergebnis.get("schwaechste_schicht")
+    print(f"\n  {'=' * 68}")
+    print(f"  BILANZ: {voll} von {gesamt} Klassen mit voller Vorzeichentreue.")
+    if schwach:
+        p = BINOMIAL.get(schwach["vorzeichen_gleich"])
+        print(f"  Schwaechste Klasse: {schwach['klasse']} mit "
+              f"{schwach['vorzeichen_gleich']} von {schwach['jahre_gesamt']}"
+              f"{'' if p is None else f' (p = {p})'}")
+        print("  Sie entscheidet, nicht der Durchschnitt: eine Schicht, die "
+              "ihre\n  Jahre nicht traegt, ist in dieser Klasse Rauschen.")
+
+
 def _schichttabelle(ergebnis: dict) -> None:
     """Die Groessentrennung: eine Quintiltabelle je Schicht, dann die Bilanz."""
     schichten = ergebnis.get("schichten") or []
@@ -105,6 +160,8 @@ def _schichttabelle(ergebnis: dict) -> None:
     korrelation = ergebnis.get("rangkorrelation")
     print(f"\n  Rangkorrelation Nettoemission x Dollar-Umsatz: "
           f"{'—' if korrelation is None else f'{korrelation:+.3f}'}")
+    _kursnaehe_zeile(ergebnis.get("kursnaehe"),
+                     "  Kursnaehe (global, §2p Einwand 2): ")
     print(f"  Sidak-Schwelle ueber alle Schichten: "
           f"z = {ergebnis.get('z_korrigiert')}")
     z = ergebnis.get("zaehlwerk") or {}
@@ -125,6 +182,7 @@ def _schichttabelle(ergebnis: dict) -> None:
         print(f"    Spread Q1 - Q5: "
               f"{'—' if sp is None else f'{sp:+.1f} pp'}"
               f"   Ertrag: {s.get('ertrag_spread_pp')}")
+        _kursnaehe_zeile(s.get("kursnaehe"), "    Kursnaehe: ")
 
     mit = ergebnis.get("schichten_mit_vorsprung")
     gesamt = ergebnis.get("schichten_gesamt")
@@ -171,7 +229,7 @@ def main() -> int:
     )
     from snapshot_engine.auswertung.nettoemission import (
         nettoemission_auswerten, nettoemission_jahresstabilitaet,
-        nettoemission_nach_groesse,
+        nettoemission_jahresstabilitaet_nach_groesse, nettoemission_nach_groesse,
     )
 
     database.init_db()
@@ -219,6 +277,20 @@ def main() -> int:
                     klassen=args.klassen, z_tests=z_tests)
                 _schichttabelle(geschichtet)
                 print(f"\n  (Groessentrennung in "
+                      f"{_dauer(time.time() - begonnen)})")
+
+                # Die Jahrespruefung JE SCHICHT — die Kombination der beiden
+                # Filter, an denen bisher alles gestorben ist. Der Querschnitt
+                # allein schliesst nicht aus, dass eine einzelne Klasse das
+                # Jahresergebnis traegt.
+                begonnen = time.time()
+                print(f"\n  {'#' * 68}")
+                print("  JAHRESSTABILITAET JE GROESSENKLASSE")
+                print(f"  {'#' * 68}")
+                stabil = nettoemission_jahresstabilitaet_nach_groesse(
+                    db, horizont=horizont, panel=panel, klassen=args.klassen)
+                _jahresschichttabelle(stabil)
+                print(f"\n  (Jahrespruefung je Schicht in "
                       f"{_dauer(time.time() - begonnen)})")
                 continue
 
