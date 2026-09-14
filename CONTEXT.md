@@ -1902,11 +1902,14 @@ Vorzeichentreue der Trefferquote, je Klasse und Horizont:
 | 4 | 31,7 Mio | 6/10 | 6/10 | 7/10 | **0,180** |
 | 5 (groesste) | 159,7 Mio | 6/10 | 6/10 | 7/10 | **0,180** |
 
-**Die Trennlinie liegt zwischen Klasse 3 und 4**, also bei rund 10 bis 30 Mio
-Dollar Tagesumsatz, und sie liegt auf allen drei Horizonten an derselben
-Stelle. In den Klassen 1–3 haelt das Vorzeichen mit p zwischen 0,001 und
-0,039. In den Klassen 4–5 ist es mit 6 bis 7 von 10 **Rauschen** (p = 0,18
-bis 0,51) — die Marke, an der neun Signalfamilien gestorben sind.
+Auf dem Quintilraster sieht das nach einer Trennlinie zwischen Klasse 3 und 4
+aus, also bei rund 10 bis 30 Mio Dollar Tagesumsatz, und sie liegt auf allen
+drei Horizonten an derselben Stelle.
+
+> **KORREKTUR (§2s, selber Tag): diese Trennlinie gibt es nicht.** Sie ist ein
+> Artefakt des Quintilrasters und verschwindet, sobald man feiner schneidet.
+> Die Aussage „belegt bis 10 Mio, nicht belegt darueber" ist **zurueckgezogen**
+> — siehe §2s. Was bleibt, ist ein Gefaelle ohne Kante.
 
 ### Warum die grossen Titel durchfallen: zwei Jahre tragen alles
 
@@ -1935,19 +1938,86 @@ weiterhin keine Deckung.
 
 ### Was daraus folgt
 
-1. **Der Befund ueberlebt, aber halbiert:** er ist belegt fuer Titel bis rund
-   10 Mio Dollar Tagesumsatz (Klassen 1–3, rund 60 % des Universums nach
-   Zeilen) und **nicht belegt** darueber.
-2. **Als Meidungsfilter fuer Neben- und Mittelwerte ist er der erste Eingang
-   des Projekts, der alle drei Pruefungen besteht** — Signifikanz,
-   Jahresstabilitaet je Schicht, Kursnaehe.
-3. **Fuer Large Caps gilt er nicht.** Das ist die praktisch wichtigste
-   Einschraenkung, weil ein normales Depot ueberwiegend dort liegt.
-4. **Offen bleibt die Rendite-Jahresstabilitaet** — sie traegt in keiner
+1. **Die Kursnaehe ist erledigt** — der Eingang ist eigenstaendig.
+2. **Die Jahrestreue ist nicht ueberall gleich**, aber wo die Grenze liegt,
+   beantwortet dieser Abschnitt nicht (siehe Korrektur oben und §2s).
+3. **Offen bleibt die Rendite-Jahresstabilitaet** — sie traegt in keiner
    Klasse ausser 2. Der Eingang taugt zum Meiden, nicht zum Stellen einer
    Gegenposition.
-5. **Der Holdout steht weiter bei 0 Zugriffen.** Vor und nach dem Lauf
+4. **Der Holdout steht weiter bei 0 Zugriffen.** Vor und nach dem Lauf
    geprueft.
+
+---
+
+## 2s. Die Grenze war ein Rasterartefakt — es ist ein Gefaelle
+
+§2r hat aus dem Quintilraster eine Trennlinie bei rund 10 Mio Dollar
+Tagesumsatz abgeleitet. Die Gegenprobe mit **zehn** Klassen
+(`--klassen 10`, 90 Tage, TRAIN, je 121.800 Zeilen) zeigt, dass diese Linie
+nicht existiert.
+
+| Dezil | Median-Umsatz | eigene Marktbasis | Spread | Jahre | p |
+|---|---|---|---|---|---|
+| 1 (kleinste) | 0,0 Mio | 42,2 % | +5,9 | 7/10 | 0,18 |
+| 2 | 0,2 Mio | 41,0 % | **+10,8** | 9/10 | 0,004 |
+| 3 | 0,8 Mio | 41,4 % | +9,6 | 8/10 | 0,039 |
+| 4 | 2,4 Mio | 42,7 % | +10,2 | 9/10 | 0,004 |
+| 5 | 5,6 Mio | 43,8 % | +7,9 | 8/10 | 0,039 |
+| 6 | 11,8 Mio | 45,8 % | +5,9 | **10/10** | 0,001 |
+| 7 | 23,2 Mio | 46,5 % | +5,5 | **10/10** | 0,001 |
+| 8 | 46,0 Mio | 46,7 % | +4,8 | 7/10 | 0,18 |
+| 9 | 102,5 Mio | 47,8 % | +4,6 | 7/10 | 0,18 |
+| 10 (groesste) | 309,1 Mio | 49,3 % | +3,8 | 5/10 | — |
+
+### Der entscheidende Widerspruch: die Jahreszahl ist nicht umbinnungsstabil
+
+Dezil 7 (23,2 Mio Tagesumsatz) traegt **10 von 10 Jahren**. Es liegt in
+Quintil 4 — also genau in der Klasse, die §2r mit 7 von 10 als Rauschen
+abgeschrieben hat. Dezil 6 ebenso. Umgekehrt faellt Dezil 1 mit 7 von 10
+durch, obwohl es in Quintil 1 liegt, das mit 9 von 10 besteht.
+
+**Ein Test, dessen Urteil davon abhaengt, wie viele Koerbe man waehlt, kann
+keine Grenze setzen.** Die Ursache ist kein Fehler, sondern die Stichprobe:
+die Jahrespruefung hat **n = 10**, und der Abstand zwischen 7 von 10
+(p = 0,18) und 9 von 10 (p = 0,004) sind zwei umgedrehte Jahre. Beim
+Querschnitt stehen 121.800 Zeilen je Zelle, bei der Jahrespruefung zehn
+Beobachtungen — das ist das schwache Glied, und §2r hat es ueberdehnt.
+
+### Was dagegen stabil ist
+
+1. **Alle zehn Dezile tragen ein positives Vorzeichen.** Wie alle fuenf
+   Quintile in §2q. Das haelt unter jeder Binnung.
+2. **Der Spread faellt glatt mit der Groesse**, ab Dezil 4 monoton:
+   10,2 → 7,9 → 5,9 → 5,5 → 4,8 → 4,6 → 3,8. Der Abstand zwischen Dezil 2
+   (+10,8) und Dezil 10 (+3,8) betraegt 7 pp bei Fehlerspannen um ±2,3 —
+   das Gefaelle ist echt, die Kante ist es nicht.
+3. **Die eigene Marktbasis steigt ebenso glatt**: 42,2 % auf 49,3 %.
+4. **Neu und praktisch wichtig: das unterste Dezil ist der Ausreisser nach
+   unten.** Median-Umsatz 0,0 Mio pro Tag, Spread nur +5,9 statt gut +10 der
+   Nachbarn, Ertrag-Spread **−29,86 pp**, eigene mittlere Ueberrendite
+   +10,45 pp. Das ist die unhandelbare Resterampe, und sie traegt die
+   Rechtsschiefe, die §2q der ganzen kleinsten Quintilklasse zugeschrieben
+   hat. In der Quintilfassung war sie mit Dezil 2 vermischt und dadurch
+   unsichtbar.
+
+### Was daraus fuer die Kodierung folgt
+
+**Ein harter Schalter ist nicht gedeckt** — weder auf einem Dollarbetrag noch
+auf einem Perzentilrang, weil die Messung keine Stelle benennt, an der etwas
+aufhoert. Was gedeckt ist:
+
+* ein **nach Groesse abnehmendes Gewicht** statt eines Gates: voll im Bereich
+  der Dezile 2–5, auslaufend gegen die grossen Titel. Das bildet das
+  gemessene Gefaelle ab, statt an willkuerlicher Stelle zu schneiden;
+* ein **Ausschluss des untersten Dezils** — und der laesst sich unabhaengig
+  von dieser Messung begruenden: bei 0,0 Mio Tagesumsatz ist eine Position
+  nicht handelbar, und der Ertrag-Spread von −29,86 zeigt, dass dort
+  Einzelausreisser die Statistik fuehren.
+
+**Und eine Lehre fuer alles Weitere:** die Jahrespruefung ist ein Filter, kein
+Massband. Sie taugt zur Frage „haelt das Vorzeichen ueberhaupt", nicht zur
+Frage „ab wo haelt es". Wer sie zum zweiten benutzt, liest zwei Jahre Rauschen
+als Grenze — so geschehen in §2r.
 
 ---
 
@@ -2030,6 +2100,7 @@ weiterhin keine Deckung.
 | **§2r Kursnaehe auf dem Panel-Weg (ohne Snapshots)** | `kursnaehe.vorrendite_je_beobachtung`, `kursnaehe_pruefen_panel`, `tests/test_kursnaehe_panel.py` |
 | **§2r Jahrespruefung je Groessenschicht** | `nettoemission.nettoemission_jahresstabilitaet_nach_groesse`, `tests/test_jahresstabilitaet_schicht.py` |
 | **§2r Jahresrechnung als gemeinsame Funktion** | `nettoemission._jahreszeilen`, `_vorzeichenbilanz` |
+| **§2s Dezilgegenprobe: die Grenze aus §2r zurueckgezogen** | `--klassen 10` (keine Codeaenderung noetig) |
 
 **Wichtig (überholt seit der Neuaufzeichnung):** Der Satz „alle
 Bestands-Snapshots tragen `score_version` 1.0.0" galt für die stillgelegte
@@ -2377,31 +2448,32 @@ Damit ist zum ersten Mal eine belastbare Antwort möglich — und sie lautet:
 > +5,855 pp gegen +0,286 pp in der größten Klasse steht. Sobald sie in einer
 > eigenen Schicht sitzen, widersprechen sie nicht mehr.
 
-> **Beide offenen Einwände sind seit §2r gemessen** — und das Ergebnis ist
-> geteilt. Die Kursnähe fällt zugunsten des Befundes aus (−0,09 auf allen drei
-> Horizonten, Schwelle 0,30): die Nettoemission ist kein umetikettiertes
-> Kurssignal, der erste geprüfte Eingang, für den das gilt. Die
-> **Jahresprüfung je Schicht halbiert dagegen den Geltungsbereich**: Klassen
-> 1–3 tragen ihr Vorzeichen mit 9/10, 9/10 und 10/10 (p ≤ 0,004), Klassen 4
-> und 5 nur mit 7/10 (p = 0,18) — und dort auch nur, weil 2021 und 2022 alles
-> tragen. Rechnet man die beiden Jahre heraus, bleibt in der größten Klasse
-> Rauschen.
+> **Beide offenen Einwände sind seit §2r gemessen.** Die Kursnähe fällt
+> zugunsten des Befundes aus (−0,09 auf allen drei Horizonten, Schwelle 0,30):
+> die Nettoemission ist kein umetikettiertes Kurssignal, der erste geprüfte
+> Eingang, für den das gilt.
+>
+> **Die Jahresprüfung je Schicht sah nach einer Grenze aus und war keine.**
+> §2s hat mit zehn statt fünf Klassen gegengeprüft: Dezil 7 trägt 10 von 10
+> Jahren und liegt in genau dem Quintil, das §2r als Rauschen abgeschrieben
+> hatte. Die Jahreszahl ist nicht umbinnungsstabil — sie hat n = 10, und zwei
+> umgedrehte Jahre trennen p = 0,004 von p = 0,18.
 
-**Der Stand des Kandidaten:** belegt für Titel bis rund 10 Mio Dollar
-Tagesumsatz, nicht belegt darüber. Als **Meidungsfilter für Neben- und
-Mittelwerte** ist er der erste Eingang des Projekts, der alle drei Prüfungen
-besteht. Als Long/Short-System weiterhin nicht gedeckt: die Rendite hält ihre
-Jahre in keiner Klasse außer 2.
+**Der Stand des Kandidaten:** das Vorzeichen ist in **allen zehn Dezilen**
+positiv (wie in allen fünf Quintilen), der Spread fällt **glatt** mit der
+Größe von +10,8 auf +3,8 pp, und es gibt **keine belegte Stelle, an der er
+aufhört**. Als Long/Short-System weiterhin nicht gedeckt: die Rendite hält
+ihre Jahre in keiner Klasse außer einer.
 
 **Der nächste Schritt, in dieser Reihenfolge:**
 
-1. **Die Entscheidung des Besitzers:** reicht „belegt für Neben- und
-   Mittelwerte" als Grundlage, um den Eingang in den Score zu nehmen — oder
-   soll ein Eingang gelten, der für Large Caps ausdrücklich nicht trägt, gar
-   nicht erst hinein? Das ist keine Messfrage mehr.
-2. **Wenn ja:** Aufnahme als Meidungsfilter mit harter Umsatzgrenze, nicht als
-   symmetrischer Score-Beitrag — und mit einer Score-Versionserhöhung nach der
-   Regel aus §7.
+1. **Die Entscheidung des Besitzers:** Aufnahme in den Score als
+   größengewichteter Meidungsbeitrag — oder gar nicht? Das ist keine
+   Messfrage mehr. Ein *harter Schalter* steht ausdrücklich nicht zur Wahl,
+   er ist von §2s nicht gedeckt.
+2. **Wenn ja:** Gewicht fallend mit der Größe (voll in den Dezilen 2–5,
+   auslaufend nach oben), Ausschluss des untersten Dezils als
+   Handelbarkeitsgrenze, Score-Versionserhöhung nach der Regel aus §7.
 3. **Erst danach** die Frage, ob der Holdout ausgegeben wird. §2o hat gezeigt,
    was eine Gegenprobe vor dem Zugriff wert ist; der Zugriff ist einmalig.
 >
