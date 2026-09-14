@@ -3,12 +3,20 @@ routers/settings.py — Einstellungen (API-Keys, Konfiguration).
 
 Bietet eine UI-Seite zum Verwalten von Dashboard-Einstellungen,
 insbesondere dem Quiver Quantitative API-Token.
+
+GET  /settings                              → Seite
+POST /settings/api-keys                     → Tokens speichern
+POST /settings/ticker-zuordnung/aktualisieren → HTMX-Partial: Zuordnungslauf
 """
+
+import logging
 
 from fastapi import APIRouter, Request, Form
 from fastapi.responses import HTMLResponse
 
 from database import get_setting, set_setting
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["settings"])
 
@@ -36,14 +44,43 @@ async def settings_page(request: Request):
         else:
             finnhub_token_masked = "•" * len(finnhub_token)
 
+    from services.ticker_zuordnung import zuordnungen_uebersicht
+
     return templates.TemplateResponse(request=request, name="pages/settings.html", context={
         "request": request,
         "quiver_token_masked": quiver_token_masked,
         "quiver_token_set": bool(quiver_token),
         "finnhub_token_masked": finnhub_token_masked,
         "finnhub_token_set": bool(finnhub_token),
+        "zuordnungen": zuordnungen_uebersicht(),
         "current_path": "/settings",
     })
+
+
+@router.post("/settings/ticker-zuordnung/aktualisieren",
+             response_class=HTMLResponse)
+async def ticker_zuordnung_aktualisieren(request: Request):
+    """Sucht fuer Watchlist und Positionen die fehlenden SEC-Emittenten."""
+    import asyncio
+
+    templates = request.app.state.templates
+    from services.ticker_zuordnung import zuordnungen_fuer_dashboard_auffrischen
+
+    try:
+        ergebnis = await asyncio.to_thread(
+            zuordnungen_fuer_dashboard_auffrischen)
+    except Exception as e:
+        logger.error("Zuordnungslauf fehlgeschlagen: %s", e, exc_info=True)
+        return HTMLResponse(
+            f"<div class='alert alert-danger'>Zuordnungslauf "
+            f"fehlgeschlagen: {e}</div>")
+
+    return templates.TemplateResponse(
+        request=request,
+        name="partials/ticker_zuordnung.html",
+        context={"zuordnungen": ergebnis["zuordnungen"],
+                 "statistik": ergebnis["statistik"]},
+    )
 
 
 @router.post("/settings/api-keys", response_class=HTMLResponse)

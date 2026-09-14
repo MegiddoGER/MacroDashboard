@@ -1,0 +1,85 @@
+{# templates/partials/ticker_zuordnung.html — Die SEC-Zuordnungen der gefuehrten Titel.
+
+   Wird sowohl direkt in pages/settings.html eingebunden als auch als Antwort
+   auf POST /settings/ticker-zuordnung/aktualisieren zurueckgegeben. Deshalb
+   kein extends und kein <html>.
+
+   `statistik` ist nur nach einem Lauf gesetzt.
+#}
+
+{% if statistik %}
+  <div class="alert alert-success mb-4">
+    <strong>Zuordnungslauf abgeschlossen.</strong>
+    {{ statistik.geprueft }} geprüft ·
+    {{ statistik.gefunden }} gefunden ·
+    {{ statistik.ohne_treffer }} ohne Treffer ·
+    {{ statistik.mehrdeutig }} mehrdeutig ·
+    {{ statistik.uebersprungen }} übersprungen
+    <div class="caption mt-2">
+      Übersprungen wird, was bereits geprüft ist, und jeder Titel ohne
+      Börsenkürzel — ein US-Ticker ist sein eigener Schlüssel.
+    </div>
+  </div>
+{% endif %}
+
+{% if not zuordnungen %}
+  <div class="empty-state">
+    <div class="empty-state-icon">—</div>
+    <p>Noch keine Zuordnung geprüft.</p>
+    <p class="caption">
+      Der Lauf holt das SEC-Tickerverzeichnis und fragt je Titel den
+      Firmennamen ab. Er betrifft nur Watchlist und offene Positionen.
+    </p>
+  </div>
+{% else %}
+  <div class="table-wrapper">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Notierung</th>
+          <th>SEC-Emittent</th>
+          <th>CIK</th>
+          <th>Firma</th>
+          <th>Land</th>
+          <th>Quelle</th>
+          <th>Befund</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for z in zuordnungen %}
+        <tr>
+          <td class="nowrap"><strong>{{ z.notierung }}</strong></td>
+          <td class="nowrap">
+            {% if z.us_ticker %}
+              <span class="badge badge-success">{{ z.us_ticker }}</span>
+            {% else %}
+              <span class="badge badge-muted">keine</span>
+            {% endif %}
+          </td>
+          <td class="tabular caption">{{ z.cik or "—" }}</td>
+          <td>{{ z.firmenname or "—" }}</td>
+          <td class="caption">{{ z.land or "—" }}</td>
+          <td class="caption">
+            {% if z.quelle == "manuell" %}
+              <span class="badge badge-info">von Hand</span>
+            {% else %}
+              Namensabgleich
+            {% endif %}
+          </td>
+          <td class="caption">{{ z.begruendung or "—" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <p class="caption measure mt-3">
+    Zugeordnet wird über die <strong>Firmenidentität</strong>, nie über den
+    Tickerstamm. Das ist keine Feinheit: <code>ALV</code> ist bei der SEC
+    <em>Autoliv</em> und nicht Allianz, <code>DTE</code> ist
+    <em>DTE&nbsp;Energy</em> und nicht Deutsche Telekom. Eine Zuordnung über
+    das Kürzel würde beide still falsch auflösen. Verlangt wird ein
+    eindeutiger Treffer auf CIK-Ebene; bei Mehrdeutigkeit bleibt die Zeile
+    leer, statt eine von zwei Möglichkeiten zu raten.
+  </p>
+{% endif %}

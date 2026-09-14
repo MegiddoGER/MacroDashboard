@@ -52,6 +52,7 @@
     <button class="tab" data-tab="tab-5y">️ 5 Jahre</button>
     <button class="tab" data-tab="tab-corr"> Korrelation</button>
     <button class="tab" data-tab="tab-kursverhalten">Kursverhalten</button>
+    <button class="tab" id="tab-btn-sec" data-tab="tab-sec">SEC-Fundamentaldaten</button>
   </div>
 
   <div id="tab-candle" class="tab-content active">
@@ -253,6 +254,22 @@
       </p>
 
     {% endif %}
+  </div>
+
+  {# Laedt erst beim Anklicken: die Insider-Abfrage laeuft fuer einen grossen
+     Titel ueber mehrere tausend Zeilen, und der Reiter wird selten geoeffnet. #}
+  <div id="tab-sec" class="tab-content">
+    {# Ausloeser am Reiter-Knopf statt `intersect`: der Inhalt steht unter
+       `display:none`, und ein nicht gerenderter Knoten wird von keinem
+       IntersectionObserver gesehen. `once` laedt genau einmal je Analyse. #}
+    <div hx-get="/analysis/sec-fundamentals?ticker={{ ticker|urlencode }}"
+         hx-trigger="click once from:#tab-btn-sec"
+         hx-swap="innerHTML">
+      <div class="loading-block">
+        <span class="spinner"></span>
+        <span class="caption">Fundamentaldaten werden geladen…</span>
+      </div>
+    </div>
   </div>
 </div>
 

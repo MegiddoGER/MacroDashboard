@@ -44,6 +44,9 @@ Auf der linken Seite finden Sie das ständige Kontrollzentrum des Dashboards.
     *   **Charts:** Von einfachen Kerzencharts über Momentum-Indikatoren (RSI, MACD) bis hin zu *Bollinger Bändern*.
     *   **Quant-Analyse:** Ein revolutionäres Tool, bei dem das System **vollautomatisch** ein auf den *Sektor* maßgeschneidertes Prüfmodell ausführt (z.B. zeigt das System für Banken "Excess Returns" an, nutzt für Cloud-Software aber die "Rule of 40"). Damit erfahren Sie sofort, ob das Unternehmen in seiner Branche teuer oder billig ist.
     *   **SMC & Liquidity Sweeps:** Fortgeschrittene Diagramme für Profis. Sie decken Zonen auf, in denen Großbanken vermutlich Stopp-Orders auslösen, um günstige Einstiege zu erzeugen (*Fair Value Gaps, Liquiditätszonen, Order Flow-Peaks*).
+    *   **SEC-Fundamentaldaten:** Ein eigener Reiter mit dem, was das Unternehmen selbst bei der US-Börsenaufsicht eingereicht hat — **Nettoemission** (hat die Firma eigene Aktien zurückgekauft oder neue ausgegeben?), **Periodenabgrenzungen** (wie viel vom ausgewiesenen Gewinn ist Buchhaltung und nicht Zahlung?), **Insidergeschäfte** aus Form 4, **Analystenrevisionen** und **Quartalszahlen**. Der Reiter lädt erst beim Anklicken, weil die Insider-Abfrage bei großen Titeln über mehrere tausend Zeilen läuft.
+        *   Diese Fläche **zeigt** und bewertet nicht: keine Ampel, keine Empfehlung. Wo die hauseigenen Messungen etwas über die Aussagekraft einer Zahl wissen, steht es als Hinweis dabei — etwa dass Analysten dem Kurs weit häufiger folgen, als sie ihm vorausgehen.
+        *   Für eine deutsche Notierung wie `ABEA.DE` (Alphabet in Frankfurt) funktioniert das nur, wenn unter **Einstellungen → SEC-Tickerzuordnung** einmal „Fehlende suchen" gedrückt wurde. Bei einem rein europäischen Titel wie Allianz bleibt der Reiter leer — dort gibt es schlicht keine SEC-Einreichung.
 *   **Wann verwenden:** Vor **absolut jedem** Kaufentscheid. Lesen Sie hier das Markt-Momentum exakt ab und prüfen Sie (unter dem Reiter "Swing Trading"), wo Sie einen validen und gut platzierten Stop-Loss (Sicherungslinie) setzten müssten, um optimal einzusteigen.
 
 ### 2.6 Backtesting
@@ -70,6 +73,14 @@ Auf der linken Seite finden Sie das ständige Kontrollzentrum des Dashboards.
 **Nutzen:** Die riesige Datenbank aller Firmen am Markt, um unkompliziert Ticker-Symbole nachzuschauen.
 *   **Was Sie finden:** Weit über 16.000 listierte Aktien verschiedener großer US/EU-Börsen, kategorisiert und alphabetisch/nach Namen durchsuchbar. 
 *   **Wann verwenden:** Sie haben von der Firma "Alphabet" oder "Palantir" gelesen und suchen nun zur raschen Einordnung in das Dashboard das korrekte offizielle Ticker-Symbol (GOOG, PLTR).
+
+### 2.11 Einstellungen
+**Nutzen:** API-Zugänge hinterlegen und die Brücke zu den SEC-Fundamentaldaten herstellen.
+*   **API-Tokens:** Quiver Quantitative (Kongress-Trades, institutionelle Daten) und Finnhub (Nachrichten). Beide bleiben ausschließlich lokal in der SQLite-Datenbank. Ohne Token läuft das Dashboard weiter, nur mit eingeschränkten Daten.
+*   **SEC-Tickerzuordnung:** Die Fundamentaldaten der US-Börsenaufsicht liegen unter US-Kürzeln. Wer eine Frankfurter Notierung führt — `ABEA.DE` für Alphabet, `ORC.DE` für Oracle —, findet sie erst über diese Brücke. Ein Druck auf **„Fehlende suchen"** ordnet Watchlist und offene Positionen einmalig zu; die Tabelle darunter zeigt für jeden Titel, welcher Emittent gefunden wurde und warum.
+    *   Zugeordnet wird über die **Firmenidentität**, nie über das Kürzel. Das ist wichtiger, als es klingt: `ALV` ist bei der SEC *Autoliv* und nicht Allianz, `DTE` ist *DTE Energy* und nicht Deutsche Telekom. Eine Zuordnung über das Kürzel würde beide still falsch auflösen und Ihnen fremde Zahlen anzeigen, ohne dass es auffiele.
+    *   Findet das System zwei mögliche Unternehmen, bleibt die Zeile **leer**, statt zu raten. Eine fehlende Zuordnung kostet eine leere Anzeige — eine falsche kostet eine Fehlentscheidung.
+*   **Wann verwenden:** Einmal nach der Einrichtung, und erneut, wenn Sie neue ausländische Notierungen in die Watchlist aufgenommen haben.
 
 ---
 

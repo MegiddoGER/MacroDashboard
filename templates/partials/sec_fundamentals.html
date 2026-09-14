@@ -1,0 +1,285 @@
+{# templates/partials/sec_fundamentals.html — SEC-Bestaende zu einem Titel.
+
+   HTMX-Fragment, nachgeladen von GET /analysis/sec-fundamentals.
+   Kein extends, kein <html> — nur der eingetauschte Ausschnitt.
+
+   Grundsatz dieser Flaeche: sie ZEIGT, sie bewertet nicht. Keine Ampel, keine
+   Empfehlung, keine Einfaerbung nach "gut/schlecht". Die Nettoemission steht
+   als Kandidat der Signal-Engine noch zur Pruefung (CONTEXT.md §2r/§2s, der
+   Holdout ist unangetastet) — eine Anzeige darf den Bestand sichtbar machen,
+   ohne so zu tun, als waere die Frage entschieden. Gruen/rot bleibt deshalb
+   den Groessen vorbehalten, bei denen die Richtung definitorisch ist
+   (Kauf/Verkauf, Ueberraschung ueber/unter Schaetzung).
+#}
+
+{% if not sec.us_ticker %}
+  <div class="alert alert-info">
+    <strong>Keine SEC-Zuordnung für {{ sec.notierung }}.</strong>
+    {% if sec.zuordnung and sec.zuordnung.begruendung %}
+      <div class="caption mt-2">{{ sec.zuordnung.begruendung }}</div>
+    {% else %}
+      <div class="caption mt-2">
+        Für diesen Titel wurde noch keine Zuordnung geprüft.
+      </div>
+    {% endif %}
+    <div class="caption mt-2">
+      Die SEC kennt nur US-Emittenten. Für einen rein europäischen Titel wie
+      Allianz oder E.ON gibt es keine Einreichung und damit keine Daten —
+      das ist kein Fehler, sondern das Ergebnis.
+    </div>
+  </div>
+
+{% else %}
+
+  {# ── Herkunft: welcher Emittent steht hinter dieser Notierung ── #}
+  <div class="alert alert-neutral mb-4">
+    <strong>{{ sec.notierung }}</strong> → SEC-Emittent
+    <strong>{{ sec.us_ticker }}</strong>
+    {% if sec.zuordnung and sec.zuordnung.firmenname %}
+      · {{ sec.zuordnung.firmenname }}
+    {% endif %}
+    {% if sec.zuordnung and sec.zuordnung.cik %}
+      <span class="caption">· CIK {{ sec.zuordnung.cik }}</span>
+    {% endif %}
+    {% if sec.zuordnung and sec.zuordnung.quelle == "manuell" %}
+      <span class="badge badge-info">von Hand zugeordnet</span>
+    {% endif %}
+  </div>
+
+  {% if not sec.hat_daten %}
+    <div class="alert alert-info">
+      Zuordnung steht, aber für <strong>{{ sec.us_ticker }}</strong> liegt noch
+      kein Bestand vor. Das betrifft vor allem ADR-Notierungen, die nicht Teil
+      des geladenen Universums sind.
+    </div>
+  {% else %}
+
+  {# ── Nettoemission ── #}
+  <div class="card mb-4">
+    <div class="card-header"><h5 class="card-title">Nettoemission</h5></div>
+    {% set ne = sec.nettoemission %}
+    {% if not ne %}
+      <p class="muted">Keine Kennzahl im Bestand.</p>
+    {% else %}
+      <div class="fact-bar mb-3">
+        <div class="fact">
+          <strong class="tabular">{{ "%+.2f %%"|format(ne.prozent) }}</strong>
+          <span class="caption">Aktienzahl gegenüber Vorjahr</span>
+        </div>
+        <div class="fact">
+          <strong>{{ ne.richtung }}</strong>
+          <span class="caption">Richtung</span>
+        </div>
+        <div class="fact">
+          <strong>{{ ne.periode_ende.strftime('%Y-%m-%d') }}</strong>
+          <span class="caption">Geschäftsjahr</span>
+        </div>
+        <div class="fact">
+          <strong>{{ ne.bekannt_ab.strftime('%Y-%m-%d') }}</strong>
+          <span class="caption">öffentlich seit</span>
+        </div>
+      </div>
+      <p class="caption measure">
+        Aktienzahl laut SEC: {{ "{:,.0f}".format(ne.aktien) }} gegen
+        {{ "{:,.0f}".format(ne.aktien_vorjahr) }} im Vorjahr — beide Werte
+        stammen aus <em>derselben</em> Einreichung
+        {% if ne.accession %}({{ ne.accession }}){% endif %}, weshalb ein
+        Aktiensplit dazwischen das Verhältnis nicht verfälschen kann.
+      </p>
+      <p class="caption measure">
+        <strong>Einordnung, ehrlich:</strong> Firmen, die Aktien zurückkaufen,
+        laufen in der Messung dieses Projekts häufiger besser als ihr Index als
+        Firmen, die ausgeben — in allen zehn Größenklassen, mit abnehmender
+        Stärke nach oben. Der Befund ist <em>nicht</em> außerhalb der
+        Trainingsdaten geprüft und fließt <em>nicht</em> in den Score ein.
+        Siehe <code>CONTEXT.md</code> §2p–§2s.
+      </p>
+    {% endif %}
+  </div>
+
+  {# ── Accruals ── #}
+  <div class="card mb-4">
+    <div class="card-header"><h5 class="card-title">Periodenabgrenzungen (Accruals)</h5></div>
+    {% set ac = sec.accruals %}
+    {% if not ac %}
+      <p class="muted">Keine Kennzahl im Bestand.</p>
+    {% else %}
+      <div class="fact-bar mb-3">
+        <div class="fact">
+          <strong class="tabular">{{ "%.3f"|format(ac.wert) }}</strong>
+          <span class="caption">(Gewinn − op. Cashflow) / Bilanzsumme</span>
+        </div>
+        <div class="fact">
+          <strong>{{ ac.periode_ende.strftime('%Y-%m-%d') }}</strong>
+          <span class="caption">Geschäftsjahr</span>
+        </div>
+        <div class="fact">
+          <strong>{{ ac.bekannt_ab.strftime('%Y-%m-%d') }}</strong>
+          <span class="caption">öffentlich seit</span>
+        </div>
+      </div>
+      <p class="caption measure">
+        Hoch heißt: der ausgewiesene Gewinn ist zu einem großen Teil Buchhaltung
+        und nicht Zahlung. Die Messung dieses Projekts fand darin
+        <strong>keinen</strong> Vorsprung (§2g) — die Zahl steht hier als
+        Bilanzeigenschaft, nicht als Signal.
+      </p>
+    {% endif %}
+  </div>
+
+  {# ── Insidergeschaefte ── #}
+  <div class="card mb-4">
+    <div class="card-header"><h5 class="card-title">Insidergeschäfte (SEC Form 4)</h5></div>
+    {% set ins = sec.insider %}
+    {% if not ins or not ins.zeilen %}
+      <p class="muted">Keine Geschäfte im Bestand.</p>
+    {% else %}
+      <div class="fact-bar mb-3">
+        <div class="fact">
+          <strong class="tabular positive">{{ ins.kauf_n }}</strong>
+          <span class="caption">Käufe (letzte {{ ins.fenster_tage }} T)</span>
+        </div>
+        <div class="fact">
+          <strong class="tabular negative">{{ ins.verkauf_n }}</strong>
+          <span class="caption">Verkäufe</span>
+        </div>
+        <div class="fact">
+          <strong class="tabular {{ 'positive' if ins.netto_wert > 0 else 'negative' }}">
+            {{ "{:,.0f}".format(ins.netto_wert) }}
+          </strong>
+          <span class="caption">Netto in USD</span>
+        </div>
+        <div class="fact">
+          <strong class="tabular">{{ ins.sonstige_n }}</strong>
+          <span class="caption">sonstige Codes</span>
+        </div>
+      </div>
+      <p class="caption measure">
+        Gezählt werden nur die Codes <strong>P</strong> (Kauf am offenen Markt)
+        und <strong>S</strong> (Verkauf). Zuteilungen, Optionsausübungen und
+        Schenkungen stehen getrennt unter „sonstige" — wer sie mitzählt, liest
+        Vergütung als Überzeugung.
+      </p>
+      <div class="table-wrapper">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Datum</th><th>Person</th><th>Funktion</th><th>Art</th>
+              <th class="text-right">Stück</th><th class="text-right">Kurs</th>
+              <th class="text-right">Wert</th><th>Plan</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for z in ins.zeilen %}
+            <tr>
+              <td class="nowrap">{{ z.datum.strftime('%Y-%m-%d') if z.datum else "—" }}</td>
+              <td>{{ z.name or "—" }}</td>
+              <td class="caption">{{ z.beziehung or "—" }}</td>
+              <td>
+                <span class="trade-tag {{ 'trade-tag-buy' if z.code == 'P' else 'trade-tag-sell' }}">
+                  {{ "Kauf" if z.code == "P" else "Verkauf" }}
+                </span>
+              </td>
+              <td class="text-right tabular">{{ "{:,.0f}".format(z.stueck) if z.stueck else "—" }}</td>
+              <td class="text-right tabular">{{ "%.2f"|format(z.kurs) if z.kurs else "—" }}</td>
+              <td class="text-right tabular">{{ "{:,.0f}".format(z.wert) if z.wert else "—" }}</td>
+              <td>
+                {% if z.plan_10b5_1 %}
+                  <span class="trade-tag trade-tag-plan">10b5-1</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <p class="caption">
+        Ein <strong>10b5-1</strong>-Geschäft folgt einem im Voraus festgelegten
+        Plan und trägt deshalb keine Aussage über die aktuelle Einschätzung.
+      </p>
+    {% endif %}
+  </div>
+
+  {# ── Analystenrevisionen ── #}
+  <div class="card mb-4">
+    <div class="card-header"><h5 class="card-title">Analystenrevisionen</h5></div>
+    {% if not sec.revisionen %}
+      <p class="muted">Keine Handlungen im Bestand.</p>
+    {% else %}
+      <div class="table-wrapper">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Datum</th><th>Haus</th><th>Handlung</th><th>Einstufung</th>
+              <th class="text-right">Kursziel</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in sec.revisionen %}
+            <tr>
+              <td class="nowrap">{{ r.datum.strftime('%Y-%m-%d') if r.datum else "—" }}</td>
+              <td>{{ r.firma or "—" }}</td>
+              <td class="caption">{{ r.aktion or "—" }}</td>
+              <td class="caption">
+                {% if r.note_alt and r.note_neu and r.note_alt != r.note_neu %}
+                  {{ r.note_alt }} → {{ r.note_neu }}
+                {% else %}
+                  {{ r.note_neu or r.note_alt or "—" }}
+                {% endif %}
+              </td>
+              <td class="text-right tabular">
+                {% if r.ziel_alt and r.ziel_neu and r.ziel_alt != r.ziel_neu %}
+                  {{ "%.2f"|format(r.ziel_alt) }} → {{ "%.2f"|format(r.ziel_neu) }}
+                {% elif r.ziel_neu %}
+                  {{ "%.2f"|format(r.ziel_neu) }}
+                {% else %}—{% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <p class="caption measure">
+        <strong>Mit Vorsicht zu lesen:</strong> die Messung dieses Projekts
+        (§2f) fand, dass der Rang einer Zielrevision zu <strong>0,47</strong>
+        mit der Kursrendite der vorangegangenen 90 Tage korreliert. Analysten
+        folgen dem Kurs weit häufiger, als sie ihm vorausgehen.
+      </p>
+    {% endif %}
+  </div>
+
+  {# ── Quartalszahlen ── #}
+  <div class="card">
+    <div class="card-header"><h5 class="card-title">Quartalszahlen</h5></div>
+    {% if not sec.earnings %}
+      <p class="muted">Keine Termine im Bestand.</p>
+    {% else %}
+      <div class="table-wrapper">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Datum</th>
+              <th class="text-right">EPS berichtet</th>
+              <th class="text-right">EPS erwartet</th>
+              <th class="text-right">Überraschung</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for e in sec.earnings %}
+            <tr>
+              <td class="nowrap">{{ e.datum.strftime('%Y-%m-%d') if e.datum else "—" }}</td>
+              <td class="text-right tabular">{{ "%.2f"|format(e.eps_actual) if e.eps_actual is not none else "—" }}</td>
+              <td class="text-right tabular">{{ "%.2f"|format(e.eps_estimate) if e.eps_estimate is not none else "—" }}</td>
+              <td class="text-right tabular {% if e.surprise_pct is not none %}{{ 'positive' if e.surprise_pct > 0 else 'negative' }}{% endif %}">
+                {{ "%+.1f %%"|format(e.surprise_pct) if e.surprise_pct is not none else "—" }}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% endif %}
+  </div>
+
+  {% endif %}
+{% endif %}

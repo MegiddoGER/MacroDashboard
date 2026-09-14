@@ -7,6 +7,7 @@ POST /analysis/load       → Laedt vollstaendige Analyse als HTMX-Partial
 GET  /analysis/position   → Positions-Analyse (Input-Seite)
 POST /analysis/position/load → Laedt Positions-Analyse als HTMX-Partial
 GET  /api/analysis/position/recommendation → HTMX-Partial: Empfehlung re-rendern
+GET  /analysis/sec-fundamentals → HTMX-Partial: SEC-Bestaende zum Titel
 """
 
 import json
@@ -1271,4 +1272,39 @@ async def position_recommendation_rerender(
         request=request,
         name="partials/position_recommendation.html",
         context=result,
+    )
+
+
+@router.get("/analysis/sec-fundamentals", response_class=HTMLResponse)
+async def sec_fundamentals_fragment(request: Request,
+                                    ticker: str = Query("")):
+    """Die SEC-Bestaende zu einem Titel, als HTMX-Fragment nachgeladen.
+
+    Bewusst nicht Teil von `POST /analysis/load`: die Insider-Abfrage laeuft
+    fuer einen grossen Titel ueber mehrere tausend Zeilen, und der Reiter wird
+    selten geoeffnet. Er laedt deshalb erst beim Anklicken.
+    """
+    import asyncio
+
+    templates = request.app.state.templates
+    titel = (ticker or "").strip().upper()
+    if not titel:
+        return HTMLResponse(
+            "<div class='alert alert-danger'>Kein Ticker angegeben.</div>")
+
+    from services.cache_core import cached_sec_fundamentaldaten
+
+    try:
+        daten = await asyncio.to_thread(cached_sec_fundamentaldaten, titel)
+    except Exception as e:
+        logger.error("SEC-Fundamentaldaten fuer %s fehlgeschlagen: %s",
+                     titel, e, exc_info=True)
+        return HTMLResponse(
+            f"<div class='alert alert-danger'>Fundamentaldaten nicht "
+            f"ladbar: {e}</div>")
+
+    return templates.TemplateResponse(
+        request=request,
+        name="partials/sec_fundamentals.html",
+        context={"sec": daten},
     )

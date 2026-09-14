@@ -77,6 +77,13 @@ _sp500_components_cache = TTLCache(maxsize=5, ttl=86400)
 # kurz, aber gleich lang wie die Konstituentenliste daneben.
 _index_membership_cache = TTLCache(maxsize=5, ttl=86400)
 
+# SEC-Fundamentaldaten je Titel. Anders als die übrigen Einträge hier ist das
+# kein externer Abruf, sondern ein Lesevorgang auf der eigenen Datenbank — der
+# Cache spart keine API-Quote, sondern die Insider-Abfrage, die für einen
+# großen Titel über mehrere tausend Zeilen läuft. Eine Stunde, weil sich der
+# Bestand nur durch einen Backfill ändert und nicht durch den Kursverlauf.
+_sec_fundamentals_cache = TTLCache(maxsize=100, ttl=3600)
+
 # News / Kalender
 _regional_news_cache = TTLCache(maxsize=20, ttl=600)
 _company_news_cache = TTLCache(maxsize=100, ttl=600)
@@ -203,6 +210,28 @@ def cached_sp500_aufnahmedaten():
     return sp500_aufnahmedaten()
 
 
+@cached(_sec_fundamentals_cache, lock=_lock)
+def cached_sec_fundamentaldaten(notierung: str):
+    """SEC-Bestände zu einem Titel, über die Ticker-Zuordnung aufgelöst.
+
+    Öffnet die Session selbst, damit der Router keine bekommt — dieselbe
+    Trennung wie bei den übrigen Einträgen hier: die Aufrufstelle übergibt
+    einen Ticker und bekommt fertige Daten.
+
+    Der Schlüssel ist die **Notierung** und nicht der US-Ticker: ABEA.DE und
+    GOOG liefern identische Inhalte, aber die Zuordnungszeile daneben ist eine
+    andere, und die gehört zur Anzeige.
+    """
+    import database
+    from services.sec_fundamentals import sec_fundamentaldaten
+
+    db = database.get_session()
+    try:
+        return sec_fundamentaldaten(db, notierung)
+    finally:
+        db.close()
+
+
 @cached(_components_perf_cache, lock=_lock)
 def cached_components_performance(tickers_str: str, period: str):
     tickers = [t.strip() for t in tickers_str.split(",") if t.strip()]
@@ -301,6 +330,7 @@ def clear_all_caches():
         _calendar_summary_cache, _ticker_events_cache, _history_period_cache,
         _equity_cache, _perf_cache, _sector_alloc_cache, _risk_cache,
         _signal_stats_cache, _hit_rate_cache, _calibration_cache,
-        _components_perf_cache,
+        _components_perf_cache, _index_membership_cache,
+        _sec_fundamentals_cache,
     ]:
         cache.clear()

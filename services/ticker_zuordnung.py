@@ -319,3 +319,58 @@ def zuordnungen_auffrischen(db: Session, notierungen: list[str]) -> dict:
                 "%d mehrdeutig.", statistik["geprueft"], statistik["gefunden"],
                 statistik["ohne_treffer"], statistik["mehrdeutig"])
     return statistik
+
+
+# ---------------------------------------------------------------------------
+# Fuer die Oberflaeche — fuehren ihre Sitzung selbst
+# ---------------------------------------------------------------------------
+
+def _dashboard_titel(db: Session) -> list[str]:
+    """Alle Ticker, die das Dashboard tatsaechlich fuehrt.
+
+    Watchlist und offene Positionen — nicht das Forschungsuniversum. Wer 4.161
+    Ticker zuordnen liesse, haette 4.000 Zeilen fuer Titel, die nie jemand
+    ansieht, und einen Lauf, der Minuten dauert.
+    """
+    from database import Position, WatchlistItem
+
+    titel = [t for (t,) in db.query(WatchlistItem.ticker).all()]
+    titel += [t for (t,) in db.query(Position.ticker).all()]
+    return list(dict.fromkeys(t for t in titel if t))
+
+
+def zuordnungen_uebersicht() -> list[dict]:
+    """Alle bekannten Zuordnungen, fuer die Anzeige. Fuehrt ihre Sitzung selbst."""
+    import database
+
+    db = database.get_session()
+    try:
+        zeilen = (db.query(TickerZuordnung)
+                  .order_by(TickerZuordnung.notierung).all())
+        return [z.to_dict() for z in zeilen]
+    finally:
+        db.close()
+
+
+def zuordnungen_fuer_dashboard_auffrischen() -> dict:
+    """Ermittelt fehlende Zuordnungen fuer Watchlist und Positionen.
+
+    Der Knopf auf der Einstellungsseite. Bewusst ein ausdruecklicher Anstoss
+    und kein Nebeneffekt des Watchlist-Hinzufuegens: der Lauf holt das
+    SEC-Verzeichnis (rund 800 KB) und je Titel eine yfinance-Abfrage — das
+    gehoert nicht in den Anfragepfad einer Formularabgabe.
+
+    Returns:
+        {"statistik": {...}, "zuordnungen": [...]}
+    """
+    import database
+
+    db = database.get_session()
+    try:
+        statistik = zuordnungen_auffrischen(db, _dashboard_titel(db))
+        zeilen = (db.query(TickerZuordnung)
+                  .order_by(TickerZuordnung.notierung).all())
+        return {"statistik": statistik,
+                "zuordnungen": [z.to_dict() for z in zeilen]}
+    finally:
+        db.close()

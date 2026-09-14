@@ -109,6 +109,36 @@
   </form>
 </div>
 
+<!-- SEC-Tickerzuordnung -->
+<div class="card mb-4">
+  <div class="card-header">
+    <h3 class="card-title">SEC-Tickerzuordnung</h3>
+    <button class="btn btn-secondary btn-sm"
+            hx-post="/settings/ticker-zuordnung/aktualisieren"
+            hx-target="#zuordnung-tabelle"
+            hx-swap="innerHTML"
+            hx-indicator="#zuordnung-spinner">Fehlende suchen</button>
+  </div>
+
+  <p class="caption measure">
+    Die Fundamentaldaten dieses Dashboards (Nettoemission, Periodenabgrenzungen,
+    Quartalszahlen, Analystenrevisionen, Insidergeschäfte) stammen von der SEC
+    und liegen unter US-Tickern. Eine Frankfurter Notierung wie
+    <code>ABEA.DE</code> findet sie erst über diese Brücke — ohne sie bleibt der
+    Reiter „SEC-Fundamentaldaten" auf der Analyseseite leer, obwohl die Daten
+    vorhanden sind.
+  </p>
+
+  <div id="zuordnung-spinner" class="htmx-indicator loading-block">
+    <span class="spinner"></span>
+    <span class="caption">Suche läuft — SEC-Verzeichnis und Firmennamen…</span>
+  </div>
+
+  <div id="zuordnung-tabelle">
+    {% include "partials/ticker_zuordnung.html" %}
+  </div>
+</div>
+
 <!-- Info Box -->
 <div class="card">
   <h3 style="margin-bottom:12px;">Hinweise</h3>
