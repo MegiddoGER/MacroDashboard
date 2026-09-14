@@ -45,7 +45,7 @@ from typing import Optional
 
 from sqlalchemy.orm import Session
 
-from services.cross_sectional_momentum import raenge_je_gruppe
+from services.cross_sectional_momentum import raenge_je_woche
 from services.nettoemission import nettoemission_je_ticker
 from snapshot_engine.benchmark import benchmark_fuer, ueberrendite
 from snapshot_engine.models import (
@@ -177,24 +177,14 @@ def nettoemission_raenge(werte: dict[int, float], zuordnung: dict[int, tuple],
     Die Trennung nach Handelsplatz ist dieselbe Entscheidung wie in
     `benchmark.py`: eine gemeinsame Rangliste ueber Xetra und US wiese
     Waehrungs- und Marktunterschiede als Emissionsverhalten aus.
+
+    Die Eimerlogik selbst steht seit der Groessentrennung in
+    `cross_sectional_momentum.raenge_je_woche` — die Groessenklassen brauchen
+    exakt dieselbe, und zwei Kopien hiessen, dass eine spaetere Korrektur nur
+    in einer davon ankommt.
     """
-    eimer: dict[tuple, dict[str, Optional[float]]] = defaultdict(dict)
-    verweise: dict[tuple, list[tuple]] = defaultdict(list)
-
-    for beobachtung_id, wert in werte.items():
-        ticker, zeitpunkt = zuordnung[beobachtung_id]
-        jahr, woche, _ = zeitpunkt.isocalendar()
-        schluessel = (jahr, woche)
-        eimer[schluessel][ticker] = wert
-        verweise[schluessel].append((beobachtung_id, ticker))
-
-    raenge: dict[int, float] = {}
-    for schluessel, gruppe in eimer.items():
-        gerangt = raenge_je_gruppe(gruppe, benchmark_fuer, minimum_querschnitt)
-        for beobachtung_id, ticker in verweise[schluessel]:
-            if ticker in gerangt:
-                raenge[beobachtung_id] = gerangt[ticker]
-
+    raenge = raenge_je_woche(werte, zuordnung, benchmark_fuer,
+                             minimum_querschnitt)
     logger.info("Nettoemission: %d Beobachtungen gerangt.", len(raenge))
     return raenge
 
@@ -346,6 +336,182 @@ def nettoemission_auswerten(db: Session, horizont: int = 90,
             db, raenge, zuordnung, datenmodus=datenmodus)
 
     return ergebnis
+
+
+# ---------------------------------------------------------------------------
+# Groessentrennung — die erste der beiden Gegenproben aus §2p
+# ---------------------------------------------------------------------------
+
+def nettoemission_nach_groesse(db: Session, horizont: int = 90,
+                               datenmodus: str = "HISTORISCH",
+                               teil: Optional[str] = TRAIN,
+                               panel: Optional[list] = None,
+                               klassen: int = 5,
+                               minimum: int = MIN_STICHPROBE,
+                               z_tests: Optional[int] = None,
+                               fenster: Optional[int] = None) -> dict:
+    """Traegt die Nettoemission noch etwas INNERHALB einer Groessenklasse?
+
+    Die wichtigste offene Gegenprobe zu §2p. Emittenten sind systematisch
+    kleinere Titel; solange alles gegen die gepoolte Marktbasis laeuft, kann
+    der gesamte Befund ein Groesseneffekt in anderer Verpackung sein. §2d hat
+    fuer die Sektoren gezeigt, wie gross dieser Unterschied wird (Spannweite
+    6,6 pp bei ±1,4 pp Fehlerspanne), und §2o hat gezeigt, was eine Gegenprobe
+    vor dem Holdout-Zugriff wert ist.
+
+    **Die Bauform ist die abhaengige Doppelsortierung.** Zuerst werden die
+    Beobachtungen in Groessenklassen geschnitten (`auswertung/groesse.py`,
+    Dollar-Umsatz, split-immun). Dann wird die Nettoemission **innerhalb jeder
+    Klasse neu gerangt**, und jede Schicht bekommt **ihre eigene Marktbasis**.
+
+    Die Neuberangung ist der Unterschied zu `handbuch.bedingt()`, das die
+    globalen Raenge beibehaelt. Hier ist sie noetig: laufen Emission und Groesse
+    stark zusammen, besteht die kleinste Klasse fast nur aus Q5 und die
+    groesste fast nur aus Q1 — die Schichten waeren entartet und die Frage
+    bliebe unbeantwortet. Nach der Neuberangung fragt jede Schicht das, worauf
+    es ankommt: **trennt die Emission noch, wenn alle Verglichenen gleich gross
+    sind?**
+
+    Die eigene Marktbasis je Schicht folgt derselben Regel wie in
+    `jahresstabilitaet` und `handbuch.bedingt`: die Grundgesamtheit kleiner
+    Titel schlaegt ihren Index anders oft als die Gesamtheit, und wer gegen
+    eine gemeinsame Basis rechnet, misst genau diesen Unterschied.
+
+    Args:
+        klassen: Zahl der Groessenschichten (5 = Quintile).
+        z_tests: Zellen fuer die Sidak-Korrektur ueber den GANZEN Lauf. Hier
+            sind es `klassen * 5` je Horizont — deutlich mehr als bei der
+            gepoolten Messung, und wer das nicht mitzaehlt, macht die Korrektur
+            zu mild.
+        fenster: Rueckblick des Umsatzmittels in Handelstagen.
+
+    Returns:
+        {"schichten": [...], "rangkorrelation", "schichten_mit_vorsprung",
+         "schichten_gesamt", "basis_je_schicht", "zaehlwerk", "teil",
+         "horizont_tage"}
+
+        Jede Schicht traegt `klasse`, `n`, `basis_markt`, `basis_ertrag`,
+        `spread_pp`, `ertrag_spread_pp` und die volle `quintile`-Tabelle in
+        derselben Form wie `nettoemission_auswerten` — damit die Ausgabe
+        dieselbe Tabellenfunktion benutzen kann.
+
+    **Wie das Ergebnis zu lesen ist.** Haelt der Spread in allen Schichten im
+    Vorzeichen und in aehnlicher Groesse, ist die Nettoemission etwas Eigenes.
+    Verschwindet er in den grossen Klassen und sitzt nur in der kleinsten, war
+    §2p ein Groesseneffekt — dann ist der Befund als Handelsaussage tot und
+    bestenfalls ein Filter fuer Nebenwerte. Bricht er ueberall zusammen, ist
+    §2p falsifiziert wie §2n durch §2o.
+    """
+    from snapshot_engine.auswertung.groesse import FENSTER_TAGE, groessen_klassen
+    from snapshot_engine.auswertung.kursnaehe import rangkorrelation
+
+    werte, zuordnung, _, beobachtungen, _ = _vorbereiten(
+        db, horizont, datenmodus, teil, panel, mit_kursnaehe=False)
+
+    klasse_je_id, umsatz = groessen_klassen(
+        db, zuordnung, benchmark_fuer, klassen=klassen,
+        fenster=fenster if fenster is not None else FENSTER_TAGE)
+
+    # Wie stark laufen die beiden Groessen ueberhaupt zusammen? Dieselbe
+    # Pruefung, die §2f zur stehenden Regel gemacht hat, nur gegen die Groesse
+    # statt gegen den Kurs. Eine Korrelation nahe null hiesse: der Einwand war
+    # gegenstandslos. Nahe −1 hiesse: die Messung misst ueberwiegend Groesse.
+    gemeinsam = sorted(set(werte) & set(umsatz))
+    korrelation = rangkorrelation([werte[i] for i in gemeinsam],
+                                  [umsatz[i] for i in gemeinsam])
+
+    zaehlwerk = {"zeilen": 0, "ohne_kennzahl": 0, "ohne_klasse": 0,
+                 "verwertet": 0}
+    je_klasse: dict[int, list[tuple]] = defaultdict(list)
+    for beobachtung_id, ret, benchmark in beobachtungen:
+        zaehlwerk["zeilen"] += 1
+        if beobachtung_id not in werte:
+            zaehlwerk["ohne_kennzahl"] += 1
+            continue
+        k = klasse_je_id.get(beobachtung_id)
+        if k is None:
+            zaehlwerk["ohne_klasse"] += 1
+            continue
+        je_klasse[k].append((beobachtung_id, ret, benchmark))
+
+    z = z_korrigiert(z_tests if z_tests else klassen * QUANTILE)
+    schichten: list[dict] = []
+
+    for k in sorted(je_klasse):
+        zeilen_der_schicht = je_klasse[k]
+        ids = {b_id for b_id, _, _ in zeilen_der_schicht}
+
+        # Neu rangen — nur gegen die Titel DERSELBEN Groessenklasse.
+        raenge_k = nettoemission_raenge(
+            {i: werte[i] for i in ids},
+            {i: zuordnung[i] for i in ids})
+
+        gruppen: dict[int, list[tuple]] = defaultdict(list)
+        alle: list[Optional[float]] = []
+        for beobachtung_id, ret, benchmark in zeilen_der_schicht:
+            q = quintil(raenge_k.get(beobachtung_id))
+            if q is None:
+                continue
+            zaehlwerk["verwertet"] += 1
+            u = ueberrendite(ret, benchmark)
+            alle.append(u)
+            gruppen[q].append((ret, u))
+
+        if not gruppen:
+            continue
+
+        basis_markt = anteil_schlaegt_markt(alle)
+        basis_ertrag = mittlere_ueberrendite(alle)
+        quintil_zeilen = [
+            {"quintil": q, "horizont_tage": horizont, "teil": teil,
+             **zelle_gegen_markt([r for r, _ in gruppen[q]],
+                                 [u for _, u in gruppen[q]],
+                                 basis_markt, horizont, minimum=minimum, z=z,
+                                 basis_ertrag=basis_ertrag)}
+            for q in sorted(gruppen)
+        ]
+
+        schichten.append({
+            "klasse": k,
+            "n": sum(len(v) for v in gruppen.values()),
+            "umsatz_median": _median([umsatz[i] for i in ids if i in umsatz]),
+            "basis_markt": round(basis_markt, 1) if basis_markt is not None else None,
+            "basis_ertrag": round(basis_ertrag, 3) if basis_ertrag is not None else None,
+            "quintile": quintil_zeilen,
+            "spread_pp": _spread(quintil_zeilen, "markt_trefferquote"),
+            "ertrag_spread_pp": _spread(quintil_zeilen,
+                                        "ueberrendite_vorsprung_pp", 2),
+        })
+
+    mit_vorsprung = sum(1 for s in schichten
+                        if s["spread_pp"] is not None and s["spread_pp"] > 0)
+
+    logger.info("Nettoemission nach Groesse: %d Schichten, %d mit positivem "
+                "Spread, Rangkorrelation %s.",
+                len(schichten), mit_vorsprung, korrelation)
+
+    return {
+        "schichten": schichten,
+        "schichten_gesamt": len(schichten),
+        "schichten_mit_vorsprung": mit_vorsprung,
+        "rangkorrelation": korrelation,
+        "basis_je_schicht": {s["klasse"]: s["basis_markt"] for s in schichten},
+        "z_korrigiert": round(z, 2),
+        "zaehlwerk": zaehlwerk,
+        "teil": teil,
+        "horizont_tage": horizont,
+    }
+
+
+def _median(werte: list[float]) -> Optional[float]:
+    """Median ohne numpy — nur fuer die Ausgabe, nicht fuer eine Aussage."""
+    if not werte:
+        return None
+    sortiert = sorted(werte)
+    mitte = len(sortiert) // 2
+    if len(sortiert) % 2:
+        return sortiert[mitte]
+    return (sortiert[mitte - 1] + sortiert[mitte]) / 2
 
 
 def nettoemission_jahresstabilitaet(db: Session, horizont: int = 90,

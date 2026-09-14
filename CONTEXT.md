@@ -1,6 +1,6 @@
 # CONTEXT.md — Arbeitsstand Signal-Engine
 
-_Stand: 2026-09-09 · auf `4d5b085` folgend · Branch `main`_
+_Stand: 2026-09-14 · auf `3d5ea46` folgend · Branch `main`_
 
 Übergabedatei für eine frische Claude-Session. Sie beantwortet drei Fragen:
 **Was ist erledigt, was ist offen, und was darf nicht noch einmal neu hergeleitet
@@ -1728,6 +1728,130 @@ Short Q5 ist er durch die Rendite nicht gedeckt.
    dann fuer diesen Kandidaten und nicht fuer PEADs Miss-Seite — aber erst
    nach der Groessentrennung.
 
+> **Nachtrag 2026-09-14:** Einwand 1 ist geklaert — siehe §2q. Der Befund
+> haelt in jeder Groessenklasse. Einwand 2 (Kursnaehe) steht weiter offen.
+
+---
+
+## 2q. Die Groessentrennung: §2p haelt — kleiner, aber es haelt
+
+Die wichtigste offene Gegenprobe aus §2p, und sie kostet keinen
+Holdout-Zugriff. Gemessen mit `py nettoemission_cli.py --groessentrennung`
+ueber das volle Universum, TRAIN, 1.224.469 Zeilen, 1.218.418 verwertet.
+
+### Das Mass: Dollar-Umsatz, nicht Marktkapitalisierung
+
+Eine Kapitalisierung entstuende hier aus der **rohen** SEC-Aktienzahl mal
+einem **rueckwirkend split-bereinigten** Kurs aus `KursHistorie`. Gemessen an
+NVDA:
+
+| Einreichung | Aktien | Kurs | ergaebe |
+|---|---|---|---|
+| 2021-02-26 | 620,0 Mio | 13,66 | **8,5 Mrd** |
+| 2024-02-21 | 2.464,0 Mio | 67,35 | **166,0 Mrd** |
+| 2025-02-26 | 24.477,0 Mio | 131,08 | 3.208,5 Mrd |
+
+Der Fehler ist der kumulierte Splitfaktor seit der Einreichung — 2021 rund
+Faktor 40. **NVDA laege damit fuer den groessten Teil seiner Geschichte in der
+kleinsten Groessenklasse**, und der Fehler trifft bevorzugt die starken
+Kurssteiger, also genau die Titel, deren Einordnung ueber das Ergebnis
+entscheidet. §2p hat die Split-Falle bei der Kennzahl ueber die gemeinsame
+`accession` geloest und dafuer ausdruecklich keinen Splitbestand aufgenommen;
+eine Kapitalisierung braeuchte ihn durch die Hintertuer.
+
+Der Dollar-Umsatz (`schluss * volumen`) hat die Falle nicht: yfinance
+bereinigt Kurs **und** Volumen mit demselben Faktor. Gemessen an NVDA um den
+10:1-Split vom 2024-06-10 — 120,68 x 412.386.000 = 49,8 Mrd am 06-07 gegen
+121,58 x 313.434.100 = 38,1 Mrd am 06-10. **Kein Sprung.** Abdeckung 99,5 %
+(6.051 von 1.224.469 Zeilen ohne Klasse).
+
+### Erst die Praemisse — und sie ist groesser als bei den Sektoren
+
+Die unbedingte Marktquote je Groessenklasse (90 Tage, TRAIN):
+
+| Klasse | Median-Umsatz/Tag | n | schlaegt Index | Abstand zum Pool (44,7 %) |
+|---|---|---|---|---|
+| 1 (kleinste) | 0,1 Mio | 243.786 | **41,6 %** | −3,1 pp |
+| 2 | 1,5 Mio | 243.574 | 42,1 % | −2,6 pp |
+| 3 | 8,2 Mio | 243.604 | 44,8 % | +0,1 pp |
+| 4 | 31,7 Mio | 243.574 | 46,6 % | +1,9 pp |
+| 5 (groesste) | 159,7 Mio | 243.880 | **48,6 %** | +3,9 pp |
+
+**Spannweite 7,0 pp** — noch groesser als die 6,6 pp der Sektoren aus §2d. Der
+Einwand war also vollauf berechtigt: gegen die gepoolte Basis bekam jeder
+grosse Titel 3,9 pp geschenkt und jeder Mikrowert 3,1 pp aufgebuerdet, bevor
+ein Signal beteiligt war.
+
+### Dann die Messung — und der Befund ueberlebt sie
+
+Abhaengige Doppelsortierung: erst Groessenklassen, dann die Nettoemission
+**innerhalb jeder Klasse neu gerangt**, jede Schicht gegen **ihre eigene**
+Marktbasis. Sidak jetzt ueber 75 Zellen statt 15, kritischer z-Wert **3,40**.
+
+Spread Q1 − Q5 in Prozentpunkten:
+
+| Klasse | 7 Tage | 30 Tage | 90 Tage |
+|---|---|---|---|
+| 1 (kleinste) | +3,6 | +5,8 | **+8,3** |
+| 2 | +3,6 | +6,4 | **+10,1** |
+| 3 | +3,0 | +5,0 | +7,5 |
+| 4 | +2,1 | +3,3 | +5,3 |
+| 5 (groesste) | +1,2 | +2,8 | **+4,3** |
+| *gepoolt (§2p)* | *+4,4* | *+7,0* | *+9,9* |
+
+**15 von 15 Schichten im positiven Vorzeichen.** Kein Gegenbeispiel auf
+keinem Horizont. Rangkorrelation Nettoemission x Dollar-Umsatz: **−0,264** —
+groessere Firmen emittieren weniger, aber die Ueberlappung ist moderat und
+nicht dominant.
+
+**Was sich aendert:** der Effekt faellt monoton mit der Groesse und ist in den
+grossen Titeln rund halb so stark wie in den kleinen. Der gepoolte Wert von
+§2p war also **teilweise** ein Groesseneffekt — im Mittel der Schichten
+bleiben auf 90 Tagen rund 7,1 pp von den gepoolten 9,9 pp. **Der Befund
+schrumpft, er stirbt nicht.** Das ist der Unterschied zu §2n, das unter
+derselben Art Gegenprobe von +3,1 pp auf −0,0 pp zerfiel.
+
+Nach Sidak einzeln signifikant (90 Tage): die **Emittentenseite (Q5) in 4 von
+5 Klassen** (alle ausser der groessten), die Rueckkaeuferseite (Q1) in 2 von
+5. Die Meidungsaussage ist erneut die robustere Haelfte — dieselbe Asymmetrie
+wie in §2p.
+
+### Und der Widerspruch aus §2p loest sich auf
+
+Das war nicht erwartet. §2p fand die Renditespanne **gegen** die
+Trefferquote gerichtet (−1,80 pp auf 90 Tagen) und liess beides bewusst
+nebeneinander stehen. Nach Groessenklassen getrennt (Ertrag-Spread, pp):
+
+| Klasse | 7 Tage | 30 Tage | 90 Tage |
+|---|---|---|---|
+| 1 (kleinste) | −0,19 | **−2,18** | **−7,18** |
+| 2 | +0,13 | +0,45 | +0,74 |
+| 3 | +0,28 | +0,94 | +1,76 |
+| 4 | −0,05 | +0,31 | +0,55 |
+| 5 (groesste) | +0,10 | +0,36 | +0,86 |
+
+**Der Widerspruch sitzt fast vollstaendig in der kleinsten Klasse.** In den
+Klassen 2 bis 5 zeigt die Rendite auf 30 und 90 Tagen in **dieselbe** Richtung
+wie die Trefferquote. Das bestaetigt die Erklaerung, die §2p vermutet hatte:
+Rechtsschiefe. Die eigene mittlere Ueberrendite der kleinsten Klasse betraegt
+**+5,855 pp** auf 90 Tagen gegen +0,286 pp in der groessten — eine Verteilung,
+deren arithmetisches Mittel von wenigen Ausreissern getragen wird und ueber
+die Haeufigkeit nichts sagt. **Konvexitaet, keine Prognose** — und sobald man
+die Mikrowerte in eine eigene Schicht sperrt, widerspricht sie nicht mehr.
+
+### Was daraus folgt
+
+1. **Einwand 1 aus §2p ist geklaert, und zwar zugunsten des Befundes.**
+2. **Die ehrliche Fassung ist jetzt staerker als in §2p:** ausserhalb der
+   Mikrowerte stimmen Trefferquote und Rendite ueberein. Die Einschraenkung
+   „als Handelssystem nicht gedeckt" galt dem gepoolten Bild und trifft die
+   Klassen 2–5 nicht mehr in dieser Schaerfe.
+3. **Noch nicht gemessen: die Jahresstabilitaet JE SCHICHT.** §2p besteht sie
+   gepoolt mit 10 von 10. Ob jede Groessenklasse einzeln haelt, ist offen —
+   und es ist der naechste Schritt, bevor Einwand 2 (Kursnaehe) drankommt.
+4. **Der Holdout steht weiter bei 0 Zugriffen.** Vor der Messung geprueft und
+   danach erneut.
+
 ---
 
 ## 3. Erledigt — nicht noch einmal bauen
@@ -1803,6 +1927,9 @@ Short Q5 ist er durch die Rendite nicht gedeckt.
 | **§2p Nettoemission: Bestand aus SEC (39.177 Kennzahlen)** | `database.NettoemissionKennzahl`, `services/nettoemission.py` |
 | **§2p Split-Immunitaet ueber die Accession** | `nettoemission.paare_aus_einreichungen`, `tests/test_nettoemission.py` |
 | **§2p Nettoemission gemessen: 10 von 10 Jahren, signifikant** | `auswertung/nettoemission.py`, `nettoemission_cli.py` |
+| **§2q Groessenklassen aus Dollar-Umsatz (split-immun)** | `auswertung/groesse.py`, `tests/test_groesse.py` |
+| **§2q Wochen-Querschnitt als gemeinsame Funktion** | `cross_sectional_momentum.raenge_je_woche` |
+| **§2q Groessentrennung gemessen: 15 von 15 Schichten** | `nettoemission.nettoemission_nach_groesse`, `--groessentrennung` |
 
 **Wichtig (überholt seit der Neuaufzeichnung):** Der Satz „alle
 Bestands-Snapshots tragen `score_version` 1.0.0" galt für die stillgelegte
@@ -2136,10 +2263,30 @@ Damit ist zum ersten Mal eine belastbare Antwort möglich — und sie lautet:
 > Universums. Das ist der erste Kandidat in elf Familien, der Signifikanz und
 > Jahresstabilität zugleich trägt.
 >
-> **Mit einem Widerspruch, der dazugehört:** die Renditespanne zeigt in die
-> Gegenrichtung (−1,8 pp auf 90 Tagen) und besteht ihre eigene Jahresprüfung
-> nicht (7 von 10). Als Meidungsfilter ist der Befund gedeckt, als
-> Long/Short-System nicht. Und die Größentrennung steht noch aus — siehe §2p.
+> **Die Größentrennung ist seit §2q durch — und der Befund hat sie
+> überstanden:** 15 von 15 Schichten im positiven Vorzeichen, über fünf
+> Größenklassen und drei Horizonte. Er fällt monoton mit der Größe (90 Tage:
+> +8,3 pp in der kleinsten, +4,3 pp in der größten Klasse), war also
+> **teilweise** ein Größeneffekt — aber er stirbt nicht, anders als §2n unter
+> derselben Art Gegenprobe.
+>
+> **Der Widerspruch aus §2p hat sich dabei aufgelöst.** Die Renditespanne
+> zeigt nur in der **kleinsten** Klasse gegen die Trefferquote (−7,18 pp auf
+> 90 Tagen); in den Klassen 2–5 zeigt sie in dieselbe Richtung. Ursache ist
+> die Rechtsschiefe der Mikrowerte, deren eigene mittlere Überrendite bei
+> +5,855 pp gegen +0,286 pp in der größten Klasse steht. Sobald sie in einer
+> eigenen Schicht sitzen, widersprechen sie nicht mehr.
+
+**Der nächste Schritt, in dieser Reihenfolge:**
+
+1. **Jahresstabilität je Größenschicht.** §2p besteht sie gepoolt mit 10 von
+   10, §2q hat die Schichten aber nur im Querschnitt geprüft. Hält jede Klasse
+   einzeln über die Jahre, oder trägt eine einzelne Schicht das Ergebnis?
+   Kostet keinen Holdout-Zugriff.
+2. **Die Kursnähe-Prüfung** (Einwand 2 aus §2p) — auf dem Panel-Weg noch
+   ausdrücklich auf `None` gesetzt, weil sie Snapshot-Kurse liest.
+3. **Erst danach** die Frage, ob der Holdout für diesen Kandidaten ausgegeben
+   wird. §2o hat gezeigt, was eine Gegenprobe vor dem Zugriff wert ist.
 >
 > Daneben bleibt PEADs Miss-Seite (8 von 9). Die Chartlage (7 von 9,
 > p = 0,18) war nie ein Kandidat, und der Insider-Clusterkauf aus §2n ist auf
@@ -2389,7 +2536,7 @@ Die Neuaufzeichnung hat die Grenze nicht berührt: sie ist ein Datum, und Job
 ## 6. Verifikation (es gibt keine CI)
 
 ```
-py -m pytest -q                                   # 475 Tests
+py -m pytest -q                                   # 657 Tests
 py -m mypy <geänderte Dateien>                    # ad hoc, keine Konfiguration im Repo
 py -c "import warnings; warnings.filterwarnings('ignore'); from fastapi.testclient import TestClient; import main; c=TestClient(main.app); c.__enter__(); [print(c.get(u).status_code, u) for u in ['/','/signals','/signals/indikatoren','/signals/positionen','/signals/backfill','/analysis','/screener','/watchlist','/journal','/backtesting','/sectors','/economy','/settings','/lexicon','/sources','/directory']]"
 ```

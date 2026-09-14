@@ -19,10 +19,24 @@ staerksten Emittenten. `spread_pp` ist Q1 minus Q5; positiv heisst
 
 **Der Lauf geht auf TRAIN.** Der Holdout bleibt bei null Zugriffen.
 
+**Die Groessentrennung (`--groessentrennung`)** ist die erste der beiden
+Gegenproben, die §2p sich selbst auferlegt hat. Emittenten sind systematisch
+kleinere Titel; solange alles gegen die gepoolte Marktbasis laeuft, kann der
+ganze Befund ein Groesseneffekt in anderer Verpackung sein. Der Lauf schneidet
+die Beobachtungen nach Dollar-Umsatz in Klassen, rangt die Nettoemission
+**innerhalb jeder Klasse neu** und misst jede Schicht gegen **ihre eigene**
+Marktbasis. Er kostet keinen Holdout-Zugriff.
+
+Warum Dollar-Umsatz und nicht Marktkapitalisierung: `auswertung/groesse.py`
+begruendet es an NVDA — eine Kapitalisierung aus roher SEC-Aktienzahl mal
+bereinigtem Kurs waere um den kumulierten Splitfaktor falsch, 2021 rund
+Faktor 40, und zwar bevorzugt bei den starken Kurssteigern.
+
 Beispiele:
-    py nettoemission_cli.py                  # 7/30/90 Tage
-    py nettoemission_cli.py --horizont 90    # nur ein Horizont
-    py nettoemission_cli.py --stichprobe 300 # Probelauf
+    py nettoemission_cli.py                       # 7/30/90 Tage
+    py nettoemission_cli.py --horizont 90         # nur ein Horizont
+    py nettoemission_cli.py --stichprobe 300      # Probelauf
+    py nettoemission_cli.py --groessentrennung    # die Gegenprobe
 """
 
 import argparse
@@ -72,6 +86,66 @@ def _quintiltabelle(zeilen: list[dict]) -> None:
               f"{'—' if ertrag is None else f'{ertrag:>+10.2f}'}{stern}")
 
 
+def _mrd(wert) -> str:
+    """Dollar-Umsatz lesbar — Mio oder Mrd statt fuenfzehn Stellen."""
+    if wert is None:
+        return "—"
+    if wert >= 1e9:
+        return f"{wert / 1e9:,.1f} Mrd"
+    return f"{wert / 1e6:,.1f} Mio"
+
+
+def _schichttabelle(ergebnis: dict) -> None:
+    """Die Groessentrennung: eine Quintiltabelle je Schicht, dann die Bilanz."""
+    schichten = ergebnis.get("schichten") or []
+    if not schichten:
+        print("\n  Keine auswertbare Schicht — Groessentrennung ohne Ergebnis.")
+        return
+
+    korrelation = ergebnis.get("rangkorrelation")
+    print(f"\n  Rangkorrelation Nettoemission x Dollar-Umsatz: "
+          f"{'—' if korrelation is None else f'{korrelation:+.3f}'}")
+    print(f"  Sidak-Schwelle ueber alle Schichten: "
+          f"z = {ergebnis.get('z_korrigiert')}")
+    z = ergebnis.get("zaehlwerk") or {}
+    print(f"  Zeilen: {z.get('zeilen', 0):,} · ohne Kennzahl "
+          f"{z.get('ohne_kennzahl', 0):,} · ohne Groessenklasse "
+          f"{z.get('ohne_klasse', 0):,} · verwertet {z.get('verwertet', 0):,}")
+
+    for s in schichten:
+        etikett = {1: "1 (kleinste)", 5: "5 (groesste)"}.get(
+            s["klasse"], str(s["klasse"]))
+        print(f"\n  {'-' * 68}")
+        print(f"  GROESSENKLASSE {etikett} — n = {s['n']:,}, "
+              f"Median-Umsatz {_mrd(s.get('umsatz_median'))}/Tag")
+        print(f"  Eigene Marktbasis: {s.get('basis_markt')}% schlagen den "
+              f"Index, mittlere Ueberrendite {s.get('basis_ertrag')} pp")
+        _quintiltabelle(s["quintile"])
+        sp = s.get("spread_pp")
+        print(f"    Spread Q1 - Q5: "
+              f"{'—' if sp is None else f'{sp:+.1f} pp'}"
+              f"   Ertrag: {s.get('ertrag_spread_pp')}")
+
+    mit = ergebnis.get("schichten_mit_vorsprung")
+    gesamt = ergebnis.get("schichten_gesamt")
+    print(f"\n  {'=' * 68}")
+    print(f"  BILANZ: {mit} von {gesamt} Groessenklassen mit positivem Spread.")
+    spreads = [s.get("spread_pp") for s in schichten
+               if s.get("spread_pp") is not None]
+    if spreads:
+        print(f"  Spannweite der Spreads: {min(spreads):+.1f} bis "
+              f"{max(spreads):+.1f} pp")
+    if mit == gesamt and gesamt:
+        print("  Lesart: der Befund haelt in JEDER Groessenklasse — er ist "
+              "nicht die Groesse.")
+    elif mit == 0:
+        print("  Lesart: der Befund haelt in KEINER Klasse — §2p ist "
+              "falsifiziert wie §2n durch §2o.")
+    else:
+        print("  Lesart: der Befund haelt nur in einem Teil der Klassen. "
+              "Welche das sind, entscheidet, ob etwas uebrig bleibt.")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="Nettoemission auf dem erweiterten Universum.")
@@ -79,6 +153,12 @@ def main() -> int:
                         default=list(HORIZONTE))
     parser.add_argument("--stichprobe", type=int,
                         help="Nur die ersten N Ticker (Probelauf).")
+    parser.add_argument("--groessentrennung", action="store_true",
+                        help="Gegenprobe: Quintile INNERHALB jeder "
+                             "Groessenklasse, jede Schicht gegen ihre eigene "
+                             "Marktbasis (§2p, offener Einwand 1).")
+    parser.add_argument("--klassen", type=int, default=5,
+                        help="Zahl der Groessenschichten (Vorgabe 5).")
     parser.add_argument("-v", "--ausfuehrlich", action="store_true")
     args = parser.parse_args()
 
@@ -91,6 +171,7 @@ def main() -> int:
     )
     from snapshot_engine.auswertung.nettoemission import (
         nettoemission_auswerten, nettoemission_jahresstabilitaet,
+        nettoemission_nach_groesse,
     )
 
     database.init_db()
@@ -111,8 +192,14 @@ def main() -> int:
         print(f"Universum: {len(tickers):,} Ticker\n")
 
         # Sidak ueber ALLE Zellen des Laufs, nicht je Horizont — sonst ist die
-        # Korrektur zu mild. Fuenf Quintile je Horizont.
-        z_tests = len(args.horizont) * 5
+        # Korrektur zu mild. Fuenf Quintile je Horizont; bei der
+        # Groessentrennung fuenf Quintile je Klasse, also ein Vielfaches. Wer
+        # das nicht mitzaehlt, prueft dieselbe Hypothese fuenfmal zum alten
+        # Preis und findet mit Sicherheit irgendeine Schicht, die haelt.
+        if args.groessentrennung:
+            z_tests = len(args.horizont) * args.klassen * 5
+        else:
+            z_tests = len(args.horizont) * 5
 
         for horizont in args.horizont:
             print(f"\n{'=' * 72}")
@@ -124,6 +211,16 @@ def main() -> int:
             print(f"  Panel: {len(panel):,} Beobachtungen "
                   f"({_dauer(time.time() - begonnen)})")
             print(f"  Je Jahr: {abdeckung_je_jahr(panel)}")
+
+            if args.groessentrennung:
+                begonnen = time.time()
+                geschichtet = nettoemission_nach_groesse(
+                    db, horizont=horizont, panel=panel,
+                    klassen=args.klassen, z_tests=z_tests)
+                _schichttabelle(geschichtet)
+                print(f"\n  (Groessentrennung in "
+                      f"{_dauer(time.time() - begonnen)})")
+                continue
 
             ergebnis = nettoemission_auswerten(db, horizont=horizont,
                                                panel=panel, z_tests=z_tests)

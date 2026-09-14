@@ -33,6 +33,7 @@ Auswertung bedienen kann.
 """
 
 import logging
+from collections import defaultdict
 from typing import Callable, Optional, Sequence
 
 logger = logging.getLogger(__name__)
@@ -130,6 +131,59 @@ def raenge_je_gruppe(werte: dict[str, Optional[float]],
                          gruppe, len(teilmenge), minimum)
         ergebnis.update(raenge)
     return ergebnis
+
+
+def raenge_je_woche(werte: dict[int, float], zuordnung: dict[int, tuple],
+                    gruppe_fuer: Callable[[str], Optional[str]],
+                    minimum: int = MIN_QUERSCHNITT) -> dict[int, float]:
+    """Perzentilränge je Kalenderwoche UND Gruppe, geschlüsselt nach Beobachtung.
+
+    Der Unterschied zu `raenge_je_gruppe`: dort ist der Schlüssel ein Ticker und
+    der Querschnitt ein Zeitpunkt, hier ist der Schlüssel eine Beobachtung, die
+    ihren Zeitpunkt selbst mitbringt. Damit lässt sich ein ganzes Panel in einem
+    Durchgang rangieren, statt je Stichtag einen Querschnitt zu bauen.
+
+    **Warum die Kalenderwoche als Eimer.** Eine Kennzahl sagt absolut wenig: eine
+    Emission von zwei Prozent ist in einem Jahr viel und im nächsten wenig, und
+    ein Tagesumsatz von 50 Mio ist 2016 etwas anderes als 2026. Der Rang macht
+    daraus eine Aussage über den Querschnitt DIESER Woche. Gegenüber Größen, die
+    sich nur jährlich ändern, ist die Woche fein genug (`momentum.py`,
+    `accruals.py`, `nettoemission.py` folgen alle dieser Wahl).
+
+    Args:
+        werte: {beobachtung_id: Wert}. Beobachtungen ohne Wert fehlen hier
+            bereits — dieses Modul füllt nichts auf.
+        zuordnung: {beobachtung_id: (ticker, zeitpunkt)}.
+        gruppe_fuer: Zweite Trennung neben der Woche, in der Praxis der
+            Handelsplatz. Bleibt ein Parameter, damit dieses Modul weiter ohne
+            Benchmark-Abhängigkeit auskommt.
+
+    Returns:
+        {beobachtung_id: Perzentilrang 0–100}. Beobachtungen in zu dünnen
+        Querschnitten fehlen.
+
+    Hat ein Ticker mehrere Beobachtungen in derselben Woche, geht er **einmal**
+    in den Querschnitt ein und alle seine Beobachtungen erben denselben Rang.
+    Sonst zählte ein häufig beobachteter Titel mehrfach und verschöbe die
+    Verteilung, gegen die alle anderen gemessen werden.
+    """
+    eimer: dict[tuple, dict[str, Optional[float]]] = defaultdict(dict)
+    verweise: dict[tuple, list[tuple]] = defaultdict(list)
+
+    for beobachtung_id, wert in werte.items():
+        ticker, zeitpunkt = zuordnung[beobachtung_id]
+        jahr, woche, _ = zeitpunkt.isocalendar()
+        schluessel = (jahr, woche)
+        eimer[schluessel][ticker] = wert
+        verweise[schluessel].append((beobachtung_id, ticker))
+
+    raenge: dict[int, float] = {}
+    for schluessel, gruppe in eimer.items():
+        gerangt = raenge_je_gruppe(gruppe, gruppe_fuer, minimum)
+        for beobachtung_id, ticker in verweise[schluessel]:
+            if ticker in gerangt:
+                raenge[beobachtung_id] = gerangt[ticker]
+    return raenge
 
 
 def dezil(rang: Optional[float]) -> Optional[int]:
