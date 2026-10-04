@@ -233,9 +233,9 @@
         <div class="metric-value">{{ "%.1f"|format(j_stats.win_rate|default(0)) }} %</div>
         <div class="metric-delta neutral">aus {{ j_stats.total_closed }} Trades</div>
         {% else %}
-        <div class="metric-label">Trade-Journal</div>
-        <div class="metric-value">Inaktiv</div>
-        <div class="metric-delta neutral">Keine Historie</div>
+        <div class="metric-label">Eigene Trefferquote</div>
+        <div class="metric-value">—</div>
+        <div class="metric-delta neutral">Noch kein Trade geschlossen</div>
         {% endif %}
     </div>
 </div>

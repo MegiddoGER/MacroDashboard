@@ -141,32 +141,9 @@
       <div class="form-group"><label>Verkaufsdatum</label><input type="date" name="sell_date" class="form-input" required></div>
       <div class="form-group"><label>Verkaufsgebühren (€)</label><input type="number" name="sell_fees" step="0.01" min="0" value="0" class="form-input"></div>
     </div>
-    <h5 style="margin-top:16px;"> Trade-Review (Auto-Journal)</h5>
-    <div class="grid-2" style="gap:12px; margin-bottom:12px;">
-      <div class="form-group">
-        <label>Setup-Kategorie</label>
-        <select name="sell_setup" class="form-input">
-          <option>SMC (Fair Value Gap)</option>
-          <option>Trendfolge (Pullback)</option>
-          <option>Breakout</option>
-          <option>Mean Reversion (Oversold)</option>
-          <option>Earnings Play</option>
-          <option selected>Sonstiges</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label>Conviction (1-5)</label>
-        <input type="range" name="sell_conviction" min="1" max="5" value="3" class="form-range"
-               oninput="document.getElementById('conv-val').textContent=this.value">
-        <span class="caption">Conviction: <strong id="conv-val">3</strong></span>
-      </div>
-    </div>
-    <div class="form-group"><label>Lessons Learned / Review</label><textarea name="sell_review" class="form-input" rows="3" placeholder="Was hast du gelernt?"></textarea></div>
-    <button type="submit" class="btn btn-primary btn-block" style="margin-top:12px;"> Position schließen + Journal speichern</button>
+    <button type="submit" class="btn btn-primary btn-block" style="margin-top:12px;">Position schließen</button>
   </div>
 </form>
 <div id="sell-result"></div>
 {% endif %}
-
-{# .form-range und textarea.form-input sind jetzt global in components.css #}
 {% endblock %}

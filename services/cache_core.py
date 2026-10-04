@@ -22,9 +22,7 @@ from services.options import get_options_overview
 from services.portfolio import calc_equity_curve, calc_performance_metrics, calc_sector_allocation
 from services.risk import calc_full_risk_report
 from services.index_membership import sp500_aufnahmedaten
-from snapshot_engine.auswertung_adapter import (
-    get_signal_statistics, calc_hit_rate, calc_calibration_chart,
-)
+from snapshot_engine.auswertung_adapter import calc_hit_rate
 
 
 # ---------------------------------------------------------------------------
@@ -97,9 +95,7 @@ _equity_cache = TTLCache(maxsize=20, ttl=300)
 _perf_cache = TTLCache(maxsize=20, ttl=300)
 _sector_alloc_cache = TTLCache(maxsize=20, ttl=300)
 _risk_cache = TTLCache(maxsize=20, ttl=300)
-_signal_stats_cache = TTLCache(maxsize=5, ttl=3600)
 _hit_rate_cache = TTLCache(maxsize=10, ttl=3600)
-_calibration_cache = TTLCache(maxsize=5, ttl=3600)
 _components_perf_cache = TTLCache(maxsize=50, ttl=300)
 
 
@@ -300,19 +296,9 @@ def cached_risk_report(_prices_hash: str = "", current_prices: dict | None = Non
     return val
 
 
-@cached(_signal_stats_cache, lock=_lock)
-def cached_signal_statistics():
-    return get_signal_statistics()
-
-
 @cached(_hit_rate_cache, lock=_lock)
 def cached_hit_rate(days: int = 90):
     return calc_hit_rate(days)
-
-
-@cached(_calibration_cache, lock=_lock)
-def cached_calibration():
-    return calc_calibration_chart()
 
 
 # ---------------------------------------------------------------------------
@@ -329,7 +315,7 @@ def clear_all_caches():
         _earnings_cache, _sp500_components_cache, _events_cache,
         _calendar_summary_cache, _ticker_events_cache, _history_period_cache,
         _equity_cache, _perf_cache, _sector_alloc_cache, _risk_cache,
-        _signal_stats_cache, _hit_rate_cache, _calibration_cache,
+        _hit_rate_cache,
         _components_perf_cache, _index_membership_cache,
         _sec_fundamentals_cache,
     ]:

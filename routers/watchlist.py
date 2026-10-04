@@ -190,22 +190,8 @@ async def watchlist_sell(
     sell_price: float = Form(...),
     sell_date: str = Form(...),
     sell_fees: float = Form(0),
-    sell_setup: str = Form("Sonstiges"),
-    sell_conviction: int = Form(3),
-    sell_review: str = Form(""),
 ):
-    from services.watchlist import close_position, calc_position_pnl, get_display_map, get_open_positions
-    from models.journal import TradeEntry, JournalStore
-
-    display_map = get_display_map()
-
-    # Find the position to get buy info
-    open_pos = get_open_positions()
-    sell_pos = None
-    for op in open_pos:
-        if op["ticker"] == ticker and op["position"].get("id") == position_id:
-            sell_pos = op["position"]
-            break
+    from services.watchlist import close_position
 
     result = close_position(
         ticker=ticker,
@@ -214,31 +200,9 @@ async def watchlist_sell(
         sell_date=sell_date,
         sell_fees=sell_fees,
     )
-    if result and sell_pos:
-        pnl = calc_position_pnl(sell_pos, sell_price)
-        pnl_pct = pnl["pnl_pct"]
-        auto_status = "Gewonnen" if pnl_pct > 0.5 else ("Verloren" if pnl_pct < -0.5 else "Break-Even")
-        disp_name = display_map.get(ticker, ticker)
-
-        journal_entry = TradeEntry(
-            ticker=disp_name,
-            trade_type="Long",
-            setup_type=sell_setup,
-            entry_date=sell_pos.get("buy_date", ""),
-            entry_price=sell_pos.get("buy_price", 0),
-            conviction=sell_conviction,
-            entry_notes=sell_pos.get("notes", "") or "[Auto-Import]",
-            status=auto_status,
-            exit_date=sell_date,
-            exit_price=sell_price,
-            pnl_eur=pnl["pnl_eur"],
-            pnl_pct=pnl_pct,
-            review_notes=sell_review or f"Position geschlossen: {pnl['pnl_eur']:+,.2f}€ ({pnl_pct:+.1f}%)",
-        )
-        JournalStore.save(journal_entry)
-
+    if result:
         return HTMLResponse(
-            content="<script>showToast('Position geschlossen + Journal gespeichert!');setTimeout(()=>location.reload(),500);</script>"
+            content="<script>showToast('Position geschlossen!');setTimeout(()=>location.reload(),500);</script>"
         )
     return HTMLResponse(
         content="<script>showToast('Fehler beim Schließen','error');</script>"

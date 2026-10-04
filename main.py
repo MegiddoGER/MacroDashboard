@@ -119,9 +119,7 @@ from routers.analysis import router as analysis_router
 from routers.economy import router as economy_router
 from routers.directory import router as directory_router
 from routers.sectors import router as sectors_router
-from routers.lexicon import router as lexicon_router
 from routers.watchlist import router as watchlist_router
-from routers.journal import router as journal_router
 from routers.backtesting import router as backtesting_router
 from routers.settings import router as settings_router
 from routers.sources import router as sources_router
@@ -135,9 +133,7 @@ app.include_router(analysis_router)
 app.include_router(economy_router)
 app.include_router(directory_router)
 app.include_router(sectors_router)
-app.include_router(lexicon_router)
 app.include_router(watchlist_router)
-app.include_router(journal_router)
 app.include_router(backtesting_router)
 app.include_router(settings_router)
 app.include_router(sources_router)
