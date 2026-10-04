@@ -468,7 +468,8 @@ _MIN_HORIZONT = min(HORIZONTE_TAGE)
 
 def ist_snapshot_faellig(db: Session, ticker: str,
                          richtung_neu: Optional[str] = None,
-                         zeitpunkt: Optional[datetime] = None) -> bool:
+                         zeitpunkt: Optional[datetime] = None,
+                         datenmodus: str = Datenmodus.LIVE) -> bool:
     """Prüft, ob für einen Ticker ein neuer Snapshot angelegt werden soll.
 
     Ohne diese Regel würde ein täglicher Lauf bei 7/30/90-Tage-Horizonten
@@ -476,7 +477,22 @@ def ist_snapshot_faellig(db: Session, ticker: str,
     sähe dann nach hunderten unabhängigen Stichproben aus, wäre real aber nur
     eine Handvoll — Trefferquoten würden dadurch scheinbar signifikant.
 
-    Fällig ist ein Ticker, wenn:
+    Die Kadenz zählt JE DATENMODUS, und das ist keine Feinheit. LIVE und
+    HISTORISCH sind zwei getrennte Messreihen derselben Engine: HISTORISCH
+    kennt nur trend/volume/oscillator (+SMC), LIVE zusätzlich fundamental und
+    sentiment. Die Auswertung mittelt sie nie gemeinsam — sie haben deutlich
+    verschiedene Basisraten, und `vermischung_pruefen` weist eine Vermischung
+    als solche aus.
+
+    Würde ein rückdatierter HISTORISCH-Stichtag die LIVE-Reihe sperren, dann
+    kostete jeder Aufhol-Replay genau die Beobachtungen, über die fundamental
+    und sentiment überhaupt messbar sind. Für vergangene Stichtage sind diese
+    beiden Kategorien nicht rekonstruierbar (Analystenkonsens und News von
+    damals sind heute nicht mehr abrufbar), also auch nicht nachholbar: die
+    LIVE-Reihe ist der einzige Weg, das größte ungemessene Gewicht des
+    Einstiegs-Scores jemals zu prüfen.
+
+    Fällig ist ein Ticker, wenn in DIESEM Datenmodus:
       - noch kein Snapshot existiert,
       - der kürzeste Horizont seit dem letzten Snapshot abgelaufen ist, oder
       - sich das Richtungssignal geändert hat (echtes neues Ereignis).
@@ -487,6 +503,7 @@ def ist_snapshot_faellig(db: Session, ticker: str,
         db.query(AnalyseSnapshot)
         .filter(AnalyseSnapshot.ticker == ticker.upper())
         .filter(AnalyseSnapshot.analyse_modus == AnalyseModus.NEUE_POSITION)
+        .filter(AnalyseSnapshot.datenmodus == datenmodus)
         .order_by(AnalyseSnapshot.snapshot_zeitpunkt.desc())
         .first()
     )
