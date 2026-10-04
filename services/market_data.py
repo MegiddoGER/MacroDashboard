@@ -724,6 +724,76 @@ SECTOR_ETFS_EU = {
 SECTOR_ETFS = SECTOR_ETFS_US
 
 
+# ---------------------------------------------------------------------------
+# Aufschlüsselung eines Sektors in seine Einzeltitel
+# ---------------------------------------------------------------------------
+
+# Angezeigter Sektorname → GICS-Bezeichnung in der S&P-500-Liste.
+#
+# Nur für die US-Region: für den STOXX Europe 600 gibt es im Projekt keine
+# Bestandteilsliste, der Aufschlüsselung fehlt dort schlicht die Grundlage.
+_GICS_SEKTOREN: dict[str, str] = {
+    "Technologie": "Information Technology",
+    "Finanzen": "Financials",
+    "Energie": "Energy",
+    "Gesundheit": "Health Care",
+    "Zyklischer Konsum": "Consumer Discretionary",
+    "Basiskonsum": "Consumer Staples",
+    "Industrie": "Industrials",
+    "Grundstoffe": "Materials",
+    "Immobilien": "Real Estate",
+    "Kommunikation": "Communication Services",
+    "Versorger": "Utilities",
+}
+
+# Die Ausnahme: ITA bildet keinen GICS-Sektor ab, sondern eine Teilbranche
+# INNERHALB der Industrie. Über "GICS Sector" wäre sie nicht auffindbar, über
+# "GICS Sub-Industry" schon. Ihre Titel tauchen deshalb zusätzlich unter
+# "Industrie" auf — das ist keine Dopplung, sondern die Lage: der ITA-Korb ist
+# eine Teilmenge des Industriesektors.
+_GICS_TEILBRANCHEN: dict[str, str] = {
+    "Rüstung & Luftfahrt": "Aerospace & Defense",
+}
+
+
+def sektor_bestandteile(components_df, sektor: str) -> dict[str, str]:
+    """Die Einzeltitel eines Sektors als {Ticker: Name}.
+
+    Args:
+        components_df: Bestandteilsliste aus `get_sp500_components()`.
+        sektor: Angezeigter Sektorname, z.B. "Technologie".
+
+    Returns:
+        {Ticker: Name}, leer wenn der Sektor nicht auflösbar ist oder keine
+        Liste vorliegt. Leer heißt hier "nicht bestimmbar", nicht "Sektor ohne
+        Titel" — der Aufrufer muss das unterscheiden können und tut es.
+    """
+    if components_df is None or getattr(components_df, "empty", True):
+        return {}
+
+    if sektor in _GICS_SEKTOREN:
+        spalte, wert = "GICS Sector", _GICS_SEKTOREN[sektor]
+    elif sektor in _GICS_TEILBRANCHEN:
+        spalte, wert = "GICS Sub-Industry", _GICS_TEILBRANCHEN[sektor]
+    else:
+        return {}
+
+    if spalte not in components_df.columns:
+        return {}
+
+    treffer = components_df[components_df[spalte] == wert]
+    return {
+        str(zeile["Symbol"]): str(zeile.get("Security", zeile["Symbol"]))
+        for _, zeile in treffer.iterrows()
+    }
+
+
+def sektor_aufschluesselbar(sektor: str, region: str) -> bool:
+    """Ob für diesen Sektor überhaupt eine Bestandteilsliste existiert."""
+    return region == "us" and (
+        sektor in _GICS_SEKTOREN or sektor in _GICS_TEILBRANCHEN)
+
+
 def get_correlation_matrix(tickers: list[str], labels: list[str] | None = None,
                            period: str = "1y") -> pd.DataFrame | None:
     """Berechnet die Korrelationsmatrix für eine Liste von Tickern.

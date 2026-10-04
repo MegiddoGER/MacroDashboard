@@ -1,0 +1,50 @@
+{# partials/sector_bestandteile.html — Einzeltitel eines Sektors, via HTMX nachgeladen #}
+
+<div class="card" style="margin-bottom:var(--gap);">
+  <div class="page-header" style="margin-bottom:12px;">
+    <h4 style="margin:0;">{{ sektor }}</h4>
+    {% if zeilen %}
+    <p class="caption" style="margin:4px 0 0;">
+      {{ zeilen|length }} von {{ anzahl_gesamt }} Titeln mit Kursdaten · {{ periode_label }}
+    </p>
+    {% endif %}
+  </div>
+
+  {% if hinweis %}
+  <div class="alert alert-info" style="margin:0;">{{ hinweis }}</div>
+  {% else %}
+
+  {# Treiber und Bremser zuerst: die Frage ist, welcher Titel die Bewegung
+     gemacht hat, nicht wie die alphabetische Liste aussieht. #}
+  <div class="grid-2" style="gap:12px;margin-bottom:16px;">
+    <div class="metric-card">
+      <div class="metric-label">Stärkster Titel: {{ zeilen[0].name }}</div>
+      <div class="metric-value positive">{{ "%+.2f %%"|format(zeilen[0].change) }}</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Schwächster: {{ zeilen[-1].name }}</div>
+      <div class="metric-value negative">{{ "%+.2f %%"|format(zeilen[-1].change) }}</div>
+    </div>
+  </div>
+
+  <div class="table-container">
+    <table class="data-table">
+      <thead>
+        <tr><th>Ticker</th><th>Name</th><th>Kurs</th><th>Veränderung %</th></tr>
+      </thead>
+      <tbody>
+        {% for z in zeilen %}
+        <tr>
+          <td><strong>{{ z.ticker }}</strong></td>
+          <td>{{ z.name }}</td>
+          <td>{{ z.price }}</td>
+          <td class="{{ 'positive' if z.change > 0 else ('negative' if z.change < 0 else 'muted') }}">
+            {{ "%+.2f %%"|format(z.change) }}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+</div>

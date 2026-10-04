@@ -27,6 +27,16 @@
 <div id="chart-heatmap" class="chart-container" style="height:450px;margin-bottom:var(--gap);"></div>
 {% endif %}
 
+{% if aufschluesselbar %}
+<p class="caption" style="margin:-8px 0 var(--gap);">
+  Kachel oder Tabellenzeile anklicken, um die Einzeltitel des Sektors zu sehen.
+</p>
+{% endif %}
+
+{# Ziel der Aufschlüsselung — direkt unter der Heatmap, damit das Ergebnis
+   dort erscheint, wo geklickt wurde. #}
+<div id="sektor-bestandteile"></div>
+
 {% if best and worst %}
 <div class="grid-2" style="gap:12px;margin-bottom:var(--gap);">
   <div class="metric-card"><div class="metric-label"> Bester Sektor: {{ best.name }}</div><div class="metric-value positive">{{ "%+.2f %%"|format(best.pct) }}</div></div>
@@ -40,7 +50,12 @@
     <thead><tr><th>Sektor</th><th>Ticker</th><th>Kurs</th><th>Veränderung %</th></tr></thead>
     <tbody>
     {% for r in rows %}
-    <tr>
+    <tr {% if aufschluesselbar %}
+        hx-get="/sectors/bestandteile?sektor={{ r.sector|urlencode }}&period={{ period }}&region={{ region }}"
+        hx-target="#sektor-bestandteile"
+        hx-swap="innerHTML"
+        style="cursor:pointer;"
+        title="Einzeltitel von {{ r.sector }} anzeigen"{% endif %}>
       <td>{{ r.sector }}</td>
       <td>{{ r.ticker }}</td>
       <td>{{ r.price }}</td>
@@ -65,6 +80,21 @@
     // leer — der Chart fehlte dadurch vollstaendig, ohne sichtbare Fehlermeldung.
     var baseLayout = window.PLOTLY_LAYOUT || {};
     Plotly.newPlot(el, fig.data, Object.assign({}, baseLayout, fig.layout || {}), {displayModeBar:true, responsive:true});
+
+    {% if aufschluesselbar %}
+    // Klick auf eine Kachel laedt dieselbe Aufschluesselung wie ein Klick auf
+    // die Tabellenzeile. Die Tabelle bleibt der verlaessliche Weg — sie
+    // funktioniert auch, wenn dieser Handler nie zustande kommt.
+    el.on('plotly_click', function(ev){
+      if (!ev || !ev.points || !ev.points.length) return;
+      var sektor = ev.points[0].label;
+      if (!sektor) return;
+      htmx.ajax('GET',
+        '/sectors/bestandteile?sektor=' + encodeURIComponent(sektor)
+          + '&period={{ period }}&region={{ region }}',
+        {target: '#sektor-bestandteile', swap: 'innerHTML'});
+    });
+    {% endif %}
   }
 })();
 </script>
