@@ -66,6 +66,15 @@ BACKFILL_CHUNK_SIZE = 20
 # Fehlversuche beim Kursabruf, bevor ein Ticker endgültig aufgegeben wird.
 MAX_TICKER_VERSUCHE = 3
 
+# Abstand zwischen zwei automatischen Aufhol-Läufen.
+#
+# Entspricht der Kadenz, und das ist kein gerundeter Wert: ein Ticker bekommt
+# höchstens alle KADENZ_BARS Handelstage einen neuen Stichtag. Ein häufigerer
+# Lauf würde ausschließlich bereits vorhandene Stichtage überspringen und dafür
+# das gesamte Universum erneut herunterladen — Kosten ohne eine einzige neue
+# Beobachtung.
+AUFHOLUNG_ABSTAND_TAGE = KADENZ_BARS
+
 
 # ---------------------------------------------------------------------------
 # Job-Verwaltung
@@ -165,6 +174,62 @@ def aktiver_job(db: Session) -> Optional[SignalBackfillJob]:
         .order_by(SignalBackfillJob.id.desc())
         .first()
     )
+
+
+def aufholung_pruefen(db: Session,
+                      jetzt: Optional[datetime] = None
+                      ) -> Optional[SignalBackfillJob]:
+    """Erneuert den Replay, wenn der letzte lange genug her ist.
+
+    Damit füllt sich die historische Reihe von selbst weiter, ohne dass die App
+    zu einer bestimmten Uhrzeit offen sein muss. Der Replay schneidet sein
+    Fenster hart am jeweiligen Stichtag ab und ist dadurch frei von
+    Look-Ahead-Bias — ein nachgetragener Stichtag ist denselben Wert wert wie
+    ein damals erhobener. Für die LIVE-Reihe gilt das nicht, weshalb die Kadenz
+    seit 2026-10-04 je Datenmodus zählt und dieser Lauf die Live-Erhebung nicht
+    mehr aussperrt.
+
+    Bewusst konservativ — der Lauf ERNEUERT nur, er beginnt nie etwas:
+
+      * Gab es noch nie einen Backfill, passiert nichts. Der erste Lauf ist eine
+        große, bewusste Entscheidung (Tiefe der Historie, SMC ja/nein) und
+        bleibt beim Benutzer; es gibt hier auch keine Parameter zu erraten.
+      * Läuft bereits einer, passiert nichts.
+      * Wurde der letzte ABGEBROCHEN, passiert nichts. Einen Abbruch
+        automatisch zu überschreiben würde eine ausdrückliche Entscheidung
+        aushebeln.
+
+    Die Parameter des letzten fertigen Laufs werden übernommen statt verkürzt.
+    Für die neuen Stichtage allein genügte eine kürzere Historie (das
+    Score-Fenster umfasst ohnehin nur FENSTER_BARS Bars), aber die volle Tiefe
+    holt zugleich die Ticker nach, die beim letzten Lauf am Kursabruf
+    gescheitert sind — deren Historie ist unvollständig, und ein flacher Lauf
+    würde sie nie wieder berühren.
+    """
+    jetzt = jetzt or datetime.utcnow()
+
+    if aktiver_job(db) is not None:
+        return None
+
+    letzter = (
+        db.query(SignalBackfillJob)
+        .order_by(SignalBackfillJob.id.desc())
+        .first()
+    )
+    if letzter is None or letzter.status != BackfillStatus.FERTIG:
+        return None
+
+    bezug = letzter.beendet_am or letzter.gestartet_am
+    if bezug is None:
+        return None
+    if bezug + timedelta(days=AUFHOLUNG_ABSTAND_TAGE) > jetzt:
+        return None
+
+    logger.info("Aufholung: letzter Lauf #%d endete %s — starte Erneuerung.",
+                letzter.id, bezug.date())
+    return backfill_starten(db,
+                            historie_jahre=letzter.historie_jahre or 5,
+                            include_smc=bool(letzter.include_smc))
 
 
 # ---------------------------------------------------------------------------

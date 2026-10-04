@@ -1,17 +1,24 @@
 """
 snapshot_engine/scheduler.py — Hintergrund-Jobs der Signal-Qualitäts-Engine.
 
-Drei Jobs auf einem gemeinsamen AsyncIOScheduler:
+Zwei Jobs auf einem gemeinsamen AsyncIOScheduler:
 
   1. Gating (Cron, täglich nach Börsenschluss)
      Ein günstiger Batch-Lauf über das gesamte Universum, der die fälligen
-     Ticker in die Warteschlange stellt.
+     Ticker in die Warteschlange stellt. Nur dieser Job hängt an der Uhr: wer
+     die App nie um diese Zeit offen hat, erzeugt keine LIVE-Snapshots.
 
   2. Drain (Intervall)
      Arbeitet die Live-Warteschlange in kleinen Häppchen ab, trägt fällige
-     Outcomes nach und schiebt laufende Backfill-Jobs weiter. Bewusst
-     intervallgesteuert statt als ein langer Lauf: so bleibt der Fortschritt
-     in der DB und übersteht einen Neustart der App.
+     Outcomes nach, erneuert bei Bedarf den historischen Replay und schiebt
+     ihn weiter. Bewusst intervallgesteuert statt als ein langer Lauf: so
+     bleibt der Fortschritt in der DB und übersteht einen Neustart der App.
+
+Daraus folgt die Arbeitsteilung: die HISTORISCHE Reihe wächst unabhängig von
+der Uhrzeit weiter, weil der Replay sein Fenster am Stichtag abschneidet und
+deshalb jederzeit nachgetragen werden kann. Die LIVE-Reihe kann das nicht —
+Fundamentaldaten und Sentiment von vorletzter Woche sind nicht mehr abrufbar —
+und bleibt daher an das Gating und damit an die Uhr gebunden.
 
 Alle Zeiten in Europe/Berlin.
 """
@@ -94,7 +101,16 @@ def _drain_job():
     # Backfill separat, damit ein Fehler dort die Live-Verarbeitung nicht stoppt
     session = get_session()
     try:
-        from snapshot_engine.backfill_service import backfill_schritt
+        from snapshot_engine.backfill_service import (
+            aufholung_pruefen, backfill_schritt,
+        )
+        # Vor dem Schritt: liegt der letzte Replay länger als die Kadenz
+        # zurück, wird er erneuert. Dadurch füllt sich die historische Reihe
+        # weiter, ohne dass die App zu einer festen Uhrzeit offen sein muss —
+        # der Replay ist durch sein am Stichtag abgeschnittenes Fenster
+        # unabhängig davon, wann er läuft. Erneuert wird nur ein bereits
+        # einmal gestarteter Lauf; Details in `aufholung_pruefen`.
+        aufholung_pruefen(session)
         backfill_schritt(session)
     except Exception as e:
         logger.error("Backfill-Schritt fehlgeschlagen: %s", e, exc_info=True)
