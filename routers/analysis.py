@@ -42,7 +42,7 @@ from services.fundamental import (
     get_sector_peers, calc_dividend_analysis, get_insider_institutional,
     get_analyst_consensus,
 )
-from services.scoring import generate_position_relevance
+from services.position_analysis import generate_position_relevance
 from charts import fig_to_json
 
 router = APIRouter(tags=["pages"])
@@ -1059,11 +1059,11 @@ def _build_position_analysis_context(
     position_analysis = None
     v2_result = None
     try:
-        from services.scoring import calc_full_score, calc_position_analysis_v2
+        from services.scoring import calc_full_score
+        from services.position_analysis import calc_position_analysis
         score_result = calc_full_score(hist, info_data, ticker)
         if score_result:
-            # V2: Full position analysis with validation, metrics, scoring, recommendation
-            v2_result = calc_position_analysis_v2(
+            v2_result = calc_position_analysis(
                 score_result, pos_data, dcf_data=dcf,
                 balance_data=balance,
                 volume_modifier=volume_modifier,
@@ -1204,7 +1204,8 @@ async def position_recommendation_rerender(
             hist = details["hist_1y"]
             info_data = details.get("info", {})
 
-            from services.scoring import calc_full_score, calc_position_analysis_v2
+            from services.scoring import calc_full_score
+            from services.position_analysis import calc_position_analysis
             score_result = calc_full_score(hist, info_data, ticker)
             if score_result:
                 dcf = None
@@ -1214,7 +1215,7 @@ async def position_recommendation_rerender(
                 except Exception:
                     pass
 
-                v2_result = calc_position_analysis_v2(
+                v2_result = calc_position_analysis(
                     score_result, pos_data, dcf_data=dcf,
                     balance_data=None,
                     volume_modifier=volume_modifier,

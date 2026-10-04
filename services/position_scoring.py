@@ -1,8 +1,16 @@
 """
-services/scoring_engine_v2.py — Multi-Score Breakdown (12 Teilscores).
+services/position_scoring.py — Positions-Scoring: 12 Teilscores einer BESTEHENDEN
+Position.
 
 Jeder Teilscore: 0–100, mit Ampelfarbe.
 Overall Score darf harte Validierungsfehler NICHT verstecken.
+
+Nicht zu verwechseln mit services/scoring.py: das ist die Einstiegs-Engine, die
+aus Kursdaten die Indikatoren rechnet und einen NEUEN Einstieg bewertet. Dieses
+Modul rechnet keine Indikatoren nach — es liest deren Ergebnis
+(`ScoreResult.signals`) und beantwortet die andere Frage: wie steht eine
+Position, die schon offen ist. Die Datei hiess bis 2026-10-04
+`scoring_engine_v2.py`, was eine Nachfolge suggerierte, die es nie gab.
 """
 
 from __future__ import annotations

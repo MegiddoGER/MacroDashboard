@@ -17,7 +17,7 @@ import pytest
 
 from services.position_metrics_engine import calc_position_metrics
 from services.position_types import PositionSide
-from services.scoring import _fenster_seit_einstieg
+from services.position_analysis import _fenster_seit_einstieg
 
 
 def _hist(kurse: list[tuple]) -> pd.DataFrame:

@@ -235,7 +235,7 @@ class ScoreBreakdown:
     has_critical_warning: bool = False
     # Datenlage zu dünn, um den Overall-Score unkommentiert zu lesen.
     # Steht bewusst NEBEN dem Score statt in ihm: Belastbarkeit und Bewertung
-    # sind verschiedene Aussagen (siehe scoring_engine_v2, Gewichtsliste).
+    # sind verschiedene Aussagen (siehe position_scoring, Gewichtsliste).
     has_data_warning: bool = False
 
     def to_dict(self) -> dict:

@@ -14,7 +14,7 @@ wie heftig ein Abwärtstrend ist.
 import pytest
 
 from services.position_types import PositionMetrics, ValidationResult
-from services.scoring_engine_v2 import POSITION_SCORE_VERSION, calc_position_scores
+from services.position_scoring import POSITION_SCORE_VERSION, calc_position_scores
 
 
 def _trendgesundheit(**signale) -> float:

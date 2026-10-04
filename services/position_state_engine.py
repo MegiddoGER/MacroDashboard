@@ -122,7 +122,7 @@ def determine_position_state(
     # ── Fundamental Warning Score (aus verfügbaren Signalen) ──────
     fund_warnings = 0
     # DCF Überbewertung (signals might contain dcf_upside)
-    # We don't have this directly — will be set by scoring_engine_v2
+    # We don't have this directly — will be set by position_scoring
     state.fundamental_warning_score = fund_warnings
 
     # ── Mode bestimmen ────────────────────────────────────────────

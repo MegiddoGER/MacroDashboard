@@ -3,7 +3,7 @@ snapshot_engine/position_snapshot.py — Snapshots des Positionspfads (P3-03).
 
 Der Einstiegspfad (`services/scoring.py` → `snapshot_service.signal_erfassen`)
 misst seit Beginn, ob seine Prognosen eintreffen. Der Positionspfad
-(`services/scoring_engine_v2.py` → `services/recommendation_engine.py`) tat das
+(`services/position_scoring.py` → `services/recommendation_engine.py`) tat das
 nicht: er erzeugte keine Snapshots, und damit war keines seiner zwölf Gewichte
 gegen ein Ergebnis prüfbar. Jeder Tag ohne Erfassung ist ein Tag ohne Evidenz —
 für bereits getroffene Entscheidungen lässt sich die Messung nicht nachholen.
@@ -36,7 +36,7 @@ from typing import Optional
 from sqlalchemy.orm import Session
 
 from services.position_types import PositionSide, RecommendationType
-from services.scoring_engine_v2 import POSITION_GEWICHTE, POSITION_SCORE_VERSION
+from services.position_scoring import POSITION_GEWICHTE, POSITION_SCORE_VERSION
 from snapshot_engine.models import (
     HORIZONTE_TAGE, AnalyseModus, AnalyseSnapshot, AnalyseSnapshotIndikator,
     Datenmodus, ErstelltVon, Granularitaet, outcomes_anlegen,
@@ -190,7 +190,7 @@ def position_snapshot_erfassen(
     """Schreibt eine PositionAnalysis als Snapshot inkl. Teilscores und Outcomes.
 
     Args:
-        analysis: PositionAnalysis aus `calc_position_analysis_v2`.
+        analysis: PositionAnalysis aus `calc_position_analysis`.
         kurs: Kurs zum Snapshot-Zeitpunkt (Bezugspunkt der Outcome-Rendite).
         commit: False, wenn der Aufrufer die Transaktion selbst steuert.
 

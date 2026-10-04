@@ -50,7 +50,7 @@ class AnalyseModus:
                            `confidence` 0–100 aus fünf Kategorie-Scores,
                            `richtungssignal` daraus über die 40/60-Schwellen
                            abgeleitet (richtung_aus_confidence).
-      BESTEHENDE_POSITION  Positions-Score aus services/scoring_engine_v2.py.
+      BESTEHENDE_POSITION  Positions-Score aus services/position_scoring.py.
                            `confidence` ist der Overall-Score aus zwölf
                            Teilscores, `richtungssignal` stammt dagegen aus
                            der Empfehlung (richtung_aus_empfehlung) — Score

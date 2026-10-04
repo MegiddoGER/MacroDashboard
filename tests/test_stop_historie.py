@@ -105,22 +105,25 @@ def _position(initial_stop=None):
 def test_ohne_historie_bleibt_das_r_multiple_leer():
     """Der Zustand vor P3-01 — und weiterhin der korrekte, wenn die Position
     manuell eingegeben wurde und keine gespeicherte Historie hat."""
-    from services.scoring import ScoreResult, calc_position_analysis_v2
-    analyse = calc_position_analysis_v2(ScoreResult(), _position())
+    from services.scoring import ScoreResult
+    from services.position_analysis import calc_position_analysis
+    analyse = calc_position_analysis(ScoreResult(), _position())
     assert analyse["position_analysis"].metrics.r_multiple is None
 
 
 def test_mit_einstiegsstop_wird_das_r_multiple_berechnet():
     """Einstieg 100, Stop bei Eröffnung 90 — also 10 Risiko. Kurs 110 heißt
     10 Gewinn, das ist genau 1 R."""
-    from services.scoring import ScoreResult, calc_position_analysis_v2
-    analyse = calc_position_analysis_v2(ScoreResult(), _position(initial_stop=90.0))
+    from services.scoring import ScoreResult
+    from services.position_analysis import calc_position_analysis
+    analyse = calc_position_analysis(ScoreResult(), _position(initial_stop=90.0))
     assert analyse["position_analysis"].metrics.r_multiple == 1.0
 
 
 def test_ein_enger_einstiegsstop_ergibt_ein_hoeheres_r():
     """Dieselbe Kursbewegung, halbes Einstiegsrisiko — doppeltes R. Genau
     deshalb darf ein nachgezogener Stop nicht als Einstiegsrisiko gelten."""
-    from services.scoring import ScoreResult, calc_position_analysis_v2
-    analyse = calc_position_analysis_v2(ScoreResult(), _position(initial_stop=95.0))
+    from services.scoring import ScoreResult
+    from services.position_analysis import calc_position_analysis
+    analyse = calc_position_analysis(ScoreResult(), _position(initial_stop=95.0))
     assert analyse["position_analysis"].metrics.r_multiple == 2.0

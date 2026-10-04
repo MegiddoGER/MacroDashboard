@@ -115,7 +115,7 @@ def indikator_kategorie(name: str) -> Optional[str]:
 # daher nicht.
 #
 # Verlässlich ist stattdessen ScoreResult.signals — dasselbe Dict, aus dem
-# auch scoring_engine_v2 seine Teilscores ableitet. Konvention dort:
+# auch position_scoring seine Teilscores ableitet. Konvention dort:
 #   Schlüssel fehlt  → Indikator konnte nicht berechnet werden
 #   True/False       → bullisch/bearisch
 #

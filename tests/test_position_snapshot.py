@@ -11,7 +11,7 @@ import pytest
 from services.position_types import (
     PositionSide, RecommendationType, ScoreBreakdown,
 )
-from services.scoring_engine_v2 import (
+from services.position_scoring import (
     POSITION_GEWICHTE, POSITION_SCORE_VERSION, calc_position_scores,
 )
 from services.target_stop_validator import validate_target_stop

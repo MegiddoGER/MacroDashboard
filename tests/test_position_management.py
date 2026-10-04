@@ -6,7 +6,7 @@ from services.position_types import (
 from services.target_stop_validator import validate_target_stop
 from services.position_state_engine import determine_position_state
 from services.position_metrics_engine import calc_position_metrics
-from services.scoring_engine_v2 import calc_position_scores
+from services.position_scoring import calc_position_scores
 from services.recommendation_engine import generate_recommendation
 from services.data_quality_engine import assess_data_quality
 
