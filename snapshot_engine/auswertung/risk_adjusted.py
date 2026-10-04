@@ -2,11 +2,11 @@
 snapshot_engine/auswertung/risk_adjusted.py — Risikoadjustierte Auswertung.
 
 Stellt die Kennzahlen bereit, die andere Programmteile aus der Signal-Historie
-beziehen (Kelly-Positionsgrößen, Journal-Statistik) — und löst damit
+beziehen (Kelly-Positionsgrößen, kompakte Trefferquote) — und löst damit
 services/signal_history.py ab.
 
-Bewusst NICHT marktbereinigt (P1-04b). Hier geht es um Positionsgrößen und
-Journal-Statistik, also um tatsächlich realisierte Gewinne und Verluste. Kelly
+Bewusst NICHT marktbereinigt (P1-04b). Hier geht es um Positionsgrößen, also um
+tatsächlich realisierte Gewinne und Verluste. Kelly
 rechnet mit der Trefferquote und dem Gewinn/Verlust-Verhältnis, die das Depot
 wirklich erlebt — eine Überrendite lässt sich nicht ausgeben, solange nicht
 zugleich der Index geshortet wird. Die Marktbereinigung gehört in die
@@ -15,13 +15,11 @@ nicht in die Größenbestimmung.
 """
 
 import logging
-import statistics
-from collections import defaultdict
 
 from sqlalchemy.orm import Session
 
 from snapshot_engine.models import (
-    AnalyseModus, AnalyseSnapshot, AnalyseSnapshotOutcome, Datenmodus,
+    AnalyseModus, AnalyseSnapshot, AnalyseSnapshotOutcome,
 )
 from snapshot_engine.auswertung.basis import STATUS_OK, kennzahlen_aus_returns
 
@@ -35,12 +33,17 @@ MIN_STICHPROBE_KELLY = 30
 KELLY_HORIZONT_TAGE = 30
 
 
-def _paare(db: Session, horizont: int, datenmodus: str | None = None,
-           nur_gerichtete: bool = True) -> list[tuple]:
-    """Lädt ausgewertete Beobachtungen als schlanke Tupel.
+def _paare(db: Session, horizont: int,
+           datenmodus: str | None = None) -> list[tuple]:
+    """Lädt ausgewertete, GERICHTETE Beobachtungen als schlanke Tupel.
 
     Rückgabe je Zeile:
         (ticker, richtungssignal, confidence, zeitpunkt, outcome_return, war_erfolgreich)
+
+    Nur KAUF und VERKAUF: ein NEUTRAL-Snapshot trifft keine Richtungsaussage,
+    sein Ergebnis ist damit weder Treffer noch Fehlschlag. Beides hier
+    mitzuzählen würde Trefferquote und Kelly-Verhältnis gegen eine Grundmenge
+    rechnen, die zum Teil nie eine Prognose abgegeben hat.
 
     Keine ORM-Objekte — diese Funktion wird u.a. bei jeder Positionsgrößen-
     Berechnung aufgerufen und darf mit wachsendem Datenbestand nicht langsamer werden.
@@ -61,8 +64,8 @@ def _paare(db: Session, horizont: int, datenmodus: str | None = None,
     )
     if datenmodus:
         query = query.filter(AnalyseSnapshot.datenmodus == datenmodus)
-    if nur_gerichtete:
-        query = query.filter(AnalyseSnapshot.richtungssignal.in_(["KAUF", "VERKAUF"]))
+    query = query.filter(
+        AnalyseSnapshot.richtungssignal.in_(["KAUF", "VERKAUF"]))
     return query.all()
 
 
@@ -109,80 +112,6 @@ def kelly_parameter(db: Session, horizont: int = KELLY_HORIZONT_TAGE,
     except Exception as e:
         logger.error("Kelly-Parameter fehlgeschlagen: %s", e, exc_info=True)
         return None
-
-
-def signal_statistik(db: Session, horizont: int = 30,
-                     datenmodus: str | None = None,
-                     min_pro_ticker: int = 5) -> dict:
-    """Kennzahlen für die Journal-Seite: beste/schlechteste Ticker und Signale.
-
-    Returns:
-        Dict mit gesamt, avg_confidence, bester_ticker, schlechtester_ticker,
-        top_signale, flop_signale.
-    """
-    ergebnis: dict = {
-        "gesamt": 0,
-        "ausgewertet": 0,
-        "avg_confidence": None,
-        "bester_ticker": None,
-        "schlechtester_ticker": None,
-        "top_signale": [],
-        "flop_signale": [],
-        "horizont_tage": horizont,
-    }
-
-    try:
-        paare = _paare(db, horizont, datenmodus, nur_gerichtete=False)
-        ergebnis["ausgewertet"] = len(paare)
-        ergebnis["gesamt"] = db.query(AnalyseSnapshot).filter(
-            AnalyseSnapshot.analyse_modus == AnalyseModus.NEUE_POSITION).count()
-
-        if not paare:
-            return ergebnis
-
-        confidences = [z[2] for z in paare if z[2] is not None]
-        if confidences:
-            ergebnis["avg_confidence"] = round(statistics.fmean(confidences), 1)
-
-        # Trefferquote je Ticker (nur gerichtete Signale)
-        je_ticker = defaultdict(list)
-        for ticker, richtung, _conf, _zeit, _ret, erfolg in paare:
-            if richtung in ("KAUF", "VERKAUF") and erfolg is not None:
-                je_ticker[ticker].append(erfolg)
-
-        bewertet = [
-            {
-                "ticker": ticker,
-                "trefferquote": round(sum(1 for t in treffer if t) / len(treffer) * 100, 1),
-                "anzahl": len(treffer),
-            }
-            for ticker, treffer in je_ticker.items()
-            if len(treffer) >= min_pro_ticker
-        ]
-
-        if bewertet:
-            sortiert = sorted(bewertet, key=lambda x: x["trefferquote"], reverse=True)
-            ergebnis["bester_ticker"] = sortiert[0]
-            ergebnis["schlechtester_ticker"] = sortiert[-1]
-
-        # Einzelne Extremwerte (rein illustrativ, keine statistische Aussage)
-        def _als_signal(zeile) -> dict:
-            ticker, _richtung, confidence, zeitpunkt, outcome_return, _erfolg = zeile
-            return {
-                "ticker": ticker,
-                "return_pct": outcome_return,
-                "confidence": confidence,
-                "datum": zeitpunkt.strftime("%Y-%m-%d") if zeitpunkt else None,
-            }
-
-        nach_return = sorted(paare, key=lambda z: z[4], reverse=True)
-        ergebnis["top_signale"] = [_als_signal(z) for z in nach_return[:3]]
-        ergebnis["flop_signale"] = [_als_signal(z) for z in nach_return[-3:][::-1]]
-
-    except Exception as e:
-        logger.error("Signal-Statistik fehlgeschlagen: %s", e, exc_info=True)
-
-    return ergebnis
 
 
 def trefferquote(db: Session, horizont: int = 30,

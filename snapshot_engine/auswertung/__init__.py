@@ -43,9 +43,7 @@ from snapshot_engine.auswertung.indikator_stats import (
 from snapshot_engine.auswertung.kalibrierung import (
     kalibrierung_berechnen, kalibrierung_bewerten,
 )
-from snapshot_engine.auswertung.risk_adjusted import (
-    kelly_parameter, signal_statistik,
-)
+from snapshot_engine.auswertung.risk_adjusted import kelly_parameter
 from snapshot_engine.auswertung.gate import gate_wirkung
 from snapshot_engine.auswertung.holdout import (
     EMBARGO, HOLDOUT, TRAIN, grenze_festlegen, grenze_lesen,
@@ -80,7 +78,6 @@ __all__ = [
     "kennzahlen_aus_returns",
     "kennzahlen_berechnen",
     "schwelle_suchen",
-    "signal_statistik",
     "split_filter",
     "split_status",
     "split_zuordnen",
