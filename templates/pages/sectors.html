@@ -59,7 +59,12 @@
   const fig = {{ heatmap_json|safe }};
   const el = document.getElementById('chart-heatmap');
   if (el && fig) {
-    Plotly.newPlot(el, fig.data, Object.assign({}, PLOTLY_LAYOUT, fig.layout || {}), {displayModeBar:true, responsive:true});
+    // window.PLOTLY_LAYOUT statt des nackten Bezeichners: base.html setzt die
+    // Variable erst NACH dem Content-Block. Ein nackter Zugriff wirft hier
+    // einen ReferenceError, die Funktion bricht ab und der Container bleibt
+    // leer — der Chart fehlte dadurch vollstaendig, ohne sichtbare Fehlermeldung.
+    var baseLayout = window.PLOTLY_LAYOUT || {};
+    Plotly.newPlot(el, fig.data, Object.assign({}, baseLayout, fig.layout || {}), {displayModeBar:true, responsive:true});
   }
 })();
 </script>
