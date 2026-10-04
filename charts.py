@@ -550,9 +550,19 @@ def plot_sector_heatmap(sector_df: pd.DataFrame,
     fig.update_layout(
         title=dict(text=title, font=dict(size=16, color="#e2e8f0")),
         height=500,
+        # Enger als die Vorgabe: ein Treemap hat keine Achsenbeschriftung, für
+        # die links und unten Platz bleiben müsste.
         margin=dict(l=10, r=10, t=50, b=10),
-        paper_bgcolor="rgba(0,0,0,0)",
-        font=dict(family="Inter, sans-serif"),
+        # Wie beim Gauge ohne hovermode — "x unified" ergibt ohne x-Achse keinen
+        # Sinn, und das Treemap bringt sein eigenes hovertemplate mit.
+        #
+        # Die Vorgaben sind hier nicht Kosmetik: ohne sie trägt die Figur
+        # Plotlys helles Standardthema, und die Kachelbeschriftung erbt dessen
+        # Schriftfarbe (#2a3f5f, dunkles Marineblau) — auf den dunklen Kacheln
+        # kaum lesbar. font und paper_bgcolor kommen ebenfalls von dort und
+        # werden deshalb nicht mehr einzeln gesetzt.
+        **{k: v for k, v in LAYOUT_DEFAULTS.items()
+           if k not in ("hovermode", "margin")},
     )
     return fig
 
