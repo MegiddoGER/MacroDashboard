@@ -108,14 +108,13 @@ welche Komponenten bislang fehlen.
 
 ## Verifikation (Pflicht)
 
-Nach den Änderungen muss geprüft werden, dass die App weiterhin rendert:
-
-```
-py -c "import warnings; warnings.filterwarnings('ignore'); from fastapi.testclient import TestClient; import main; c=TestClient(main.app); c.__enter__(); [print(c.get(u).status_code, u) for u in ['/','/signals','/signals/indikatoren','/analysis','/screener','/watchlist','/journal','/backtesting','/sectors','/economy','/settings','/lexicon','/sources','/directory']]"
-```
-
-Jede Route muss 200 liefern. Zusätzlich `py -m pytest -q` (15 Tests). Bricht eine
-Seite, vor Abschluss reparieren — kein kaputtes Dashboard zurückgeben.
+Nach den Änderungen muss geprüft werden, dass die App weiterhin rendert. Die
+maßgeblichen Prüfschritte (Routen-Smoke-Test mit aus der App abgeleiteter Routenliste,
+`py -m pytest -q`, Klassen-Erreichbarkeit, Klammerbilanz) stehen im Abschnitt
+„Verification" von `.claude/agents/ui-designer.md` — dort gepflegt, damit die Liste
+nicht veraltet (die frühere feste Liste enthielt `/journal` und `/lexicon`, die es seit
+dem 04.10. nicht mehr gibt). Bricht eine Seite, vor Abschluss reparieren — kein kaputtes
+Dashboard zurückgeben.
 
 Hinweis: Die App läuft eventuell bereits auf Port 8501, die SQLite-DB ist ~279 MB.
 Beides ist normal. **Nicht anfassen:** Datenbank sowie alle Python-Dateien unter
