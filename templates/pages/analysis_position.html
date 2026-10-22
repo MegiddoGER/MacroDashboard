@@ -3,6 +3,8 @@
 {% block title %}Positions-Analyse — MacroDashboard{% endblock %}
 
 {% block content %}
+<div class="with-aside">
+<div class="with-aside-main">
 <a href="/analysis" class="btn btn-secondary btn-sm" style="margin-bottom: 16px; display: inline-flex; align-items: center; gap: 6px;">
     <span>←</span> Zurück zur Übersicht
 </a>
@@ -173,4 +175,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 </script>
+</div>
+{% include "partials/news_sidebar.html" %}
+</div>
 {% endblock %}

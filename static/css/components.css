@@ -1536,3 +1536,87 @@ details.disclosure > summary:hover { background: var(--surface-hover); color: va
     margin: 0;
     border: none;
 }
+
+/* ── Seitenleiste „Unternehmensmeldungen" (einklappbar) ───────────────
+   Layout: Inhalt links, Leiste rechts; unter 1180px untereinander.
+   Eingeklappt bleibt eine schmale Leiste mit dem Umschalter. */
+.with-aside {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: var(--space-5);
+    align-items: start;
+}
+.with-aside-main { min-width: 0; }
+
+.news-aside {
+    position: sticky;
+    top: var(--space-4);
+    width: 300px;
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+}
+.news-aside.collapsed { width: 44px; }
+
+.news-aside-toggle {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    width: 100%;
+    padding: var(--space-3);
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid var(--border);
+    color: var(--text-dim);
+    font: inherit;
+    font-size: var(--fs-2xs);
+    font-weight: var(--font-weight-semibold);
+    letter-spacing: var(--ls-caps);
+    text-transform: uppercase;
+    cursor: pointer;
+}
+.news-aside-toggle:hover { color: var(--text); background: var(--surface-hover); }
+.news-aside-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.news-aside-chevron { transition: transform var(--dur-base) var(--ease-standard); }
+.news-aside:not(.collapsed) .news-aside-chevron { transform: rotate(0deg); }
+.news-aside.collapsed .news-aside-chevron { transform: rotate(180deg); }
+/* Eingeklappt nur den Pfeil zeigen; Beschriftung und Inhalt weg. */
+.news-aside.collapsed .news-aside-toggle { justify-content: center; padding: var(--space-3) 0; border-bottom: none; }
+.news-aside.collapsed .news-aside-toggle-label,
+.news-aside.collapsed .news-aside-body { display: none; }
+
+.news-aside-body { padding: var(--space-4); }
+.news-aside-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+}
+.news-aside-head h5 { margin: 0; }
+.news-link-list { list-style: none; margin: var(--space-4) 0 0; padding: 0; display: grid; gap: var(--space-2); }
+.news-link {
+    display: grid;
+    gap: 2px;
+    padding: var(--space-3);
+    background: var(--surface-0);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    text-decoration: none;
+    transition: border-color var(--dur-base) var(--ease-standard),
+                background var(--dur-base) var(--ease-standard);
+}
+.news-link:hover { border-color: var(--border-accent); background: var(--surface-hover); }
+.news-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.news-link-name { color: var(--text); font-size: var(--fs-sm); font-weight: var(--font-weight-semibold); }
+.news-link-text { color: var(--text-dim); font-size: var(--fs-xs); line-height: var(--lh-snug); }
+
+@media (max-width: 1180px) {
+    .with-aside { grid-template-columns: minmax(0, 1fr); }
+    .news-aside, .news-aside.collapsed { position: static; width: auto; }
+    .news-aside.collapsed .news-aside-toggle { justify-content: flex-start; padding: var(--space-3); }
+}
+@media (prefers-reduced-motion: reduce) {
+    .news-aside-chevron, .news-link { transition: none; }
+}

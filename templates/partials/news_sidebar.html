@@ -1,0 +1,66 @@
+{# Einklappbare Seitenleiste „Unternehmensmeldungen" — PLATZHALTER.
+   Statische Schnelllinks mit Kurzbeschreibung. Spaeter koennen hier
+   ticker-bezogene Meldungen stehen (dann Quellen ueber services/news.py
+   und cached_*-Wrapper liefern, nicht ad hoc im Template).
+   Eingebunden in pages/analysis.html und pages/analysis_position.html. #}
+{% set news_quellen = [
+    {"name": "Reuters", "url": "https://www.reuters.com/business/",
+     "text": "Internationale Wirtschafts- und Unternehmensmeldungen, Quartalszahlen, M&A."},
+    {"name": "WirtschaftsWoche", "url": "https://www.wiwo.de/finanzen/",
+     "text": "Hintergruende und Einordnung zu deutschen Unternehmen und Maerkten."},
+    {"name": "Der Aktionaer", "url": "https://www.deraktionaer.de/",
+     "text": "Aktuelle Meldungen und Einschaetzungen zu einzelnen Aktien."},
+] %}
+<aside class="news-aside" id="news-aside" aria-label="Unternehmensmeldungen">
+  <button type="button" class="news-aside-toggle" id="news-aside-toggle"
+          aria-expanded="true" aria-controls="news-aside-body"
+          title="Seitenleiste ein-/ausklappen">
+    <span class="news-aside-chevron" aria-hidden="true">›</span>
+    <span class="news-aside-toggle-label">Meldungen</span>
+  </button>
+
+  <div class="news-aside-body" id="news-aside-body">
+    <div class="news-aside-head">
+      <h5>Aktuelle Unternehmensmeldungen</h5>
+      <span class="badge badge-yellow">Platzhalter</span>
+    </div>
+    <p class="caption">Schnellzugriff auf Nachrichtenquellen. Spaeter erscheinen hier Meldungen zur gewaehlten Aktie.</p>
+
+    <ul class="news-link-list">
+      {% for q in news_quellen %}
+      <li>
+        <a class="news-link" href="{{ q.url }}" target="_blank" rel="noopener noreferrer">
+          <span class="news-link-name">{{ q.name }} <span aria-hidden="true">↗</span></span>
+          <span class="news-link-text">{{ q.text }}</span>
+        </a>
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+</aside>
+
+<script>
+(function () {
+  var aside = document.getElementById('news-aside');
+  var btn = document.getElementById('news-aside-toggle');
+  if (!aside || !btn) return;
+  var KEY = 'newsAsideCollapsed';
+
+  function apply(collapsed) {
+    aside.classList.toggle('collapsed', collapsed);
+    btn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+    // Plotly-Charts an die neue Breite anpassen, sobald das Layout steht.
+    setTimeout(function () { window.dispatchEvent(new Event('resize')); }, 260);
+  }
+
+  var start = false;
+  try { start = localStorage.getItem(KEY) === '1'; } catch (e) {}
+  apply(start);
+
+  btn.addEventListener('click', function () {
+    var collapsed = !aside.classList.contains('collapsed');
+    apply(collapsed);
+    try { localStorage.setItem(KEY, collapsed ? '1' : '0'); } catch (e) {}
+  });
+})();
+</script>
