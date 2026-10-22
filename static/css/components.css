@@ -1539,7 +1539,10 @@ details.disclosure > summary:hover { background: var(--surface-hover); color: va
 
 /* ── Seitenleiste „Unternehmensmeldungen" (einklappbar) ───────────────
    Layout: Inhalt links, Leiste rechts; unter 1180px untereinander.
-   Eingeklappt bleibt eine schmale Leiste mit dem Umschalter. */
+   Eingeklappt bleibt eine schmale Leiste mit dem Umschalter.
+   Animation: Breite der Leiste (Desktop) bzw. Zeilenhoehe (gestapelt),
+   Inhalt blendet per opacity aus. .is-animated wird erst nach dem
+   Startzustand gesetzt, damit nichts beim Laden einklappt. */
 .with-aside {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
@@ -1558,6 +1561,9 @@ details.disclosure > summary:hover { background: var(--surface-hover); color: va
     box-shadow: var(--shadow-sm);
     overflow: hidden;
 }
+.news-aside.is-animated {
+    transition: width var(--dur-slow) var(--ease-standard);
+}
 .news-aside.collapsed { width: 44px; }
 
 .news-aside-toggle {
@@ -1565,7 +1571,8 @@ details.disclosure > summary:hover { background: var(--surface-hover); color: va
     align-items: center;
     gap: var(--space-2);
     width: 100%;
-    padding: var(--space-3);
+    height: 44px;
+    padding: 0 var(--space-3);
     background: transparent;
     border: none;
     border-bottom: 1px solid var(--border);
@@ -1575,19 +1582,34 @@ details.disclosure > summary:hover { background: var(--surface-hover); color: va
     font-weight: var(--font-weight-semibold);
     letter-spacing: var(--ls-caps);
     text-transform: uppercase;
+    white-space: nowrap;
     cursor: pointer;
 }
 .news-aside-toggle:hover { color: var(--text); background: var(--surface-hover); }
 .news-aside-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
-.news-aside-chevron { transition: transform var(--dur-base) var(--ease-standard); }
-.news-aside:not(.collapsed) .news-aside-chevron { transform: rotate(0deg); }
+.news-aside-chevron {
+    display: inline-block;
+    width: 16px;
+    text-align: center;
+    flex: none;
+}
+.news-aside.is-animated .news-aside-chevron,
+.news-aside.is-animated .news-aside-toggle-label,
+.news-aside.is-animated .news-aside-inner {
+    transition: transform var(--dur-slow) var(--ease-standard),
+                opacity var(--dur-base) var(--ease-standard),
+                visibility 0s linear var(--dur-slow);
+}
 .news-aside.collapsed .news-aside-chevron { transform: rotate(180deg); }
-/* Eingeklappt nur den Pfeil zeigen; Beschriftung und Inhalt weg. */
-.news-aside.collapsed .news-aside-toggle { justify-content: center; padding: var(--space-3) 0; border-bottom: none; }
 .news-aside.collapsed .news-aside-toggle-label,
-.news-aside.collapsed .news-aside-body { display: none; }
+.news-aside.collapsed .news-aside-inner {
+    opacity: 0;
+    visibility: hidden;   /* nicht fokussierbar, sobald ausgeblendet */
+}
 
-.news-aside-body { padding: var(--space-4); }
+/* Inhalt behaelt feste Breite, damit der Text beim Zuklappen nicht umbricht. */
+.news-aside-body { display: grid; grid-template-rows: 1fr; }
+.news-aside-inner { width: 298px; min-height: 0; overflow: hidden; padding: var(--space-4); }
 .news-aside-head {
     display: flex;
     align-items: center;
@@ -1612,11 +1634,24 @@ details.disclosure > summary:hover { background: var(--surface-hover); color: va
 .news-link-name { color: var(--text); font-size: var(--fs-sm); font-weight: var(--font-weight-semibold); }
 .news-link-text { color: var(--text-dim); font-size: var(--fs-xs); line-height: var(--lh-snug); }
 
+/* Gestapelt: volle Breite, Einklappen ueber die Zeilenhoehe. */
 @media (max-width: 1180px) {
     .with-aside { grid-template-columns: minmax(0, 1fr); }
     .news-aside, .news-aside.collapsed { position: static; width: auto; }
-    .news-aside.collapsed .news-aside-toggle { justify-content: flex-start; padding: var(--space-3); }
+    .news-aside.is-animated { transition: none; }
+    .news-aside-inner { width: auto; }
+    .news-aside.is-animated .news-aside-body {
+        transition: grid-template-rows var(--dur-slow) var(--ease-standard);
+    }
+    .news-aside.collapsed .news-aside-body { grid-template-rows: 0fr; }
+    .news-aside.collapsed .news-aside-inner { padding-top: 0; padding-bottom: 0; }
+    .news-aside.collapsed .news-aside-toggle-label { opacity: 1; visibility: visible; }
 }
 @media (prefers-reduced-motion: reduce) {
-    .news-aside-chevron, .news-link { transition: none; }
+    .news-aside.is-animated,
+    .news-aside.is-animated .news-aside-body,
+    .news-aside.is-animated .news-aside-chevron,
+    .news-aside.is-animated .news-aside-toggle-label,
+    .news-aside.is-animated .news-aside-inner,
+    .news-link { transition: none; }
 }

@@ -20,6 +20,7 @@
   </button>
 
   <div class="news-aside-body" id="news-aside-body">
+  <div class="news-aside-inner">
     <div class="news-aside-head">
       <h5>Aktuelle Unternehmensmeldungen</h5>
       <span class="badge badge-yellow">Platzhalter</span>
@@ -37,6 +38,7 @@
       {% endfor %}
     </ul>
   </div>
+  </div>
 </aside>
 
 <script>
@@ -49,9 +51,21 @@
   function apply(collapsed) {
     aside.classList.toggle('collapsed', collapsed);
     btn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
-    // Plotly-Charts an die neue Breite anpassen, sobald das Layout steht.
-    setTimeout(function () { window.dispatchEvent(new Event('resize')); }, 260);
   }
+
+  var start = false;
+  try { start = localStorage.getItem(KEY) === '1'; } catch (e) {}
+  apply(start);
+  // Animation erst nach dem Startzustand freischalten, sonst klappt die
+  // Leiste beim Laden sichtbar ein.
+  requestAnimationFrame(function () { aside.classList.add('is-animated'); });
+
+  // Plotly-Charts erst an die Endbreite anpassen, nicht pro Frame.
+  aside.addEventListener('transitionend', function (e) {
+    if (e.target === aside && e.propertyName === 'width') {
+      window.dispatchEvent(new Event('resize'));
+    }
+  });
 
   var start = false;
   try { start = localStorage.getItem(KEY) === '1'; } catch (e) {}
