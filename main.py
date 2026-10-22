@@ -46,8 +46,8 @@ async def lifespan(app: FastAPI):
 # ---------------------------------------------------------------------------
 
 app = FastAPI(
-    title="Macro Dashboard",
-    description="Trading Macro Dashboard -- FastAPI + Jinja2 + HTMX",
+    title="Stocks OS",
+    description="Stocks OS -- FastAPI + Jinja2 + HTMX",
     version="2.0.0",
     lifespan=lifespan,
 )
@@ -94,6 +94,23 @@ def get_header_metrics() -> list[dict]:
 # ---------------------------------------------------------------------------
 
 templates.env.globals["header_metrics_fn"] = get_header_metrics
+
+
+def static_url(path: str) -> str:
+    """URL einer statischen Datei mit Versionsparameter (Datei-mtime).
+
+    StaticFiles sendet kein Cache-Control; Chromium cacht CSS/JS dann
+    heuristisch und zeigt nach einer Aenderung weiter die alte Fassung.
+    Der mtime-Parameter erzwingt bei jeder Aenderung eine neue URL.
+    """
+    try:
+        version = int(os.path.getmtime(os.path.join(_PROJECT_ROOT, "static", path)))
+    except OSError:
+        return f"/static/{path}"
+    return f"/static/{path}?v={version}"
+
+
+templates.env.globals["static_url"] = static_url
 
 
 # ---------------------------------------------------------------------------

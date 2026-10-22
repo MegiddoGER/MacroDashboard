@@ -189,7 +189,9 @@
 <!-- ═══ Technische Analyse — Indikator-Checkliste ═══ -->
 {% if enriched_checklist %}
 <div class="expander" style="margin-bottom: 16px;">
-  <div class="expander-header" onclick="this.parentElement.classList.toggle('open')">
+  {# Kein eigenes onclick: base.html schaltet .expander global um — ein
+     zweiter Umschalter hier hob den ersten auf, der Expander blieb zu. #}
+  <div class="expander-header">
     <span>Detaillierte Indikatoren-Checkliste einblenden</span>
     <span class="expander-chevron">▼</span>
   </div>

@@ -4,7 +4,7 @@
  * Einzige Quelle der Wahrheit für Farben, Flächen, Typografie, Abstände,
  * Radien, Elevation und Motion. Änderungen hier wirken auf das gesamte
  * Dashboard. Reihenfolge der Stylesheets: tokens → layout → components →
- * sidebar → motion.
+ * topnav → motion.
  *
  * Grundsätze:
  *   - Dichte Datenoberfläche: Lesbarkeit schlägt Dekoration.
@@ -34,8 +34,33 @@
     --surface-active:     rgba(148, 163, 184, 0.10);
 
     --bg-card:            var(--surface-1);
+    /* App-Chrom: Kopfleiste UND angedockte Seitenleisten. Gleiche Fläche,
+       damit alles, was den Inhalt rahmt, als eine Ebene liest. */
     --bg-topbar:          rgba(7, 12, 22, 0.94);
     --bg-topbar-solid:    #070c16;
+    /* Kopfzeile von Tabellen: klebt beim Scrollen über den Zeilen und
+       muss deshalb fast deckend sein */
+    --surface-sticky:     rgba(11, 18, 32, 0.94);
+
+    /* Tabellenzeilen: Trennlinie, Zebra, Hover — bewusst knapp über der
+       Wahrnehmungsschwelle, damit die Zahlen die Fläche dominieren */
+    --divider:            rgba(148, 163, 184, 0.07);
+    --row-stripe:         rgba(148, 163, 184, 0.022);
+    --row-hover:          rgba(148, 163, 184, 0.055);
+    --row-hover-stripe:   rgba(148, 163, 184, 0.065);
+
+    /* Schleier über veralteten Werten, solange eine Neuberechnung läuft
+       (.load-target in motion.css). Dämpft auf etwa die Hälfte — die
+       alten Zahlen bleiben erkennbar, lesen sich aber nicht als aktuell. */
+    --veil:               rgba(9, 14, 25, 0.58);
+
+    /* Skeleton-Platzhalter: Grundton + wandernde Lichtkante */
+    --skeleton-base:      rgba(148, 163, 184, 0.07);
+    --skeleton-sheen:     rgba(148, 163, 184, 0.09);
+
+    /* Scrollbalken: zurückhaltend, nie heller als ein Label */
+    --scrollbar-thumb:       rgba(148, 163, 184, 0.20);
+    --scrollbar-thumb-hover: rgba(148, 163, 184, 0.38);
 
     /* Kompatibilitäts-Aliase (werden in Templates direkt referenziert) */
     --bg-primary:         var(--bg-app-mid);
@@ -62,6 +87,7 @@
        gegen den App-Hintergrund und damit über die WCAG-AA-Schwelle. */
     --text-muted:         #74859c;   /* Captions, deaktivierte Werte  */
     --text-on-accent:     #04121c;   /* Text auf gefüllten Akzenten   */
+    --text-on-solid:      #ffffff;   /* Text auf satten Farbflächen   */
 
     /* ═══════════════════════════════════════════════════════════
        4. Akzent
@@ -72,6 +98,7 @@
     --accent-glow:        rgba(0, 212, 170, 0.60);
     --accent-soft:        rgba(0, 212, 170, 0.12);
     --accent-softer:      rgba(0, 212, 170, 0.07);
+    --accent-bright:      #45f0cf;   /* Lichtkante im Hover von .btn-primary */
 
     /* ═══════════════════════════════════════════════════════════
        5. Status- und Datenfarben (auf plotly_dark abgestimmt)
@@ -81,6 +108,9 @@
     --yellow:             #eab308;
     --blue:               #3b82f6;
     --purple:             #a855f7;
+    --purple-light:       #b06bf8;   /* Verlaufsanfang .btn-purple          */
+    --purple-bright:      #bd85f9;   /* dto. im Hover                       */
+    --purple-deep:        #9333ea;   /* Verlaufsende/Glanz im Hover         */
     --sky:                #87ceeb;
 
     /* Aufgehellte Varianten für Text auf dunklen Flächen (Kontrast) */
@@ -182,6 +212,12 @@
     --content-max:   1640px;
     --control-h:     34px;      /* einheitliche Höhe für Buttons/Inputs */
     --control-h-sm:  28px;
+    /* Angedockte Seitenleiste (Unternehmensmeldungen) */
+    --dock-width:    330px;     /* aufgeklappt                          */
+    --dock-rail:     48px;      /* eingeklappte Leiste                  */
+    --dock-head-h:   44px;      /* Kopfzeile mit Pfeil                  */
+    --dock-gap:      var(--space-4); /* Abstand Inhalt ↔ Leiste (+ Scrollleiste) */
+    --scrollbar-w:   9px;       /* Breite der eigenen Scrollleisten     */
 
     /* ═══════════════════════════════════════════════════════════
        9. Elevation
@@ -198,24 +234,74 @@
     --shadow-xl:  0 28px 64px -18px rgba(2, 6, 23, 0.75),
                   0 10px 24px -10px rgba(2, 6, 23, 0.50);
 
-    /* Fokus- und Akzentringe */
+    /* Angedockte Seitenleiste: Schatten fällt nach links auf den Inhalt.
+       --shadow-float, wenn die Leiste auf schmalen Fenstern über dem
+       Inhalt schwebt und sich klar davon abheben muss. */
+    --shadow-dock:  -8px 0 24px -12px rgba(2, 6, 23, 0.60);
+    --shadow-float: -24px 0 48px -16px rgba(2, 6, 23, 0.85),
+                    -2px 0 8px -2px rgba(2, 6, 23, 0.50);
+
+    /* Fokus (Tastatur): ein einziger, durchgängiger Ring. Volle
+       Akzentfarbe statt Halbtransparenz — der 3:1-Kontrast für
+       Fokusindikatoren (WCAG 2.2) wäre mit 20 % Deckkraft verfehlt. */
+    --focus-width:  2px;
+    --focus-color:  var(--accent);
+    --focus-offset: 2px;
+
+    /* Fokus- und Akzentringe (Eingabefelder: Rand + weicher Hof) */
     --ring-accent: 0 0 0 3px rgba(0, 212, 170, 0.20);
     --ring-danger: 0 0 0 3px rgba(225, 29, 72, 0.22);
     --glow-accent: 0 6px 20px -8px rgba(0, 212, 170, 0.55);
 
     /* ═══════════════════════════════════════════════════════════
        10. Motion
-       Kurz, zweckgebunden, ausschließlich transform/opacity.
-       Nichts darf das Ablesen einer Zahl verzögern.
+       Ruhig und weich, ausschließlich transform/opacity (Ausnahme:
+       die Breite angedockter Leisten). Weiche Anfangs- und Endphase
+       statt hartem Anlauf — auf Wunsch des Nutzers bewusst langsamer
+       als ein reines Terminal-Timing. Kein Federn, kein Überschwingen.
+       Austritte bleiben kürzer als Eintritte.
        ═══════════════════════════════════════════════════════════ */
-    --dur-instant: 90ms;    /* Farbwechsel, Fokusringe               */
-    --dur-fast:    140ms;   /* Hover-Feedback                        */
-    --dur-base:    190ms;   /* Eintritt von Inhalten                 */
-    --dur-slow:    240ms;   /* Aus-/Einklappen, Overlays             */
+    --dur-instant: 160ms;   /* Drücken, Zeilen-Hover                 */
+    --dur-exit:    320ms;   /* Austritt: Menüs, Toasts, Faltinhalt   */
+    --dur-fast:    320ms;   /* Hover-/Fokus-Feedback                 */
+    --dur-base:    600ms;   /* Eintritt von Inhalten                 */
+    --dur-slow:    900ms;   /* Aus-/Einklappen, Overlays             */
 
-    --ease-standard: cubic-bezier(0.2, 0, 0, 1);      /* Standardweg */
+    /* Alle Kurven ohne Überschwingen (keine Werte > 1 im 2./4. Punkt
+       der y-Achse, die zurückfedern) */
+    --ease-standard: cubic-bezier(0.45, 0, 0.15, 1);  /* Standardweg: weicher Anlauf, langes Auslaufen */
     --ease-out:      cubic-bezier(0.16, 1, 0.3, 1);   /* Eintritt    */
-    --ease-in:       cubic-bezier(0.4, 0, 1, 1);      /* Austritt    */
+    --ease-in:       cubic-bezier(0.32, 0, 0.67, 0);  /* Austritt: sanft beschleunigend */
+    --ease-fold:     cubic-bezier(0.65, 0, 0.25, 1);  /* Klappen: weich an beiden Enden */
+
+    /* Bewegungsrollen: Dauer + Kurve als Paar. In transition-Listen
+       verwenden, z.B. `color var(--motion-feedback)`. Wer die Rolle
+       kennt, braucht keine Zahlen — und alle Rollen folgen den
+       Dauer-Tokens, also auch deren Reduktion (siehe unten). */
+    --motion-press:    var(--dur-instant) var(--ease-standard); /* :active, Zeilen */
+    --motion-feedback: var(--dur-fast)    var(--ease-standard); /* Hover, Fokus    */
+    --motion-enter:    var(--dur-base)    var(--ease-out);      /* Eintritt        */
+    --motion-exit:     var(--dur-exit)    var(--ease-in);       /* Austritt        */
+    --motion-fold:     var(--dur-slow)    var(--ease-fold);     /* Klappen, Panels */
+
+    /* Wege: wenige Pixel, nie mehr — Bewegung ordnet, sie reist nicht */
+    --shift-sm:    6px;     /* Menüs, Faltinhalt, Austausch          */
+    --shift-md:    10px;     /* Eintritt von Flächen                  */
+    --lift-hover: -2px;     /* klickbare Karten heben sich an        */
+    --press-scale: 0.98;    /* Drücken von Buttons                   */
+
+    /* Staffelung in Rastern: 5 Stufen à 60 ms ⇒ höchstens 240 ms */
+    --stagger-step: 60ms;
+
+    /* Endlosschleifen (Ladezustände). Werden bei Bewegungsarmut nicht
+       per Token, sondern in motion.css gesondert verlangsamt/stillgelegt. */
+    --loop-spin:     700ms;    /* Spinner                            */
+    --loop-shimmer:  1400ms;   /* Skeleton-Lichtkante                */
+    --loop-progress: 1200ms;   /* unbestimmter Fortschrittsbalken    */
+
+    /* Toast: Standzeit bis zum Austritt; base.html entfernt den
+       Knoten nach 4000 ms — Standzeit + --dur-exit muss darunter liegen. */
+    --toast-life:  3500ms;
 
     /* Kompatibilitäts-Aliase (in Templates/Altcode referenziert) */
     --transition-fast:   all var(--dur-fast) var(--ease-standard);
@@ -245,9 +331,16 @@
 @media (prefers-reduced-motion: reduce) {
     :root {
         --dur-instant: 1ms;
+        --dur-exit:    1ms;
         --dur-fast:    1ms;
         --dur-base:    1ms;
         --dur-slow:    1ms;
+        --stagger-step: 0ms;
+        /* Wege auf null: selbst ein 1-ms-Sprung um 6px wäre ein Ruck */
+        --shift-sm:    0px;
+        --shift-md:    0px;
+        --lift-hover:  0px;
+        --press-scale: 1;
         --transition-fast:   none;
         --transition-normal: none;
         --transition-slow:   none;

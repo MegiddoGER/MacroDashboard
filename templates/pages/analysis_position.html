@@ -1,10 +1,8 @@
 {% extends "base.html" %}
 
-{% block title %}Positions-Analyse — MacroDashboard{% endblock %}
+{% block title %}Positions-Analyse — Stocks OS{% endblock %}
 
 {% block content %}
-<div class="with-aside">
-<div class="with-aside-main">
 <a href="/analysis" class="btn btn-secondary btn-sm" style="margin-bottom: 16px; display: inline-flex; align-items: center; gap: 6px;">
     <span>←</span> Zurück zur Übersicht
 </a>
@@ -24,7 +22,7 @@
   <div id="tab-mode-portfolio" class="tab-content active">
     {% if open_positions and open_positions|length > 0 %}
     <form hx-post="/analysis/position/load" hx-target="#position-analysis-content"
-          hx-indicator="#pos-loading" hx-swap="innerHTML">
+          hx-indicator="#pos-loading, #position-analysis-content" hx-swap="innerHTML">
       <div class="form-group" style="max-width:600px;">
         <label>Position auswählen</label>
         <select name="position_select" class="form-select" id="pos-select"
@@ -72,7 +70,7 @@
   <!-- ═══ Mode B: Manuelle Eingabe ═══ -->
   <div id="tab-mode-manual" class="tab-content">
     <form hx-post="/analysis/position/load" hx-target="#position-analysis-content"
-          hx-indicator="#pos-loading" hx-swap="innerHTML">
+          hx-indicator="#pos-loading, #position-analysis-content" hx-swap="innerHTML">
 
       <div class="grid-2" style="gap:16px;max-width:700px;">
         <div class="form-group" style="position: relative;">
@@ -114,14 +112,19 @@
   </div>
 </div>
 
-<!-- ═══ Loading Indicator ═══ -->
-<div id="pos-loading" class="loading-overlay htmx-indicator" style="display:none;">
+<!-- ═══ Loading Indicator ═══
+     Sichtbarkeit steuert .htmx-indicator (motion.css). Das fruehere
+     Inline-display:none hielt die Anzeige dauerhaft verborgen. -->
+<div id="pos-loading" class="loading-overlay htmx-indicator">
   <div class="spinner"></div>
   <span>Analyse wird geladen…</span>
 </div>
 
-<!-- ═══ Results Container (HTMX target) ═══ -->
-<div id="position-analysis-content"></div>
+<!-- ═══ Results Container (HTMX target) ═══
+     .load-target: Skeleton-Vorschau bzw. Schleier waehrend der Anfrage. -->
+<div id="position-analysis-content" class="load-target">
+  {% include "partials/skeleton_preview.html" %}
+</div>
 
 <!-- ═══ JS: Portfolio-Dropdown → versteckte Felder befüllen ═══ -->
 <script>
@@ -175,7 +178,6 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 </script>
-</div>
-{% include "partials/news_sidebar.html" %}
-</div>
 {% endblock %}
+
+{% block aside %}{% include "partials/news_sidebar.html" %}{% endblock %}

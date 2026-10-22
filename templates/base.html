@@ -5,16 +5,21 @@
     <meta name="google" content="notranslate">
     <meta http-equiv="content-language" content="de">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Macro Dashboard{% endblock %}</title>
+    <title>{% block title %}Stocks OS{% endblock %}</title>
+    <link rel="icon" href="{{ static_url('img/favicon.ico') }}" sizes="any">
+    <link rel="icon" href="{{ static_url('img/icon.svg') }}" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="{{ static_url('img/icon-192.png') }}">
 
     <!-- CSS — Reihenfolge ist bedeutsam: tokens → layout → components → topnav → motion -->
-    <link rel="stylesheet" href="/static/css/tokens.css">
-    <link rel="stylesheet" href="/static/css/layout.css">
-    <link rel="stylesheet" href="/static/css/components.css">
-    <link rel="stylesheet" href="/static/css/topnav.css">
-    <link rel="stylesheet" href="/static/css/motion.css">
+    <link rel="stylesheet" href="{{ static_url('css/tokens.css') }}">
+    <link rel="stylesheet" href="{{ static_url('css/layout.css') }}">
+    <link rel="stylesheet" href="{{ static_url('css/components.css') }}">
+    <link rel="stylesheet" href="{{ static_url('css/topnav.css') }}">
+    <link rel="stylesheet" href="{{ static_url('css/motion.css') }}">
 
-    <!-- HTMX -->
+    <!-- HTMX — eingebaute Indikator-Styles aus: motion.css definiert den
+         Indikator vollständig (HTMX würde sonst feste 200 ms nachschieben) -->
+    <meta name="htmx-config" content='{"includeIndicatorStyles": false}'>
     <script src="https://unpkg.com/htmx.org@2.0.4"
             integrity="sha384-HGfztofotfshcF7+8n44JQL2oJmowVChPTg48S+jvZoztPfvwD79OC/LTtG6dMp+"
             crossorigin="anonymous"></script>
@@ -28,9 +33,12 @@
         {% include "partials/topnav.html" %}
 
         <!-- ═══ Main Content ═══ -->
-        <main class="main-content" id="main-content">
-            {% block content %}{% endblock %}
-        </main>
+        <div class="app-body">
+            <main class="main-content" id="main-content">
+                {% block content %}{% endblock %}
+            </main>
+            {% block aside %}{% endblock %}
+        </div>
     </div>
 
     <!-- Toast Container -->
@@ -114,6 +122,8 @@
             const container = document.getElementById('toast-container');
             const toast = document.createElement('div');
             toast.className = 'toast toast-' + type;
+            // Fehler unterbrechen die Sprachausgabe, alles andere nicht
+            toast.setAttribute('role', type === 'error' ? 'alert' : 'status');
             toast.textContent = message;
             container.appendChild(toast);
             setTimeout(() => toast.remove(), 4000);

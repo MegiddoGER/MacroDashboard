@@ -1,5 +1,5 @@
 """
-launcher.py — Startet das Macro Dashboard als natives Desktop-Fenster mit Tray Icon.
+launcher.py — Startet Stocks OS als natives Desktop-Fenster mit Tray Icon.
 
 Nutzt Microsoft Edge (oder Chrome) im App-Modus, sodass das Dashboard
 wie eine native Desktop-Anwendung aussieht (ohne Adressleiste, Tabs etc.).
@@ -63,13 +63,16 @@ def _find_browser() -> str | None:
     return None
 
 def create_icon_image():
-    """Erzeugt ein simples Icon für den System Tray (blaues Viereck mit weißem M)."""
-    image = Image.new('RGB', (64, 64), color=(30, 41, 59))
-    dc = ImageDraw.Draw(image)
-    # Simple Zentrierung
-    dc.text((22, 18), "M", fill=(255, 255, 255), align="center")
-    # Alternativ einfach ein farbiges Quadrat falls Schriftarten fehlen
-    return image
+    """Tray-Icon: dasselbe Symbol wie Favicon/Fenster (static/img/icon-64.png).
+    Fehlt die Datei, ein schlichtes Ersatzsymbol in denselben Farben."""
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "img", "icon-64.png")
+    try:
+        return Image.open(path)
+    except OSError:
+        image = Image.new('RGB', (64, 64), color=(11, 20, 36))
+        ImageDraw.Draw(image).line([(14, 44), (26, 31), (36, 38), (50, 20)],
+                                   fill=(0, 212, 170), width=6)
+        return image
 
 
 browser_procs: list[subprocess.Popen] = []
@@ -93,6 +96,10 @@ def open_browser():
         "--disable-extensions",
         "--disable-infobars",
         "--disable-features=TranslateUI",
+        # Windows-„Animationseffekte" aus => Edge meldet prefers-reduced-motion
+        # und die App schaltet jede Bewegung auf 1 ms. Für das App-Fenster
+        # ausdrücklich gewünscht anders; gilt nur für diesen Browserprozess.
+        "--force-prefers-no-reduced-motion",
         "--no-first-run",
         "--no-default-browser-check",
     ])
@@ -142,11 +149,11 @@ def main():
         icon.stop()
 
     menu = pystray.Menu(
-        item('Dashboard Öffnen', on_open_clicked, default=True),
+        item('Stocks OS öffnen', on_open_clicked, default=True),
         item('Beenden', on_quit_clicked)
     )
 
-    icon = pystray.Icon("MacroDashboard", create_icon_image(), "Macro Dashboard", menu)
+    icon = pystray.Icon("StocksOS", create_icon_image(), "Stocks OS", menu)
 
     # 5. Monitor Thread: Überwacht ob der Server stirbt
     def monitor_process():

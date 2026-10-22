@@ -1,43 +1,62 @@
-{# Einklappbare Seitenleiste „Unternehmensmeldungen" — PLATZHALTER.
-   Statische Schnelllinks mit Kurzbeschreibung. Spaeter koennen hier
-   ticker-bezogene Meldungen stehen (dann Quellen ueber services/news.py
-   und cached_*-Wrapper liefern, nicht ad hoc im Template).
+{# Andockbare Seitenleiste „Unternehmensmeldungen" — PLATZHALTER.
+   Sitzt am rechten Fensterrand ueber die volle Hoehe unter der Navigation
+   (Block `aside` in base.html), nicht im Seiteninhalt.
+   Statische Schnelllinks; spaeter ticker-bezogene Meldungen ueber
+   services/news.py und einen cached_*-Wrapper einhaengen, nicht ad hoc hier.
    Eingebunden in pages/analysis.html und pages/analysis_position.html. #}
 {% set news_quellen = [
-    {"name": "Reuters", "url": "https://www.reuters.com/business/",
+    {"name": "Reuters", "kurz": "R", "ton": "orange", "url": "https://www.reuters.com/business/",
+     "bereich": "Wirtschaft",
      "text": "Internationale Wirtschafts- und Unternehmensmeldungen, Quartalszahlen, M&A."},
-    {"name": "WirtschaftsWoche", "url": "https://www.wiwo.de/finanzen/",
+    {"name": "WirtschaftsWoche", "kurz": "W", "ton": "blue", "url": "https://www.wiwo.de/finanzen/",
+     "bereich": "Finanzen",
      "text": "Hintergruende und Einordnung zu deutschen Unternehmen und Maerkten."},
-    {"name": "Der Aktionaer", "url": "https://www.deraktionaer.de/",
+    {"name": "Der Aktionaer", "kurz": "A", "ton": "green", "url": "https://www.deraktionaer.de/",
+     "bereich": "Aktien",
      "text": "Aktuelle Meldungen und Einschaetzungen zu einzelnen Aktien."},
 ] %}
 <aside class="news-aside" id="news-aside" aria-label="Unternehmensmeldungen">
   <button type="button" class="news-aside-toggle" id="news-aside-toggle"
-          aria-expanded="true" aria-controls="news-aside-body"
+          aria-expanded="true" aria-controls="news-aside-inner"
           title="Seitenleiste ein-/ausklappen">
     <span class="news-aside-chevron" aria-hidden="true">›</span>
     <span class="news-aside-toggle-label">Meldungen</span>
   </button>
 
-  <div class="news-aside-body" id="news-aside-body">
-  <div class="news-aside-inner">
+  <div class="news-aside-inner" id="news-aside-inner">
     <div class="news-aside-head">
-      <h5>Aktuelle Unternehmensmeldungen</h5>
+      <h5>Unternehmensmeldungen</h5>
       <span class="badge badge-yellow">Platzhalter</span>
     </div>
-    <p class="caption">Schnellzugriff auf Nachrichtenquellen. Spaeter erscheinen hier Meldungen zur gewaehlten Aktie.</p>
 
-    <ul class="news-link-list">
-      {% for q in news_quellen %}
-      <li>
-        <a class="news-link" href="{{ q.url }}" target="_blank" rel="noopener noreferrer">
-          <span class="news-link-name">{{ q.name }} <span aria-hidden="true">↗</span></span>
-          <span class="news-link-text">{{ q.text }}</span>
-        </a>
-      </li>
-      {% endfor %}
-    </ul>
-  </div>
+    <div class="news-aside-section">
+      <div class="news-aside-label">Nachrichtenquellen</div>
+      <ul class="news-link-list">
+        {% for q in news_quellen %}
+        <li>
+          <a class="news-link" href="{{ q.url }}" target="_blank" rel="noopener noreferrer">
+            <span class="news-mark news-mark-{{ q.ton }}" aria-hidden="true">{{ q.kurz }}</span>
+            <span class="news-link-body">
+              <span class="news-link-top">
+                <span class="news-link-name">{{ q.name }}</span>
+                <span class="news-link-tag">{{ q.bereich }}</span>
+              </span>
+              <span class="news-link-text">{{ q.text }}</span>
+            </span>
+            <span class="news-link-out" aria-hidden="true">↗</span>
+          </a>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+
+    <div class="news-aside-section">
+      <div class="news-aside-label">Zur gewaehlten Aktie</div>
+      <div class="news-empty">
+        <span class="news-empty-title">Noch keine Meldungen</span>
+        <span class="news-empty-text">Hier erscheinen spaeter aktuelle Unternehmensmeldungen zum analysierten Titel.</span>
+      </div>
+    </div>
   </div>
 </aside>
 
@@ -53,8 +72,13 @@
     btn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
   }
 
-  var start = false;
-  try { start = localStorage.getItem(KEY) === '1'; } catch (e) {}
+  // Gespeicherte Wahl gilt; ohne sie startet die Leiste auf schmalen
+  // Fenstern eingeklappt, damit sie den Inhalt nicht verdeckt.
+  var start = window.matchMedia('(max-width: 1180px)').matches;
+  try {
+    var saved = localStorage.getItem(KEY);
+    if (saved !== null) start = saved === '1';
+  } catch (e) {}
   apply(start);
   // Animation erst nach dem Startzustand freischalten, sonst klappt die
   // Leiste beim Laden sichtbar ein.
@@ -67,14 +91,25 @@
     }
   });
 
-  var start = false;
-  try { start = localStorage.getItem(KEY) === '1'; } catch (e) {}
-  apply(start);
-
-  btn.addEventListener('click', function () {
-    var collapsed = !aside.classList.contains('collapsed');
+  function setCollapsed(collapsed) {
     apply(collapsed);
     try { localStorage.setItem(KEY, collapsed ? '1' : '0'); } catch (e) {}
+  }
+
+  btn.addEventListener('click', function () {
+    setCollapsed(!aside.classList.contains('collapsed'));
+  });
+
+  // Schwebt die Leiste ueber dem Inhalt (schmale Fenster), schliesst
+  // Escape sie wie ein Menue der Kopfleiste; der Fokus geht zurueck auf
+  // den Knopf. Angedockt verdeckt sie nichts — dort bleibt Escape frei.
+  var floating = window.matchMedia('(max-width: 1180px)');
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Escape' || !floating.matches) return;
+    if (aside.classList.contains('collapsed')) return;
+    if (document.querySelector('.topnav-item.open')) return;
+    setCollapsed(true);
+    btn.focus();
   });
 })();
 </script>

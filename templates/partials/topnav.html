@@ -4,8 +4,8 @@
 
     <!-- ═══ Marke ═══ -->
     <a class="topbar-brand" href="/">
-        Analyzer
-        <span class="topbar-brand-sub">Macro Dashboard</span>
+        <img class="topbar-brand-mark" src="{{ static_url('img/icon.svg') }}" alt="" width="26" height="26">
+        Stocks OS
     </a>
 
     <!-- ═══ Navigation ═══ -->
@@ -111,7 +111,12 @@
                      hx-get="/api/watchlist/items"
                      hx-trigger="load"
                      hx-swap="innerHTML">
-                    <!-- Watchlist items loaded via HTMX -->
+                    <!-- Platzhalter bis zum ersten Abruf (wird per innerHTML ersetzt) -->
+                    <div class="skeleton-stack wl-skeleton" aria-hidden="true">
+                        <span class="skeleton skeleton-line"></span>
+                        <span class="skeleton skeleton-line"></span>
+                        <span class="skeleton skeleton-line"></span>
+                    </div>
                 </div>
             </div>
         </div>

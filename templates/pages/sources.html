@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Datenquellen & Methodik — Macro Dashboard{% endblock %}
+{% block title %}Datenquellen & Methodik — Stocks OS{% endblock %}
 {% block content %}
 <div class="page-header">
   <h2> Datenquellen & Methodik</h2>
@@ -1345,7 +1345,9 @@
   background: var(--bg-card); border: 1px solid var(--border);
   color: var(--text-dim); cursor: pointer; font-size: 0.85rem;
   font-weight: var(--font-weight-medium);
-  transition: var(--transition-fast);
+  transition: color var(--motion-feedback),
+              background-color var(--motion-feedback),
+              border-color var(--motion-feedback);
 }
 .src-pill:hover { border-color: var(--accent); color: var(--text); }
 .src-pill.active {
@@ -1361,9 +1363,10 @@
 .src-summary-card {
   background: var(--bg-card); border: 1px solid var(--border);
   border-radius: var(--radius-md); padding: 20px; text-align: center;
-  transition: var(--transition-fast);
+  transition: border-color var(--motion-feedback);
 }
-.src-summary-card:hover { border-color: var(--border-subtle); transform: translateY(-2px); }
+/* Kein Anheben: die Kacheln sind Kennzahlen, keine Klickziele */
+.src-summary-card:hover { border-color: var(--border-subtle); }
 .src-summary-card--accent { border-color: var(--yellow); }
 .src-summary-card--accent .src-summary-number { color: var(--yellow); }
 .src-summary-number {
@@ -1382,7 +1385,7 @@
 .src-entry {
   background: var(--bg-card); border: 1px solid var(--border);
   border-radius: var(--radius-md); margin-bottom: 12px;
-  overflow: hidden; transition: var(--transition-fast);
+  overflow: hidden; transition: border-color var(--motion-feedback);
 }
 .src-entry:hover { border-color: var(--border-subtle); }
 .src-entry.hidden { display: none; }
@@ -1404,7 +1407,7 @@
 }
 .src-chevron {
   color: var(--text-muted); font-size: 0.7rem;
-  transition: transform 0.2s ease;
+  transition: transform var(--motion-feedback);
 }
 .src-entry.open .src-chevron { transform: rotate(180deg); }
 
@@ -1422,7 +1425,9 @@
 /* ── Collapsible Body ── */
 .src-body {
   display: grid; grid-template-rows: 0fr;
-  transition: grid-template-rows 0.3s ease;
+  /* Einzelner Eintrag auf Klick — die Zeilen-Animation bleibt hier
+     vertretbar, läuft aber auf der Klapp-Rolle */
+  transition: grid-template-rows var(--motion-fold);
 }
 .src-entry.open .src-body { grid-template-rows: 1fr; }
 .src-body-inner { overflow: hidden; }
@@ -1515,7 +1520,7 @@
 }
 .src-weight-bar {
   height: 8px; border-radius: 4px; display: inline-block;
-  min-width: 8px; transition: width 0.4s ease;
+  min-width: 8px; transition: width var(--motion-fold);
 }
 </style>
 

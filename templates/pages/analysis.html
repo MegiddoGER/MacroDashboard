@@ -1,16 +1,14 @@
 {% extends "base.html" %}
-{% block title %}Analyse — Macro Dashboard{% endblock %}
+{% block title %}Analyse — Stocks OS{% endblock %}
 
 {% block content %}
-<div class="with-aside">
-<div class="with-aside-main">
 <a href="/analysis" class="btn btn-secondary btn-sm" style="margin-bottom: 16px; display: inline-flex; align-items: center; gap: 6px;">
     <span>←</span> Zurück zur Übersicht
 </a>
 <div class="page-header">
     <h2> Aktien-Analyse</h2>
     <p class="caption">
-        Vollstaendige technische \u0026 fundamentale Analyse mit Scoring, Charts, SMC-Signalen und Handlungsempfehlung.
+        Vollstaendige technische &amp; fundamentale Analyse mit Scoring, Charts, SMC-Signalen und Handlungsempfehlung.
     </p>
 </div>
 
@@ -21,7 +19,7 @@
           hx-post="/analysis/load"
           hx-target="#analysis-content"
           hx-swap="innerHTML"
-          hx-indicator="#analysis-spinner"
+          hx-indicator="#analysis-spinner, #analysis-content"
           hx-disabled-elt="#analysis-form button[type=submit]"
           style="margin-top: 12px;">
 
@@ -91,16 +89,18 @@
 
 <hr>
 
-<!-- Analyse-Content (wird via HTMX befuellt) -->
-<div id="analysis-content">
+<!-- Analyse-Content (wird via HTMX befuellt). .load-target: zeigt waehrend
+     der Anfrage die Skeleton-Vorschau bzw. daempft ein altes Ergebnis
+     (motion.css) — deshalb steht das Ziel auch in hx-indicator. -->
+<div id="analysis-content" class="load-target">
     <div class="card empty-state">
         <p>Waehle einen Ticker und klicke <strong>Analyse starten</strong>.</p>
     </div>
+    {% include "partials/skeleton_preview.html" %}
 </div>
 
 {# .btn-group, .htmx-indicator und .spinner sind jetzt global definiert
    (components.css bzw. motion.css) — kein Seiten-Duplikat mehr nötig. #}
-</div>
-{% include "partials/news_sidebar.html" %}
-</div>
 {% endblock %}
+
+{% block aside %}{% include "partials/news_sidebar.html" %}{% endblock %}

@@ -45,21 +45,23 @@
     border-radius: var(--radius-lg);
     padding: var(--space-5);
     backdrop-filter: blur(10px);
-    transition: border-color var(--dur-fast) var(--ease-standard),
-                box-shadow var(--dur-fast) var(--ease-standard);
+    transition: border-color var(--motion-feedback),
+                box-shadow var(--motion-feedback);
 }
 .card:hover {
     border-color: var(--border-subtle);
 }
-/* Karte als Klickziel (Link/Button) — reagiert deutlicher */
+/* Karte als Klickziel (Link/Button) — reagiert deutlicher.
+   Anheben ist klickbaren Flächen vorbehalten: Was sich hebt, lässt
+   sich anklicken. Reine Datenflächen reagieren nur mit dem Rand. */
 .card-interactive {
     cursor: pointer;
-    transition: transform var(--dur-fast) var(--ease-standard),
-                border-color var(--dur-fast) var(--ease-standard),
-                box-shadow var(--dur-fast) var(--ease-standard);
+    transition: transform var(--motion-feedback),
+                border-color var(--motion-feedback),
+                box-shadow var(--motion-feedback);
 }
 .card-interactive:hover {
-    transform: translateY(-2px);
+    transform: translate3d(0, var(--lift-hover), 0);
     border-color: var(--border-accent);
     box-shadow: var(--shadow-lg);
 }
@@ -85,8 +87,8 @@
 .metric-card {
     border-radius: var(--radius-md);
     padding: var(--space-3) var(--space-4);
-    transition: border-color var(--dur-fast) var(--ease-standard),
-                background-color var(--dur-fast) var(--ease-standard);
+    transition: border-color var(--motion-feedback),
+                background-color var(--motion-feedback);
     min-width: 0;
 }
 .metric-card:hover {
@@ -206,7 +208,7 @@
     padding: var(--space-3) var(--space-3);
     text-align: left;
     white-space: nowrap;
-    background: rgba(11, 18, 32, 0.94);
+    background: var(--surface-sticky);
     border-bottom: 1px solid var(--border-subtle);
     position: sticky;
     top: 0;
@@ -217,7 +219,7 @@
 .table-wrapper > table tbody td,
 .table-container > table tbody td {
     padding: 9px var(--space-3);
-    border-bottom: 1px solid rgba(148, 163, 184, 0.07);
+    border-bottom: 1px solid var(--divider);
     color: var(--text-secondary);
     white-space: nowrap;
     vertical-align: middle;
@@ -229,23 +231,25 @@
 .data-table tbody td:first-child,
 .table-wrapper > table tbody td:first-child { color: var(--text); }
 
-/* Zeilen-Hover: nur Hintergrund + Akzentkante, kein Layoutwechsel */
+/* Zeilen-Hover: nur Hintergrund, kein Layoutwechsel. Kürzeste Rolle
+   (--motion-press): das Auge folgt der Maus über hunderte Zeilen, ein
+   Nachziehen der Markierung wäre dort Ballast. */
 .data-table tbody tr,
 .table-wrapper > table tbody tr {
-    transition: background-color var(--dur-instant) linear;
+    transition: background-color var(--motion-press);
 }
 .data-table tbody tr:hover,
 .table-wrapper > table tbody tr:hover {
-    background: rgba(148, 163, 184, 0.055);
+    background: var(--row-hover);
 }
 /* Zebra-Streifen sehr dezent — hilft beim Zeilenhalten */
 .data-table tbody tr:nth-child(even),
 .table-wrapper > table tbody tr:nth-child(even) {
-    background: rgba(148, 163, 184, 0.022);
+    background: var(--row-stripe);
 }
 .data-table tbody tr:nth-child(even):hover,
 .table-wrapper > table tbody tr:nth-child(even):hover {
-    background: rgba(148, 163, 184, 0.065);
+    background: var(--row-hover-stripe);
 }
 
 /* Status- und Textrollen in Zellen. Ohne diese Regeln würde die
@@ -300,7 +304,7 @@
     user-select: none;
     position: relative;
     padding-right: 22px;
-    transition: color var(--dur-instant) linear;
+    transition: color var(--motion-press);
 }
 .data-table th.sortable:hover { color: var(--accent); }
 .data-table th.sortable::after {
@@ -336,8 +340,8 @@
     font-family: inherit;
     font-size: var(--fs-sm);
     outline: none;
-    transition: border-color var(--dur-fast) var(--ease-standard),
-                box-shadow var(--dur-fast) var(--ease-standard);
+    transition: border-color var(--motion-feedback),
+                box-shadow var(--motion-feedback);
     margin-bottom: var(--space-3);
 }
 .table-search:focus {
@@ -370,14 +374,16 @@
     background: var(--surface-2);
     color: var(--text);
     box-shadow: var(--shadow-xs);
-    transition: transform var(--dur-fast) var(--ease-standard),
-                background-color var(--dur-fast) var(--ease-standard),
-                border-color var(--dur-fast) var(--ease-standard),
-                color var(--dur-fast) var(--ease-standard),
-                box-shadow var(--dur-fast) var(--ease-standard);
+    transition: background-color var(--motion-feedback),
+                border-color var(--motion-feedback),
+                color var(--motion-feedback),
+                box-shadow var(--motion-feedback),
+                transform var(--motion-press);
 }
-.btn:hover { transform: translateY(-1px); text-decoration: none; }
-.btn:active { transform: translateY(0) scale(0.985); }
+/* Hover ändert nur Farbe/Rand — Buttons heben sich nicht (das ist
+   Website-Gestik, kein Instrument). Rückmeldung gibt das Drücken. */
+.btn:hover { text-decoration: none; }
+.btn:active { transform: scale(var(--press-scale)); }
 .btn:disabled,
 .btn[disabled],
 .btn.disabled {
@@ -394,7 +400,7 @@
     font-weight: var(--font-weight-semibold);
 }
 .btn-primary:hover {
-    background: linear-gradient(180deg, #45f0cf 0%, var(--accent-hover) 100%);
+    background: linear-gradient(180deg, var(--accent-bright) 0%, var(--accent-hover) 100%);
     box-shadow: var(--glow-accent);
 }
 
@@ -456,7 +462,7 @@
 
 .btn-danger {
     background: var(--danger);
-    color: #fff;
+    color: var(--text-on-solid);
     border-color: rgba(225, 29, 72, 0.7);
 }
 .btn-danger:hover {
@@ -475,13 +481,13 @@
 }
 
 .btn-purple {
-    background: linear-gradient(180deg, #b06bf8 0%, var(--purple) 100%);
-    color: #fff;
+    background: linear-gradient(180deg, var(--purple-light) 0%, var(--purple) 100%);
+    color: var(--text-on-solid);
     border-color: rgba(168, 85, 247, 0.7);
     font-weight: var(--font-weight-semibold);
 }
 .btn-purple:hover {
-    background: linear-gradient(180deg, #bd85f9 0%, #9333ea 100%);
+    background: linear-gradient(180deg, var(--purple-bright) 0%, var(--purple-deep) 100%);
     box-shadow: 0 6px 18px -8px rgba(147, 51, 234, 0.9);
 }
 
@@ -507,15 +513,15 @@
     color: var(--text-muted);
     cursor: pointer;
     border-radius: var(--radius-sm);
-    transition: background-color var(--dur-fast) var(--ease-standard),
-                color var(--dur-fast) var(--ease-standard),
-                transform var(--dur-fast) var(--ease-standard);
+    transition: background-color var(--motion-feedback),
+                color var(--motion-feedback),
+                transform var(--motion-press);
 }
 .btn-icon:hover {
     background: var(--red-soft);
     color: var(--red-text);
-    transform: scale(1.06);
 }
+.btn-icon:active { transform: scale(var(--press-scale)); }
 
 /* ── Segmentierte Button-Gruppe (Zeitraum, Index-Auswahl) ──
    Bisher in analysis.html und screener.html doppelt inline definiert. */
@@ -545,8 +551,9 @@
     font-weight: var(--font-weight-medium);
     cursor: pointer;
     white-space: nowrap;
-    transition: background-color var(--dur-fast) var(--ease-standard),
-                color var(--dur-fast) var(--ease-standard);
+    transition: background-color var(--motion-feedback),
+                color var(--motion-feedback),
+                border-color var(--motion-feedback);
 }
 .btn-group label:hover { background: var(--surface-hover); color: var(--text); transform: none; }
 .btn-group label.active,
@@ -586,8 +593,8 @@
     background: none;
     border: none;
     border-radius: var(--radius-sm) var(--radius-sm) 0 0;
-    transition: color var(--dur-fast) var(--ease-standard),
-                background-color var(--dur-fast) var(--ease-standard);
+    transition: color var(--motion-feedback),
+                background-color var(--motion-feedback);
 }
 .tab::after {
     content: '';
@@ -600,7 +607,7 @@
     background: var(--accent);
     transform: scaleX(0);
     transform-origin: center;
-    transition: transform var(--dur-base) var(--ease-out);
+    transition: transform var(--motion-enter);
 }
 .tab:hover { color: var(--text); background: var(--surface-hover); }
 .tab.active { color: var(--accent); }
@@ -651,9 +658,9 @@ textarea.form-input {
     font-size: var(--fs-sm);
     line-height: var(--lh-snug);
     outline: none;
-    transition: border-color var(--dur-fast) var(--ease-standard),
-                box-shadow var(--dur-fast) var(--ease-standard),
-                background-color var(--dur-fast) var(--ease-standard);
+    transition: border-color var(--motion-feedback),
+                box-shadow var(--motion-feedback),
+                background-color var(--motion-feedback);
 }
 .form-input:hover,
 .form-select:hover,
@@ -708,8 +715,8 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
     border: 2px solid var(--bg-app-mid);
     box-shadow: var(--shadow-sm);
     cursor: pointer;
-    transition: transform var(--dur-fast) var(--ease-standard),
-                box-shadow var(--dur-fast) var(--ease-standard);
+    transition: transform var(--motion-feedback),
+                box-shadow var(--motion-feedback);
 }
 .form-range::-webkit-slider-thumb:hover {
     transform: scale(1.15);
@@ -732,9 +739,8 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
     border-radius: var(--radius-md);
     background: var(--surface-0);
     cursor: pointer;
-    transition: background-color var(--dur-fast) var(--ease-standard),
-                border-color var(--dur-fast) var(--ease-standard),
-                transform var(--dur-fast) var(--ease-standard);
+    transition: background-color var(--motion-feedback),
+                border-color var(--motion-feedback);
 }
 .preset-option:hover { background: var(--surface-hover); border-color: var(--border-subtle); }
 .preset-option.active {
@@ -949,7 +955,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
     border: 2px solid rgba(148, 163, 184, 0.18);
     border-top-color: var(--accent);
     border-radius: 50%;
-    animation: spin 0.7s linear infinite;
+    animation: spin var(--loop-spin) linear infinite;
     flex-shrink: 0;
 }
 .spinner-lg { width: 30px; height: 30px; border-width: 3px; }
@@ -978,23 +984,68 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
 .loading-block .spinner { width: 30px; height: 30px; border-width: 3px; }
 .loading-block .caption { margin-top: 0; }
 
+/* ── Skeleton ──────────────────────────────────────────────
+   Platzhalter in der Form des erwarteten Inhalts. Die Lichtkante ist
+   ein Pseudo-Element, das per transform wandert — die frühere
+   background-position-Animation erzwang in jedem Frame ein Neuzeichnen
+   der Fläche, transform läuft auf dem Compositor.
+   .skeleton-loader ist der ältere Name und bleibt gültig.
+   ─────────────────────────────────────────────────────────── */
+.skeleton,
 .skeleton-loader {
-    background: linear-gradient(90deg,
-        rgba(148, 163, 184, 0.05) 25%,
-        rgba(148, 163, 184, 0.11) 50%,
-        rgba(148, 163, 184, 0.05) 75%);
-    background-size: 200% 100%;
-    animation: shimmer 1.4s linear infinite;
-    border-radius: var(--radius-sm);
-    height: 14px;
-    margin-bottom: var(--space-2);
+    position: relative;
+    display: block;
+    overflow: hidden;
+    height: 12px;
+    border-radius: var(--radius-xs);
+    background: var(--skeleton-base);
 }
+.skeleton::after,
+.skeleton-loader::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg,
+        transparent 0%, var(--skeleton-sheen) 50%, transparent 100%);
+    transform: translate3d(-100%, 0, 0);
+    animation: skeleton-sheen var(--loop-shimmer) var(--ease-standard) infinite;
+}
+@keyframes skeleton-sheen {
+    to { transform: translate3d(100%, 0, 0); }
+}
+.skeleton-loader { margin-bottom: var(--space-2); }
+
+/* Formen. Zeilen variieren ihre Länge selbst — wie echter Text. */
+.skeleton-line                  { height: 12px; }
+.skeleton-line:nth-child(3n+2)  { width: 82%; }
+.skeleton-line:nth-child(3n)    { width: 58%; }
+.skeleton-title                 { height: 18px; width: 32%; }
+.skeleton-tile                  { height: 72px; border-radius: var(--radius-md); }
+.skeleton-block                 { height: 220px; border-radius: var(--radius-md); }
 .skeleton-loader.skeleton-lg    { height: 22px; }
 .skeleton-loader.skeleton-bar   { height: 32px; }
 .skeleton-loader.skeleton-table { height: 200px; }
-@keyframes shimmer {
-    0%   { background-position: 200% 0; }
-    100% { background-position: -200% 0; }
+
+/* Anordnungen */
+.skeleton-stack { display: grid; gap: var(--space-2); }
+.skeleton-tiles {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: var(--gap);
+}
+@media (max-width: 720px) {
+    .skeleton-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* Ergebnis-Vorschau in einem Ladeziel (.load-target, siehe motion.css):
+   unsichtbar, bis das Ziel eine laufende Anfrage meldet. */
+.skeleton-preview {
+    display: none;
+    gap: var(--space-5);
+    padding: var(--space-5);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background: var(--surface-0);
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -1016,7 +1067,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
     align-items: center;
     justify-content: center;
     opacity: 0;
-    transition: opacity var(--dur-slow) var(--ease-standard);
+    transition: opacity var(--motion-fold);
 }
 .chart-fullscreen-overlay.active { opacity: 1; }
 .chart-fullscreen-wrap {
@@ -1037,9 +1088,9 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
     padding: 6px var(--space-4);
     cursor: pointer;
     margin-bottom: var(--space-2);
-    transition: background-color var(--dur-fast) var(--ease-standard),
-                color var(--dur-fast) var(--ease-standard),
-                border-color var(--dur-fast) var(--ease-standard);
+    transition: background-color var(--motion-feedback),
+                color var(--motion-feedback),
+                border-color var(--motion-feedback);
 }
 .chart-fullscreen-close:hover {
     background: var(--red-soft);
@@ -1067,13 +1118,14 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
     font-size: var(--fs-sm);
     font-weight: var(--font-weight-medium);
     color: var(--text-dim);
-    transition: background-color var(--dur-fast) var(--ease-standard),
-                color var(--dur-fast) var(--ease-standard);
+    transition: background-color var(--motion-feedback),
+                color var(--motion-feedback);
 }
 .expander-header:hover { color: var(--text); background: var(--surface-hover); }
 .expander-body { padding: 0 var(--space-4) var(--space-4); display: none; }
 .expander.open .expander-body { display: block; }
-.expander-chevron { transition: transform var(--dur-base) var(--ease-standard); }
+/* Eintritt des aufgeklappten Inhalts: motion.css (fold-in) */
+.expander-chevron { display: inline-block; transition: transform var(--motion-feedback); }
 .expander.open .expander-chevron { transform: rotate(180deg); }
 
 /* Native <details> auf dasselbe Erscheinungsbild bringen */
@@ -1095,16 +1147,18 @@ details.disclosure > summary {
     display: flex;
     align-items: center;
     gap: var(--space-2);
-    transition: background-color var(--dur-fast) var(--ease-standard),
-                color var(--dur-fast) var(--ease-standard);
+    transition: background-color var(--motion-feedback),
+                color var(--motion-feedback);
 }
 details.disclosure > summary::-webkit-details-marker { display: none; }
 details.disclosure > summary::before {
     content: '▸';
     font-size: var(--fs-xs);
     color: var(--text-muted);
-    transition: transform var(--dur-base) var(--ease-standard);
+    transition: transform var(--motion-feedback),
+                color var(--motion-feedback);
 }
+details.disclosure[open] > summary::before { color: var(--accent); }
 details.disclosure[open] > summary::before { transform: rotate(90deg); }
 details.disclosure > summary:hover { background: var(--surface-hover); color: var(--text); }
 .disclosure-body {
@@ -1125,24 +1179,44 @@ details.disclosure > summary:hover { background: var(--surface-hover); color: va
     gap: var(--space-2);
     pointer-events: none;
 }
+/* Toast: Popover-Fläche (Ebene 3) mit Statuskante und Statuszeichen.
+   Der Text steht in voller Textfarbe — früher war er in Statusfarbe auf
+   Statusfläche gesetzt und lag damit je nach Untergrund an der
+   Kontrastgrenze. Status trägt die Kante plus Zeichen (✓ / ! / ✕),
+   nicht die Farbe allein. Das Element baut base.html per Script. */
 .toast {
-    padding: var(--space-3) var(--space-5);
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-3);
+    padding: var(--space-3) var(--space-4);
     border-radius: var(--radius-md);
     font-size: var(--fs-sm);
     font-weight: var(--font-weight-medium);
+    line-height: var(--lh-snug);
+    color: var(--text);
+    background: var(--surface-3);
     backdrop-filter: blur(14px);
     max-width: 380px;
     box-shadow: var(--shadow-lg);
     border: 1px solid var(--border-subtle);
-    animation: toast-in var(--dur-slow) var(--ease-out),
-               toast-out var(--dur-slow) var(--ease-in) 3.5s forwards;
+    border-left: 3px solid var(--text-muted);
+    animation: toast-in var(--motion-enter) backwards,
+               toast-out var(--motion-exit) var(--toast-life) forwards;
 }
-.toast-success { background: rgba(34, 197, 94, 0.16);  border-color: var(--green-line); color: var(--green-text); }
-.toast-error   { background: rgba(239, 68, 68, 0.16);  border-color: var(--red-line);   color: var(--red-text); }
-.toast-warning { background: rgba(234, 179, 8, 0.16);  border-color: var(--yellow-line); color: var(--yellow-text); }
-@keyframes toast-in  { from { transform: translateX(16px) scale(0.98); opacity: 0; }
-                       to   { transform: translateX(0) scale(1);       opacity: 1; } }
-@keyframes toast-out { to   { opacity: 0; transform: translateY(-6px); } }
+.toast::before {
+    flex: none;
+    font-weight: var(--font-weight-bold);
+    content: '•';
+    content: '•' / '';
+}
+.toast-success { border-left-color: var(--green); }
+.toast-success::before { content: '✓'; content: '✓' / ''; color: var(--green-text); }
+.toast-warning { border-left-color: var(--yellow); }
+.toast-warning::before { content: '!'; content: '!' / ''; color: var(--yellow-text); }
+.toast-error   { border-left-color: var(--red); }
+.toast-error::before   { content: '✕'; content: '✕' / ''; color: var(--red-text); }
+@keyframes toast-in  { from { opacity: 0; transform: translate3d(calc(var(--shift-md) * 2), 0, 0); } }
+@keyframes toast-out { to   { opacity: 0; transform: translate3d(0, calc(var(--shift-sm) * -1), 0); } }
 /* Kompatibilität: ältere Animationsnamen bleiben gültig */
 @keyframes slideIn { from { transform: translateX(100%); opacity: 0; }
                      to   { transform: translateX(0);    opacity: 1; } }
@@ -1168,6 +1242,9 @@ details.disclosure > summary:hover { background: var(--surface-hover); color: va
     margin-top: var(--space-1);
     backdrop-filter: blur(12px);
     overflow-x: hidden;
+    /* Script schaltet display; eine Animation startet bei jedem
+       Wechsel von display:none neu — also bei jedem Aufklappen. */
+    animation: menu-in var(--motion-enter) backwards;
 }
 .autocomplete-item {
     padding: var(--space-2) var(--space-3);
@@ -1175,8 +1252,8 @@ details.disclosure > summary:hover { background: var(--surface-hover); color: va
     border-bottom: 1px solid var(--border);
     color: var(--text-secondary);
     font-size: var(--fs-sm);
-    transition: background-color var(--dur-instant) linear,
-                color var(--dur-instant) linear;
+    transition: background-color var(--motion-press),
+                color var(--motion-press);
 }
 .autocomplete-item:last-child { border-bottom: none; }
 .autocomplete-item:hover {
@@ -1198,7 +1275,7 @@ details.disclosure > summary:hover { background: var(--surface-hover); color: va
     padding: 7px 0;
     font-size: var(--fs-sm);
 }
-.stat-item + .stat-item { border-top: 1px solid rgba(148, 163, 184, 0.07); }
+.stat-item + .stat-item { border-top: 1px solid var(--divider); }
 .stat-item > span:first-child { color: var(--text-dim); }
 .stat-item > strong,
 .stat-item .stat-value {
@@ -1218,10 +1295,10 @@ details.disclosure > summary:hover { background: var(--surface-hover); color: va
     border-radius: 0 var(--radius-md) var(--radius-md) 0;
     padding: var(--space-3) var(--space-4);
     margin-bottom: var(--space-2);
-    transition: border-color var(--dur-fast) var(--ease-standard),
-                transform var(--dur-fast) var(--ease-standard);
+    transition: border-color var(--motion-feedback);
 }
-.event-item:hover { border-color: var(--border-subtle); transform: translateX(2px); }
+/* Kein Versatz beim Hover: Termine sind keine Klickziele */
+.event-item:hover { border-color: var(--border-subtle); }
 .event-item-high   { border-left-color: var(--red); }
 .event-item-medium { border-left-color: var(--yellow); }
 .event-item-low    { border-left-color: var(--green); }
@@ -1296,9 +1373,11 @@ details.disclosure > summary:hover { background: var(--surface-hover); color: va
     width: 0;
     border-radius: inherit;
     background: linear-gradient(90deg, var(--accent-dim), var(--accent));
-    transition: width var(--dur-slow) var(--ease-standard);
+    /* Breite statt transform: der Wert kommt inline aus dem Template.
+       Einzelnes Element, kein Tabellenkontext — vertretbar. */
+    transition: width var(--motion-fold);
 }
-.progress-bar.is-done { background: linear-gradient(90deg, var(--green), #4ade80); }
+.progress-bar.is-done { background: linear-gradient(90deg, var(--green), var(--green-text)); }
 
 /* Insider-Sentiment */
 .sentiment-bar-container {
@@ -1323,9 +1402,9 @@ details.disclosure > summary:hover { background: var(--surface-hover); color: va
     justify-content: center;
     font-size: var(--fs-2xs);
     font-weight: var(--font-weight-semibold);
-    color: #fff;
+    color: var(--text-on-solid);
     min-width: 24px;
-    transition: width var(--dur-slow) var(--ease-standard);
+    transition: width var(--motion-fold);
 }
 .sentiment-bar-buy  { background: linear-gradient(90deg, rgba(34, 197, 94, 0.75), rgba(34, 197, 94, 0.42)); }
 .sentiment-bar-sell { background: linear-gradient(90deg, rgba(239, 68, 68, 0.42), rgba(239, 68, 68, 0.75)); }
@@ -1350,7 +1429,7 @@ details.disclosure > summary:hover { background: var(--surface-hover); color: va
 .score-segment {
     height: 100%;
     border-radius: var(--radius-xs);
-    transition: width var(--dur-slow) var(--ease-standard);
+    transition: width var(--motion-fold);
     min-width: 2px;
 }
 .score-segment-trend       { background: var(--blue); }
@@ -1390,9 +1469,9 @@ details.disclosure > summary:hover { background: var(--surface-hover); color: va
     position: relative;
     overflow: hidden;
     box-shadow: var(--shadow-sm);
-    transition: transform var(--dur-base) var(--ease-standard),
-                border-color var(--dur-base) var(--ease-standard),
-                box-shadow var(--dur-base) var(--ease-standard);
+    transition: transform var(--motion-feedback),
+                border-color var(--motion-feedback),
+                box-shadow var(--motion-feedback);
 }
 .landing-card::before {
     content: '';
@@ -1400,7 +1479,7 @@ details.disclosure > summary:hover { background: var(--surface-hover); color: va
     inset: 0;
     border-radius: inherit;
     opacity: 0;
-    transition: opacity var(--dur-base) var(--ease-standard);
+    transition: opacity var(--motion-feedback);
     pointer-events: none;
 }
 .landing-card:first-child::before {
@@ -1411,15 +1490,14 @@ details.disclosure > summary:hover { background: var(--surface-hover); color: va
 }
 .landing-card:hover {
     border-color: var(--border-accent);
-    transform: translateY(-3px);
+    transform: translate3d(0, var(--lift-hover), 0);
     box-shadow: var(--shadow-lg);
 }
 .landing-card:hover::before { opacity: 1; }
-.landing-card:hover .landing-icon { transform: scale(1.08); }
+/* Kein Skalieren des Symbols mehr: Dekoration ohne Information */
 .landing-icon {
     font-size: 2.6rem;
     line-height: 1;
-    transition: transform var(--dur-base) var(--ease-out);
 }
 .landing-card h3 { font-size: var(--fs-lg); color: var(--text); margin-bottom: 0; }
 .landing-card p {
@@ -1525,8 +1603,8 @@ details.disclosure > summary:hover { background: var(--surface-hover); color: va
 
 /* Positions-Eingabe (Modus A / B) */
 .position-input-section {
-    transition: max-height var(--dur-slow) var(--ease-standard),
-                opacity var(--dur-base) var(--ease-standard);
+    transition: max-height var(--motion-fold),
+                opacity var(--motion-enter);
     overflow: hidden;
 }
 .position-input-section.collapsed {
@@ -1537,42 +1615,56 @@ details.disclosure > summary:hover { background: var(--surface-hover); color: va
     border: none;
 }
 
-/* ── Seitenleiste „Unternehmensmeldungen" (einklappbar) ───────────────
-   Layout: Inhalt links, Leiste rechts; unter 1180px untereinander.
-   Eingeklappt bleibt eine schmale Leiste mit dem Umschalter.
-   Animation: Breite der Leiste (Desktop) bzw. Zeilenhoehe (gestapelt),
-   Inhalt blendet per opacity aus. .is-animated wird erst nach dem
-   Startzustand gesetzt, damit nichts beim Laden einklappt. */
-.with-aside {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: var(--space-5);
-    align-items: start;
-}
-.with-aside-main { min-width: 0; }
+/* ── Seitenleiste „Unternehmensmeldungen" (am Fensterrand, einklappbar) ─
+   Sitzt in .app-body neben .main-content über die volle Höhe unter der
+   Navigation und scrollt unabhängig vom Inhalt. Eingeklappt bleibt eine
+   48px-Leiste (--dock-rail) mit senkrechter Beschriftung; die ganze
+   Leiste ist dann Klickziel.
 
+   Choreografie (alle Werte aus den Bewegungsrollen):
+     Zuklappen  — Inhalt tritt sofort und kurz aus (--motion-exit, kleiner
+                  Versatz nach rechts), parallel schrumpft die Breite
+                  (--motion-fold). Die Beschriftung blendet erst ein, wenn
+                  die Leiste schmal ist.
+     Aufklappen — Breite wächst (--motion-fold); der Inhalt folgt mit
+                  kurzem Versatz (--fold-delay), damit kein Text in eine
+                  noch zu schmale Fläche blendet.
+   Der Pfeil bleibt in beiden Zuständen auf demselben Punkt (Mitte der
+   48px-Leiste, Mitte der 44px-Kopfzeile) und dreht nur.
+
+   Breite ist die einzige Layout-Eigenschaft, die animiert wird — die
+   Leiste schiebt den Inhalt, das geht nicht über transform. Der Inhalt
+   hat eine feste Breite und bricht deshalb während der Bewegung nicht
+   um. .is-animated setzt news_sidebar.html erst nach dem Startzustand,
+   damit beim Laden nichts sichtbar einklappt. Unter 1180px schwebt die
+   Leiste über dem Inhalt (eigener Schatten, siehe unten). */
 .news-aside {
-    position: sticky;
-    top: var(--space-4);
-    width: 300px;
-    background: var(--surface-1);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-sm);
+    --fold-delay: calc(var(--dur-slow) / 3);
+    position: relative;
+    flex: none;
+    display: flex;
+    flex-direction: column;
+    width: var(--dock-open, var(--dock-width));
+    min-height: 0;
+    background: var(--bg-topbar);
+    border-left: 1px solid var(--border-subtle);
+    box-shadow: var(--shadow-dock);
     overflow: hidden;
 }
 .news-aside.is-animated {
-    transition: width var(--dur-slow) var(--ease-standard);
+    transition: width var(--motion-fold),
+                box-shadow var(--motion-fold);
 }
-.news-aside.collapsed { width: 44px; }
+.news-aside.collapsed { width: var(--dock-rail); }
 
 .news-aside-toggle {
+    flex: none;
     display: flex;
     align-items: center;
     gap: var(--space-2);
-    width: 100%;
-    height: 44px;
-    padding: 0 var(--space-3);
+    height: var(--dock-head-h);
+    /* Pfeil (16px) mittig auf der 48px-Leiste: (48 - 16) / 2 */
+    padding: 0 var(--space-4) 0 calc((var(--dock-rail) - 16px) / 2);
     background: transparent;
     border: none;
     border-bottom: 1px solid var(--border);
@@ -1584,74 +1676,289 @@ details.disclosure > summary:hover { background: var(--surface-hover); color: va
     text-transform: uppercase;
     white-space: nowrap;
     cursor: pointer;
+    transition: color var(--motion-feedback),
+                background-color var(--motion-feedback);
 }
 .news-aside-toggle:hover { color: var(--text); background: var(--surface-hover); }
-.news-aside-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+/* Fokusring: innen liegend, siehe layout.css (Abschnitt Fokus) */
 .news-aside-chevron {
-    display: inline-block;
-    width: 16px;
-    text-align: center;
     flex: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: var(--dock-head-h);
+    font-size: var(--fs-lg);
+    line-height: 1;
+    transition: transform var(--motion-fold),
+                color var(--motion-feedback);
 }
-.news-aside.is-animated .news-aside-chevron,
-.news-aside.is-animated .news-aside-toggle-label,
-.news-aside.is-animated .news-aside-inner {
-    transition: transform var(--dur-slow) var(--ease-standard),
-                opacity var(--dur-base) var(--ease-standard),
-                visibility 0s linear var(--dur-slow);
-}
+.news-aside-toggle:hover .news-aside-chevron { color: var(--accent); }
+/* Pfeil zeigt in Richtung der Aktion: offen → nach rechts zuklappen */
 .news-aside.collapsed .news-aside-chevron { transform: rotate(180deg); }
-.news-aside.collapsed .news-aside-toggle-label,
+
+/* Eingeklappt: die ganze Leiste ist der Knopf, Beschriftung senkrecht */
+.news-aside.collapsed .news-aside-toggle {
+    flex: 1 1 auto;
+    flex-direction: column;
+    justify-content: flex-start;
+    height: auto;
+    padding: 0;
+    gap: var(--space-2);
+    border-bottom: none;
+}
+.news-aside.collapsed .news-aside-toggle-label {
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+}
+/* Beschriftung wechselt beim Umschalten die Schreibrichtung — das ist
+   nicht animierbar. Sie wird deshalb je Zustand neu eingeblendet (zwei
+   gleiche Keyframes, damit die Animation bei jedem Wechsel neu startet)
+   und verdeckt so den Sprung. */
+.news-aside.is-animated .news-aside-toggle-label {
+    animation: dock-label-a var(--motion-enter) var(--dur-exit) backwards;
+}
+.news-aside.is-animated.collapsed .news-aside-toggle-label {
+    animation: dock-label-b var(--motion-enter) var(--fold-delay) backwards;
+}
+@keyframes dock-label-a { from { opacity: 0; } }
+@keyframes dock-label-b { from { opacity: 0; } }
+
+/* Feste Breite: der Text bricht beim Zuklappen nicht um */
+.news-aside-inner {
+    flex: 1;
+    min-height: 0;
+    width: min(calc(var(--dock-open, var(--dock-width)) - 1px), calc(100vw - var(--dock-rail) - 1px));
+    overflow-y: auto;
+    padding: var(--space-4);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-5);
+}
+/* Aufklappen: sichtbar sofort, Einblenden mit Versatz */
+.news-aside.is-animated .news-aside-inner {
+    transition: opacity var(--motion-enter) var(--fold-delay),
+                transform var(--motion-enter) var(--fold-delay),
+                visibility 0s;
+}
+/* Eingeklappt: aus dem Fluss genommen, aber an derselben Stelle (unter
+   der Kopfzeile) — so kann der Knopf die volle Leistenhöhe übernehmen,
+   ohne dass der ausblendende Inhalt nach oben springt. Unsichtbar und
+   damit auch nicht fokussierbar. */
 .news-aside.collapsed .news-aside-inner {
+    position: absolute;
+    top: var(--dock-head-h);
+    left: 0;
+    bottom: 0;
     opacity: 0;
-    visibility: hidden;   /* nicht fokussierbar, sobald ausgeblendet */
+    visibility: hidden;
+    transform: translate3d(var(--shift-md), 0, 0);
+}
+.news-aside.is-animated.collapsed .news-aside-inner {
+    transition: opacity var(--motion-exit),
+                transform var(--motion-exit),
+                visibility 0s linear var(--dur-exit);
 }
 
-/* Inhalt behaelt feste Breite, damit der Text beim Zuklappen nicht umbricht. */
-.news-aside-body { display: grid; grid-template-rows: 1fr; }
-.news-aside-inner { width: 298px; min-height: 0; overflow: hidden; padding: var(--space-4); }
 .news-aside-head {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
     gap: var(--space-2);
 }
-.news-aside-head h5 { margin: 0; }
-.news-link-list { list-style: none; margin: var(--space-4) 0 0; padding: 0; display: grid; gap: var(--space-2); }
+/* Kleiner als ein normales h5: Titel und Badge müssen in die 297px
+   Innenbreite passen — in --fs-sm wurde das Badge am Rand gekappt. */
+.news-aside-head h5 { margin: 0; font-size: var(--fs-2xs); }
+.news-aside-label {
+    margin-bottom: var(--space-2);
+    color: var(--text-muted);
+    font-size: var(--fs-3xs);
+    font-weight: var(--font-weight-semibold);
+    letter-spacing: var(--ls-caps);
+    text-transform: uppercase;
+}
+
+.news-link-list { list-style: none; display: grid; gap: var(--space-2); }
 .news-link {
-    display: grid;
-    gap: 2px;
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-3);
     padding: var(--space-3);
-    background: var(--surface-0);
+    background: var(--surface-1);
     border: 1px solid var(--border);
     border-radius: var(--radius-md);
     text-decoration: none;
-    transition: border-color var(--dur-base) var(--ease-standard),
-                background var(--dur-base) var(--ease-standard);
+    transition: border-color var(--motion-feedback),
+                background-color var(--motion-feedback);
 }
-.news-link:hover { border-color: var(--border-accent); background: var(--surface-hover); }
-.news-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.news-link-name { color: var(--text); font-size: var(--fs-sm); font-weight: var(--font-weight-semibold); }
-.news-link-text { color: var(--text-dim); font-size: var(--fs-xs); line-height: var(--lh-snug); }
+.news-link:hover { border-color: var(--border-accent); background: var(--surface-2); text-decoration: none; }
 
-/* Gestapelt: volle Breite, Einklappen ueber die Zeilenhoehe. */
-@media (max-width: 1180px) {
-    .with-aside { grid-template-columns: minmax(0, 1fr); }
-    .news-aside, .news-aside.collapsed { position: static; width: auto; }
-    .news-aside.is-animated { transition: none; }
-    .news-aside-inner { width: auto; }
-    .news-aside.is-animated .news-aside-body {
-        transition: grid-template-rows var(--dur-slow) var(--ease-standard);
+.news-mark {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    border-radius: var(--radius-sm);
+    border: 1px solid transparent;
+    font-size: var(--fs-md);
+    font-weight: var(--font-weight-bold);
+}
+.news-mark-orange { background: var(--yellow-soft); color: var(--yellow-text); border-color: var(--yellow-line); }
+.news-mark-blue   { background: var(--blue-soft);   color: var(--blue-text);   border-color: var(--blue-line); }
+.news-mark-green  { background: var(--green-soft);  color: var(--green-text);  border-color: var(--green-line); }
+
+.news-link-body { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.news-link-top { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-2); }
+.news-link-name { color: var(--text); font-size: var(--fs-sm); font-weight: var(--font-weight-semibold); }
+.news-link-tag {
+    color: var(--text-muted);
+    font-size: var(--fs-3xs);
+    letter-spacing: var(--ls-caps);
+    text-transform: uppercase;
+}
+.news-link-text { color: var(--text-dim); font-size: var(--fs-xs); line-height: var(--lh-snug); }
+.news-link-out {
+    flex: none;
+    color: var(--text-muted);
+    font-size: var(--fs-sm);
+    transition: color var(--motion-feedback),
+                transform var(--motion-feedback);
+}
+/* Der Pfeil weist beim Hover in seine Richtung — Hinweis auf „öffnet
+   extern", zwei Pixel, kein Selbstzweck */
+.news-link:hover .news-link-out {
+    color: var(--accent);
+    transform: translate3d(calc(var(--shift-sm) / 2), calc(var(--shift-sm) / -2), 0);
+}
+
+.news-empty {
+    display: grid;
+    gap: 2px;
+    padding: var(--space-4);
+    border: 1px dashed var(--border-strong);
+    border-radius: var(--radius-md);
+    background: var(--surface-0);
+}
+.news-empty-title { color: var(--text-secondary); font-size: var(--fs-sm); font-weight: var(--font-weight-medium); }
+.news-empty-text { color: var(--text-muted); font-size: var(--fs-xs); line-height: var(--lh-snug); }
+
+/* Breite Fenster: die Leiste füllt den ganzen Rand rechts neben dem
+   Inhalt und schließt bündig (--dock-gap) an dessen rechte Kante an.
+   Der Inhalt bleibt im Fenster zentriert und steht beim Klappen still:
+   Leistenbreite und rechter Innenabstand des Inhalts laufen mit
+   derselben Rolle gegeneinander, ihre Summe bleibt konstant
+   (= --dock-side). Reicht der Rand nicht für --dock-width, gilt die
+   Mindestbreite und der Inhalt wird schmaler — wie bisher.
+   --dock-open liest auch .news-aside-inner (feste Inhaltsbreite). */
+@media (min-width: 1181px) {
+    .app-body:has(> .news-aside) {
+        /* Rand rechts neben dem im Fenster zentrierten Inhalt */
+        --dock-side: calc((100vw - var(--content-max)) / 2 - var(--scrollbar-w));
+        --dock-open: max(var(--dock-width), calc(var(--dock-side) - var(--dock-gap)));
     }
-    .news-aside.collapsed .news-aside-body { grid-template-rows: 0fr; }
-    .news-aside.collapsed .news-aside-inner { padding-top: 0; padding-bottom: 0; }
-    .news-aside.collapsed .news-aside-toggle-label { opacity: 1; visibility: visible; }
+    .app-body:has(> .news-aside) > .main-content { padding-right: var(--dock-gap); }
+    .app-body:has(> .news-aside) > .main-content > * { margin-right: 0; }
+    .app-body:has(> .news-aside.collapsed) > .main-content {
+        padding-right: max(var(--main-pad-x), calc(var(--dock-side) - var(--dock-rail)));
+    }
+    .app-body:has(> .news-aside.is-animated) > .main-content {
+        transition: padding-right var(--motion-fold);
+    }
 }
-@media (prefers-reduced-motion: reduce) {
-    .news-aside.is-animated,
-    .news-aside.is-animated .news-aside-body,
-    .news-aside.is-animated .news-aside-chevron,
-    .news-aside.is-animated .news-aside-toggle-label,
-    .news-aside.is-animated .news-aside-inner,
-    .news-link { transition: none; }
+
+/* Schmale Fenster: Leiste schwebt rechts über dem Inhalt, der Inhalt
+   behält Platz für die eingeklappte Leiste. Aufgeklappt wirft sie einen
+   kräftigeren Schatten, damit klar ist, dass sie über etwas liegt. */
+@media (max-width: 1180px) {
+    .app-body { position: relative; }
+    .app-body:has(> .news-aside) > .main-content { padding-right: calc(var(--dock-rail) + var(--space-4)); }
+    .news-aside {
+        position: absolute;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 20;
+        width: min(var(--dock-width), calc(100vw - var(--dock-rail)));
+        box-shadow: var(--shadow-float);
+    }
+    .news-aside.collapsed {
+        width: var(--dock-rail);
+        box-shadow: var(--shadow-dock);
+    }
 }
+/* Bewegungsarmut: die Dauer-Tokens fallen auf 1ms, die Wege auf 0 —
+   hier ist nichts gesondert abzuschalten. Wichtig: KEIN `transition:
+   none` auf der Leiste, sonst feuert kein transitionend mehr und die
+   Plotly-Charts erfahren nichts von der neuen Inhaltsbreite. */
+
+/* ── Nachrichtenkarte ─────────────────────────────────────────
+   Vormals zweimal inline gebaut (Analyse-Fragment, Gesamtwirtschaft),
+   mit Hover per onmouseover und `transition: all 0.25s`. */
+.news-card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(340px, 100%), 1fr));
+    gap: var(--space-3);
+}
+.news-card {
+    position: relative;
+    display: block;
+    padding: var(--space-4);
+    background:
+        linear-gradient(180deg, var(--edge-highlight) 0%, transparent 42%),
+        var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    text-decoration: none;
+    transition: transform var(--motion-feedback),
+                border-color var(--motion-feedback),
+                box-shadow var(--motion-feedback);
+}
+.news-card:hover {
+    transform: translate3d(0, var(--lift-hover), 0);
+    border-color: var(--border-accent);
+    box-shadow: var(--shadow-md);
+    text-decoration: none;
+}
+.news-card-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--space-3);
+}
+.news-card-body { flex: 1; min-width: 0; }
+.news-card-title {
+    margin-bottom: var(--space-2);
+    color: var(--text);
+    font-size: var(--fs-base);
+    font-weight: var(--font-weight-semibold);
+    line-height: var(--lh-snug);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+.news-card-meta { display: flex; align-items: center; gap: var(--space-2); }
+.news-card-source {
+    padding: 2px var(--space-2);
+    border-radius: var(--radius-xs);
+    background: var(--accent-soft);
+    color: var(--accent);
+    font-size: var(--fs-2xs);
+    font-weight: var(--font-weight-semibold);
+    letter-spacing: var(--ls-wide);
+}
+.news-card-date { color: var(--text-muted); font-size: var(--fs-2xs); }
+/* Liefert die Quelle keinen Herausgeber/kein Datum, bleibt sonst eine
+   leere Pille stehen */
+.news-card-source:empty,
+.news-card-date:empty { display: none; }
+.news-card-out {
+    flex: none;
+    margin-top: 2px;
+    color: var(--text-muted);
+    font-size: var(--fs-sm);
+    transition: color var(--motion-feedback);
+}
+.news-card:hover .news-card-out { color: var(--accent); }

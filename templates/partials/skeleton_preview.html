@@ -1,0 +1,21 @@
+{# Skeleton-Vorschau eines Analyse-Ergebnisses (Titelzeile, Kennzahl-Kacheln,
+   Chart, Textzeilen). Gehört als Kind in ein .load-target und bleibt
+   unsichtbar, bis das Ziel während einer Anfrage .htmx-request trägt
+   (motion.css, Abschnitt 5). Wird beim ersten Ergebnis per innerHTML
+   ersetzt — danach dämpft ein Schleier die alten Werte statt dessen.
+   Eingebunden in pages/analysis.html und pages/analysis_position.html. #}
+<div class="skeleton-preview" aria-hidden="true">
+    <span class="skeleton skeleton-title"></span>
+    <div class="skeleton-tiles">
+        <span class="skeleton skeleton-tile"></span>
+        <span class="skeleton skeleton-tile"></span>
+        <span class="skeleton skeleton-tile"></span>
+        <span class="skeleton skeleton-tile"></span>
+    </div>
+    <span class="skeleton skeleton-block"></span>
+    <div class="skeleton-stack">
+        <span class="skeleton skeleton-line"></span>
+        <span class="skeleton skeleton-line"></span>
+        <span class="skeleton skeleton-line"></span>
+    </div>
+</div>

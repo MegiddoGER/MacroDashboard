@@ -5,8 +5,10 @@
  * (kein Scroll-Kontext) und darf deshalb nicht um Aufmerksamkeit
  * konkurrieren: ruhige Flächen, ein einziger Akzent für "aktiv",
  * kleine präzise Typografie. Ausschließlich Tokens aus tokens.css,
- * ausschließlich transform/opacity animiert (motion.css schaltet
- * das bei prefers-reduced-motion global ab — hier nichts umgehen).
+ * ausschließlich transform/opacity animiert, Übergänge über die
+ * Bewegungsrollen (--motion-*) — die Reduktion bei
+ * prefers-reduced-motion greift damit automatisch. Der globale
+ * Ladebalken unter der Leiste steht in motion.css (HTMX-Zustände).
  *
  * Aufbau:
  *   1. Leiste & drei Zonen (Marke / Navigation / Werkzeuge)
@@ -68,20 +70,26 @@
 .topbar-brand {
     flex-shrink: 0;
     display: flex;
-    flex-direction: column;
-    justify-content: center;
-    gap: 2px;
+    align-items: center;
+    gap: 10px;
     line-height: var(--lh-tight);
     font-size: var(--fs-lg);
     font-weight: var(--font-weight-bold);
     letter-spacing: var(--ls-tight);
     color: var(--text);
     text-decoration: none;
-    transition: color var(--dur-fast) var(--ease-standard);
+    transition: color var(--motion-feedback);
 }
 .topbar-brand:hover {
     color: var(--accent);
     text-decoration: none;
+}
+
+.topbar-brand-mark {
+    flex: none;
+    width: 26px;
+    height: 26px;
+    border-radius: 6px;
 }
 
 .topbar-brand-sub {
@@ -122,17 +130,14 @@
     text-transform: uppercase;
     white-space: nowrap;
     cursor: pointer;
-    transition: color var(--dur-fast) var(--ease-standard),
-                background-color var(--dur-fast) var(--ease-standard);
+    transition: color var(--motion-feedback),
+                background-color var(--motion-feedback);
 }
 .topnav-trigger:hover {
     color: var(--text);
     background: var(--surface-hover);
 }
-.topnav-trigger:focus-visible {
-    outline: none;
-    box-shadow: var(--ring-accent);
-}
+/* Fokusring: innen liegend, siehe layout.css (Abschnitt Fokus) */
 /* Eine Seite dieser Kategorie ist gerade offen */
 .topnav-trigger.is-active {
     color: var(--accent);
@@ -162,8 +167,8 @@
     display: inline-block;
     font-size: 0.7em;
     color: var(--text-muted);
-    transition: transform var(--dur-fast) var(--ease-standard),
-                color var(--dur-fast) var(--ease-standard);
+    transition: transform var(--motion-feedback),
+                color var(--motion-feedback);
 }
 .topnav-item.open .chevron {
     transform: rotate(180deg);
@@ -171,7 +176,11 @@
 }
 
 /* Panel: standardmäßig unsichtbar, aber stets im DOM vorhanden.
-   Eintritt kommt ruhig von leicht oben (wenige Pixel), kein Federn. */
+   Eintritt kommt ruhig von leicht oben (wenige Pixel), kein Federn.
+   Asymmetrisch: Öffnen mit --motion-enter (abbremsend), Schließen mit
+   dem kürzeren --motion-exit (beschleunigend) — ein geschlossenes Menü
+   darf nie über dem Inhalt nachglühen. Die Sichtbarkeit schaltet beim
+   Schließen erst nach der Ausblendung um, beim Öffnen sofort. */
 .topnav-panel {
     position: absolute;
     top: calc(100% + var(--space-2));
@@ -189,18 +198,18 @@
     opacity: 0;
     visibility: hidden;
     pointer-events: none;
-    transform: translate3d(0, -6px, 0);
-    transition: opacity var(--dur-fast) var(--ease-standard),
-                transform var(--dur-fast) var(--ease-out),
-                visibility 0s linear var(--dur-fast);
+    transform: translate3d(0, calc(var(--shift-sm) * -1), 0);
+    transition: opacity var(--motion-exit),
+                transform var(--motion-exit),
+                visibility 0s linear var(--dur-exit);
 }
 .topnav-item.open .topnav-panel {
     opacity: 1;
     visibility: visible;
     pointer-events: auto;
     transform: translate3d(0, 0, 0);
-    transition: opacity var(--dur-fast) var(--ease-standard),
-                transform var(--dur-fast) var(--ease-out),
+    transition: opacity var(--motion-enter),
+                transform var(--motion-enter),
                 visibility 0s;
 }
 
@@ -245,17 +254,13 @@
     color: var(--text-secondary);
     white-space: nowrap;
     text-decoration: none;
-    transition: color var(--dur-fast) var(--ease-standard),
-                background-color var(--dur-fast) var(--ease-standard);
+    transition: color var(--motion-feedback),
+                background-color var(--motion-feedback);
 }
 .nav-link:hover {
     color: var(--text);
     background: var(--surface-hover);
     text-decoration: none;
-}
-.nav-link:focus-visible {
-    outline: none;
-    box-shadow: var(--ring-accent);
 }
 .nav-link.active {
     color: var(--accent);
@@ -299,6 +304,9 @@
     padding-right: 2px;
 }
 
+/* Platzhalter bis zum ersten Abruf: in der Flucht der späteren Zeilen */
+.wl-skeleton { padding: var(--space-2); }
+
 .wl-group-header {
     display: flex;
     align-items: center;
@@ -337,7 +345,7 @@
     gap: var(--space-1);
     padding: var(--space-1) var(--space-2);
     border-radius: var(--radius-sm);
-    transition: background-color var(--dur-fast) var(--ease-standard);
+    transition: background-color var(--motion-press);
 }
 .wl-card-row:hover { background: var(--surface-hover); }
 

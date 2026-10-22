@@ -1,44 +1,69 @@
 /*
  * motion.css — Bewegungssystem des Dashboards.
  *
- * Leitgedanke: Bewegung ist Rückmeldung, keine Dekoration. Alles bleibt
- * zwischen 120 und 250 ms, animiert werden ausschließlich `transform` und
- * `opacity` (keine Layout-auslösenden Eigenschaften), und jede Regel hat
- * am Ende der Datei einen Ausweg über `prefers-reduced-motion`.
+ * Leitgedanke: Bewegung ist Rückmeldung, keine Dekoration. Charakter
+ * eines Instruments: schnell, präzise, kein Federn, kein Überschwingen.
+ * Alles läuft über die Rollen-Tokens aus tokens.css (--motion-press,
+ * -feedback, -enter, -exit, -fold) und deren Wege (--shift-*, --lift-*).
+ * Animiert werden ausschließlich `transform` und `opacity`; einzige
+ * Ausnahmen sind die Breite der angedockten Seitenleiste und einzelne
+ * Fortschrittsbalken (je ein Element, nie in Tabellen).
  *
  * Wichtig für HTMX: Eintritts-Animationen sind als CSS-`animation` auf den
  * Komponenten selbst definiert. Eine Animation startet, sobald ein Element
  * in den DOM eingefügt wird — dadurch greift sie beim ersten Laden ebenso
  * wie bei jedem per hx-get/hx-post nachgeladenen Fragment, ohne dass
  * HTMX-Klassen oder JavaScript nötig wären.
+ *
+ * Füllmodus `backwards`, nicht `both`: Während einer Staffel-Verzögerung
+ * gilt der Startwert (kein Aufblitzen), nach dem Ende aber wieder das
+ * normale Styling. Mit `both` hielt die Animation transform:none dauerhaft
+ * fest und überstimmte jedes :hover-Anheben (.card-interactive,
+ * .landing-card) — das Anheben war dadurch wirkungslos.
+ *
+ * Aufbau:
+ *   1. Keyframes
+ *   2. Eintritt von Flächen (inkl. Staffelung)
+ *   3. Aufklappen (Expander, details, Tabs)
+ *   4. Live-Bereiche (Polling) ohne Wiedereintritt
+ *   5. HTMX-Zustände (Indikator, Anfrage, Ladeziel, Ladebalken, Austausch)
+ *   6. Ausweg für Bewegungsarmut
  */
 
 /* ═══════════════════════════════════════════════════════════
    1. Keyframes
+   Nur `from` — das Ziel ist immer der normale Zustand des Elements.
    ═══════════════════════════════════════════════════════════ */
 
 /* Flächen treten leicht von unten ein */
 @keyframes surface-in {
-    from { opacity: 0; transform: translate3d(0, 6px, 0); }
-    to   { opacity: 1; transform: none; }
+    from { opacity: 0; transform: translate3d(0, var(--shift-md), 0); }
 }
 
 /* Reines Aufblenden — für Inhalte, die nicht wandern sollen (Charts) */
 @keyframes fade-in {
     from { opacity: 0; }
-    to   { opacity: 1; }
 }
 
 /* Seitenkopf kommt minimal von links: gibt der Seite eine Leserichtung */
 @keyframes header-in {
-    from { opacity: 0; transform: translate3d(-6px, 0, 0); }
-    to   { opacity: 1; transform: none; }
+    from { opacity: 0; transform: translate3d(calc(var(--shift-md) * -1), 0, 0); }
 }
 
-/* Aufmerksamkeitsimpuls für Ladezustände (ersetzt hektisches Blinken) */
-@keyframes soft-pulse {
-    0%, 100% { opacity: 1; }
-    50%      { opacity: 0.55; }
+/* Menüs/Dropdowns: von leicht oben, wie die Panels der Kopfleiste */
+@keyframes menu-in {
+    from { opacity: 0; transform: translate3d(0, calc(var(--shift-sm) * -1), 0); }
+}
+
+/* Aufgeklappter Inhalt: rutscht unter seiner Kopfzeile hervor */
+@keyframes fold-in {
+    from { opacity: 0; transform: translate3d(0, calc(var(--shift-sm) * -1), 0); }
+}
+
+/* Unbestimmter Fortschritt: Lichtkante läuft einmal über die Leiste */
+@keyframes progress-sweep {
+    from { transform: translate3d(-100%, 0, 0); }
+    to   { transform: translate3d(290%, 0, 0); }
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -59,97 +84,203 @@
 .empty-state,
 .note-box,
 details.disclosure {
-    animation: surface-in var(--dur-base) var(--ease-out) both;
+    animation: surface-in var(--motion-enter) backwards;
 }
 
 /* Charts nur aufblenden — eine Bewegung würde den Plotly-Aufbau doppeln */
-.chart-container { animation: fade-in var(--dur-base) var(--ease-out) both; }
+.chart-container { animation: fade-in var(--motion-enter) backwards; }
 
-.page-header { animation: header-in var(--dur-base) var(--ease-out) both; }
+.page-header { animation: header-in var(--motion-enter) backwards; }
 
 /*
  * Gestaffelter Eintritt in Rastern und Werkzeugleisten.
- * Bewusst kurz gehalten (max. 5 Stufen à 24 ms ⇒ höchstens 96 ms
- * Verzögerung), damit keine Zahl später lesbar ist als nötig.
+ * Bewusst kurz gehalten (max. 5 Stufen à --stagger-step ⇒ höchstens
+ * 240 ms Verzögerung), damit keine Zahl später lesbar ist als nötig.
  */
 .grid-2 > *, .grid-3 > *, .grid-4 > *, .grid-5 > *,
-.grid-auto > *, .landing-grid > *, .stagger > * {
-    animation: surface-in var(--dur-base) var(--ease-out) both;
+.grid-auto > *, .landing-grid > *, .news-card-grid > *, .stagger > * {
+    animation: surface-in var(--motion-enter) backwards;
 }
-.grid-2 > *:nth-child(1), .grid-3 > *:nth-child(1), .grid-4 > *:nth-child(1),
-.grid-5 > *:nth-child(1), .grid-auto > *:nth-child(1),
-.landing-grid > *:nth-child(1), .stagger > *:nth-child(1) { animation-delay: 0ms; }
 .grid-2 > *:nth-child(2), .grid-3 > *:nth-child(2), .grid-4 > *:nth-child(2),
-.grid-5 > *:nth-child(2), .grid-auto > *:nth-child(2),
-.landing-grid > *:nth-child(2), .stagger > *:nth-child(2) { animation-delay: 24ms; }
+.grid-5 > *:nth-child(2), .grid-auto > *:nth-child(2), .landing-grid > *:nth-child(2),
+.news-card-grid > *:nth-child(2), .stagger > *:nth-child(2) {
+    animation-delay: calc(var(--stagger-step) * 1);
+}
 .grid-2 > *:nth-child(3), .grid-3 > *:nth-child(3), .grid-4 > *:nth-child(3),
-.grid-5 > *:nth-child(3), .grid-auto > *:nth-child(3),
-.landing-grid > *:nth-child(3), .stagger > *:nth-child(3) { animation-delay: 48ms; }
+.grid-5 > *:nth-child(3), .grid-auto > *:nth-child(3), .landing-grid > *:nth-child(3),
+.news-card-grid > *:nth-child(3), .stagger > *:nth-child(3) {
+    animation-delay: calc(var(--stagger-step) * 2);
+}
 .grid-2 > *:nth-child(4), .grid-3 > *:nth-child(4), .grid-4 > *:nth-child(4),
-.grid-5 > *:nth-child(4), .grid-auto > *:nth-child(4),
-.landing-grid > *:nth-child(4), .stagger > *:nth-child(4) { animation-delay: 72ms; }
+.grid-5 > *:nth-child(4), .grid-auto > *:nth-child(4), .landing-grid > *:nth-child(4),
+.news-card-grid > *:nth-child(4), .stagger > *:nth-child(4) {
+    animation-delay: calc(var(--stagger-step) * 3);
+}
 .grid-2 > *:nth-child(n+5), .grid-3 > *:nth-child(n+5), .grid-4 > *:nth-child(n+5),
-.grid-5 > *:nth-child(n+5), .grid-auto > *:nth-child(n+5),
-.landing-grid > *:nth-child(n+5), .stagger > *:nth-child(n+5) { animation-delay: 96ms; }
+.grid-5 > *:nth-child(n+5), .grid-auto > *:nth-child(n+5), .landing-grid > *:nth-child(n+5),
+.news-card-grid > *:nth-child(n+5), .stagger > *:nth-child(n+5) {
+    animation-delay: calc(var(--stagger-step) * 4);
+}
 
 /* Tabellenzeilen werden NICHT einzeln animiert: bei mehreren hundert
    Zeilen wäre das teuer und beim Ablesen störend. Es bewegt sich nur
    der umschließende Rahmen. */
 .data-table tr, .table-wrapper tr, .table-container tr { animation: none; }
 
+/* ═══════════════════════════════════════════════════════════
+   3. Aufklappen
+   Inhalt unter display:none startet seine Animation bei jedem Öffnen
+   neu — Expander, natives <details> und Tabs brauchen deshalb kein
+   Script für den Eintritt. Höhe wird nicht animiert (Layout).
+   ═══════════════════════════════════════════════════════════ */
+.expander.open > .expander-body,
+details.disclosure[open] > .disclosure-body {
+    animation: fold-in var(--motion-enter) backwards;
+}
+
 /* Tabwechsel: der eingeblendete Inhalt kommt ruhig herein */
-.tab-content.active { animation: surface-in var(--dur-base) var(--ease-out) both; }
+.tab-content.active { animation: surface-in var(--motion-enter) backwards; }
 
 /* ═══════════════════════════════════════════════════════════
-   3. HTMX-Zustände
+   4. Live-Bereiche
+   Container mit Polling (hx-trigger="every …": Kopfzeilen-Kurse auf
+   der Startseite, Backfill-Fortschritt alle 5 s) tauschen ihren Inhalt
+   regelmäßig aus. Ohne diese Regel liefe der Eintritt bei JEDEM Abruf
+   erneut — ein Datenfeld, das alle fünf Sekunden hereinrutscht, ist
+   genau die Unruhe, die ein Terminal nicht haben darf. Live-Werte
+   stehen einfach da. Ladeanzeigen laufen weiter.
+   ═══════════════════════════════════════════════════════════ */
+[hx-trigger*="every"] *:not(.spinner) { animation: none; }
+
+/* ═══════════════════════════════════════════════════════════
+   5. HTMX-Zustände
+   HTMX' eingebaute Indikator-Styles sind in base.html abgeschaltet
+   (meta htmx-config, includeIndicatorStyles:false) — sie würden sonst
+   nach diesem Stylesheet eingefügt und die Rollen-Übergänge mit
+   festen 200 ms überschreiben. Die Regeln hier sind vollständig.
    ═══════════════════════════════════════════════════════════ */
 
 /*
- * Ladeanzeige: Standardmuster von HTMX 2, aber ohne Layoutsprung.
- * `visibility` verhindert, dass der unsichtbare Indikator Klicks fängt;
- * animiert wird ausschließlich die Deckkraft.
+ * Ladeanzeige: `visibility` verhindert, dass der unsichtbare Indikator
+ * Klicks fängt; animiert wird ausschließlich die Deckkraft.
+ * HTMX setzt .htmx-request entweder auf einen Vorfahren oder — bei
+ * hx-indicator — direkt auf den Indikator.
  */
 .htmx-indicator {
     opacity: 0;
     visibility: hidden;
-    transition: opacity var(--dur-fast) var(--ease-standard),
-                visibility 0s linear var(--dur-fast);
+    transition: opacity var(--motion-exit),
+                visibility 0s linear var(--dur-exit);
 }
 .htmx-request .htmx-indicator,
 .htmx-request.htmx-indicator {
     opacity: 1;
     visibility: visible;
-    transition: opacity var(--dur-fast) var(--ease-standard),
+    transition: opacity var(--motion-enter),
                 visibility 0s;
 }
 
-/* Auslösendes Element während der Anfrage: gedämpft und nicht erneut
-   klickbar — ersetzt das bisherige "nichts passiert"-Gefühl. */
+/* Block-Indikatoren (Spinner + Text) belegen im Ruhezustand keinen
+   Platz — vorher hielten sie unter jedem Formular eine leere Fläche von
+   rund 130px frei. Erscheinen per @starting-style eingeblendet;
+   Browser ohne @starting-style zeigen sie ohne Übergang. */
+.htmx-indicator:is(.loading-block, .loading-overlay, .wl-spinner) { display: none; }
+.htmx-request .htmx-indicator:is(.loading-block, .loading-overlay),
+.htmx-request.htmx-indicator:is(.loading-block, .loading-overlay) { display: flex; }
+.htmx-request .htmx-indicator.wl-spinner,
+.htmx-request.htmx-indicator.wl-spinner { display: block; }
+@starting-style {
+    .htmx-request .htmx-indicator,
+    .htmx-request.htmx-indicator { opacity: 0; }
+}
+
+/* Auslösendes Element während der Anfrage: gedämpft, Fortschritts-
+   Cursor. Keine Pulsschleife mehr — eine dauernd atmende Schaltfläche
+   zieht über 15–30 s Analysezeit den Blick vom Inhalt ab; den Lauf
+   zeigt der Ladebalken unter der Kopfleiste. */
 button.htmx-request,
 .btn.htmx-request,
 form.htmx-request button[type="submit"] {
     cursor: progress;
-    animation: soft-pulse 1.1s var(--ease-standard) infinite;
+    opacity: 0.65;
 }
 
-/* Bewusst KEIN `.htmx-added { opacity: 0 }`: HTMX entfernt die Klasse
-   bereits nach der Settle-Zeit (20 ms), was bei großen Tabellen nur ein
-   Flackern erzeugen würde. Der Eintritt liegt vollständig auf den
-   Komponenten (Abschnitt 2) und greift damit auch für Fragmente. */
-.htmx-settling { animation: fade-in var(--dur-fast) var(--ease-out); }
+/*
+ * Ladeziel (.load-target, z.B. #analysis-content): das Formular nennt es
+ * in hx-indicator, damit es während der Anfrage .htmx-request trägt.
+ *   - Noch leer (enthält die .skeleton-preview): Leerzustand weicht der
+ *     Skeleton-Vorschau des erwarteten Ergebnisses.
+ *   - Schon gefüllt: ein Schleier legt sich über die alten Werte. Sie
+ *     gehören zur vorigen Abfrage und dürfen während der Neuberechnung
+ *     nicht als aktuell gelesen werden.
+ */
+.load-target {
+    position: relative;
+    isolation: isolate;
+}
+.load-target.htmx-request > .empty-state { display: none; }
+.load-target.htmx-request > .skeleton-preview {
+    display: grid;
+    animation: fade-in var(--motion-enter) backwards;
+}
+.load-target.htmx-request:not(:has(> .skeleton-preview))::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 2000;   /* über Plotly-Modebar & Co., isoliert im Ziel */
+    border-radius: var(--radius-lg);
+    background: var(--veil);
+    cursor: progress;
+    animation: fade-in var(--motion-enter) backwards;
+}
+
+/*
+ * Globaler Ladebalken: eine Lichtkante läuft an der Unterkante der
+ * Kopfleiste, solange eine vom Nutzer ausgelöste Anfrage läuft
+ * (Formular, Button, Link oder ein eigener Indikator). Hintergrund-
+ * Polling und hx-trigger="load" laufen über <div>s und lösen ihn
+ * bewusst nicht aus.
+ */
+.topbar::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    bottom: -1px;
+    width: 35%;
+    height: 2px;
+    background: linear-gradient(90deg, transparent 0%, var(--accent) 60%, transparent 100%);
+    opacity: 0;
+    pointer-events: none;
+}
+.app-shell:has(:is(form, button, a, select, input).htmx-request, .htmx-indicator.htmx-request) .topbar::after {
+    opacity: 1;
+    transition: opacity var(--motion-enter);
+    animation: progress-sweep var(--loop-progress) var(--ease-standard) infinite;
+}
+
+/* Bewusst KEIN `.htmx-added { opacity: 0 }` und keine Animation auf
+   `.htmx-settling`: HTMX entfernt beide Klassen bereits nach der
+   Settle-Zeit (20 ms) — die frühere Settle-Animation brach dadurch nach
+   20 ms ab und ließ das Ziel kurz aufflackern. Der Eintritt liegt
+   vollständig auf den Komponenten (Abschnitt 2). */
 
 /* Austausch: Inhalt tritt kurz zurück, bevor er ersetzt wird.
-   Nur wirksam, wenn ein Template hx-swap="… swap:120ms" setzt. */
+   Nur wirksam, wenn ein Template hx-swap="… swap:110ms" setzt
+   (Dauer = --dur-exit). */
 .htmx-swapping {
     opacity: 0;
-    transform: translate3d(0, -4px, 0);
-    transition: opacity var(--dur-fast) var(--ease-in),
-                transform var(--dur-fast) var(--ease-in);
+    transform: translate3d(0, calc(var(--shift-sm) * -1), 0);
+    transition: opacity var(--motion-exit),
+                transform var(--motion-exit);
 }
 
 /* ═══════════════════════════════════════════════════════════
-   4. Ausweg für Bewegungsarmut
-   Sämtliche Animationen und Übergänge werden praktisch abgeschaltet.
+   6. Ausweg für Bewegungsarmut
+   Die Dauer-Tokens fallen in tokens.css auf 1ms, die Wege auf 0 — damit
+   ist alles, was über die Rollen läuft, bereits still. Diese Regeln
+   fangen den Rest ab: Keyframe-Animationen, Endlosschleifen und feste
+   Dauern in Templates. Übergänge bleiben bei 1ms statt `none`, damit
+   transitionend weiterhin feuert (Seitenleiste → Plotly-Resize).
    Ladeanzeigen bleiben erkennbar, laufen aber ruhig — ohne sie gäbe
    es keine Rückmeldung mehr über laufende Abfragen.
    ═══════════════════════════════════════════════════════════ */
@@ -162,18 +293,25 @@ form.htmx-request button[type="submit"] {
         transition-delay: 0ms !important;
         scroll-behavior: auto !important;
     }
-    .btn:hover,
-    .card-interactive:hover,
-    .landing-card:hover,
-    .src-summary-card:hover,
-    .btn-icon:hover { transform: none !important; }
 
-    /* Ladeanzeigen: langsam statt aus */
-    .spinner { animation: spin 1.8s linear infinite !important; }
-    button.htmx-request,
-    .btn.htmx-request { animation: none !important; opacity: 0.6; }
-    .skeleton-loader {
-        animation: none !important;
-        background: rgba(148, 163, 184, 0.09) !important;
+    /* Spinner: langsam statt aus */
+    .spinner {
+        animation: spin calc(var(--loop-spin) * 2.5) linear infinite !important;
     }
+    /* Skeleton: ruhige Fläche ohne wandernde Lichtkante */
+    .skeleton::after,
+    .skeleton-loader::after { animation: none !important; opacity: 0; }
+    /* Ladebalken: steht als ruhige Linie, statt zu laufen */
+    .topbar::after {
+        animation: none !important;
+        width: 100%;
+        background: var(--accent);
+    }
+    .app-shell:has(:is(form, button, a, select, input).htmx-request, .htmx-indicator.htmx-request) .topbar::after {
+        opacity: 0.6;
+    }
+    /* Toast: ohne Ein-/Austritt. Sonst liefe toast-out wegen der auf 0
+       gesetzten Verzögerung sofort ab und der Toast bliebe unsichtbar;
+       base.html entfernt ihn nach 4 s. */
+    .toast { animation: none !important; }
 }

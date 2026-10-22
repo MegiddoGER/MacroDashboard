@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Signal-Qualität — Macro Dashboard{% endblock %}
+{% block title %}Signal-Qualität — Stocks OS{% endblock %}
 
 {% macro quote(kz) -%}
     {% if kz.status == 'ok' and kz.trefferquote is not none %}{{ kz.trefferquote }}%{% else %}<span class="muted">–</span>{% endif %}

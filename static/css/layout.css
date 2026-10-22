@@ -58,6 +58,13 @@ button, input, select, textarea {
     overflow: hidden;
 }
 
+/* Zeile aus Hauptbereich und optionaler Seitenleiste (Block `aside` in base.html). */
+.app-body {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+}
+
 /* ── Main Content ───────────────────────────────────────────
    Der Inhalt bekommt eine maximale Breite und zentriert sich auf
    sehr breiten Monitoren, damit Tabellenzeilen nicht ins Endlose
@@ -68,7 +75,8 @@ button, input, select, textarea {
     min-width: 0;
     overflow-y: auto;
     overflow-x: hidden;
-    padding: var(--space-6) var(--space-7) var(--space-9) var(--space-7);
+    --main-pad-x: var(--space-7);
+    padding: var(--space-6) var(--main-pad-x) var(--space-9) var(--main-pad-x);
     scrollbar-gutter: stable;
 }
 .main-content > * {
@@ -78,10 +86,10 @@ button, input, select, textarea {
 }
 
 @media (max-width: 1280px) {
-    .main-content { padding: var(--space-5) var(--space-5) var(--space-8) var(--space-5); }
+    .main-content { --main-pad-x: var(--space-5); padding: var(--space-5) var(--main-pad-x) var(--space-8) var(--main-pad-x); }
 }
 @media (max-width: 860px) {
-    .main-content { padding: var(--space-4) var(--space-4) var(--space-7) var(--space-4); }
+    .main-content { --main-pad-x: var(--space-4); padding: var(--space-4) var(--main-pad-x) var(--space-7) var(--main-pad-x); }
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -127,7 +135,7 @@ a {
     color: var(--accent);
     text-decoration: none;
     text-underline-offset: 0.2em;
-    transition: color var(--dur-fast) var(--ease-standard);
+    transition: color var(--motion-feedback);
 }
 a:hover {
     color: var(--accent-hover);
@@ -140,7 +148,11 @@ code, kbd, pre, samp, .mono {
 }
 
 /* Zahlen fluchten spaltenweise — der wichtigste Lesbarkeitsgewinn
-   einer Zahlenoberfläche. */
+   einer Zahlenoberfläche. Bewusst NICHT global auf <body>: Inters
+   tnum-Satz macht auch Bindestrich und Plus/Minus dicktengleich, in
+   Fließtext liest sich „Aktien-Analyse" dann wie „Aktien - Analyse".
+   Deshalb gezielt auf Zahlenträger (Komponenten setzen es zusätzlich
+   selbst: .metric-value, .summary-bar-value, .fact, .clock-*). */
 .tabular, .metric-value, .data-table td, .data-table th,
 .table-wrapper td, .table-wrapper th {
     font-variant-numeric: tabular-nums;
@@ -183,13 +195,30 @@ hr {
 
 /* ═══════════════════════════════════════════════════════════
    Fokus — durchgängig sichtbar, ohne Layoutsprung
+   Ein Ring für alles: volle Akzentfarbe, 2px, außen anliegend. Die
+   Kontur folgt dem border-radius des Elements von selbst — früher
+   setzte diese Regel einen eigenen Radius und verformte damit jeden
+   fokussierten Button und jede Karte.
    ═══════════════════════════════════════════════════════════ */
 :focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: 2px;
-    border-radius: var(--radius-xs);
+    outline: var(--focus-width) solid var(--focus-color);
+    outline-offset: var(--focus-offset);
 }
 :focus:not(:focus-visible) { outline: none; }
+
+/* Innen liegender Ring für Elemente, deren Container überstehenden
+   Inhalt abschneidet (overflow:hidden) oder die bündig an einer Kante
+   sitzen — dort würde ein außen liegender Ring gekappt. */
+.topnav-trigger:focus-visible,
+.nav-link:focus-visible,
+.tab:focus-visible,
+.expander-header:focus-visible,
+details > summary:focus-visible,
+.news-aside-toggle:focus-visible,
+.autocomplete-item:focus-visible {
+    outline: var(--focus-width) solid var(--focus-color);
+    outline-offset: calc(var(--focus-width) * -1);
+}
 
 ::selection {
     background: rgba(0, 212, 170, 0.28);
@@ -199,21 +228,24 @@ hr {
 /* ═══════════════════════════════════════════════════════════
    Scrollbars
    ═══════════════════════════════════════════════════════════ */
+/* Chromium ab 121 und Firefox lesen die Standard-Eigenschaften;
+   sind sie gesetzt, ignoriert Chromium die ::-webkit-Regeln. Diese
+   bleiben für ältere WebKit-Engines (Safari) stehen. */
 * {
     scrollbar-width: thin;
-    scrollbar-color: rgba(148, 163, 184, 0.22) transparent;
+    scrollbar-color: var(--scrollbar-thumb) transparent;
 }
-::-webkit-scrollbar        { width: 9px; height: 9px; }
+::-webkit-scrollbar        { width: var(--scrollbar-w); height: var(--scrollbar-w); }
 ::-webkit-scrollbar-track  { background: transparent; }
 ::-webkit-scrollbar-corner { background: transparent; }
 ::-webkit-scrollbar-thumb {
-    background: rgba(148, 163, 184, 0.20);
+    background: var(--scrollbar-thumb);
     border-radius: var(--radius-pill);
     border: 2px solid transparent;
     background-clip: padding-box;
 }
 ::-webkit-scrollbar-thumb:hover {
-    background: rgba(148, 163, 184, 0.38);
+    background: var(--scrollbar-thumb-hover);
     background-clip: padding-box;
 }
 
@@ -289,7 +321,7 @@ hr {
     gap: var(--space-4);
     padding: 5px 0;
 }
-.split-row + .split-row { border-top: 1px solid rgba(148, 163, 184, 0.07); }
+.split-row + .split-row { border-top: 1px solid var(--divider); }
 .split-row > span:first-child { color: var(--text-dim); font-size: var(--fs-sm); }
 
 /* Werkzeugleiste: Steuerelemente links, Aktionen rechts */
