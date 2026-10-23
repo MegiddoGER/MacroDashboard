@@ -124,6 +124,16 @@
 .metric-delta.negative { color: var(--red-text); }
 .metric-delta.neutral  { color: var(--text-muted); }
 /* Statusfarbe auf dem Wert selbst (schlägt die Grundfarbe der Karte) */
+/* Einzelne Leitkennzahl, zentriert und groß */
+.metric-hero {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+}
+.metric-hero .metric-label, .metric-hero .metric-delta { font-size: var(--fs-sm); }
+.metric-hero .metric-value { font-size: 2.625rem; }
 .metric-card .metric-value.positive { color: var(--green-text); }
 .metric-card .metric-value.negative { color: var(--red-text); }
 .metric-card .metric-value.accent   { color: var(--accent); }
@@ -747,15 +757,32 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
     font-weight: var(--font-weight-semibold);
     font-size: var(--fs-md);
 }
-.clock-time-row { display: flex; align-items: baseline; gap: var(--space-3); }
-.clock-time {
-    font-size: 1.75rem;
-    font-weight: var(--font-weight-bold);
-    color: var(--text);
-    line-height: var(--lh-tight);
-    letter-spacing: var(--ls-tight);
-    font-variant-numeric: tabular-nums;
+/* Anzeigefenster im Stil einer 7-Segment-Digitaluhr; die "88:88:88"-Geister-
+   segmente dahinter imitieren unbeleuchtete LCD-Segmente. */
+@font-face {
+    font-family: 'DSEG7';
+    src: url('../fonts/DSEG7Classic-Bold.woff2') format('woff2');
+    font-display: block;
 }
+.clock-display {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    padding: var(--space-4) var(--space-5);
+    background: var(--bg-app-dark);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.7);
+}
+.clock-time {
+    position: relative;
+    font-family: 'DSEG7', var(--font-mono);
+    font-size: 2.25rem;
+    line-height: 1;
+    color: var(--text-muted);
+}
+.clock-time::before { content: "88:88:88"; position: absolute; inset: 0; opacity: 0.07; }
+.clock-time.is-live { color: var(--accent); text-shadow: 0 0 10px var(--accent-glow); }
 .clock-zone { font-size: var(--fs-xs); color: var(--text-muted); }
 .clock-meta {
     display: flex;

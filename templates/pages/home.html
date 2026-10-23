@@ -32,7 +32,7 @@
             <span class="clock-name">Deutsche Börse (Xetra)</span>
             <span id="xetra-status" class="badge push-right"></span>
         </div>
-        <div class="clock-time-row">
+        <div class="clock-display">
             <span id="de-time" class="clock-time"></span>
             <span class="clock-zone">MEZ</span>
         </div>
@@ -49,7 +49,7 @@
             <span class="clock-name">NASDAQ (New York)</span>
             <span id="nasdaq-status" class="badge push-right"></span>
         </div>
-        <div class="clock-time-row">
+        <div class="clock-display">
             <span id="ny-time" class="clock-time"></span>
             <span class="clock-zone">ET</span>
         </div>
@@ -117,6 +117,7 @@
         var deMin = getMinutesSinceMidnight(deTZ);
         var deWeekday = isWeekday(deTZ);
         var xetraOpen = deWeekday && deMin >= 540 && deMin < 1050;
+        deTimeEl.classList.toggle('is-live', xetraOpen);
 
         if (xetraOpen) {
             xetraStatusEl.textContent = 'OFFEN';
@@ -153,6 +154,7 @@
         var nyMin = getMinutesSinceMidnight(nyTZ);
         var nyWeekday = isWeekday(nyTZ);
         var nasdaqOpen = nyWeekday && nyMin >= 570 && nyMin < 960;
+        nyTimeEl.classList.toggle('is-live', nasdaqOpen);
 
         if (nasdaqOpen) {
             nasdaqStatusEl.textContent = 'OPEN';
@@ -206,7 +208,7 @@
     <div class="metric-card">
         <div class="metric-label">Nächstes Top-Event</div>
         {% if upcoming_macro %}
-        <div class="metric-value">{{ upcoming_macro.name[:18] }}{{ '...' if upcoming_macro.name|length > 18 else '' }}</div>
+        <div class="metric-value">{{ upcoming_macro.name }}</div>
         <div class="metric-delta neutral">{{ upcoming_macro.countdown_label }}</div>
         {% else %}
         <div class="metric-value">Ruhig</div>
@@ -235,10 +237,12 @@
      ═══════════════════════════════════════════════════════════ -->
 <h4>️ Markt-Metriken</h4>
 
-<div class="grid-2">
+<div class="grid-2 grid-stretch">
     <!-- Fear & Greed -->
-    <div class="card">
+    <div class="card card-fill">
+        <h5>Fear &amp; Greed</h5>
         {% if fg_value is not none %}
+        <p class="caption">Aus VIX, S&amp;P-500-Trend, RSI und Safe-Haven-Nachfrage — aktuell {{ fg_label }}.</p>
         <div id="fg-gauge" class="chart-container" style="height: 260px;"></div>
         <script>
             (function() {
@@ -246,7 +250,6 @@
                     type: "indicator",
                     mode: "gauge+number",
                     value: {{ fg_value }},
-                    title: {text: "Fear & Greed — {{ fg_label }}", font: {size: 16, color: "#cbd5e1"}},
                     number: {font: {size: 42, color: "#e2e8f0"}, suffix: " / 100"},
                     gauge: {
                         axis: {range: [0, 100], tickcolor: "#475569", tickfont: {color: "#64748b", size: 10}},
@@ -267,7 +270,7 @@
                     paper_bgcolor: 'rgba(0,0,0,0)',
                     plot_bgcolor: 'rgba(0,0,0,0)',
                     font: {family: 'Inter, sans-serif'},
-                    margin: {t: 50, b: 30, l: 10, r: 10},
+                    margin: {t: 20, b: 20, l: 30, r: 30},
                 }, {displayModeBar: false});
             })();
         </script>
@@ -277,11 +280,11 @@
     </div>
 
     <!-- AI Hit-Rate -->
-    <div class="card">
+    <div class="card card-fill">
         <h5> Maschinelle Signal-Trefferquote</h5>
         {% if hit_rate and hit_rate.overall_hit_rate is not none %}
         <p class="caption">Anteil der Snapshots, deren Richtung nach {{ hit_rate.horizon_days }} Tagen stimmte.</p>
-        <div class="metric-card" style="margin-top: 12px;">
+        <div class="metric-card metric-hero mt-3">
             <div class="metric-label">Trefferquote ({{ hit_rate.horizon_days }}T)</div>
             <div class="metric-value">{{ "%.1f"|format(hit_rate.overall_hit_rate) }} %</div>
             <div class="metric-delta neutral">{{ "{:,}".format(hit_rate.evaluated).replace(",", ".") }} ausgewertet · n<sub>eff</sub> ≈ {{ "{:,}".format(hit_rate.effective_n).replace(",", ".") }}</div>

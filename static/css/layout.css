@@ -265,6 +265,10 @@ details > summary:focus-visible,
 .grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .grid-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .grid-5 { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+/* Gleich hohe Zellen; mit .card-fill füllt das letzte Kind die Resthöhe */
+.grid-stretch { align-items: stretch; }
+.card-fill { display: flex; flex-direction: column; }
+.card-fill > :last-child { flex: 1; }
 /* Frei fließendes Raster für Kachelmengen unbekannter Länge */
 .grid-auto { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
 
