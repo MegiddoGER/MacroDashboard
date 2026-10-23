@@ -17,8 +17,9 @@
 {% endif %}
 
 <!-- Calendar Events Tabs -->
-<h4> Wirtschaftskalender</h4>
-<div>
+<details class="disclosure" open>
+  <summary>Wirtschaftskalender</summary>
+  <div class="disclosure-body">
   <div class="tabs">
     <button class="tab active" data-tab="tab-ev-all"> Alle</button>
     <button class="tab" data-tab="tab-ev-us">🇺🇸 USA</button>
@@ -47,7 +48,8 @@
   {{ render_events(events_us, 'tab-ev-us', false) }}
   {{ render_events(events_eu, 'tab-ev-eu', false) }}
   {{ render_events(events_de, 'tab-ev-de', false) }}
-</div>
+  </div>
+</details>
 
 <hr>
 

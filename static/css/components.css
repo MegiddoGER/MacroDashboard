@@ -1068,7 +1068,9 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
 .chart-container {
     border-radius: var(--radius-md);
     overflow: hidden;
-    margin: var(--space-3) 0;
+    /* Nur vertikal: als direktes Kind von .main-content muss margin-inline:auto
+       aus layout.css greifen, sonst klebt der Chart auf breiten Fenstern links. */
+    margin-block: var(--space-3);
 }
 
 .chart-fullscreen-overlay {

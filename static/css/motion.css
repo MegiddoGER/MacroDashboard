@@ -131,12 +131,22 @@ details.disclosure {
    3. Aufklappen
    Inhalt unter display:none startet seine Animation bei jedem Öffnen
    neu — Expander, natives <details> und Tabs brauchen deshalb kein
-   Script für den Eintritt. Höhe wird nicht animiert (Layout).
+   Script für den Eintritt. Natives <details> klappt zusätzlich in der
+   Höhe, im Tempo der Seitenleiste (--motion-fold); Browser ohne
+   ::details-content schalten einfach um.
    ═══════════════════════════════════════════════════════════ */
 .expander.open > .expander-body,
 details.disclosure[open] > .disclosure-body {
     animation: fold-in var(--motion-enter) backwards;
 }
+details.disclosure { interpolate-size: allow-keywords; }
+details.disclosure::details-content {
+    block-size: 0;
+    overflow: hidden;
+    transition: block-size var(--motion-fold),
+                content-visibility var(--motion-fold) allow-discrete;
+}
+details.disclosure[open]::details-content { block-size: auto; }
 
 /* Tabwechsel: der eingeblendete Inhalt kommt ruhig herein */
 .tab-content.active { animation: surface-in var(--motion-enter) backwards; }

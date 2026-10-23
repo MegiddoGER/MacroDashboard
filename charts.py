@@ -385,7 +385,7 @@ def plot_yield_spread(df: pd.DataFrame) -> go.Figure:
     fig.update_layout(
         title=dict(text="Zinsstrukturkurve (10Y − kurzfristige Zinsen)",
                    font=dict(size=14)),
-        yaxis_title="Spread (%)", height=350, **LAYOUT_DEFAULTS,
+        yaxis_title="Spread (%)", height=350, showlegend=False, **LAYOUT_DEFAULTS,
     )
     return fig
 
@@ -413,18 +413,10 @@ def plot_inflation(df: pd.DataFrame,
     fig.add_hline(y=2.0, line_dash="dash", line_color="#22c55e", opacity=0.5,
                   annotation_text="EZB-Ziel (2%)", annotation_position="top left",
                   annotation_font_color="#94a3b8")
-    layout = {k: v for k, v in LAYOUT_DEFAULTS.items()}
-    if "xaxis" in layout and "rangebreaks" in layout["xaxis"]:
-        # We need a deep copy of the xaxis dict to not mutate the generic layout globally
-        layout_xaxis = layout["xaxis"].copy()
-        layout_xaxis.pop("rangebreaks", None)
-        layout["xaxis"] = layout_xaxis
-
-    layout["title"] = dict(text=title, font=dict(size=14))
-    layout["yaxis_title"] = "Inflation (%)"
-    layout["height"] = 350
-
-    fig.update_layout(**layout)
+    fig.update_layout(
+        title=dict(text=title, font=dict(size=14)),
+        yaxis_title="Inflation (%)", height=350, showlegend=False, **LAYOUT_DEFAULTS,
+    )
     return fig
 
 
