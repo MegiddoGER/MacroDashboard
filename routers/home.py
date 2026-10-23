@@ -10,7 +10,6 @@ from services.cache_core import (
 )
 from services.technical import calc_fear_greed_components, fear_greed_label
 from services.watchlist import get_ticker_list, get_display_map, calc_portfolio_summary
-from models.alerts import AlertStore
 from models.journal import JournalStore
 from services.economic_calendar import get_upcoming_events
 
@@ -36,11 +35,7 @@ async def home_page(request: Request):
 
     portfolio = calc_portfolio_summary(prices)
 
-    # 2. Alerts
-    unack_alerts = AlertStore.get_triggered_unacknowledged()
-    active_alerts = AlertStore.get_active()
-
-    # 3. Macro Events
+    # 2. Macro Events
     upcoming_macro = None
     try:
         macro_events = get_upcoming_events()
@@ -49,10 +44,10 @@ async def home_page(request: Request):
     except Exception:
         pass
 
-    # 4. Journal Stats
+    # 3. Journal Stats
     j_stats = JournalStore.get_statistics()
 
-    # 5. Fear & Greed
+    # 4. Fear & Greed
     fg_value, fg_label_text = None, None
     vix = cached_vix()
     sp500 = cached_sp500()
@@ -62,10 +57,10 @@ async def home_page(request: Request):
         fg_value = fg_data["total"]
         fg_label_text = fear_greed_label(fg_value)
 
-    # 6. Hit Rate
+    # 5. Hit Rate
     hit_rate = cached_hit_rate(90)
 
-    # 7. Watchlist Flow
+    # 6. Watchlist Flow
     watchlist_df = None
     ticker_list = get_ticker_list()
     display_map = get_display_map()
@@ -76,16 +71,10 @@ async def home_page(request: Request):
                 df["Display"] = df["Ticker"].map(lambda t: display_map.get(t, t))
             watchlist_df = df
 
-    # 8. Alert Archiv (History)
-    ach_alerts = AlertStore.get_acknowledged()
-
     ctx = {
         "request": request,
         "current_path": "/",
         "portfolio": portfolio,
-        "unack_alerts": unack_alerts,
-        "active_alerts": active_alerts,
-        "ach_alerts": ach_alerts,
         "upcoming_macro": upcoming_macro,
         "j_stats": j_stats,
         "fg_value": fg_value,
@@ -95,13 +84,4 @@ async def home_page(request: Request):
         "display_map": display_map,
     }
     return templates.TemplateResponse(request=request, name="pages/home.html", context=ctx)
-
-
-@router.post("/home/clear_archive", response_class=HTMLResponse)
-async def clear_archive(request: Request):
-    """Löscht alle archivierten Alerts."""
-    ach_alerts = AlertStore.get_acknowledged()
-    for a in ach_alerts:
-        AlertStore.delete_alert(a.id)
-    return HTMLResponse("<script>showToast('Archiv geleert!');setTimeout(()=>location.reload(),500);</script>")
 

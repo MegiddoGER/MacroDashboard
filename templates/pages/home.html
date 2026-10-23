@@ -192,7 +192,7 @@
      ═══════════════════════════════════════════════════════════ -->
 <h4> System-Status</h4>
 
-<div class="grid-4">
+<div class="grid-3">
     <!-- Portfolio-Wert -->
     <div class="metric-card">
         <div class="metric-label">Portfolio-Wert</div>
@@ -200,18 +200,6 @@
         <div class="metric-delta {{ 'positive' if portfolio.total_pnl_eur|default(0) >= 0 else 'negative' }}">
             {{ "%+.2f"|format(portfolio.total_pnl_eur|default(0)) }} € Netto
         </div>
-    </div>
-
-    <!-- Alerts -->
-    <div class="metric-card">
-        {% if unack_alerts %}
-        <div class="metric-label">Signal-Wachhunde</div>
-        <div class="metric-value negative">{{ unack_alerts|length }} Alarme!</div>
-        {% else %}
-        <div class="metric-label">Signal-Wachhunde</div>
-        <div class="metric-value">{{ active_alerts|length }} aktiv</div>
-        <div class="metric-delta neutral">Keine Auslösungen</div>
-        {% endif %}
     </div>
 
     <!-- Macro Event -->
@@ -290,28 +278,16 @@
 
     <!-- AI Hit-Rate -->
     <div class="card">
-        {% if hit_rate and hit_rate.total|default(0) > 0 %}
         <h5> Maschinelle Signal-Trefferquote</h5>
-        <p class="caption">Wie gut performt unser Confidence-Score aktuell (90T)?</p>
-        {% set evaluated = hit_rate.evaluated|default(0) %}
-        {% if evaluated >= 5 %}
-        <div class="grid-2" style="margin-top: 12px;">
-            <div class="metric-card">
-                <div class="metric-label">Trefferquote Gesamt</div>
-                <div class="metric-value">{{ "%.1f"|format(hit_rate.overall_hit_rate|default(0)) }}%</div>
-            </div>
-            <div class="metric-card">
-                <div class="metric-label">Nur Kaufsignale</div>
-                <div class="metric-value">{{ "%.1f"|format(hit_rate.buy_hit_rate|default(0)) }}%</div>
-            </div>
+        {% if hit_rate and hit_rate.overall_hit_rate is not none %}
+        <p class="caption">Anteil der Snapshots, deren Richtung nach {{ hit_rate.horizon_days }} Tagen stimmte.</p>
+        <div class="metric-card" style="margin-top: 12px;">
+            <div class="metric-label">Trefferquote ({{ hit_rate.horizon_days }}T)</div>
+            <div class="metric-value">{{ "%.1f"|format(hit_rate.overall_hit_rate) }} %</div>
+            <div class="metric-delta neutral">{{ "{:,}".format(hit_rate.evaluated).replace(",", ".") }} ausgewertet · n<sub>eff</sub> ≈ {{ "{:,}".format(hit_rate.effective_n).replace(",", ".") }}</div>
         </div>
-        <p class="caption" style="margin-top: 8px;">{{ evaluated }} verifizierte Signale (>7 Tage alt).</p>
         {% else %}
-        <div class="alert alert-info">Sammle Daten: {{ evaluated }}/5 evaluierten Signalen.</div>
-        {% endif %}
-        {% else %}
-        <h5> Maschinelle Signal-Trefferquote</h5>
-        <div class="alert alert-info">Noch keine algorithmischen Signale gesammelt.</div>
+        <div class="alert alert-info">Noch keine ausgewerteten Signale.</div>
         {% endif %}
     </div>
 </div>
@@ -355,47 +331,5 @@
 {% else %}
 <div class="alert alert-info">Deine Watchlist ist leer. Gehe zu 'Analyse' um Ticker hinzuzufügen.</div>
 {% endif %}
-
-<hr>
-
-<!-- ═══════════════════════════════════════════════════════════
-     4. Alert Archiv (History)
-     ═══════════════════════════════════════════════════════════ -->
-<details class="disclosure">
-    <summary>Alert-Archiv (Historie)</summary>
-    <div class="disclosure-body">
-        {% if ach_alerts %}
-        <div class="table-container">
-            <table class="data-table">
-                <thead>
-                    <tr>
-                        <th>Ausgelöst am</th>
-                        <th>Ticker</th>
-                        <th>Bedingung</th>
-                        <th>Kurs bei Trigger</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for a in ach_alerts %}
-                    <tr>
-                        <td>{{ a.triggered_at if a.triggered_at else a.created_at }}</td>
-                        <td><strong>{{ a.ticker }}</strong></td>
-                        <td>{{ a.alert_type }} ({{ "%.2f"|format(a.threshold) }})</td>
-                        <td>{{ "%.2f"|format(a.trigger_value) if a.trigger_value else 'Unbekannt' }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-        <form hx-post="/home/clear_archive" hx-swap="none" class="mt-4">
-            <button type="submit" class="btn btn-outline btn-danger-ghost">
-                Archiv leeren
-            </button>
-        </form>
-        {% else %}
-        <div class="alert alert-info">Keine alten Alerts im Archiv.</div>
-        {% endif %}
-    </div>
-</details>
 
 {% endblock %}
