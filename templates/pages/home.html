@@ -33,14 +33,16 @@
             <span id="xetra-status" class="badge push-right"></span>
         </div>
         <div class="clock-display">
-            <span id="de-time" class="clock-time"></span>
-            <span class="clock-zone">MEZ</span>
+            <div class="clock-readout">
+                <span class="clock-zone">MEZ</span>
+                <span id="de-time" class="clock-time"></span>
+            </div>
+            <div class="clock-readout">
+                <span id="xetra-countdown-label" class="clock-zone"></span>
+                <span id="xetra-countdown" class="clock-time clock-countdown is-live"></span>
+            </div>
         </div>
         <div class="clock-meta">Handelszeiten: 09:00 – 17:30</div>
-        <div class="clock-meta">
-            <span id="xetra-countdown-label"></span>
-            <span id="xetra-countdown" class="clock-countdown"></span>
-        </div>
     </div>
     <!-- NASDAQ -->
     <div class="card clock-card">
@@ -50,14 +52,16 @@
             <span id="nasdaq-status" class="badge push-right"></span>
         </div>
         <div class="clock-display">
-            <span id="ny-time" class="clock-time"></span>
-            <span class="clock-zone">ET</span>
+            <div class="clock-readout">
+                <span class="clock-zone">ET</span>
+                <span id="ny-time" class="clock-time"></span>
+            </div>
+            <div class="clock-readout">
+                <span id="nasdaq-countdown-label" class="clock-zone"></span>
+                <span id="nasdaq-countdown" class="clock-time clock-countdown is-live"></span>
+            </div>
         </div>
         <div class="clock-meta">Handelszeiten: 09:30 – 16:00</div>
-        <div class="clock-meta">
-            <span id="nasdaq-countdown-label"></span>
-            <span id="nasdaq-countdown" class="clock-countdown"></span>
-        </div>
     </div>
 </div>
 

@@ -749,7 +749,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
 .preset-option .preset-desc { display: block; margin-left: 22px; margin-top: 2px; }
 
 /* ── Börsen-Uhr (Startseite) ── */
-.clock-card { display: flex; flex-direction: column; gap: var(--space-2); }
+.clock-card { display: flex; flex-direction: column; gap: var(--space-2); container-type: inline-size; }
 .clock-head { display: flex; align-items: center; gap: var(--space-2); }
 .clock-flag { font-size: var(--fs-xl); line-height: 1; }
 .clock-name {
@@ -768,6 +768,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
     display: flex;
     align-items: flex-end;
     justify-content: space-between;
+    gap: var(--space-4);
     padding: var(--space-4) var(--space-5);
     background: var(--bg-app-dark);
     border: 1px solid var(--border-subtle);
@@ -777,12 +778,18 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
 .clock-time {
     position: relative;
     font-family: 'DSEG7', var(--font-mono);
-    font-size: 2.25rem;
+    /* Zwei "88:88:88" (je 5,296em in DSEG7) füllen die Anzeige: Kartenbreite
+       minus 2×Padding, Rahmen und Lücke (58px), etwas Luft fürs Rundungsspiel. */
+    font-size: calc((100cqi - 64px) / 10.8);
     line-height: 1;
     color: var(--text-muted);
 }
+.clock-time.clock-countdown { font-size: min(calc((100cqi - 64px) / 16), 2.5rem); }
 .clock-time::before { content: "88:88:88"; position: absolute; inset: 0; opacity: 0.07; }
 .clock-time.is-live { color: var(--accent); text-shadow: 0 0 10px var(--accent-glow); }
+/* Uhrzeit links, Countdown rechts – je Beschriftung über den Ziffern. */
+.clock-readout { display: flex; flex-direction: column; gap: var(--space-2); }
+.clock-readout:last-child { align-items: flex-end; }
 .clock-zone { font-size: var(--fs-xs); color: var(--text-muted); }
 .clock-meta {
     display: flex;
@@ -790,12 +797,6 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
     gap: var(--space-2);
     font-size: var(--fs-xs);
     color: var(--text-muted);
-}
-.clock-countdown {
-    color: var(--accent);
-    font-size: var(--fs-md);
-    font-weight: var(--font-weight-semibold);
-    font-variant-numeric: tabular-nums;
 }
 
 /* ═══════════════════════════════════════════════════════════
