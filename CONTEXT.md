@@ -7,6 +7,13 @@ _Stand: 2026-09-14 · auf `3d5ea46` folgend · Branch `main`_
 werden.** Vollständige Fassung mit Belegen und Zahlen:
 <https://claude.ai/code/artifact/0dbcfa21-4049-4568-800b-edfc83b2f3cb>
 
+> **Nachtrag 2026-11-16 — zuerst `AUDIT-2026-11-16.md` lesen.** Zwei Aussagen
+> dieser Datei gelten seit Oktober nicht mehr: die Aufholung hat den
+> HISTORISCH-Bestand von 188.347 auf 767.977 Snapshots verdichtet (die Kadenz
+> von 7 Handelstagen stimmt nicht mehr, §1 und `basis.KADENZ_HANDELSTAGE`), und
+> fällige Outcomes werden nach 15 Minuten endgültig aufgegeben (LIVE im Oktober:
+> 0,9 % ausgewertet). Die Befunde in §2–§2s sind davon nicht berührt.
+
 **Abgrenzung: `KERZENMUSTER.md` gehört NICHT hierher.** Es ist ein
 Oberflächen-Vorhaben des Dashboards (Reiter „Kursverhalten" in der Analyse) und
 **speist den Score nicht**. Kein Auftrag, kein Kandidat, keine Signalfamilie —
