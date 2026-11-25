@@ -386,7 +386,7 @@ def _ticker_replayen(db: Session, ticker: str, hist, job: SignalBackfillJob) -> 
     include_smc = bool(job.include_smc)
     letztes_datum = hist.index[-1].to_pydatetime().replace(tzinfo=None)
 
-    # Bereits vorhandene Stichtage überspringen (Backfill mehrfach startbar)
+    # Bereits vorhandene Stichtage (Backfill mehrfach startbar)
     vorhandene = {
         zeitpunkt for (zeitpunkt,) in db.query(AnalyseSnapshot.snapshot_zeitpunkt)
         .filter(AnalyseSnapshot.ticker == ticker)
@@ -394,10 +394,25 @@ def _ticker_replayen(db: Session, ticker: str, hist, job: SignalBackfillJob) -> 
         .all()
     }
 
+    # Das Raster des Tickers FORTSETZEN statt neu bei Bar 250 zu beginnen.
+    # Der Download-Start wandert mit dem Kalender, Bar 250 liegt deshalb bei
+    # jedem Lauf auf einem anderen Tag — die Datumsprüfung unten griff nie,
+    # und jede wöchentliche Aufholung zeichnete die ganze Historie auf
+    # verschobenem Raster neu auf (Audit 2026-11-16, L2). Lücken VOR dem
+    # letzten Stichtag werden dadurch bewusst nicht mehr nachgefüllt.
+    start = MIN_VORLAUF_BARS
+    if vorhandene:
+        index = hist.index
+        if getattr(index, "tz", None) is not None:
+            index = index.tz_localize(None)
+        letzte_position = index.searchsorted(max(vorhandene), side="right") - 1
+        if letzte_position >= 0:
+            start = max(MIN_VORLAUF_BARS, letzte_position + KADENZ_BARS)
+
     erzeugt = 0
     letzte_richtung: Optional[str] = None
 
-    for position in range(MIN_VORLAUF_BARS, len(hist), KADENZ_BARS):
+    for position in range(start, len(hist), KADENZ_BARS):
         fenster = hist.iloc[max(0, position - FENSTER_BARS):position + 1]
         if len(fenster) < MIN_VORLAUF_BARS:
             continue

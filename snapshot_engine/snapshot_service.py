@@ -607,6 +607,28 @@ def gating_lauf(db: Session, tickers: Optional[list[str]] = None) -> dict:
 MAX_VERSUCHE = 3           # Voll-Analyse je Ticker (Phase B)
 MAX_OUTCOME_VERSUCHE = 5   # Kursabruf je fälligem Outcome
 
+# Fehlt der Kurs innerhalb dieser Frist nach Fälligkeit, zählt das nicht als
+# Versuch — Feiertag oder verspätete Daten, kein endgültiger Ausfall.
+OUTCOME_KARENZ_TAGE = 7
+
+# Ab dieser UTC-Stunde ist der Tagesbar überall geschlossen (US 21:00 UTC).
+BAR_GESCHLOSSEN_STUNDE_UTC = 23
+
+
+def _bewertbar_ab(faellig: datetime) -> datetime:
+    """Frühester Zeitpunkt, zu dem der bewertende Tagesbar geschlossen ist.
+
+    `kurs_am_stichtag` sucht den ersten Bar AB dem Fälligkeitszeitpunkt. Trägt
+    der eine Uhrzeit (LIVE), ist das der Bar des nächsten Handelstags — vorher
+    gibt es ihn nicht, oder nur als laufenden Intraday-Bar. Bisher wurde schon
+    am Fälligkeitstag abgefragt, und die fünf Versuche waren nach 15 Minuten
+    aufgebraucht (Audit 2026-11-16, L1).
+    """
+    tag = faellig.date() + timedelta(days=1)
+    while tag.weekday() >= 5:
+        tag += timedelta(days=1)
+    return datetime(tag.year, tag.month, tag.day, BAR_GESCHLOSSEN_STUNDE_UTC)
+
 
 def queue_abarbeiten(db: Session, limit: int = 10,
                      pause_sekunden: float = 1.5) -> dict:
@@ -814,15 +836,20 @@ def outcomes_nachtragen(db: Session, limit: int = 500) -> int:
 
     jetzt = datetime.utcnow()
 
-    faellige = (
-        db.query(AnalyseSnapshotOutcome)
-        .filter(AnalyseSnapshotOutcome.ausgewertet.is_(False))
-        .filter(AnalyseSnapshotOutcome.faellig_am <= jetzt)
-        .filter(AnalyseSnapshotOutcome.versuche < MAX_OUTCOME_VERSUCHE)
-        .order_by(AnalyseSnapshotOutcome.faellig_am)
-        .limit(limit)
-        .all()
-    )
+    # Vorfilter in SQL (`_bewertbar_ab` liegt immer > 1 Tag nach Fälligkeit),
+    # die genaue Grenze in Python.
+    faellige = [
+        o for o in (
+            db.query(AnalyseSnapshotOutcome)
+            .filter(AnalyseSnapshotOutcome.ausgewertet.is_(False))
+            .filter(AnalyseSnapshotOutcome.faellig_am <= jetzt - timedelta(days=1))
+            .filter(AnalyseSnapshotOutcome.versuche < MAX_OUTCOME_VERSUCHE)
+            .order_by(AnalyseSnapshotOutcome.faellig_am)
+            .limit(limit)
+            .all()
+        )
+        if _bewertbar_ab(o.faellig_am) <= jetzt
+    ]
 
     if not faellige:
         logger.info("Outcomes: nichts fällig.")
@@ -876,6 +903,8 @@ def outcomes_nachtragen(db: Session, limit: int = 500) -> int:
         kurs = kurs_am_stichtag(hist, outcome.faellig_am) if hist is not None else None
 
         if kurs is None:
+            if jetzt - outcome.faellig_am < timedelta(days=OUTCOME_KARENZ_TAGE):
+                continue  # Feiertag/verspätete Daten — später erneut, ohne Versuch
             # Kein Kurs verfügbar (z.B. delisteter Ticker). Zähler hochsetzen,
             # damit solche Einträge nicht bei jedem Drain-Lauf erneut abgefragt
             # werden — nach MAX_OUTCOME_VERSUCHE fallen sie dauerhaft raus.
